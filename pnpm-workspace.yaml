@@ -1,3 +1,9 @@
+# pnpm 11 reads `allowBuilds` and ignores `onlyBuiltDependencies`; older pnpm
+# versions do the reverse. Both list the same packages deliberately — without
+# `allowBuilds`, pnpm 11 fails closed with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  '@swc/core': true
+  unrs-resolver: true
 onlyBuiltDependencies:
   - '@swc/core'
   - unrs-resolver
