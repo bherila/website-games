@@ -1,7 +1,21 @@
 <?php
 
 use App\Http\Controllers\GamePwaController;
+use App\Http\Controllers\OAuthLoginController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/login', function () {
+    return view('login');
+})->name('login');
+Route::get('/oauth/redirect', [OAuthLoginController::class, 'redirect'])
+    ->middleware('throttle:20,1')
+    ->name('oauth.redirect');
+Route::get('/oauth/callback', [OAuthLoginController::class, 'callback'])
+    ->middleware('throttle:20,1')
+    ->name('oauth.callback');
+Route::post('/logout', [OAuthLoginController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
 
 // Routes are root-mounted (no '/games' prefix). This app has no PWA installs
 // yet to preserve, so the owner had the '/games' prefix dropped in a follow-up
