@@ -1,5 +1,5 @@
 /**
- * Visual-test hooks — `?visualTest=1&seed=N&scenario=starter|midgame|endgame|fullCar|damage|fire|activityDay|activityNight`
+ * Visual-test hooks — `?visualTest=1&seed=N&scenario=starter|midgame|endgame|niagara|fullCar|damage|fire|activityDay|activityNight`
  * with optional `time=day|night`
  * with optional `surface=bulkGhost|eval|heatmap|disasters|toastHistory|shaftResize`
  * boots a deterministic canned tower (engine/scenarios.ts) and Playwright
@@ -27,7 +27,7 @@ export interface VisualTestConfig {
 export type VisualTestSurface = 'bulkGhost' | 'eval' | 'heatmap' | 'disasters' | 'toastHistory' | 'shaftResize' | null
 export type VisualTestTime = 'day' | 'night' | null
 
-const SCENARIOS: readonly ScenarioName[] = ['starter', 'midgame', 'endgame', 'fullCar', 'damage', 'fire', 'activityDay', 'activityNight']
+const SCENARIOS: readonly ScenarioName[] = ['starter', 'midgame', 'endgame', 'niagara', 'fullCar', 'damage', 'fire', 'activityDay', 'activityNight']
 const SURFACES: readonly Exclude<VisualTestSurface, null>[] = ['bulkGhost', 'eval', 'heatmap', 'disasters', 'toastHistory', 'shaftResize']
 const TIMES: readonly Exclude<VisualTestTime, null>[] = ['day', 'night']
 
