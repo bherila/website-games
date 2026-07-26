@@ -94,6 +94,10 @@ jobs:
 
   backend-tests:
     name: Backend Tests
+    # Several page tests (e.g. BlockBlasterGamePageTest) render a real Blade view
+    # without ->withoutVite(), so they need an actual public/build/manifest.json —
+    # reuse frontend-build's artifact instead of building twice.
+    needs: frontend-build
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
@@ -115,6 +119,12 @@ jobs:
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist
+
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: frontend-build
+          path: public/build/
 
       - name: Create .env for tests
         run: |
