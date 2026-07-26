@@ -2,11 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Models\TowerSaveSlot;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class OAuthLoginTest extends TestCase
@@ -112,6 +119,131 @@ class OAuthLoginTest extends TestCase
             'oauth_provider' => 'bherila',
             'oauth_subject' => 'different-provider-subject',
         ]);
+    }
+
+    /**
+     * The refusal above is correct but was silent, which is why the live failure took a
+     * database inspection to explain. It now leaves a trail — carrying row ids only, never
+     * the address or the subject, because this app's log is not a safe place for either.
+     */
+    public function test_an_unlinked_local_account_is_refused_with_a_redacted_explanation(): void
+    {
+        $existingUser = User::factory()->create(['email' => 'copied-account@example.test']);
+        $this->fakeProvider('unlinked-provider-subject', 'Copied Account', 'copied-account@example.test');
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(function (string $message, array $context) use ($existingUser): bool {
+                $this->assertSame('OAuth sign-in could not be provisioned.', $message);
+                $this->assertSame('bherila', $context['provider']);
+                $this->assertNull($context['subject_bound_to']);
+                $this->assertSame('users#'.$existingUser->getKey(), $context['email_held_by']);
+                $this->assertFalse($context['email_holder_is_linked']);
+                $this->assertStringContainsString('oauth:bind-subject', $context['reason']);
+
+                $encoded = json_encode($context);
+                $this->assertIsString($encoded);
+                $this->assertStringNotContainsString('copied-account@example.test', $encoded);
+                $this->assertStringNotContainsString('unlinked-provider-subject', $encoded);
+
+                return true;
+            });
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertConflict();
+
+        $this->assertGuest();
+    }
+
+    /**
+     * The end of the live failure: an account copied across from the provider's database
+     * before OAuth existed, linked once by an operator, then signing in normally and
+     * keeping the saved games it already owned.
+     */
+    public function test_an_account_signs_in_once_an_operator_has_linked_its_subject(): void
+    {
+        $copiedUser = User::factory()->create([
+            'name' => 'Copied Account',
+            'email' => 'copied-account@example.test',
+        ]);
+        $save = TowerSaveSlot::factory()->for($copiedUser)->create();
+
+        $this->artisan('oauth:bind-subject', [
+            'user' => $copiedUser->getKey(),
+            'subject' => 'restored-provider-subject',
+        ])->assertSuccessful();
+
+        $this->fakeProvider('restored-provider-subject', 'Copied Account', 'copied-account@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $this->assertAuthenticatedAs($copiedUser);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertSame($copiedUser->getKey(), $save->fresh()?->user_id);
+    }
+
+    /**
+     * A second request for the same subject may lose the race to insert it. That is a
+     * benign collision on the identity index, not the conflict above, and the loser should
+     * simply adopt the row the winner created rather than refuse a legitimate sign-in.
+     */
+    public function test_a_lost_race_to_create_the_same_subject_adopts_the_winning_row(): void
+    {
+        $this->fakeProvider('raced-provider-subject', 'Raced Account', 'raced-account@example.test');
+
+        $winnerAttributes = [
+            'name' => 'Raced Account',
+            'email' => 'raced-account@example.test',
+            'email_verified_at' => now(),
+            'password' => Hash::make('irrelevant'),
+            'oauth_provider' => 'bherila',
+            'oauth_subject' => 'raced-provider-subject',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        /**
+         * A real race runs on a second connection, which the test suite's single in-memory
+         * database cannot provide. Its two observable effects are reproduced instead: the
+         * competing row lands between this request's subject lookup and its insert, so the
+         * insert collides; and being committed elsewhere, it is still there afterwards
+         * rather than being taken down by this request's rollback.
+         */
+        $raced = false;
+        DB::listen(function (QueryExecuted $query) use (&$raced, $winnerAttributes): void {
+            if ($raced || ! str_starts_with($query->sql, 'select') || ! str_contains($query->sql, 'oauth_subject')) {
+                return;
+            }
+
+            $raced = true;
+            DB::table('users')->insert($winnerAttributes);
+        });
+
+        $survived = false;
+        Event::listen(function (TransactionRolledBack $event) use (&$survived, $winnerAttributes): void {
+            if ($survived) {
+                return;
+            }
+
+            $survived = true;
+            DB::table('users')->insert($winnerAttributes);
+        });
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $this->assertTrue($raced, 'The competing row must land before the insert for this to test anything.');
+        $this->assertTrue($survived, 'The insert must have collided and rolled back for this to test anything.');
+        $winner = User::query()
+            ->where('oauth_provider', 'bherila')
+            ->where('oauth_subject', 'raced-provider-subject')
+            ->sole();
+        $this->assertAuthenticatedAs($winner);
+        $this->assertDatabaseCount('users', 1);
     }
 
     public function test_bound_account_is_not_logged_in_with_a_stale_profile_when_email_refresh_conflicts(): void

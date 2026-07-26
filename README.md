@@ -39,17 +39,33 @@ The service worker's scope is now `/` (was `/games`); the API is unaffected — 
 always under `/api/games/...` and stays there, since it's a namespaced API path, not
 a user-facing route.
 
-## Auth — TODO
+## Auth
 
 This app must **not** share the finance app's session cookie or database (see #1803).
-It needs its own OAuth-backed identity and `users` table. That boundary is scaffolded
-(`routes/api.php` gates the save API behind `web`+`auth`; `app/Models/User.php` is a
-stock Laravel user model), but **no OAuth provider is wired up yet** — this was
-deliberately left undone rather than guessed at. Before deploying for real use:
+It has its own `users` table and signs in through the identity provider over an
+authorization-code flow with PKCE, configured by the `OAUTH_*` keys in `.env`.
 
-1. Choose and configure an OAuth provider (e.g. Laravel Socialite).
-2. Fill in the `OAUTH_*` placeholders in `.env.example` / `.env`.
-3. Wire provider callbacks in `routes/`.
+Accounts bind to the provider's immutable `sub` claim, stored as
+`users.oauth_provider` + `users.oauth_subject` — **never** to the email address. An
+address is user-mutable and can be reassigned, so matching on one would orphan an
+account when its owner changes theirs, and hand over the previous owner's saved games
+when an address is reused. The provider does not assert `email_verified`, so there is
+nothing that raises a matching address above an unverified claim.
+
+### Linking an account copied from the provider's database
+
+Rows copied across before OAuth existed carry an address but no subject, so no sign-in
+can reach them: the first login tries to create a second account, collides with the
+unique index on the address, and is refused with a 409 (with a redacted explanation in
+the log). Sign-in deliberately will not resolve this itself. Confirm out of band that
+the local row and the provider account are the same person, then link it once:
+
+```bash
+php artisan oauth:bind-subject <local-users-id> <provider-sub>
+```
+
+The command refuses to re-point an account that is already linked, and refuses to give
+one subject to a second account. It is safe to re-run.
 
 ## Running locally
 
