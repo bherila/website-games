@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Fancy restaurant">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#ffe1a3" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <ellipse cx="12" cy="14.3" rx="6.5" ry="2.1" fill="#d8d6c8" stroke="#24313b" stroke-width="0.75"/>
+  <path d="M6.4 14.3a5.6 5.6 0 0 1 11.2 0Z" fill="#f2c64f" stroke="#24313b" stroke-width="0.7"/>
+  <circle cx="12" cy="8.4" r="1" fill="#f2c64f" stroke="#24313b" stroke-width="0.55"/>
+  <line x1="5.8" y1="17.2" x2="18.2" y2="17.2" stroke="#24313b" stroke-width="1" stroke-linecap="round"/>
+  <path d="M6.4 8.2c1.1-.7 2.4-.7 3.4 0M14.2 8.2c1.1-.7 2.4-.7 3.4 0" fill="none" stroke="#77609b" stroke-width="1" stroke-linecap="round"/>
+</svg>

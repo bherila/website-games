@@ -1,0 +1,218 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: frontend-build
+          path: public/build/
+          retention-days: 2
+
+  frontend-static:
+    name: Frontend Static Checks
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Type-check
+        run: pnpm run type-check
+
+      - name: Lint
+        run: pnpm run lint
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Run Jest
+        run: pnpm run test
+
+  backend-static:
+    name: Backend Static Checks
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Pint
+        run: ./vendor/bin/pint --test
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Create .env for tests
+        run: cp .env.example .env
+
+      - name: Run PHPUnit
+        run: php -d memory_limit=1G artisan test --compact
+
+  test:
+    name: Run Tests
+    needs:
+      - frontend-build
+      - frontend-static
+      - frontend-tests
+      - backend-static
+      - backend-tests
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+      - name: Check required job results
+        run: |
+          check() {
+            local name="$1" result="$2"
+            if [ "$result" != "success" ]; then
+              echo "::error::$name => $result"
+              exit 1
+            fi
+            echo "$name => $result"
+          }
+          check "frontend-build" "${{ needs.frontend-build.result }}"
+          check "frontend-static" "${{ needs.frontend-static.result }}"
+          check "frontend-tests" "${{ needs.frontend-tests.result }}"
+          check "backend-static" "${{ needs.backend-static.result }}"
+          check "backend-tests" "${{ needs.backend-tests.result }}"
+
+  deploy:
+    name: Deploy to Production
+    needs:
+      - test
+      - frontend-build
+    # Include a status check so a skipped optional job upstream of Run Tests does not
+    # trigger GitHub Actions' implicit success() guard and skip deployment.
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.test.result == 'success' && needs['frontend-build'].result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    environment: prod
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer (no dev)
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: frontend-build
+          path: public/build/
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+
+      # Destination is hard-coded to ~/games-laravel/ — this account also hosts the
+      # separate finance app at ~/bwh-php/ (webroot ~/public_html), and --delete makes
+      # a wrong or empty destination catastrophic. Never point this at ~/, ~/bwh-php,
+      # ~/public_html, or ~/www.
+      - name: Deploy with rsync
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -av --delete --exclude='.env' \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            app \
+            bootstrap \
+            config \
+            database \
+            public \
+            resources \
+            routes \
+            storage \
+            vendor \
+            artisan \
+            composer.json \
+            composer.lock \
+            ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/games-laravel/
+
+      - name: Run artisan migrate, config clear/cache on server
+        run: |
+          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
+            "cd ~/games-laravel && /opt/cpanel/ea-php85/root/usr/bin/php artisan migrate --force && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:cache"

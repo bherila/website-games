@@ -1,0 +1,88 @@
+{
+  "id": "/games/",
+  "name": "BWH Games",
+  "short_name": "BWH Games",
+  "description": "Install and play BWH Games, including offline play after a game has been visited.",
+  "scope": "/games",
+  "start_url": "/games",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Math Horde",
+      "short_name": "Math Horde",
+      "url": "/games/math-horde",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Parking Pickup",
+      "short_name": "Parking",
+      "url": "/games/parking-pickup",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Marble Sort",
+      "short_name": "Marble Sort",
+      "url": "/games/marble-sort",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Block Blaster",
+      "short_name": "Block Blaster",
+      "url": "/games/block-blaster",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Hover",
+      "short_name": "Hover",
+      "url": "/games/hover",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Chick's Challenge",
+      "short_name": "Chick's",
+      "url": "/games/chicks-challenge",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Tower Throwback",
+      "short_name": "Tower",
+      "url": "/games/tower-throwback",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "2048",
+      "short_name": "2048",
+      "url": "/games/2048",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

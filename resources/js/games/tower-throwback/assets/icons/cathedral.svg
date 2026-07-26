@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Cathedral">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#ead8f1" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <path d="M6.2 18.4V10.3L12 5l5.8 5.3v8.1Z" fill="#d9c7a6" stroke="#24313b" stroke-width="0.8" stroke-linejoin="round"/>
+  <path d="M10 18.4v-4.2a2 2 0 0 1 4 0v4.2Z" fill="#a86b3c" stroke="#24313b" stroke-width="0.55"/>
+  <path d="M8.4 11.4a1.4 2.5 0 0 1 2.8 0v3H8.4Zm4.4 0a1.4 2.5 0 0 1 2.8 0v3h-2.8Z" fill="#77609b"/>
+  <line x1="12" y1="4.3" x2="12" y2="7.1" stroke="#f2c64f" stroke-width="1" stroke-linecap="round"/>
+  <line x1="10.8" y1="5.3" x2="13.2" y2="5.3" stroke="#f2c64f" stroke-width="0.9" stroke-linecap="round"/>
+</svg>

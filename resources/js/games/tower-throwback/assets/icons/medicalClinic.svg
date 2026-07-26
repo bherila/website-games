@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Medical clinic">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#e5dfd1" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <rect x="6" y="7.1" width="12" height="10.8" fill="#fffaf0" rx="2" ry="2" stroke="#24313b" stroke-width="0.85"/>
+  <path d="M10.5 9.2h3v3h3v3h-3v3h-3v-3h-3v-3h3Z" fill="#de6150"/>
+  <circle cx="17.7" cy="7.4" r="1.1" fill="#5f9ed1" stroke="#24313b" stroke-width="0.45"/>
+</svg>

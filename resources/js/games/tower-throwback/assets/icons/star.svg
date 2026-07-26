@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Star rating">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#fff1bd" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <polygon points="12.00,5.90 13.61,9.78 17.80,10.11 14.61,12.85 15.59,16.94 12.00,14.75 8.41,16.94 9.39,12.85 6.20,10.11 10.39,9.78" fill="#f2c64f" stroke="#24313b" stroke-width="0.75" stroke-linejoin="round"/>
+  <circle cx="12" cy="12" r="1.2" fill="#f6dd8a"/>
+</svg>

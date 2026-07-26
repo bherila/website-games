@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Parking ramp">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#d9f0f5" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <path d="M6.9 17h11.2l-.8-3.7-2.6-2.4h-5.2l-2.6 2.4Z" fill="#5f9ed1" stroke="#24313b" stroke-width="0.8" stroke-linejoin="round"/>
+  <path d="M9.7 14h5.4l1.35 1.4h-8.1Z" fill="#d9f4fb"/>
+  <circle cx="9.1" cy="17.2" r="1.1" fill="#1e2328"/>
+  <circle cx="15.9" cy="17.2" r="1.1" fill="#1e2328"/>
+  <path d="M5.2 15.6c4.4-6.1 8.5-6.8 13.5-6.8" fill="none" stroke="#24313b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M5.2 17.9h13.5" fill="none" stroke="#24313b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

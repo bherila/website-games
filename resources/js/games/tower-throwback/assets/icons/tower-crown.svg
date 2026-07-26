@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Tower status crown">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#fff1bd" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <path d="M6.2 10.4 9 7.4l3 3.2 3-5 2.8 4.8v5.7H6.2Z" fill="#f2c64f" stroke="#24313b" stroke-width="0.8" stroke-linejoin="round"/>
+  <rect x="6.6" y="16" width="10.8" height="2.1" fill="#f6dd8a" rx="0.65" ry="0.65" stroke="#24313b" stroke-width="0.55"/>
+  <circle cx="9" cy="10.7" r="0.8" fill="#fffaf0"/>
+  <circle cx="15" cy="10.7" r="0.8" fill="#fffaf0"/>
+</svg>

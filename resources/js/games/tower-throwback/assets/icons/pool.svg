@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Pool">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#ead8f1" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <path d="M5.2 13.8c1.5-1.2 3-.1 4.5 0s3-1.2 4.5 0 3 .1 4.5 0v4.2H5.2Z" fill="#5f9ed1" stroke="#24313b" stroke-width="0.75"/>
+  <path d="M5.2 11.5c1.5-1.2 3-.1 4.5 0s3-1.2 4.5 0 3 .1 4.5 0" fill="none" stroke="#d9f4fb" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M7.3 7.5v7.5M10.3 7.5v7.5M7.3 9.6h3" fill="none" stroke="#24313b" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M16.18 9.58h1.68v2.0999999999999996h-1.68Z" fill="#a86b3c"/>
+  <ellipse cx="17.02" cy="8.32" rx="1.75" ry="1.47" fill="#61b574" stroke="#24313b" stroke-width="0.45"/>
+  <ellipse cx="16.04" cy="9.02" rx="1.19" ry="0.9099999999999999" fill="#2f8458"/>
+  <ellipse cx="18" cy="8.95" rx="1.26" ry="0.875" fill="#2f8458"/>
+</svg>

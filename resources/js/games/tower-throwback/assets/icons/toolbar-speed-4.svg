@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Speed four">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#fff1bd" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <rect x="5" y="17" width="2.35" height="1.9" fill="#f2c64f" rx="0.65" ry="0.65" stroke="#24313b" stroke-width="0.45"/>
+  <rect x="8.2" y="15.3" width="2.35" height="3.5999999999999996" fill="#f2c64f" rx="0.65" ry="0.65" stroke="#24313b" stroke-width="0.45"/>
+  <rect x="11.4" y="13.6" width="2.35" height="5.3" fill="#f2c64f" rx="0.65" ry="0.65" stroke="#24313b" stroke-width="0.45"/>
+  <rect x="14.600000000000001" y="11.9" width="2.35" height="7" fill="#f2c64f" rx="0.65" ry="0.65" stroke="#24313b" stroke-width="0.45"/>
+  <path d="M6.5 8.2h11" fill="none" stroke="#24313b" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M15.5 6.3 18.2 8.2l-2.7 1.9Z" fill="#24313b"/>
+</svg>

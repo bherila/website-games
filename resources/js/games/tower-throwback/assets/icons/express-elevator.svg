@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Express elevator">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#e8edf0" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <rect x="6.1" y="4.2" width="11.8" height="15.7" fill="#8d9aa3" rx="1.5" ry="1.5" stroke="#24313b" stroke-width="1.05"/>
+  <rect x="7.6" y="5.9" width="8.8" height="11.9" fill="#d8d6c8" rx="1.05" ry="1.05" stroke="#4d6372" stroke-width="0.7"/>
+  <line x1="12" y1="6.1" x2="12" y2="17.7" stroke="#4d6372" stroke-width="0.8" stroke-linecap="round"/>
+  <circle cx="18.5" cy="11" r="1.1" fill="#30353b"/>
+  <circle cx="18.5" cy="11" r="0.45" fill="#f2c64f"/>
+  <circle cx="18.5" cy="14" r="1.1" fill="#30353b"/>
+  <circle cx="18.5" cy="14" r="0.45" fill="#f2c64f"/>
+  <path d="M14.1 6.3 10.3 12h2.4l-2.1 5.5 4.4-6.6h-2.5Z" fill="#f2c64f" stroke="#24313b" stroke-width="0.45" stroke-linejoin="round"/>
+</svg>

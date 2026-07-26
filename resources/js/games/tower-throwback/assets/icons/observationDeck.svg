@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Observation Deck">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#c8edf0" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.55"/>
+  <path d="M5.2 9.2h10.9v6.2H5.2Z" fill="#83cfda" stroke="#24313b" stroke-width="0.75"/>
+  <path d="M7.4 9.2v6.2m2.6-6.2v6.2m2.6-6.2v6.2" fill="none" stroke="#eafafa" stroke-width="0.65"/>
+  <path d="M4.7 16.1h11.5l4.1 1.7H4.7Z" fill="#d9c7a6" stroke="#24313b" stroke-width="0.75" stroke-linejoin="round"/>
+  <path d="M16.2 16.1h4.1" fill="none" stroke="#f2c64f" stroke-width="0.8"/>
+  <path d="M17.7 11.2l2.2-1.1m-1.35.65.8 2" fill="none" stroke="#24313b" stroke-width="0.85" stroke-linecap="round"/>
+</svg>

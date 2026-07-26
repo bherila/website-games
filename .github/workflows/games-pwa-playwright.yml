@@ -1,0 +1,97 @@
+name: BWH Games PWA Playwright
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: games-pwa-playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  games-pwa:
+    name: Games PWA offline checks
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, intl
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Create local app environment
+        run: |
+          cp .env.example .env
+          {
+            echo "APP_ENV=local"
+            echo "APP_URL=http://127.0.0.1:8000"
+            echo "DB_CONNECTION=sqlite"
+            echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite"
+            echo "CACHE_STORE=file"
+            echo "SESSION_DRIVER=file"
+          } >> .env
+          rm -f database/database.sqlite
+          touch database/database.sqlite
+          php -d memory_limit=1G artisan key:generate --no-interaction --force
+
+      - name: Prepare isolated browser fixture
+        run: |
+          php -d memory_limit=1G artisan migrate --database=sqlite --no-interaction
+          php -d memory_limit=1G artisan db:seed --database=sqlite --class=DatabaseSeeder --no-interaction
+
+      - name: Start local Laravel server
+        run: |
+          php -d memory_limit=1G artisan serve --host=127.0.0.1 --port=8000 > storage/logs/playwright-server.log 2>&1 &
+          echo "$!" > /tmp/games-pwa-server.pid
+
+          for attempt in {1..30}; do
+            if curl --silent --fail http://127.0.0.1:8000/games > /dev/null; then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          cat storage/logs/playwright-server.log
+          exit 1
+
+      - name: Run games PWA Playwright checks
+        run: pnpm run test:e2e:games-pwa
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: games-pwa-playwright-report
+          path: |
+            playwright-report/
+            test-results/playwright/
+            storage/logs/playwright-server.log
+          if-no-files-found: ignore
+          retention-days: 7

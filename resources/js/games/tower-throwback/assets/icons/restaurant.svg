@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Restaurant">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#ffe1a3" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <circle cx="11" cy="13.3" r="4.25" fill="#fffaf0" stroke="#24313b" stroke-width="0.75"/>
+  <circle cx="11" cy="13.3" r="2.2" fill="#4db9b1"/>
+  <line x1="5.5" y1="8.2" x2="5.5" y2="18" stroke="#24313b" stroke-width="0.9" stroke-linecap="round"/>
+  <line x1="4.4" y1="8.2" x2="6.6" y2="8.2" stroke="#24313b" stroke-width="0.85" stroke-linecap="round"/>
+  <line x1="4.7" y1="10.2" x2="6.3" y2="10.2" stroke="#24313b" stroke-width="0.75" stroke-linecap="round"/>
+  <line x1="17" y1="8.2" x2="17" y2="18" stroke="#24313b" stroke-width="0.9" stroke-linecap="round"/>
+  <path d="M17 8.2c2.7 1.5 2.2 4.8 0 5.5Z" fill="#f2c64f" stroke="#24313b" stroke-width="0.55"/>
+</svg>

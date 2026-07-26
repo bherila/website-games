@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Sound on">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#fff1bd" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <path d="M5.3 10.1h3.2l4.1-3.2v10.2l-4.1-3.2H5.3Z" fill="#4db9b1" stroke="#24313b" stroke-width="0.8" stroke-linejoin="round"/>
+  <path d="M15 9.1c1.6 1.5 1.6 4.3 0 5.8M17.5 7.2c2.7 2.8 2.7 6.7 0 9.6" fill="none" stroke="#f2c64f" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

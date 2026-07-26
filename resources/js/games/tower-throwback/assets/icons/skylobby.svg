@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Skylobby">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#ffe9bd" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <path d="M6 5.9h12v4.1H6Z" fill="#9ed1e8" stroke="#4d6372" stroke-width="0.6"/>
+  <path d="M8 7.1c1.8-1.9 4.6-2 6.5-.2 1-.5 2.4-.2 3.1.8" fill="#d9f4fb" opacity="0.95"/>
+  <path d="M6.2 13.4h11.6" fill="none" stroke="#a86b3c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M6.789999999999999 15.39h2.04v2.55h-2.04Z" fill="#a86b3c"/>
+  <ellipse cx="7.81" cy="13.860000000000001" rx="2.125" ry="1.785" fill="#61b574" stroke="#24313b" stroke-width="0.45"/>
+  <ellipse cx="6.619999999999999" cy="14.71" rx="1.4449999999999998" ry="1.105" fill="#2f8458"/>
+  <ellipse cx="9" cy="14.625" rx="1.53" ry="1.0625" fill="#2f8458"/>
+  <circle cx="9" cy="14.4" r="0.9" fill="#f2c64f" stroke="#24313b" stroke-width="0.45"/>
+  <path d="M9 15.5v2.2" fill="none" stroke="#24313b" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="15" cy="14.4" r="0.9" fill="#4db9b1" stroke="#24313b" stroke-width="0.45"/>
+  <path d="M15 15.5v2.2" fill="none" stroke="#24313b" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

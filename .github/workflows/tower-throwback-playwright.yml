@@ -1,0 +1,111 @@
+name: Tower Throwback Playwright
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Optional deployed URL to test. Leave blank to build this branch and serve it locally.
+        required: false
+        default: ''
+
+concurrency:
+  group: tower-throwback-playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tower-throwback:
+    name: Tower Throwback visual checks
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set Playwright target
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+        run: |
+          if [ -n "$INPUT_BASE_URL" ]; then
+            echo "PLAYWRIGHT_BASE_URL=$INPUT_BASE_URL" >> "$GITHUB_ENV"
+            echo "RUN_LOCAL_APP=false" >> "$GITHUB_ENV"
+          else
+            echo "PLAYWRIGHT_BASE_URL=http://127.0.0.1:8000" >> "$GITHUB_ENV"
+            echo "RUN_LOCAL_APP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Setup PHP
+        if: env.RUN_LOCAL_APP == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+
+      - name: Cache Composer dependencies
+        if: env.RUN_LOCAL_APP == 'true'
+        uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        if: env.RUN_LOCAL_APP == 'true'
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Build frontend
+        if: env.RUN_LOCAL_APP == 'true'
+        run: pnpm run build
+
+      - name: Create local app environment
+        if: env.RUN_LOCAL_APP == 'true'
+        run: |
+          cp .env.example .env
+          {
+            echo "APP_ENV=testing"
+            echo "APP_URL=http://127.0.0.1:8000"
+            echo "DB_CONNECTION=sqlite"
+            echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite"
+            echo "SESSION_DRIVER=file"
+          } >> .env
+          touch database/database.sqlite
+          php -d memory_limit=1G artisan key:generate --no-interaction
+
+      - name: Start local Laravel server
+        if: env.RUN_LOCAL_APP == 'true'
+        run: |
+          php -d memory_limit=1G artisan serve --host=127.0.0.1 --port=8000 > storage/logs/playwright-server.log 2>&1 &
+          echo "$!" > /tmp/tower-throwback-server.pid
+
+          for attempt in {1..30}; do
+            if curl --silent --fail "$PLAYWRIGHT_BASE_URL/games/tower-throwback" > /dev/null; then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          cat storage/logs/playwright-server.log
+          exit 1
+
+      - name: Run Tower Throwback Playwright checks
+        run: pnpm run test:e2e:tower-throwback
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: tower-throwback-playwright-report
+          path: |
+            playwright-report/
+            test-results/playwright/
+            test-results/tower-throwback/
+            storage/logs/playwright-server.log
+          if-no-files-found: ignore
+          retention-days: 7

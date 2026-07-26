@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Subway station">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#d9f0f5" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <rect x="6" y="6.2" width="12" height="10.8" fill="#4db9b1" rx="2" ry="2" stroke="#24313b" stroke-width="0.85"/>
+  <rect x="7.4" y="8" width="3.7" height="3.2" fill="#d9f4fb" rx="0.7" ry="0.7"/>
+  <rect x="12.9" y="8" width="3.7" height="3.2" fill="#d9f4fb" rx="0.7" ry="0.7"/>
+  <circle cx="8.6" cy="14.3" r="0.9" fill="#f2c64f"/>
+  <circle cx="15.4" cy="14.3" r="0.9" fill="#f2c64f"/>
+  <path d="M6 19h12M8 17.4l-2 2M16 17.4l2 2" fill="none" stroke="#24313b" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

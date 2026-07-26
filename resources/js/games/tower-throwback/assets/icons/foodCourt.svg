@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Food court">
+  <rect width="24" height="24" fill="none"/>
+  <path d="M4.7 2.8h14.6c1.05 0 1.9.85 1.9 1.9v14.6c0 1.05-.85 1.9-1.9 1.9H4.7a1.9 1.9 0 0 1-1.9-1.9V4.7c0-1.05.85-1.9 1.9-1.9Z" fill="#ffe1a3" stroke="#24313b" stroke-width="1.2"/>
+  <path d="M5.7 4.15h12.6c.85 0 1.55.7 1.55 1.55v12.6c0 .85-.7 1.55-1.55 1.55H5.7c-.85 0-1.55-.7-1.55-1.55V5.7c0-.85.7-1.55 1.55-1.55Z" fill="none" stroke="#fffaf0" stroke-width="0.75" opacity="0.5"/>
+  <rect x="5.2" y="7.1" width="3.9" height="5.5" fill="#de6150" rx="0.7" ry="0.7" stroke="#24313b" stroke-width="0.55"/>
+  <rect x="10.1" y="6.4" width="3.8" height="6.2" fill="#f2c64f" rx="0.7" ry="0.7" stroke="#24313b" stroke-width="0.55"/>
+  <rect x="14.9" y="7.1" width="3.9" height="5.5" fill="#4db9b1" rx="0.7" ry="0.7" stroke="#24313b" stroke-width="0.55"/>
+  <path d="M6 15.2h12l-1.2 3.4H7.2Z" fill="#a86b3c" stroke="#24313b" stroke-width="0.75" stroke-linejoin="round"/>
+  <circle cx="9" cy="14.6" r="0.75" fill="#fffaf0"/>
+  <circle cx="12" cy="14.2" r="0.75" fill="#61b574"/>
+  <circle cx="15" cy="14.6" r="0.75" fill="#e98a67"/>
+</svg>
