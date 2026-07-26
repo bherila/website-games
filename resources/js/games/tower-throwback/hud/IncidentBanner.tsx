@@ -2,6 +2,7 @@ import currency from 'currency.js'
 import type { ReactElement } from 'react'
 
 import { fireDispatchCost } from '../engine/incidents'
+import { floorLabel } from '../floorLabels'
 import type { BombThreatState, FireState } from '../gameTypes'
 
 interface IncidentBannerProps {
@@ -41,7 +42,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
       <div className="flex items-center gap-3">
         <span className="text-lg">💣</span>
         <div>
-          <div className="font-bold text-red-100">Bomb threat on floor {threat.floor}!</div>
+          <div className="font-bold text-red-100">Bomb threat on floor {floorLabel(threat.floor)}!</div>
           {sweeping ? (
             <div className="text-[12px] text-red-200/90" data-testid="sweep-eta">
               Security sweep under way — {Math.ceil(threat.sweepRemainingMin ?? 0)} min remaining
@@ -98,7 +99,7 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
       <div className="flex items-center gap-3">
         <span className="text-lg">🔥</span>
         <div>
-          <div className="font-bold text-orange-100">Fire on floor {fire.floor}!</div>
+          <div className="font-bold text-orange-100">Fire on floor {floorLabel(fire.floor)}!</div>
           <div className="text-[12px] text-orange-200/90">
             Security response in {Math.ceil(fire.responseRemainingMin)} min · {burningCount} unit
             {burningCount === 1 ? '' : 's'} burning

@@ -36,6 +36,15 @@ describe('IncidentBanner', () => {
     expect(screen.queryByTestId('pay-ransom')).toBeNull()
     expect(screen.queryByTestId('start-sweep')).toBeNull()
   })
+
+  it('uses the shared basement floor label without changing navigation', () => {
+    const onViewFloor = jest.fn()
+    render(<IncidentBanner threat={threat({ floor: -2 })} hasSecurityOffice={true} onResolve={jest.fn()} onViewFloor={onViewFloor} />)
+
+    expect(screen.getByTestId('incident-banner')).toHaveTextContent('floor B2')
+    fireEvent.click(screen.getByTestId('view-incident-floor'))
+    expect(onViewFloor).toHaveBeenCalledWith(-2)
+  })
 })
 
 describe('FireBanner', () => {
@@ -72,5 +81,17 @@ describe('FireBanner', () => {
     expect(onRespond).toHaveBeenCalledWith('dispatch')
     fireEvent.click(screen.getByTestId('fire-firebreak'))
     expect(onRespond).toHaveBeenCalledWith('firebreak')
+  })
+
+  it('uses the shared basement floor label for fires', () => {
+    render(
+      <FireBanner
+        fire={{ kind: 'fire', floor: -3, burningUnitIds: [2], spreadRemainingMin: 4, responseRemainingMin: 5 }}
+        onRespond={jest.fn()}
+        onViewFloor={jest.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('fire-banner')).toHaveTextContent('Fire on floor B3')
   })
 })
