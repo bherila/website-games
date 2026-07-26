@@ -29,28 +29,39 @@ describe('NewGameOverlay', () => {
     expect(onStart).toHaveBeenCalledWith(3, undefined, 'city-tower')
   })
 
-  it('offers resume and requires confirmation before abandoning a save', () => {
+  it('offers resume and requires confirmation before replacing the autosave', () => {
     const onStart = jest.fn()
     const onResume = jest.fn()
-    render(<NewGameOverlay slots={slots('slot-a')} onStart={onStart} onResume={onResume} onImport={jest.fn()} />)
+    render(<NewGameOverlay slots={slots('autosave')} onStart={onStart} onResume={onResume} onImport={jest.fn()} />)
 
-    expect(screen.getByTestId('title-slot-summary-slot-a')).toHaveTextContent('Day 8')
-    fireEvent.click(screen.getByTestId('resume-slot-a'))
-    expect(onResume).toHaveBeenCalledWith('slot-a')
+    expect(screen.getByTestId('title-slot-summary-autosave')).toHaveTextContent('Day 8')
+    fireEvent.click(screen.getByTestId('resume-autosave'))
+    expect(onResume).toHaveBeenCalledWith('autosave')
 
     // First click arms the confirmation; nothing starts yet.
     fireEvent.click(screen.getByTestId('start'))
     expect(onStart).not.toHaveBeenCalled()
-    expect(screen.getByTestId('start')).toHaveTextContent('Really abandon')
+    expect(screen.getByTestId('start')).toHaveTextContent('Replace autosave')
 
     // Cancel returns to the safe state…
     fireEvent.click(screen.getByTestId('cancel-new'))
     expect(screen.getByTestId('start')).toHaveTextContent('New tower')
+    expect(screen.getByTestId('start')).toHaveFocus()
 
     // …and confirming actually starts.
     fireEvent.click(screen.getByTestId('start'))
     fireEvent.click(screen.getByTestId('start'))
     expect(onStart).toHaveBeenCalledWith(1, undefined, 'city-tower')
+  })
+
+  it('starts immediately when only a named slot is saved', () => {
+    const onStart = jest.fn()
+    render(<NewGameOverlay slots={slots('slot-a')} onStart={onStart} onResume={jest.fn()} onImport={jest.fn()} />)
+
+    fireEvent.click(screen.getByTestId('start'))
+
+    expect(onStart).toHaveBeenCalledWith(1, undefined, 'city-tower')
+    expect(screen.queryByTestId('cancel-new')).not.toBeInTheDocument()
   })
 
   it('does not present or overwrite an unknown-map save as empty', () => {
@@ -66,7 +77,7 @@ describe('NewGameOverlay', () => {
 
     fireEvent.click(screen.getByTestId('start'))
     expect(onStart).not.toHaveBeenCalled()
-    expect(screen.getByTestId('start')).toHaveTextContent('Really abandon')
+    expect(screen.getByTestId('start')).toHaveTextContent('Replace autosave')
 
     fireEvent.click(screen.getByTestId('start'))
     expect(onStart).toHaveBeenCalledWith(1, undefined, 'city-tower')

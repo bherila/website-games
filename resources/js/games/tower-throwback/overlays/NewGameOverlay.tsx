@@ -51,7 +51,9 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
   const maps = allMaps()
   const [mapId, setMapId] = useState(maps[0]?.id ?? CITY_TOWER.id)
   const importButtonRef = useRef<HTMLButtonElement | null>(null)
-  const hasSave = slots.some((slot) => slot.saved || slot.loadFailure === 'unknownMap')
+  const startButtonRef = useRef<HTMLButtonElement | null>(null)
+  const autosave = slots.find((slot) => slot.id === 'autosave')
+  const replacesAutosave = autosave?.saved === true || autosave?.loadFailure === 'unknownMap'
   const importSlot = slots.find((slot) => slot.id === importSlotId)
 
   const trimmedCode = challengeCode.trim()
@@ -64,7 +66,7 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
     if (challengeInvalid) {
       return
     }
-    if (hasSave && !confirming) {
+    if (replacesAutosave && !confirming) {
       setConfirming(true)
       return
     }
@@ -258,22 +260,23 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
         <div className="mt-5 flex flex-col gap-2">
           <button
             type="button"
+            ref={startButtonRef}
             data-testid="start"
             onClick={start}
             disabled={challengeInvalid}
             className={`w-full rounded-lg px-4 py-2 font-bold ${
               confirming
                 ? 'bg-red-500/85 text-white hover:bg-red-400'
-                : hasSave
+                : replacesAutosave
                   ? 'bg-white/10 text-white/85 hover:bg-white/20'
                   : 'bg-emerald-500/85 text-slate-950 hover:bg-emerald-400'
             } disabled:cursor-not-allowed disabled:opacity-40`}
           >
             {confirming
-              ? 'Really abandon the saved tower?'
+              ? 'Replace autosave with a new tower?'
               : decodedChallenge
                 ? `Start challenge ${formatChallengeCode(trimmedCode)}`
-                : hasSave
+                : replacesAutosave
                   ? 'New tower'
                   : 'Start building'}
           </button>
@@ -281,7 +284,10 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
             <button
               type="button"
               data-testid="cancel-new"
-              onClick={() => setConfirming(false)}
+              onClick={() => {
+                setConfirming(false)
+                startButtonRef.current?.focus()
+              }}
               className="w-full rounded-lg bg-white/5 px-4 py-1.5 text-sm text-white/60 hover:bg-white/10"
             >
               Keep my tower
