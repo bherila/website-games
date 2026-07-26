@@ -586,6 +586,30 @@ describe('sandbox persistence', () => {
     expect(window.localStorage.getItem(storageKey)).toBe(originalBytes)
   })
 
+  it('rejects inherited object keys as catalog kinds', () => {
+    const state = builtState()
+    saveSandbox(state, 'slot-a')
+    const before = loadSandbox('slot-a')!
+    const storageKey = `${SANDBOX_STORAGE_KEY}.slot-a`
+    const originalBytes = window.localStorage.getItem(storageKey)
+
+    for (const inheritedKey of ['constructor', 'toString', '__proto__']) {
+      const forgedUnit = {
+        ...before,
+        units: before.units.map((unit, index) => index === 0 ? { ...unit, kind: inheritedKey } : unit),
+      }
+      expect(importSandbox(JSON.stringify(forgedUnit), 'slot-a')).toEqual({ ok: false, reason: 'invalidPayload' })
+
+      const forgedShaft = {
+        ...before,
+        shafts: before.shafts.map((shaft, index) => index === 0 ? { ...shaft, kind: inheritedKey } : shaft),
+      }
+      expect(importSandbox(JSON.stringify(forgedShaft), 'slot-a')).toEqual({ ok: false, reason: 'invalidPayload' })
+    }
+
+    expect(window.localStorage.getItem(storageKey)).toBe(originalBytes)
+  })
+
   it('defaults missing shaft runtime stats to 0 instead of rejecting the whole save', () => {
     const state = builtState()
     saveSandbox(state, 'slot-a')

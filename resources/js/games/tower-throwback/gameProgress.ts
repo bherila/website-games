@@ -1242,11 +1242,11 @@ function parseStarLevel(value: unknown): StarLevel | null {
 }
 
 function parseItemKind(value: unknown): ItemKind | null {
-  return typeof value === 'string' && value in ITEM_DEFS ? (value as ItemKind) : null
+  return typeof value === 'string' && Object.hasOwn(ITEM_DEFS, value) ? (value as ItemKind) : null
 }
 
 function parseShaftKind(value: unknown): ShaftKind | null {
-  return typeof value === 'string' && value in SHAFT_DEFS ? (value as ShaftKind) : null
+  return typeof value === 'string' && Object.hasOwn(SHAFT_DEFS, value) ? (value as ShaftKind) : null
 }
 
 function parseIncomeTier(value: unknown): IncomeTier | null {
