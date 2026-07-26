@@ -50,6 +50,12 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      # This repository is public, so a committed identifier cannot be walked back:
+      # deleting it later leaves the value in history and in every fork. The scanner
+      # redacts its own output because CI logs for a public repository are public too.
+      - name: Scan for sensitive data
+        run: pnpm run scan-sensitive
+
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-24.04-arm
@@ -91,6 +97,11 @@ jobs:
 
       - name: Run Pint
         run: ./vendor/bin/pint --test
+
+      # phpstan.neon and the larastan dev dependency exist so this can gate; a
+      # config that CI never runs is not a gate.
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
   backend-tests:
     name: Backend Tests
