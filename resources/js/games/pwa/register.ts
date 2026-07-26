@@ -52,7 +52,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 async function registerGamesServiceWorker(): Promise<void> {
   try {
-    await navigator.serviceWorker.register('/sw.js', { scope: '/games' })
+    await navigator.serviceWorker.register('/sw.js', { scope: '/' })
     const registration = await navigator.serviceWorker.ready
     const worker = registration.active
     if (!worker) {

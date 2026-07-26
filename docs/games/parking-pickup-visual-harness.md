@@ -29,9 +29,9 @@ The harness is activated only when `visualTest=1` is present. The query string i
 Example URLs:
 
 ```
-/games/parking-pickup?visualTest=1&level=1&seed=parking-style-a&hud=compact&reducedMotion=1
-/games/parking-pickup?visualTest=1&level=8&seed=parking-style-a&hud=compact&reducedMotion=1
-/games/parking-pickup?visualTest=1&level=20&seed=parking-style-a&hud=compact&reducedMotion=1
+/parking-pickup?visualTest=1&level=1&seed=parking-style-a&hud=compact&reducedMotion=1
+/parking-pickup?visualTest=1&level=8&seed=parking-style-a&hud=compact&reducedMotion=1
+/parking-pickup?visualTest=1&level=20&seed=parking-style-a&hud=compact&reducedMotion=1
 ```
 
 ## Behaviour in visualTest mode
@@ -96,7 +96,7 @@ Append to the `SCENARIOS` array in `tests/e2e/parking-pickup.visual.spec.ts`:
 ```ts
 {
   name: 'level-42',
-  url: '/games/parking-pickup?visualTest=1&level=42&seed=parking-style-a&hud=compact&reducedMotion=1',
+  url: '/parking-pickup?visualTest=1&level=42&seed=parking-style-a&hud=compact&reducedMotion=1',
 },
 ```
 

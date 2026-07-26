@@ -84,7 +84,7 @@ jobs:
           echo "$!" > /tmp/tower-throwback-server.pid
 
           for attempt in {1..30}; do
-            if curl --silent --fail "$PLAYWRIGHT_BASE_URL/games/tower-throwback" > /dev/null; then
+            if curl --silent --fail "$PLAYWRIGHT_BASE_URL/tower-throwback" > /dev/null; then
               exit 0
             fi
 

@@ -13,7 +13,7 @@ class TowerThrowbackGamePageTest extends TestCase
     {
         $this->withoutVite();
 
-        $response = $this->get('/games/tower-throwback');
+        $response = $this->get('/tower-throwback');
 
         $response->assertOk()
             ->assertSee('tower-game-root')

@@ -16,7 +16,7 @@ import { TOTAL_LEVELS as MATH_HORDE_TOTAL_LEVELS } from '../math-horde/gameTypes
 import { loadProgress as loadTowerProgress } from '../tower-throwback/gameProgress'
 import { TOTAL_MILESTONES as TOWER_TOTAL_LEVELS } from '../tower-throwback/gameTypes'
 
-export const GAME_SELECT_PATH = '/games'
+export const GAME_SELECT_PATH = '/'
 
 interface GameCatalogEntryBase {
   slug: string
@@ -75,7 +75,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: 'Math Horde',
     emoji: '🤖',
     description: 'Break math gates, multiply your neon army, and blast through enemy hordes and bosses.',
-    href: '/games/math-horde',
+    href: '/math-horde',
     totalLevels: MATH_HORDE_TOTAL_LEVELS,
     loadProgress: () => loadMathHordeProgress(),
   },
@@ -85,7 +85,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: 'Parking Pickup',
     emoji: '🚗',
     description: 'Park color-matched cars and board the passenger queue before the lot overflows.',
-    href: '/games/parking-pickup',
+    href: '/parking-pickup',
     totalLevels: CARS_TOTAL_LEVELS,
     loadProgress: () => loadCarsProgress(),
   },
@@ -95,7 +95,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: 'Marble Sort',
     emoji: '🎱',
     description: 'Pop crates onto the conveyor and sort marbles into matching blocks before the belt fills up.',
-    href: '/games/marble-sort',
+    href: '/marble-sort',
     totalLevels: MARBLE_SORT_TOTAL_LEVELS,
     loadProgress: () => loadMarbleSortProgress(),
   },
@@ -105,7 +105,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: 'Block Blaster',
     emoji: '🎪',
     description: 'Aim the cannon and clear every block tower with a limited supply of balls.',
-    href: '/games/block-blaster',
+    href: '/block-blaster',
     totalLevels: BLOCK_BLASTER_TOTAL_LEVELS,
     loadProgress: () => loadBlockBlasterProgress(),
   },
@@ -115,7 +115,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: 'Hover',
     emoji: '🛸',
     description: 'Race a rival drone through neon mazes in first-person hovercraft capture-the-flag.',
-    href: '/games/hover',
+    href: '/hover',
     totalLevels: HOVER_TOTAL_LEVELS,
     loadProgress: () => loadHoverProgress(),
   },
@@ -125,7 +125,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: "Chick's Challenge",
     emoji: '🐥',
     description: 'Guide the chick to every chip through keys, boots, ice, and monsters in a step-based tile puzzler.',
-    href: '/games/chicks-challenge',
+    href: '/chicks-challenge',
     totalLevels: CHICKS_TOTAL_LEVELS,
     loadProgress: () => loadChicksProgress(),
   },
@@ -135,7 +135,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: 'Tower Throwback',
     emoji: '🏙️',
     description: 'Grow an empty lot into a 100-story skyscraper — a SimTower throwback with elevators, tenants, and a living economy.',
-    href: '/games/tower-throwback',
+    href: '/tower-throwback',
     totalLevels: TOWER_TOTAL_LEVELS,
     loadProgress: () => loadTowerProgress(),
   },
@@ -145,7 +145,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     title: '2048',
     emoji: '🔢',
     description: 'Swipe to slide and merge numbered tiles into 2048 — with undo, four board sizes, and no level to finish.',
-    href: '/games/2048',
+    href: '/2048',
     loadSummary: () => summarizeTwenty48(),
   },
 ]

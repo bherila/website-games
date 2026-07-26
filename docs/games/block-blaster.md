@@ -1,6 +1,6 @@
 # Block Blaster
 
-Block Blaster is a 3D physics shooting game mounted at `/games/block-blaster`. Each level presents an
+Block Blaster is a 3D physics shooting game mounted at `/block-blaster`. Each level presents an
 artfully stacked arrangement of blocks of different sizes, weights, and colors on a pedestal platform in a
 carnival field. The player has a limited supply of cannonballs and must knock **every block off its
 platform** before the balls run out. Some platforms rotate, exposing different faces of the structure over
@@ -296,7 +296,7 @@ resources/js/games/block-blaster/
   __tests__/                   # see acceptance criteria
 ```
 
-Laravel side: route `Route::get('/games/block-blaster', fn () => view('games.block-blaster'))->name('games.block-blaster');`
+Laravel side: route `Route::get('/block-blaster', fn () => view('games.block-blaster'))->name('games.block-blaster');`
 (public, below the auth group, next to the other games), Blade view per house pattern, feature test
 `tests/Feature/BlockBlasterGamePageTest.php` (mirror `MarbleSortGamePageTest.php`).
 
@@ -346,7 +346,7 @@ instructional text; the only strings on screen are numerals.
 
 **H. Playability (manual, dev):** every level completable within its ball budget by a competent player;
 3★ achievable on every level (the author must 3★ each level once in dev mode). Dev jump:
-`/games/block-blaster?level=N` loads level N directly (allowed in production — it's a toy, not a secret;
+`/block-blaster?level=N` loads level N directly (allowed in production — it's a toy, not a secret;
 progress unlock still only advances by winning).
 
 **I. Performance:** 60 fps on a mid-tier phone profile: ≤ 40 dynamic bodies, ball pooling, no per-frame

@@ -28,10 +28,16 @@ these games, so starting clean avoids ever leaking any of that.
 
 ## Route prefix
 
-Routes keep the `/games/*` prefix (e.g. `/games/block-blaster`) rather than dropping
-to bare paths, so existing links and the installed PWA (whose service-worker scope is
-`/games`) keep working unchanged. This was an explicitly open decision in #1803;
-revisit if wanted.
+Routes are root-mounted — `/`, `/2048`, `/block-blaster`, `/chicks-challenge`,
+`/hover`, `/marble-sort`, `/math-horde`, `/parking-pickup`, `/tower-throwback` — with
+no `/games` prefix. #1803 originally kept `/games/*` (an explicitly open decision) to
+preserve existing URLs and the installed PWA's service-worker scope, but no PWA
+installs existed yet, so a follow-up dropped the prefix while it was still free to
+change. Route *names* still use the `games.` prefix (`games.index`, `games.2048`,
+...) — that's an internal identifier, not a URL, so keeping it avoided pure churn.
+The service worker's scope is now `/` (was `/games`); the API is unaffected — it was
+always under `/api/games/...` and stays there, since it's a namespaced API path, not
+a user-facing route.
 
 ## Auth — TODO
 
@@ -89,10 +95,12 @@ subdomain, and database:
 - Database: `bherila_games`, a separate MySQL database and user — never shared with
   the finance app's database (see #1803 for why).
 
-`.github/workflows/ci.yml`'s `deploy` job expects three repo secrets that must be
-added before the first deploy can succeed: `SSH_USERNAME`, `SSH_PASSWORD`,
-`SSH_HOST`. It deploys **only** to `~/games-laravel/` on the server — never to the
-finance app's directory.
+`.github/workflows/ci.yml`'s `deploy` job authenticates with a dedicated SSH key (not
+a password) and expects four repo secrets: `SSH_PRIVATE_KEY` (the deploy key's full
+PEM, header/footer included), `SSH_HOST`, `SSH_USERNAME`, and `SSH_KNOWN_HOSTS`
+(`ssh-keyscan -H` output for the host, so the deploy pins the host key instead of
+disabling verification). It deploys **only** to `~/games-laravel/` on the server —
+never to the finance app's directory.
 
 ## Privacy
 

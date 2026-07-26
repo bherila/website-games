@@ -1,6 +1,6 @@
 # Marble Sort
 
-Marble Sort is a browser game mounted at `/games/marble-sort`. The player clears a chute-fed grid of marble boxes by busting boxes open, feeding their marbles onto a conveyor, and letting matching sorting blocks collect marbles in sets of three.
+Marble Sort is a browser game mounted at `/marble-sort`. The player clears a chute-fed grid of marble boxes by busting boxes open, feeding their marbles onto a conveyor, and letting matching sorting blocks collect marbles in sets of three.
 
 The page uses `resources/views/layouts/game.blade.php`, matching the Parking Pickup game shell: the game has a focused Blade mount that skips the global site navigation and loads a dedicated Vite React entry.
 
@@ -126,7 +126,7 @@ Each power-up uses a confirmation dialog before spending inventory.
 
 ## Current Implementation Notes
 
-- Route: `/games/marble-sort`
+- Route: `/marble-sort`
 - React entry: `resources/js/games/marble-sort/index.tsx`
 - Game shell/state orchestration: `resources/js/games/marble-sort/MarbleSortGame.tsx`
 - Controls and HUD: `resources/js/games/marble-sort/GameControls.tsx`

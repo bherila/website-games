@@ -1,17 +1,17 @@
 import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 
 const ALL_GAMES = [
-  ['/games/math-horde', '#math-horde-root'],
-  ['/games/parking-pickup', '#cars-game-root'],
-  ['/games/marble-sort', '#marble-sort-root'],
-  ['/games/block-blaster', '#block-blaster-root'],
-  ['/games/hover', '#hover-game-root'],
-  ['/games/chicks-challenge', '#chicks-game-root'],
-  ['/games/tower-throwback', '#tower-game-root'],
-  ['/games/2048', '#game-2048-root'],
+  ['/math-horde', '#math-horde-root'],
+  ['/parking-pickup', '#cars-game-root'],
+  ['/marble-sort', '#marble-sort-root'],
+  ['/block-blaster', '#block-blaster-root'],
+  ['/hover', '#hover-game-root'],
+  ['/chicks-challenge', '#chicks-game-root'],
+  ['/tower-throwback', '#tower-game-root'],
+  ['/2048', '#game-2048-root'],
 ] as const
 
-const SHARED_STORE_GAMES = ALL_GAMES.filter(([route]) => route !== '/games/tower-throwback')
+const SHARED_STORE_GAMES = ALL_GAMES.filter(([route]) => route !== '/tower-throwback')
 
 test.describe('BWH Games PWA offline reload', () => {
   test('registers one installable app and reloads every visited game while signed out', async ({ context, page }) => {
@@ -33,9 +33,9 @@ test.describe('BWH Games PWA offline reload', () => {
   test('stores only sanitized shells and removes game caches before logout', async ({ page }) => {
     await signInLocally(page)
     await seedPwa(page)
-    await page.goto('/games/2048')
+    await page.goto('/2048')
     await expect(page.locator('#game-2048-root > *').first()).toBeAttached()
-    await waitForCachedShell(page, '/games/2048')
+    await waitForCachedShell(page, '/2048')
 
     const initialData = await page.locator('#app-initial-data').textContent()
     const currentUser = initialData
@@ -59,7 +59,7 @@ test.describe('BWH Games PWA offline reload', () => {
 })
 
 async function seedPwa(page: Page): Promise<void> {
-  await page.goto('/games')
+  await page.goto('/')
   await expect(page.locator('#game-select-root > *').first()).toBeAttached()
   await page.waitForFunction(async () => {
     if (!('serviceWorker' in navigator)) {
@@ -70,7 +70,7 @@ async function seedPwa(page: Page): Promise<void> {
 
     return registration.active?.state === 'activated' && navigator.serviceWorker.controller !== null
   })
-  await waitForCachedShell(page, '/games')
+  await waitForCachedShell(page, '/')
 }
 
 async function expectOfflineReloads(

@@ -34,7 +34,7 @@ async function measureDrawCalls(page: Page): Promise<number> {
 test.describe('Tower Throwback draw-call budget', () => {
   for (const time of ['day', 'night'] as const) {
     test(`endgame stays within the draw-call budget at ${time}`, async ({ page }) => {
-      await page.goto(`/games/tower-throwback?visualTest=1&seed=1502&scenario=endgame&time=${time}`)
+      await page.goto(`/tower-throwback?visualTest=1&seed=1502&scenario=endgame&time=${time}`)
       await expect(page.locator('canvas').first()).toBeVisible()
 
       const drawCalls = await measureDrawCalls(page)

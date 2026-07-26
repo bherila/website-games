@@ -1,6 +1,6 @@
 # Hover (Homage)
 
-Hover is a first-person 3D hovercraft capture-the-flag game mounted at `/games/hover` — an homage to the
+Hover is a first-person 3D hovercraft capture-the-flag game mounted at `/hover` — an homage to the
 Windows 95 pack-in *Hover!*. The player pilots a hovercraft through maze arenas collecting **blue flags**
 while a rival drone (the classic pale saucer wrapped in glowing blue rings) races to collect the **red
 flags**. Signature UI from the original is reproduced: a **rear-view mirror** top-center, score and flag

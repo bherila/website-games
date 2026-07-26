@@ -13,7 +13,7 @@ class HoverGamePageTest extends TestCase
     {
         $this->withoutVite();
 
-        $response = $this->get('/games/hover');
+        $response = $this->get('/hover');
 
         $response->assertOk()
             ->assertSee('hover-game-root')

@@ -83,7 +83,7 @@ function mockBoardArea(width: number, height: number): void {
 
 function renderTallRoom(width: number, height: number): void {
   mockBoardArea(width, height)
-  window.history.pushState({}, '', '/games/chicks-challenge?level=9003')
+  window.history.pushState({}, '', '/chicks-challenge?level=9003')
   render(<ChicksGame />)
 }
 

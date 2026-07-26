@@ -54,7 +54,7 @@ describe('GameSelectPage', () => {
     render(<GameSelectPage />)
 
     const card = screen.getByTestId('game-card-2048')
-    expect(card).toHaveAttribute('href', '/games/2048')
+    expect(card).toHaveAttribute('href', '/2048')
     expect(card).toHaveTextContent('Best: 12,480')
     expect(card).toHaveTextContent('Highest tile: 2,048')
     expect(card).toHaveTextContent('Games played: 47')

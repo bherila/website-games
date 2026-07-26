@@ -12,10 +12,10 @@ describe('LevelSelectGrid exit link', () => {
   }
 
   it('links back to the game-select page when exitHref is provided', () => {
-    render(<LevelSelectGrid {...baseProps} exitHref="/games" />)
+    render(<LevelSelectGrid {...baseProps} exitHref="/" />)
 
     const exitLink = screen.getByTestId('level-select-exit')
-    expect(exitLink).toHaveAttribute('href', '/games')
+    expect(exitLink).toHaveAttribute('href', '/')
     expect(exitLink).toHaveTextContent('All Games')
     // min-h-11 (2.75rem = 44px) keeps the tap area at/above the 44px mobile
     // touch-target guidance; jsdom has no layout engine, so we can only

@@ -13,7 +13,7 @@ class GameSelectPageTest extends TestCase
     {
         $this->withoutVite();
 
-        $response = $this->get('/games');
+        $response = $this->get('/');
 
         // Unlike the monorepo this was extracted from, this standalone app has no
         // wider site to navigate back to, so the select page uses the bare game

@@ -287,7 +287,7 @@ export function HoverGame(): ReactElement {
       />
       {phase === 'attract' || phase === 'gameOver' ? (
         <a
-          href="/games"
+          href="/"
           className="absolute top-4 left-4 z-30 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/80 backdrop-blur-sm hover:bg-white/20"
         >
           ← All Games

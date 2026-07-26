@@ -186,17 +186,26 @@ jobs:
           name: frontend-build
           path: public/build/
 
-      - name: Install sshpass
-        run: sudo apt-get install -y sshpass
+      - name: Set up SSH deploy key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       # Destination is hard-coded to ~/games-laravel/ — this account also hosts the
       # separate finance app at ~/bwh-php/ (webroot ~/public_html), and --delete makes
       # a wrong or empty destination catastrophic. Never point this at ~/, ~/bwh-php,
       # ~/public_html, or ~/www.
+      #
+      # Host key is pinned via SSH_KNOWN_HOSTS (no StrictHostKeyChecking=no) — the
+      # deploy key alone only proves who we are, not that the server is who it claims
+      # to be, so skipping host verification here would defeat the point of pinning it.
       - name: Deploy with rsync
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" rsync -av --delete --exclude='.env' \
-            -e "ssh -o StrictHostKeyChecking=no" \
+          rsync -av --delete --exclude='.env' \
+            -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
             app \
             bootstrap \
             config \
@@ -213,6 +222,6 @@ jobs:
 
       - name: Run artisan migrate, config clear/cache on server
         run: |
-          sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
             "cd ~/games-laravel && /opt/cpanel/ea-php85/root/usr/bin/php artisan migrate --force && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:cache"

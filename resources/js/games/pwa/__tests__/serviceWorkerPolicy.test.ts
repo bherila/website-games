@@ -35,11 +35,14 @@ describe('games service worker policy', () => {
     expect(isPwaStaticAsset(new URL('/images/private-export.png', origin), origin)).toBe(false)
   })
 
-  it('recognizes only same-origin game navigations', () => {
-    expect(isGameNavigation({ mode: 'navigate', url: `${origin}/games` } as Request, origin)).toBe(true)
-    expect(isGameNavigation({ mode: 'navigate', url: `${origin}/games/2048` } as Request, origin)).toBe(true)
-    expect(isGameNavigation({ mode: 'navigate', url: `${origin}/dashboard` } as Request, origin)).toBe(false)
-    expect(isGameNavigation({ mode: 'navigate', url: 'https://other.example/games' } as Request, origin)).toBe(false)
+  it('recognizes any same-origin navigation as a game navigation', () => {
+    // Every page this app serves is a game page (see #1803's follow-up dropping the
+    // '/games' route prefix), so the only thing left to check is same-origin + navigate.
+    expect(isGameNavigation({ mode: 'navigate', url: `${origin}/` } as Request, origin)).toBe(true)
+    expect(isGameNavigation({ mode: 'navigate', url: `${origin}/2048` } as Request, origin)).toBe(true)
+    expect(isGameNavigation({ mode: 'navigate', url: `${origin}/tower-throwback` } as Request, origin)).toBe(true)
+    expect(isGameNavigation({ mode: 'cors', url: `${origin}/` } as Request, origin)).toBe(false)
+    expect(isGameNavigation({ mode: 'navigate', url: 'https://other.example/' } as Request, origin)).toBe(false)
   })
 
   it('removes authentication, CSRF, and PII from cached game shells', () => {

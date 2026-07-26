@@ -14,7 +14,7 @@ export function LevelSelect({ levels, progress, onSelectLevel }: LevelSelectProp
   return (
     <LevelSelectGrid
       emoji="🎪"
-      exitHref="/games"
+      exitHref="/"
       levelIds={levels.map((level) => level.id)}
       progress={progress}
       title="Block Blaster"

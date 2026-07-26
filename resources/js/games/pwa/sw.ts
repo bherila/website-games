@@ -126,7 +126,7 @@ async function cachePwaBootstrap(): Promise<void> {
   await cacheGameAssets(assets)
 
   try {
-    const request = new Request('/games', { credentials: 'include' })
+    const request = new Request('/', { credentials: 'include' })
     const response = await fetch(request)
     await cacheSanitizedGameShell(request, response)
   } catch {
@@ -169,7 +169,7 @@ async function networkFirstGameShell(request: Request): Promise<Response> {
   } catch {
     const cache = await caches.open(cacheNames.shells)
     const cached = await cache.match(request)
-      ?? await cache.match('/games')
+      ?? await cache.match('/')
     if (cached) {
       return cached
     }
@@ -253,6 +253,7 @@ function isCacheShellMessage(value: unknown): value is { type: 'CACHE_GAME_SHELL
 }
 
 function isGamesUrl(url: URL): boolean {
+  // Every page this app serves is a game page — see isGameNavigation in
+  // serviceWorkerPolicy.ts for why this no longer checks a '/games' prefix.
   return url.origin === worker.location.origin
-    && (url.pathname === '/games' || url.pathname.startsWith('/games/'))
 }

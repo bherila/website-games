@@ -21,17 +21,17 @@ const SCENARIOS = [
   {
     name: 'level-1',
     url:
-      '/games/parking-pickup?visualTest=1&level=1&seed=parking-style-a&hud=compact&reducedMotion=1',
+      '/parking-pickup?visualTest=1&level=1&seed=parking-style-a&hud=compact&reducedMotion=1',
   },
   {
     name: 'level-8',
     url:
-      '/games/parking-pickup?visualTest=1&level=8&seed=parking-style-a&hud=compact&reducedMotion=1',
+      '/parking-pickup?visualTest=1&level=8&seed=parking-style-a&hud=compact&reducedMotion=1',
   },
   {
     name: 'level-20',
     url:
-      '/games/parking-pickup?visualTest=1&level=20&seed=parking-style-a&hud=compact&reducedMotion=1',
+      '/parking-pickup?visualTest=1&level=20&seed=parking-style-a&hud=compact&reducedMotion=1',
   },
 ] as const
 
@@ -68,7 +68,7 @@ test.describe('Parking Pickup visual harness', () => {
 
   test('visualTest mode does not write to the saved progress key', async ({ page }) => {
     await page.goto(
-      '/games/parking-pickup?visualTest=1&level=8&seed=parking-style-a&hud=compact&reducedMotion=1',
+      '/parking-pickup?visualTest=1&level=8&seed=parking-style-a&hud=compact&reducedMotion=1',
     )
 
     await page.waitForFunction(() => window.__PARKING_PICKUP_VISUAL_READY__ === true, undefined, {

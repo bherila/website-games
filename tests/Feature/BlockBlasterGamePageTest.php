@@ -11,7 +11,7 @@ class BlockBlasterGamePageTest extends TestCase
 
     public function test_block_blaster_game_page_is_publicly_accessible(): void
     {
-        $response = $this->get('/games/block-blaster');
+        $response = $this->get('/block-blaster');
 
         $response->assertOk()
             ->assertSee('block-blaster-root')

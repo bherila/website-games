@@ -4,7 +4,7 @@ A SimTower/Yoot Tower throwback: grow an empty lot into a landmark tower, progre
 1★ → 5★ and finally the **TOWER** rating through each map's prestige structure, with a real-time accelerated
 people simulation, an income/expense economy, and procedural Web Audio SFX.
 
-- Route: `/games/tower-throwback` · Catalog id: `tower-throwback` · Emoji: 🏙️
+- Route: `/tower-throwback` · Catalog id: `tower-throwback` · Emoji: 🏙️
 - Renderer: three.js WebGL, orthographic 2D side-view cross-section with a generated WebP atlas,
   map-specific ambience, and colored-quad fallbacks.
 - Saves: single autosaved sandbox (versioned localStorage), resume on load, "New tower" reset.

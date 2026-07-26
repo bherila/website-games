@@ -30,7 +30,7 @@ describe('HoverGame', () => {
     expect(screen.getByRole('button', { name: 'Start Engine' })).toBeInTheDocument()
     expect(screen.getByText(/drive & strafe/)).toBeInTheDocument()
     expect(screen.getByText(/rotate & glance/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /All Games/ })).toHaveAttribute('href', '/games')
+    expect(screen.getByRole('link', { name: /All Games/ })).toHaveAttribute('href', '/')
   })
 
   test('start → map intro banner → playing HUD', () => {

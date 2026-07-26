@@ -9,9 +9,10 @@ const pwaCacheVersion = process.env.GITHUB_SHA
   ?? process.env.VITE_PWA_CACHE_VERSION
   ?? 'local';
 
-// Route prefix: kept as `/games/*` (open decision #1 in bherila/2025-website#1803) so
-// existing URLs and the installed PWA (whose service-worker scope is `/games`) keep
-// working unchanged after the split. Revisit if the owner decides to drop the prefix.
+// Route prefix: dropped. bherila/2025-website#1803 initially kept `/games/*` (open
+// decision #1) to preserve existing URLs/PWA installs, but no PWA installs existed
+// yet, so the owner had this follow-up drop the prefix — routes are now root-mounted
+// (`/2048`, `/block-blaster`, ...) and the service worker's scope is `/`.
 export default defineConfig({
   define: {
     __PWA_CACHE_VERSION__: JSON.stringify(pwaCacheVersion),
@@ -42,7 +43,7 @@ export default defineConfig({
       rollupFormat: 'iife',
       injectRegister: false,
       manifest: false,
-      scope: '/games',
+      scope: '/',
       buildBase: '/build/',
       outDir: 'public/build',
       injectManifest: {

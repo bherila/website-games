@@ -1,6 +1,6 @@
 # Chick's Challenge
 
-Chick's Challenge is a 2D top-down tile puzzler mounted at `/games/chicks-challenge` — an original homage to the classic
+Chick's Challenge is a 2D top-down tile puzzler mounted at `/chicks-challenge` — an original homage to the classic
 1989 tile-puzzle genre (Chip's Challenge). The player steers a little chip-collector around a grid,
 gathering microchips to open the chip socket and reach the exit, using keys, boots, and pushable
 blocks while avoiding water, fire, and deterministic monsters. The world is **step-based**: nothing
@@ -442,7 +442,7 @@ this playbook. "Done" is defined by the gates, not by opinion.
    solver's implied path and plug the hole. If the solver returns `budget`, simplify.
 5. A necessity failure means a mechanic is decorative: rework it to gate progress (see patterns) or
    remove it.
-6. Playtest in dev mode: `/games/chicks-challenge?level=N` (`&record=1` logs your input string).
+6. Playtest in dev mode: `/chicks-challenge?level=N` (`&record=1` logs your input string).
 
 ### Proven gating patterns (use these; naive placements fail the gates)
 
@@ -522,7 +522,7 @@ resources/js/games/chicks-challenge/
   __tests__/
 ```
 
-Laravel side: route `Route::get('/games/chicks-challenge', fn () => view('games.chicks-challenge'))->name('games.chicks-challenge');`
+Laravel side: route `Route::get('/chicks-challenge', fn () => view('games.chicks-challenge'))->name('games.chicks-challenge');`
 (public, next to the other games), Blade view per house pattern, feature test
 `tests/Feature/ChicksChallengeGamePageTest.php` (mirror `HoverGamePageTest.php`).
 
@@ -582,7 +582,7 @@ computed stars and advances unlock; death overlay restarts cleanly; hint banner 
 `inputQueue` test: keyboard + swipe merge, buffer caps at 2.
 
 **G. Playability (manual, dev):** author 3★s every level once in dev mode. Dev jump
-`/games/chicks-challenge?level=N` (allowed in production; unlock still only advances by winning);
+`/chicks-challenge?level=N` (allowed in production; unlock still only advances by winning);
 `&record=1` logs the input string for solution authoring.
 
 **H. Mobile:** `pnpm run test:e2e:chicks-challenge` (Playwright, desktop + Pixel 7 projects) covers

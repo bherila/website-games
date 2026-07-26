@@ -626,7 +626,7 @@ export function TowerGame(): ReactElement {
       state,
       activeSlotRef.current,
       sandboxSessionIdRef.current,
-      () => window.location.assign('/games'),
+      () => window.location.assign('/'),
     )
     if (!result.ok) {
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })

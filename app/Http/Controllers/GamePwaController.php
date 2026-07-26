@@ -11,7 +11,7 @@ class GamePwaController extends Controller
         return response()->file(public_path('build/sw.js'), [
             'Cache-Control' => 'no-cache, no-store, must-revalidate',
             'Content-Type' => 'application/javascript; charset=utf-8',
-            'Service-Worker-Allowed' => '/games',
+            'Service-Worker-Allowed' => '/',
         ]);
     }
 }

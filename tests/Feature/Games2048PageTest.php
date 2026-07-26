@@ -11,7 +11,7 @@ class Games2048PageTest extends TestCase
 
     public function test_2048_game_page_is_publicly_accessible(): void
     {
-        $response = $this->get('/games/2048');
+        $response = $this->get('/2048');
 
         $response->assertOk()
             ->assertSee('game-2048-root')

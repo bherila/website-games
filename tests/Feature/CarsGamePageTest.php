@@ -11,7 +11,7 @@ class CarsGamePageTest extends TestCase
 
     public function test_cars_game_page_is_publicly_accessible(): void
     {
-        $response = $this->get('/games/parking-pickup');
+        $response = $this->get('/parking-pickup');
 
         $response->assertOk()
             ->assertSee('cars-game-root')

@@ -1,6 +1,6 @@
 # Parking Pickup
 
-Parking Pickup is a browser game mounted at `/games/parking-pickup`. The player clears a jammed parking lot by sending cars into temporary parking spaces while a continuous loop of passengers boards matching cars, across a campaign of hand-authored levels with star ratings.
+Parking Pickup is a browser game mounted at `/parking-pickup`. The player clears a jammed parking lot by sending cars into temporary parking spaces while a continuous loop of passengers boards matching cars, across a campaign of hand-authored levels with star ratings.
 
 The page uses `resources/views/layouts/game.blade.php`, matching the PHR and Finance tool pattern: the game has a tool-specific Blade shell that skips the global site navigation instead of toggling `layouts.app`.
 
@@ -155,7 +155,7 @@ The Fill button opens a confirmation dialog before passengers are pulled from th
 
 ## Current Implementation Notes
 
-- Route: `/games/parking-pickup`
+- Route: `/parking-pickup`
 - React entry: `resources/js/games/cars/index.tsx`
 - Game shell/state orchestration: `resources/js/games/cars/CarsGame.tsx`
 - Controls and HUD: `resources/js/games/cars/GameControls.tsx`

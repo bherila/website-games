@@ -51,7 +51,7 @@ function seedProgress(progress: SavedProgress): void {
 describe('BlockBlasterGame', () => {
   beforeEach(() => {
     window.localStorage.clear()
-    window.history.pushState({}, '', '/games/block-blaster')
+    window.history.pushState({}, '', '/block-blaster')
   })
 
   it('renders the level-select grid with correct lock state from seeded progress', () => {
@@ -158,7 +158,7 @@ describe('BlockBlasterGame', () => {
   })
 
   it('shows a trophy instead of a next button on the final level', () => {
-    window.history.pushState({}, '', '/games/block-blaster?level=3')
+    window.history.pushState({}, '', '/block-blaster?level=3')
 
     render(<BlockBlasterGame />)
 
@@ -169,7 +169,7 @@ describe('BlockBlasterGame', () => {
   })
 
   it('starts directly in the requested level via the ?level= dev jump without changing persisted unlock', () => {
-    window.history.pushState({}, '', '/games/block-blaster?level=3')
+    window.history.pushState({}, '', '/block-blaster?level=3')
 
     render(<BlockBlasterGame />)
 

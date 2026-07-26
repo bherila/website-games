@@ -11,7 +11,7 @@ class MathHordeGamePageTest extends TestCase
 
     public function test_math_horde_game_page_is_publicly_accessible(): void
     {
-        $response = $this->get('/games/math-horde');
+        $response = $this->get('/math-horde');
 
         $response->assertOk()
             ->assertSee('math-horde-root')

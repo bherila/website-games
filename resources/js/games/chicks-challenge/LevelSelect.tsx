@@ -15,7 +15,7 @@ export function LevelSelect({ progress, onSelectLevel }: LevelSelectProps): Reac
   return (
     <LevelSelectGrid
       emoji={GAME_EMOJI}
-      exitHref="/games"
+      exitHref="/"
       levelIds={LEVEL_IDS}
       progress={progress}
       title={GAME_TITLE}

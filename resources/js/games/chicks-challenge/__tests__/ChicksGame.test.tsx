@@ -59,7 +59,7 @@ describe('ChicksGame', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     window.localStorage.clear()
-    window.history.pushState({}, '', '/games/chicks-challenge')
+    window.history.pushState({}, '', '/chicks-challenge')
   })
 
   afterEach(() => {
@@ -145,7 +145,7 @@ describe('ChicksGame', () => {
   })
 
   it('dies on drowning and shows the death overlay after the death delay', () => {
-    window.history.pushState({}, '', '/games/chips?level=9001')
+    window.history.pushState({}, '', '/chips?level=9001')
     render(<ChicksGame />)
 
     pressAndAdvance('R')
@@ -160,7 +160,7 @@ describe('ChicksGame', () => {
   })
 
   it('restarting from the death overlay resets the move counter', () => {
-    window.history.pushState({}, '', '/games/chips?level=9001')
+    window.history.pushState({}, '', '/chips?level=9001')
     render(<ChicksGame />)
 
     pressAndAdvance('R')
@@ -178,7 +178,7 @@ describe('ChicksGame', () => {
   })
 
   it('jumps straight into a level via the ?level= dev jump without touching persisted unlock', () => {
-    window.history.pushState({}, '', '/games/chips?level=2')
+    window.history.pushState({}, '', '/chips?level=2')
     render(<ChicksGame />)
 
     expect(screen.getByLabelText('Level 2')).toBeInTheDocument()

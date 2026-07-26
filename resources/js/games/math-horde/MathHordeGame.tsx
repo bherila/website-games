@@ -135,7 +135,7 @@ export function MathHordeGame(): ReactElement {
       <PortraitGameShell className="dark bg-[radial-gradient(circle_at_top,#172554,#020617_65%)]">
         <LevelSelectGrid
           emoji="🤖"
-          exitHref="/games"
+          exitHref="/"
           footer="Break the gates. Build the horde. Beat the bosses."
           levelIds={LEVELS.map((entry) => entry.id)}
           progress={progress}

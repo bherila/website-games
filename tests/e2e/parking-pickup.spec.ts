@@ -27,7 +27,7 @@ test.describe('Parking Pickup visual smoke', () => {
   })
 
   test('renders the parking, feeder, and board regions without the tutorial overlay', async ({ page }, testInfo) => {
-    await page.goto('/games/parking-pickup')
+    await page.goto('/parking-pickup')
 
     await expect(page.getByText('Parking Pickup')).toBeVisible()
     await page.getByTestId('level-tile-1').click()
@@ -56,7 +56,7 @@ test.describe('Parking Pickup visual smoke', () => {
   })
 
   test('boots to the level select with star tiles', async ({ page }) => {
-    await page.goto('/games/parking-pickup')
+    await page.goto('/parking-pickup')
 
     await expect(page.getByText('Parking Pickup')).toBeVisible()
     await expect(page.getByTestId('level-tile-1')).toHaveAttribute('data-unlocked', 'true')
@@ -65,7 +65,7 @@ test.describe('Parking Pickup visual smoke', () => {
   })
 
   test('exposes the styled power-up and action controls', async ({ page }) => {
-    await page.goto('/games/parking-pickup')
+    await page.goto('/parking-pickup')
     await page.getByTestId('level-tile-1').click()
 
     await expect(page.getByText(LEVEL_ONE_INTRO)).toBeVisible()
@@ -76,7 +76,7 @@ test.describe('Parking Pickup visual smoke', () => {
 
   test('keeps playfield framing stable through confirmed Fill completion', async ({ page }, testInfo) => {
     await loadNearCompleteLevel(page)
-    await page.goto('/games/parking-pickup')
+    await page.goto('/parking-pickup')
 
     const canvas = page.locator('canvas').first()
     await expect(canvas).toBeVisible()

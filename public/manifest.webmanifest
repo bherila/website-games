@@ -1,10 +1,10 @@
 {
-  "id": "/games/",
+  "id": "/",
   "name": "BWH Games",
   "short_name": "BWH Games",
   "description": "Install and play BWH Games, including offline play after a game has been visited.",
-  "scope": "/games",
-  "start_url": "/games",
+  "scope": "/",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#020617",
@@ -39,49 +39,49 @@
     {
       "name": "Math Horde",
       "short_name": "Math Horde",
-      "url": "/games/math-horde",
+      "url": "/math-horde",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Parking Pickup",
       "short_name": "Parking",
-      "url": "/games/parking-pickup",
+      "url": "/parking-pickup",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Marble Sort",
       "short_name": "Marble Sort",
-      "url": "/games/marble-sort",
+      "url": "/marble-sort",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Block Blaster",
       "short_name": "Block Blaster",
-      "url": "/games/block-blaster",
+      "url": "/block-blaster",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Hover",
       "short_name": "Hover",
-      "url": "/games/hover",
+      "url": "/hover",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Chick's Challenge",
       "short_name": "Chick's",
-      "url": "/games/chicks-challenge",
+      "url": "/chicks-challenge",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Tower Throwback",
       "short_name": "Tower",
-      "url": "/games/tower-throwback",
+      "url": "/tower-throwback",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "2048",
       "short_name": "2048",
-      "url": "/games/2048",
+      "url": "/2048",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]

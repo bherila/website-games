@@ -88,7 +88,7 @@ async function expectDialogTopReachable(page: Page, label: string, dialogTestId:
 
 test.describe("Chick's Challenge board layout", () => {
   test('loads level 1 from the level select with the board inside the viewport', async ({ page }) => {
-    await page.goto('/games/chicks-challenge')
+    await page.goto('/chicks-challenge')
 
     await expect(page.getByRole('heading', { name: "Chick's Challenge" })).toBeVisible()
     await page.getByTestId('level-tile-1').click()
@@ -107,7 +107,7 @@ test.describe("Chick's Challenge board layout", () => {
 
   test('keeps the largest board inside the viewport', async ({ page }) => {
     // Level 38 is the pack's biggest board (31x31) and drives the follow camera.
-    await page.goto('/games/chicks-challenge?level=38')
+    await page.goto('/chicks-challenge?level=38')
 
     await expect(page.getByLabel('Level 38')).toBeVisible()
     await waitForBoard(page)
@@ -119,7 +119,7 @@ test.describe("Chick's Challenge board layout", () => {
     test.skip(testInfo.project.name !== 'chromium-mobile-375', 'Rotation depends on the phone-sized viewport')
 
     // Level 29 is 12x5: upright it is ~31 px/tile on a 375px-wide phone, ~48 turned.
-    await page.goto('/games/chicks-challenge?level=29')
+    await page.goto('/chicks-challenge?level=29')
 
     await expect(page.getByLabel('Level 29')).toBeVisible()
     await waitForBoard(page)
@@ -138,7 +138,7 @@ test.describe("Chick's Challenge board layout", () => {
   test('shows the touch D-pad and accepts a step on a phone', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-mobile-375', 'The D-pad only renders on touch devices')
 
-    await page.goto('/games/chicks-challenge?level=1')
+    await page.goto('/chicks-challenge?level=1')
     await waitForBoard(page)
 
     await expect(page.getByLabel('0 of 16 moves')).toBeVisible()
@@ -161,7 +161,7 @@ test.describe("Chick's Challenge board layout", () => {
   test('keeps an overlay dialog reachable on a viewport shorter than the dialog', async ({ page }) => {
     // Level 11 is a square 11x11 board (it never rotates) whose start sits three
     // steps above a water band: one sidestep, then three downs, drowns the chick.
-    await page.goto('/games/chicks-challenge?level=11')
+    await page.goto('/chicks-challenge?level=11')
     await waitForBoard(page)
     await expect(page.getByLabel('0 of 20 moves')).toBeVisible()
 

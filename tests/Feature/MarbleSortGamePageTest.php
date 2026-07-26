@@ -11,7 +11,7 @@ class MarbleSortGamePageTest extends TestCase
 
     public function test_marble_sort_game_page_is_publicly_accessible(): void
     {
-        $response = $this->get('/games/marble-sort');
+        $response = $this->get('/marble-sort');
 
         $response->assertOk()
             ->assertSee('marble-sort-root')

@@ -26,7 +26,7 @@ test.describe('Tower Throwback visual harness', () => {
   for (const scenario of ART_PACK_SCENARIOS) {
     for (const time of ART_PACK_TIMES) {
       test(`captures the ${scenario} art pack at ${time}`, async ({ page }, testInfo) => {
-        await page.goto(`/games/tower-throwback?visualTest=1&seed=1502&scenario=${scenario}&time=${time}`)
+        await page.goto(`/tower-throwback?visualTest=1&seed=1502&scenario=${scenario}&time=${time}`)
         await waitForVisualReady(page)
 
         await expect(page.locator('canvas').first()).toBeVisible()
@@ -37,7 +37,7 @@ test.describe('Tower Throwback visual harness', () => {
 
   for (const scenario of SCENARIOS) {
     test(`captures ${scenario.name}`, async ({ page }, testInfo) => {
-      await page.goto(`/games/tower-throwback?visualTest=1&seed=1551&scenario=${scenario.scenario}`)
+      await page.goto(`/tower-throwback?visualTest=1&seed=1551&scenario=${scenario.scenario}`)
       await waitForVisualReady(page)
 
       const canvas = page.locator('canvas').first()
@@ -55,7 +55,7 @@ test.describe('Tower Throwback visual harness', () => {
 
   for (const scenario of OCCUPIED_UNIT_SCENARIOS) {
     test(`captures ${scenario.name}`, async ({ page }, testInfo) => {
-      await page.goto(`/games/tower-throwback?visualTest=1&seed=1555&scenario=${scenario.scenario}`)
+      await page.goto(`/tower-throwback?visualTest=1&seed=1555&scenario=${scenario.scenario}`)
       await waitForVisualReady(page)
       await zoomForInteriorArt(page)
       await capture(page, testInfo, scenario.name)
@@ -63,7 +63,7 @@ test.describe('Tower Throwback visual harness', () => {
   }
 
   test('captures a valid stacked slab bulk preview', async ({ page }, testInfo) => {
-    await page.goto('/games/tower-throwback?visualTest=1&seed=1551&scenario=starter&surface=bulkGhost')
+    await page.goto('/tower-throwback?visualTest=1&seed=1551&scenario=starter&surface=bulkGhost')
     await waitForVisualReady(page)
 
     const canvas = page.locator('canvas').first()
@@ -73,7 +73,7 @@ test.describe('Tower Throwback visual harness', () => {
   })
 
   test('captures the Eval overlay', async ({ page }, testInfo) => {
-    await page.goto('/games/tower-throwback?visualTest=1&seed=1553&scenario=midgame&surface=eval')
+    await page.goto('/tower-throwback?visualTest=1&seed=1553&scenario=midgame&surface=eval')
     await waitForVisualReady(page)
 
     await expect(page.getByTestId('overlay-eval')).toHaveAttribute('aria-pressed', 'true')
@@ -82,7 +82,7 @@ test.describe('Tower Throwback visual harness', () => {
 
   test('captures heatmap navigation and tile explanation', async ({ page }, testInfo) => {
     test.setTimeout(60_000)
-    await page.goto('/games/tower-throwback?visualTest=1&seed=1501&scenario=midgame&surface=heatmap')
+    await page.goto('/tower-throwback?visualTest=1&seed=1501&scenario=midgame&surface=heatmap')
     await waitForVisualReady(page)
 
     await expect(page.getByTestId('overlay-noise')).toHaveAttribute('aria-pressed', 'true')
@@ -116,7 +116,7 @@ test.describe('Tower Throwback visual harness', () => {
   })
 
   test('captures the disaster setting', async ({ page }, testInfo) => {
-    await page.goto('/games/tower-throwback?visualTest=1&seed=1553&scenario=starter&surface=disasters')
+    await page.goto('/tower-throwback?visualTest=1&seed=1553&scenario=starter&surface=disasters')
     await waitForVisualReady(page)
 
     await expect(page.getByText('Disasters: on')).toBeVisible()
@@ -124,7 +124,7 @@ test.describe('Tower Throwback visual harness', () => {
   })
 
   test('captures populated toast history', async ({ page }, testInfo) => {
-    await page.goto('/games/tower-throwback?visualTest=1&seed=1553&scenario=fire&surface=toastHistory')
+    await page.goto('/tower-throwback?visualTest=1&seed=1553&scenario=fire&surface=toastHistory')
     await waitForVisualReady(page)
 
     const drawer = page.getByRole('complementary', { name: 'Recent events' })
@@ -142,7 +142,7 @@ test.describe('Tower Throwback visual harness', () => {
   })
 
   test('captures a valid shaft resize preview', async ({ page }, testInfo) => {
-    await page.goto('/games/tower-throwback?visualTest=1&seed=1553&scenario=midgame&surface=shaftResize')
+    await page.goto('/tower-throwback?visualTest=1&seed=1553&scenario=midgame&surface=shaftResize')
     await waitForVisualReady(page)
 
     await expect(page.getByTestId('shaft-resize-readout')).toContainText('refund')

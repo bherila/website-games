@@ -219,7 +219,7 @@ export function MarbleSortGame(): ReactElement {
           <section className="relative min-h-0 flex-1">
             <LevelSelectGrid
               emoji="🎱"
-              exitHref="/games"
+              exitHref="/"
               footer="More levels coming soon."
               levelIds={MARBLE_LEVELS.map((level) => level.id)}
               progress={progress}

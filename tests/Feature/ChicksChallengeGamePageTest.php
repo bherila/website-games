@@ -13,7 +13,7 @@ class ChicksChallengeGamePageTest extends TestCase
     {
         $this->withoutVite();
 
-        $response = $this->get('/games/chicks-challenge');
+        $response = $this->get('/chicks-challenge');
 
         $response->assertOk()
             ->assertSee('chicks-game-root')
@@ -30,7 +30,7 @@ class ChicksChallengeGamePageTest extends TestCase
     {
         $this->withoutVite();
 
-        $response = $this->get('/games/chicks-challenge');
+        $response = $this->get('/chicks-challenge');
 
         $response->assertOk()
             ->assertSee('<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">', false);
@@ -41,7 +41,7 @@ class ChicksChallengeGamePageTest extends TestCase
     {
         $this->withoutVite();
 
-        $response = $this->get('/games/hover');
+        $response = $this->get('/hover');
 
         $response->assertOk()
             ->assertSee('<meta name="viewport" content="width=device-width, initial-scale=1">', false);
