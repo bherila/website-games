@@ -6,6 +6,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "scan-sensitive": "node scripts/scan-sensitive.mjs",
         "test": "jest --passWithNoTests --maxWorkers=2",
         "test:slow": "JEST_INCLUDE_SLOW_TESTS=1 jest --passWithNoTests --testPathPatterns='\\.slow\\.test\\.[tj]sx?$'",
         "test:e2e": "playwright test",
