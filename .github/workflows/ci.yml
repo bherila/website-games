@@ -117,7 +117,9 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Create .env for tests
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
 
       - name: Run PHPUnit
         run: php -d memory_limit=1G artisan test --compact
