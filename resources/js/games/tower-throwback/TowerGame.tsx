@@ -689,7 +689,7 @@ export function TowerGame(): ReactElement {
   ]
 
   return (
-    <div className="fixed inset-0 touch-none overflow-hidden bg-slate-950 text-white">
+    <div className="fixed inset-0 touch-none overflow-hidden bg-slate-950 text-white" data-map-id={engineState.mapId}>
       <div className="absolute inset-0">
         <TowerScene
           key={runId}

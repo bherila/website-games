@@ -8,7 +8,8 @@ import {
   pushCloudSlot,
 } from '../cloudSync'
 import { createEngineState } from '../engine/engine'
-import { loadSandbox, type SavedSandbox, saveSandbox } from '../gameProgress'
+import { buildScenario } from '../engine/scenarios'
+import { loadSandbox, restoreSandbox, type SavedSandbox, saveSandbox } from '../gameProgress'
 
 jest.mock('@/fetchWrapper', () => ({
   fetchWrapper: {
@@ -88,6 +89,40 @@ describe('cloudSync round-trip', () => {
     const cloud = await getCloudSlot('slot-a')
 
     expect(cloud?.payload).toEqual(local)
+  })
+
+  it('preserves Niagara and its Observation Deck through the cloud payload', async () => {
+    const state = buildScenario('niagara', 1676)
+    expect(saveSandbox(state, 'slot-a')).toEqual({ ok: true })
+    const local = loadSandbox('slot-a')
+    expect(local).not.toBeNull()
+
+    let storedPayload: unknown
+    mockPutRaw.mockImplementation(async (_url: string, body: { payload: unknown }) => {
+      storedPayload = body.payload
+      return response(200, { data: meta({ lease_token: 'tok' }) })
+    })
+
+    const push = await pushCloudSlot({
+      slot: 'slot-a',
+      payload: local!,
+      wireVersion: local!.version,
+      token: 'tok',
+      game_day: local!.clock.day,
+      star: local!.star,
+      population: 0,
+      funds: local!.funds,
+    })
+    expect(push).toMatchObject({ ok: true })
+
+    mockGet.mockResolvedValue({ data: meta({ payload: JSON.parse(JSON.stringify(storedPayload)) }) })
+    const cloud = await getCloudSlot('slot-a')
+    const cloudPayload = cloud?.payload as SavedSandbox | undefined
+    expect(cloudPayload?.mapId).toBe('niagara-falls')
+
+    const restored = restoreSandbox(cloudPayload!)
+    expect(restored.mapId).toBe('niagara-falls')
+    expect(restored.units.some((unit) => unit.kind === 'observationDeck')).toBe(true)
   })
 })
 

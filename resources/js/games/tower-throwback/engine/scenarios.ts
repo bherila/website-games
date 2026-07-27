@@ -15,7 +15,7 @@ import { createEngineState, stepEngine } from './engine'
 import { spawnPerson } from './people'
 import { applyStarUp } from './stars'
 
-export type ScenarioName = 'starter' | 'midgame' | 'endgame' | 'fullCar' | 'damage' | 'fire' | 'activityDay' | 'activityNight'
+export type ScenarioName = 'starter' | 'midgame' | 'endgame' | 'niagara' | 'fullCar' | 'damage' | 'fire' | 'activityDay' | 'activityNight'
 
 function run(state: EngineState, commands: EngineCommand[]): void {
   const events = stepEngine(state, commands, 0)
@@ -123,6 +123,51 @@ function buildEndgame(state: EngineState): void {
   advanceDays(state, 2)
 }
 
+function buildNiagara(state: EngineState): void {
+  applyStarUp(state, [])
+  applyStarUp(state, [])
+  applyStarUp(state, [])
+  applyStarUp(state, [])
+  run(state, [place('lobby', 0, 130, 59)])
+
+  const commands: EngineCommand[] = []
+  for (let floor = 2; floor <= 15; floor += 1) {
+    commands.push(place('slab', floor, 130, 59))
+  }
+  for (let floor = -1; floor >= -10; floor -= 1) {
+    commands.push(place('slab', floor, 130, 59))
+  }
+  commands.push({ type: 'placeShaft', kind: 'standard', x: 167, bottomFloor: -10, topFloor: 15 })
+
+  for (const floor of [2, 3, 4, 5, 6]) {
+    commands.push(
+      place('officeS', floor, 130),
+      place('officeS', floor, 136),
+      place('officeS', floor, 142),
+      place('restroom', floor, 150),
+    )
+  }
+  for (const floor of [-1, -2, -3, -4, -5]) {
+    commands.push(
+      place('aptStudio', floor, 130),
+      place('aptStudio', floor, 134),
+      place('aptStudio', floor, 138),
+      place('aptStudio', floor, 142),
+    )
+  }
+  commands.push(
+    place('fastfood', 7, 130),
+    place('shop', 7, 154),
+    place('hotelReception', -6, 157),
+    place('hotel1p', -6, 130),
+    place('housekeeping', -7, 130),
+    place('securityOffice', 8, 130),
+    place('observationDeck', 15, 171),
+  )
+  run(state, commands)
+  advanceDays(state, 2)
+}
+
 function buildFullCar(state: EngineState): void {
   run(state, [place('lobby', 0, 150, 40)])
   const commands: EngineCommand[] = []
@@ -220,14 +265,20 @@ function buildActivity(state: EngineState, minute: number): void {
 }
 
 export function buildScenario(name: ScenarioName, seed: number): EngineState {
-  const lobbyHeight = ['midgame', 'endgame', 'fire'].includes(name) ? 2 : 1
-  const state = createEngineState({ seed, mapId: 'city-tower', lobbyHeight })
+  const lobbyHeight = ['midgame', 'endgame', 'fire', 'niagara'].includes(name) ? 2 : 1
+  const state = createEngineState({
+    seed,
+    mapId: name === 'niagara' ? 'niagara-falls' : 'city-tower',
+    lobbyHeight,
+  })
   if (name === 'starter') {
     buildStarter(state)
   } else if (name === 'midgame') {
     buildMidgame(state)
   } else if (name === 'endgame') {
     buildEndgame(state)
+  } else if (name === 'niagara') {
+    buildNiagara(state)
   } else if (name === 'fullCar') {
     buildFullCar(state)
   } else if (name === 'damage') {

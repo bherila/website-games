@@ -62,6 +62,19 @@ test.describe('Tower Throwback visual harness', () => {
     })
   }
 
+  test('captures Niagara Falls and its Observation Deck', async ({ page }, testInfo) => {
+    await page.goto('/tower-throwback?visualTest=1&seed=1676&scenario=niagara&time=day')
+    await waitForVisualReady(page)
+
+    await expect(page.locator('canvas').first()).toBeVisible()
+    await expect(page.locator('[data-map-id="niagara-falls"]')).toBeVisible()
+    await page.getByRole('button', { name: 'Build' }).click()
+    await expect(page.getByText('Observation Deck', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Done' }).click()
+    await page.getByRole('button', { name: 'Fit whole tower' }).click()
+    await capture(page, testInfo, 'niagara-falls')
+  })
+
   test('captures a valid stacked slab bulk preview', async ({ page }, testInfo) => {
     await page.goto('/tower-throwback?visualTest=1&seed=1551&scenario=starter&surface=bulkGhost')
     await waitForVisualReady(page)

@@ -27,6 +27,15 @@ describe('visual test mode', () => {
     expect(getVisualTestConfig(`?visualTest=1&seed=1555&scenario=${scenario}`)).toEqual({ seed: 1555, scenario, surface: null, time: null })
   })
 
+  it('parses the Niagara scenario', () => {
+    expect(getVisualTestConfig('?visualTest=1&seed=1676&scenario=niagara')).toEqual({
+      seed: 1676,
+      scenario: 'niagara',
+      surface: null,
+      time: null,
+    })
+  })
+
   it.each(['day', 'night'] as const)('parses the %s art-pack time', (time) => {
     expect(getVisualTestConfig(`?visualTest=1&seed=1502&scenario=endgame&time=${time}`)).toEqual({
       seed: 1502,
