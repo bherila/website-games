@@ -18,6 +18,10 @@ function slots(savedSlotId: SandboxSlotId = 'slot-a'): SandboxSlotSummary[] {
 }
 
 describe('SaveLoadOverlay', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('protects an unknown-map save from overwrite while allowing explicit clearing', () => {
     const onSave = jest.fn()
     const unknownMapSlots = slots().map((slot) =>
@@ -161,5 +165,104 @@ describe('SaveLoadOverlay', () => {
     expect(screen.getByTestId('load-slot-b')).toBeDisabled()
     expect(screen.getByTestId('export-slot-b')).toBeDisabled()
     expect(screen.getByTestId('clear-slot-b')).toBeDisabled()
+  })
+
+  it('copies the exact export text and selects it when clipboard access fails', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+
+    render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText='{"version":2,"seed":17}'
+        message={null}
+        disastersEnabled={false}
+        onClose={jest.fn()}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('copy-export'))
+    expect(writeText).toHaveBeenCalledWith('{"version":2,"seed":17}')
+    expect(await screen.findByText('Copied')).toBeInTheDocument()
+
+    writeText.mockRejectedValueOnce(new Error('permission denied'))
+    fireEvent.click(screen.getByTestId('copy-export'))
+    expect(await screen.findByText('Select & copy')).toBeInTheDocument()
+    expect(screen.getByTestId('export-payload')).toHaveFocus()
+  })
+
+  it('downloads the exact export text and revokes the object URL', async () => {
+    let exportedBlob: Blob | undefined
+    const createObjectURL = jest.fn((blob: Blob) => {
+      exportedBlob = blob
+      return 'blob:tower-save'
+    })
+    const revokeObjectURL = jest.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+
+    render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText='{"version":2,"seed":17}'
+        message={null}
+        disastersEnabled={false}
+        onClose={jest.fn()}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('download-export'))
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:tower-save')
+    expect(exportedBlob).toBeDefined()
+    const contents = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(exportedBlob!)
+    })
+    expect(contents).toBe('{"version":2,"seed":17}')
+  })
+
+  it('disables export portability actions until export text exists', () => {
+    render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText=""
+        message={null}
+        disastersEnabled={false}
+        onClose={jest.fn()}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('copy-export')).toBeDisabled()
+    expect(screen.getByTestId('download-export')).toBeDisabled()
   })
 })

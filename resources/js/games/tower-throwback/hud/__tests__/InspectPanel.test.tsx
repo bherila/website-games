@@ -89,17 +89,27 @@ describe('InspectPanel — unit', () => {
     expect(screen.getByTestId('overlay-tile-sample')).toHaveTextContent('4.3 min avg wait')
   })
 
-  it('shows occupancy, eval, income, and fires the rent tier command', () => {
+  it('shows occupancy, eval, fixed rent economics, and fires the rent tier command', () => {
     const h = handlers()
     render(<InspectPanel selection={{ type: 'unit', unit: makeUnit() }} maxStarReached={2} {...h} />)
 
     expect(screen.getByTestId('occupancy')).toHaveTextContent('4/4')
     expect(screen.getByTestId('eval-score')).toHaveTextContent('72/100')
     expect(screen.getByTestId('income-line')).toHaveTextContent('$400/day rent') // avg ×1.0
+    expect(screen.getByTestId('maintenance-line')).toHaveTextContent('$0/day')
+    expect(screen.getByTestId('daily-net-line')).toHaveTextContent('$400/day')
 
     expect(screen.getByTestId('rent-avg')).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByTestId('rent-high'))
     expect(h.onSetRentTier).toHaveBeenCalledWith(7, 'high')
+  })
+
+  it('shows maintenance without promising daily net for variable income', () => {
+    render(<InspectPanel selection={{ type: 'unit', unit: makeUnit({ kind: 'fastfood' }) }} maxStarReached={2} {...handlers()} />)
+
+    expect(screen.getByTestId('income-line')).toHaveTextContent('$10 per visit')
+    expect(screen.getByTestId('maintenance-line')).toHaveTextContent('$250/day')
+    expect(screen.queryByTestId('daily-net-line')).toBeNull()
   })
 
   it('shows the vacancy banner, flag warnings, upgrades, and refund', () => {

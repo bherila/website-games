@@ -55,6 +55,7 @@ import { type OverlayChoice, OverlayToggles } from './hud/OverlayToggles'
 import { RenderPoolReadout } from './hud/RenderPoolReadout'
 import { SaveHealthReadout } from './hud/SaveHealthReadout'
 import { SpeedControls } from './hud/SpeedControls'
+import { TenantRequestCard } from './hud/TenantRequestCard'
 import {
   appendToastHistory,
   ToastHistoryButton,
@@ -63,6 +64,7 @@ import {
 } from './hud/ToastHistoryDrawer'
 import { type ToastItem, Toasts, toastsFromEvents } from './hud/Toasts'
 import { TopBar } from './hud/TopBar'
+import { TowerIssuesNavigator } from './hud/TowerIssuesNavigator'
 import { NewGameOverlay } from './overlays/NewGameOverlay'
 import { SaveLoadOverlay } from './overlays/SaveLoadOverlay'
 import { ShortcutHelpOverlay } from './overlays/ShortcutHelpOverlay'
@@ -856,6 +858,16 @@ export function TowerGame(): ReactElement {
               floorRange={getMap(engineState.mapId).floorRange}
               onGoToFloor={goToFloor}
             />
+            <TowerIssuesNavigator
+              units={engineState.units}
+              onSelectUnit={(unitId) => {
+                const unit = engineState.units.find((candidate) => candidate.id === unitId)
+                if (unit) {
+                  setSelection({ type: 'unit', unit })
+                }
+              }}
+              onViewFloor={goToFloor}
+            />
           </div>
         </div>
       )}
@@ -887,7 +899,7 @@ export function TowerGame(): ReactElement {
         </div>
       )}
 
-      {(engineState.activeBombThreat || engineState.activeFire) && (
+      {(engineState.activeBombThreat || engineState.activeFire || engineState.activeRequest) && (
         <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex flex-col items-center gap-2">
           {engineState.activeBombThreat && (
             <IncidentBanner
@@ -904,6 +916,7 @@ export function TowerGame(): ReactElement {
               onViewFloor={goToFloor}
             />
           )}
+          {engineState.activeRequest && <TenantRequestCard request={engineState.activeRequest} onViewFloor={goToFloor} />}
         </div>
       )}
 

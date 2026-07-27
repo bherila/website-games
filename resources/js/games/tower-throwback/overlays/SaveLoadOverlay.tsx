@@ -1,5 +1,5 @@
 import currency from 'currency.js'
-import { type MouseEvent, type ReactElement, useRef, useState } from 'react'
+import { type MouseEvent, type ReactElement, useCallback, useRef, useState } from 'react'
 
 import type { CloudSlotStatus, CloudSlotView } from '../cloudSync'
 import type { SandboxSlotSummary } from '../gameProgress'
@@ -181,7 +181,40 @@ export function SaveLoadOverlay({
   const [importSlotId, setImportSlotId] = useState<SandboxSlotId>('slot-a')
   const [importPayload, setImportPayload] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingSaveAction | null>(null)
+  const [exportCopyResult, setExportCopyResult] = useState<{ state: 'copied' | 'failed'; text: string } | null>(null)
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const exportRef = useRef<HTMLTextAreaElement | null>(null)
+  const exportCopyState = exportCopyResult?.text === exportText ? exportCopyResult.state : 'idle'
+
+  const copyExport = useCallback((): void => {
+    exportRef.current?.focus()
+    exportRef.current?.select()
+    void (async () => {
+      try {
+        if (!navigator.clipboard) {
+          throw new Error('clipboard unavailable')
+        }
+        await navigator.clipboard.writeText(exportText)
+        setExportCopyResult({ state: 'copied', text: exportText })
+      } catch {
+        setExportCopyResult({ state: 'failed', text: exportText })
+      }
+    })()
+  }, [exportText])
+
+  const downloadExport = useCallback((): void => {
+    const objectUrl = URL.createObjectURL(new Blob([exportText], { type: 'application/json' }))
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = 'tower-throwback-save.json'
+    document.body.append(anchor)
+    try {
+      anchor.click()
+    } finally {
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+    }
+  }, [exportText])
 
   const slotFor = (slotId: SandboxSlotId): SandboxSlotSummary =>
     slots.find((slot) => slot.id === slotId) ?? { id: slotId, label: slotId, saved: false, loadFailure: null, day: null, star: null, population: null, funds: null }
@@ -348,12 +381,33 @@ export function SaveLoadOverlay({
         <div className="rounded-lg bg-white/5 p-3">
           <div className="pb-1 text-[10px] font-bold tracking-widest text-white/50">EXPORT JSON</div>
           <textarea
+            ref={exportRef}
             readOnly
             data-testid="export-payload"
             value={exportText}
             className="h-28 w-full resize-none rounded bg-slate-950/70 p-2 font-mono text-[11px] text-white/75"
             placeholder="Choose Export on a saved slot."
           />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="copy-export"
+              disabled={exportText.length === 0}
+              onClick={copyExport}
+              className="rounded bg-white/10 px-3 py-1.5 text-[12px] font-bold text-white/85 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {exportCopyState === 'copied' ? 'Copied' : exportCopyState === 'failed' ? 'Select & copy' : 'Copy JSON'}
+            </button>
+            <button
+              type="button"
+              data-testid="download-export"
+              disabled={exportText.length === 0}
+              onClick={downloadExport}
+              className="rounded bg-sky-500/25 px-3 py-1.5 text-[12px] font-bold text-sky-100 hover:bg-sky-500/40 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Download JSON
+            </button>
+          </div>
         </div>
 
         <div className="rounded-lg bg-white/5 p-3">
