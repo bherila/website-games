@@ -18,6 +18,7 @@ import type { SelectedTool } from './hud/BuildPalette'
 import { RendererUnavailable } from './overlays/RendererUnavailable'
 import { bulkPlacementCells } from './scene/bulkPlacement'
 import type { CameraViewport } from './scene/camera'
+import { clearCanvasPlacementTarget, setCanvasPlacementTarget } from './scene/canvasPlacementTarget'
 import { stopToggleCommandForClick } from './scene/elevatorStops'
 import { type HeatmapTileSample, type InspectableHeatmapKind, sampleHeatmapField } from './scene/heatmapLayer'
 import { placementRangeTiles } from './scene/placementRange'
@@ -549,7 +550,13 @@ export function TowerScene({
 
     const tileAt = (e: PointerEvent): Tile | null => {
       const rect = canvas.getBoundingClientRect()
-      return controller.screenToTile(e.clientX - rect.left, e.clientY - rect.top)
+      const tile = controller.screenToTile(e.clientX - rect.left, e.clientY - rect.top)
+      if (tile) {
+        setCanvasPlacementTarget(canvas, tile)
+      } else {
+        clearCanvasPlacementTarget(canvas)
+      }
+      return tile
     }
 
     const reportOverlaySample = (tile: Tile): void => {

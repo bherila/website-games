@@ -10,7 +10,7 @@
         "test": "jest --passWithNoTests --maxWorkers=2",
         "test:slow": "JEST_INCLUDE_SLOW_TESTS=1 jest --passWithNoTests --testPathPatterns='\\.slow\\.test\\.[tj]sx?$'",
         "test:e2e": "playwright test",
-        "test:e2e:tower-throwback": "playwright test tests/e2e/tower-throwback.visual.spec.ts tests/e2e/tower-throwback.drawcalls.spec.ts",
+        "test:e2e:tower-throwback": "playwright test tests/e2e/tower-throwback.visual.spec.ts tests/e2e/tower-throwback.drawcalls.spec.ts tests/e2e/tower-throwback.journey.spec.ts",
         "test:e2e:parking-pickup": "playwright test tests/e2e/parking-pickup.spec.ts",
         "test:e2e:parking-pickup-visual": "playwright test tests/e2e/parking-pickup.visual.spec.ts",
         "test:e2e:chicks-challenge": "playwright test tests/e2e/chicks-challenge.spec.ts",
