@@ -142,6 +142,19 @@ describe('toastsFromEvents', () => {
     expect(toasts[1]).toMatchObject({ type: 'info', title: 'Fire extinguished' })
   })
 
+  it('uses shared basement labels for incident and explosion locations', () => {
+    const toasts = toastsFromEvents(
+      [
+        { type: 'incidentStarted', kind: 'fire', floor: -2 },
+        { type: 'explosion', floor: -3, damagedUnitIds: [1] },
+      ],
+      CLOCK,
+    )
+
+    expect(toasts[0]?.body).toBe('Floor B2')
+    expect(toasts[1]?.body).toBe('Floor B3 — 1 unit damaged')
+  })
+
   it('throttles unitVacated to one toast per batch', () => {
     const events: EngineEvent[] = [
       { type: 'unitVacated', unitId: 1, reason: 'tooNoisy' },

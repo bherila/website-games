@@ -2,6 +2,7 @@ import currency from 'currency.js'
 import { type ReactElement, useEffect } from 'react'
 
 import { UPGRADE_PATHS } from '../engine/catalog'
+import { floorLabel } from '../floorLabels'
 import type { EngineEvent, GameClock, VipTarget } from '../gameTypes'
 import { vipFlavorFor, vipReportLine, vipVisitIdForTarget } from '../vipFlavor'
 
@@ -126,7 +127,7 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock): Toast
           id: id(index, 'incident'),
           type: 'warning',
           title: event.kind === 'bombThreat' ? 'Bomb threat!' : event.kind === 'fire' ? 'Fire!' : 'Cockroach infestation!',
-          body: `Floor ${event.floor}`,
+          body: `Floor ${floorLabel(event.floor)}`,
         })
         return
       case 'incidentResolved':
@@ -137,14 +138,16 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock): Toast
           body: event.outcome,
         })
         return
-      case 'explosion':
+      case 'explosion': {
+        const damagedCount = event.damagedUnitIds.length
         toasts.push({
           id: id(index, 'explosion'),
           type: 'warning',
           title: '💥 Explosion!',
-          body: `Floor ${event.floor} — ${event.damagedUnitIds.length} units damaged`,
+          body: `Floor ${floorLabel(event.floor)} — ${damagedCount} ${damagedCount === 1 ? 'unit' : 'units'} damaged`,
         })
         return
+      }
       case 'tenantRequest':
         toasts.push({
           id: id(index, 'tenantRequest'),
