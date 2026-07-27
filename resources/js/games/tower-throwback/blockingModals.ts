@@ -12,6 +12,7 @@
  */
 
 export interface ModalVisibility {
+  inventoryOpen: boolean
   saveLoadOpen: boolean
   shortcutHelpOpen: boolean
   towerCardOpen: boolean
@@ -22,7 +23,8 @@ export interface ModalVisibility {
 
 export function isBlockingModalOpen(visibility: ModalVisibility): boolean {
   return (
-    visibility.saveLoadOpen
+    visibility.inventoryOpen
+    || visibility.saveLoadOpen
     || visibility.shortcutHelpOpen
     || visibility.towerCardOpen
     || visibility.loanPromptOpen

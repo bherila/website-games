@@ -64,6 +64,7 @@ import {
 } from './hud/ToastHistoryDrawer'
 import { type ToastItem, Toasts, toastsFromEvents } from './hud/Toasts'
 import { TopBar } from './hud/TopBar'
+import { TowerInventory } from './hud/TowerInventory'
 import { TowerIssuesNavigator } from './hud/TowerIssuesNavigator'
 import { NewGameOverlay } from './overlays/NewGameOverlay'
 import { SaveLoadOverlay } from './overlays/SaveLoadOverlay'
@@ -186,6 +187,7 @@ export function TowerGame(): ReactElement {
   const activeSlotRef = useRef<SandboxSlotId>('autosave')
   const sandboxSessionIdRef = useRef(getOrCreateTabSessionId())
   const sceneControllerRef = useRef<SceneController | null>(null)
+  const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
 
   const [snapshot, setSnapshot] = useState<HudSnapshot | null>(null)
   const [mode, setMode] = useState<GameMode>('run')
@@ -206,6 +208,7 @@ export function TowerGame(): ReactElement {
     }
   }, [visualTestMode])
   const [showFinancials, setShowFinancials] = useState(false)
+  const [showInventory, setShowInventory] = useState(false)
   const [showSaveLoad, setShowSaveLoad] = useState(visualTestConfig?.surface === 'disasters')
   const [slotSummaries, setSlotSummaries] = useState(loadSandboxSlotSummaries)
   const [activeSlotId, setActiveSlotId] = useState<SandboxSlotId>('autosave')
@@ -218,6 +221,7 @@ export function TowerGame(): ReactElement {
   const [showToastHistory, setShowToastHistory] = useState(visualTestConfig?.surface === 'toastHistory')
   const [showTowerCard, setShowTowerCard] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
+  const inventoryButtonRef = useRef<HTMLButtonElement | null>(null)
 
   const presentation = usePresentationPrefs()
 
@@ -666,6 +670,7 @@ export function TowerGame(): ReactElement {
   const catchmentField = catchmentFieldForSelection(engineState, selection)
 
   const blockingModalOpen = isBlockingModalOpen({
+    inventoryOpen: showInventory,
     saveLoadOpen: showSaveLoad,
     shortcutHelpOpen: showShortcutHelp,
     towerCardOpen: showTowerCard,
@@ -757,6 +762,14 @@ export function TowerGame(): ReactElement {
             >
               <span>Financials</span>
               <kbd className="rounded bg-black/25 px-1 text-[10px]">F</kbd>
+            </button>
+            <button
+              ref={inventoryButtonRef}
+              type="button"
+              onClick={() => setShowInventory(true)}
+              className="rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-white/20"
+            >
+              Inventory
             </button>
             <button
               type="button"
@@ -873,7 +886,12 @@ export function TowerGame(): ReactElement {
       )}
 
       {inspectorVisible && (
-        <div className="absolute bottom-2 left-2 right-16 z-10 max-h-[42vh] w-auto overflow-y-auto sm:left-auto sm:right-2 sm:top-16 sm:max-h-none sm:w-80">
+        <div
+          ref={inspectorPanelRef}
+          tabIndex={-1}
+          aria-label="Item inspector"
+          className="absolute bottom-2 left-2 right-16 z-10 max-h-[42vh] w-auto overflow-y-auto focus-visible:outline-2 focus-visible:outline-sky-300 sm:left-auto sm:right-2 sm:top-16 sm:max-h-none sm:w-80"
+        >
           <InspectPanel
             selection={selection}
             overlaySample={overlaySample}
@@ -931,6 +949,31 @@ export function TowerGame(): ReactElement {
       )}
 
       {showToastHistory && <ToastHistoryDrawer history={toastHistory} onClose={() => setShowToastHistory(false)} />}
+
+      {showInventory && (
+        <TowerInventory
+          units={engineState.units}
+          shafts={engineState.shafts}
+          onClose={() => setShowInventory(false)}
+          onSelectUnit={(unitId) => {
+            const unit = engineStateRef.current?.units.find((candidate) => candidate.id === unitId)
+            if (unit) {
+              setSelection({ type: 'unit', unit })
+              setOverlaySample(null)
+            }
+          }}
+          onSelectShaft={(shaftId) => {
+            const shaft = engineStateRef.current?.shafts.find((candidate) => candidate.id === shaftId)
+            if (shaft) {
+              setSelection({ type: 'shaft', shaft })
+              setOverlaySample(null)
+            }
+          }}
+          onViewFloor={goToFloor}
+          onFocusInspector={() => requestAnimationFrame(() => inspectorPanelRef.current?.focus())}
+          onRestoreFocus={() => inventoryButtonRef.current?.focus()}
+        />
+      )}
 
       {showSaveLoad && (
         <SaveLoadOverlay
