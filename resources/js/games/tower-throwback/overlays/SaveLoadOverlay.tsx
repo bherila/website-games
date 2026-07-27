@@ -1,11 +1,12 @@
 import currency from 'currency.js'
-import { type MouseEvent, type ReactElement, useCallback, useRef, useState } from 'react'
+import { type ChangeEvent, type MouseEvent, type ReactElement, useCallback, useRef, useState } from 'react'
 
 import type { CloudSlotStatus, CloudSlotView } from '../cloudSync'
 import type { SandboxSlotSummary } from '../gameProgress'
 import { SANDBOX_SLOT_IDS, type SandboxSlotId } from '../gameTypes'
 import { ChallengeCodeCard } from '../hud/ChallengeCodeCard'
 import { DestructiveActionConfirmation } from './DestructiveActionConfirmation'
+import { readTowerSaveFile } from './importSaveFile'
 
 type PendingSaveAction =
   | { type: 'save' | 'load' | 'clear'; slotId: SandboxSlotId }
@@ -182,6 +183,7 @@ export function SaveLoadOverlay({
   const [importPayload, setImportPayload] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingSaveAction | null>(null)
   const [exportCopyResult, setExportCopyResult] = useState<{ state: 'copied' | 'failed'; text: string } | null>(null)
+  const [importFileError, setImportFileError] = useState(false)
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null)
   const exportRef = useRef<HTMLTextAreaElement | null>(null)
   const exportCopyState = exportCopyResult?.text === exportText ? exportCopyResult.state : 'idle'
@@ -258,6 +260,21 @@ export function SaveLoadOverlay({
       executeAction(pendingAction)
     }
     closeConfirmation()
+  }
+
+  const loadImportFile = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    void readTowerSaveFile(file)
+      .then((payload) => {
+        setImportPayload(payload)
+        setImportFileError(false)
+      })
+      .catch(() => setImportFileError(true))
   }
 
   const pendingSlot = pendingAction ? slotFor(pendingAction.slotId) : null
@@ -433,6 +450,19 @@ export function SaveLoadOverlay({
             className="h-28 w-full resize-none rounded bg-slate-950/70 p-2 font-mono text-[11px] text-white/75"
             placeholder="Paste exported tower JSON."
           />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <label className="inline-flex cursor-pointer rounded bg-white/10 px-3 py-1.5 text-sm font-bold text-white/85 hover:bg-white/20">
+              Choose JSON file
+              <input
+                type="file"
+                accept=".json,application/json"
+                data-testid="import-file"
+                onChange={loadImportFile}
+                className="sr-only"
+              />
+            </label>
+            {importFileError && <span className="text-[12px] text-red-200">Could not read that save file.</span>}
+          </div>
           <button
             type="button"
             data-testid="import-save"

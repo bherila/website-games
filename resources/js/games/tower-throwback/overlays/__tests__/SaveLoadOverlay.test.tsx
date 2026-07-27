@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import type { SandboxSlotSummary } from '../../gameProgress'
 import { SANDBOX_SLOT_IDS, SANDBOX_SLOT_LABELS, type SandboxSlotId } from '../../gameTypes'
@@ -264,5 +264,60 @@ describe('SaveLoadOverlay', () => {
 
     expect(screen.getByTestId('copy-export')).toBeDisabled()
     expect(screen.getByTestId('download-export')).toBeDisabled()
+  })
+
+  it('loads import JSON from a downloaded save file', async () => {
+    render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText=""
+        message={null}
+        disastersEnabled={false}
+        onClose={jest.fn()}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    const file = new File(['{"version":2,"seed":17}'], 'tower-save.json', { type: 'application/json' })
+    fireEvent.change(screen.getByTestId('import-file'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('import-payload')).toHaveValue('{"version":2,"seed":17}')
+    })
+  })
+
+  it('reports a save file that the browser cannot read', async () => {
+    jest.spyOn(FileReader.prototype, 'readAsText').mockImplementation(function (this: FileReader) {
+      this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>)
+    })
+    render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText=""
+        message={null}
+        disastersEnabled={false}
+        onClose={jest.fn()}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    const file = new File(['unreadable'], 'tower-save.json', { type: 'application/json' })
+    fireEvent.change(screen.getByTestId('import-file'), { target: { files: [file] } })
+
+    expect(await screen.findByText('Could not read that save file.')).toBeInTheDocument()
   })
 })
