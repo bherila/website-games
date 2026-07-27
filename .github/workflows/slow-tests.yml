@@ -1,0 +1,61 @@
+name: Slow Tests
+
+# Nightly sweep of the *.slow.test.* suites, which the normal Jest run excludes
+# (jest.config.cjs pattern, pinned by tests-ts/jestConfig.test.ts so a file like
+# `slowdown.test.ts` is not swept up by it). This repo inherited the exclusion
+# and the `test:slow` script in the monorepo split but not this workflow, so the
+# slow suites were dormant until it was ported here.
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: slow-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jest-slow:
+    name: Jest Slow Sweeps
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Run slow Jest sweeps
+        run: pnpm run test:slow
+
+  notify-on-failure:
+    name: Notify on Slow Test Failure
+    needs: jest-slow
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Create issue for slow test failures
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = `Slow tests failed on ${context.payload.repository.default_branch} (${new Date().toISOString().slice(0, 10)})`;
+            const body = [
+              'Nightly slow test workflow failed.',
+              '',
+              `- Workflow: ${context.workflow}`,
+              `- Run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `- Trigger: ${context.eventName}`,
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['ci', 'slow-tests'],
+            });
