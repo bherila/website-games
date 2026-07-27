@@ -6,6 +6,7 @@ import { isBlockingModalOpen, type ModalVisibility } from '../blockingModals'
 
 function visibility(overrides: Partial<ModalVisibility> = {}): ModalVisibility {
   return {
+    inventoryOpen: false,
     saveLoadOpen: false,
     shortcutHelpOpen: false,
     towerCardOpen: false,
@@ -22,6 +23,7 @@ describe('isBlockingModalOpen', () => {
   })
 
   it.each([
+    ['inventoryOpen'],
     ['saveLoadOpen'],
     ['shortcutHelpOpen'],
     ['towerCardOpen'],
