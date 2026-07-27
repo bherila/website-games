@@ -456,7 +456,7 @@ odd/even car trick works) · tenant requests as soft tutorial.
 
 Paths-filter output `tower` (game dir, `_shared`, blade, feature test, jest configs) →
 `tower-tests` job → `pnpm run test:ci:tower-throwback`; aggregate gate includes it.
-`simulation.slow.test.ts` runs only with `JEST_INCLUDE_SLOW_TESTS=1`.
+`gameEngine.slow.test.ts` (cars soak) runs only with `JEST_INCLUDE_SLOW_TESTS=1`.
 
 ## As-built deviations
 

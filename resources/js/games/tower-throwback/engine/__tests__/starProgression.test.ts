@@ -4,8 +4,8 @@ import { unlockedKindsAt } from '../stars'
 import { popThresholdFor, runStarProgression } from './starProgressionScenario'
 
 /**
- * Full star-progression + TOWER-completion soak (JEST_INCLUDE_SLOW_TESTS=1
- * only). Unlike `scenarios.ts` (which fast-forwards the rating with
+ * Full star-progression + TOWER-completion soak. Unlike `scenarios.ts` (which
+ * fast-forwards the rating with
  * `applyStarUp`), this drives a fresh engine through the REAL thresholds: an
  * office block is built, leasing grows population past the 2★/3★ gates, and the
  * VIP visits those gates arm are driven to success through `stepEngine` — the

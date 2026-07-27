@@ -5,7 +5,7 @@ import { populationOf } from '../stars'
 import { applyStarUp } from '../stars'
 
 /**
- * 30-game-day soak at 4★ scale (JEST_INCLUDE_SLOW_TESTS=1 only): a ~45-floor
+ * 30-game-day soak at 4★ scale: a ~45-floor
  * mixed tower with hotel block, underground parking + subway + trash, 2
  * standard + 2 express + 1 service shafts, skylobbies, and security. Asserts
  * the solvency band, person-leak bounds, a generous step-time budget, and

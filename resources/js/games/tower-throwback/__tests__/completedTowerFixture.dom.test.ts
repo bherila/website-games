@@ -5,7 +5,7 @@ import { FLOOR_MAX, FLOOR_MIN } from '../gameTypes'
 /**
  * Fast (non-gated) validation of the committed end-of-game fixture. The fixture
  * is a completed 5★ / TOWER tower produced by the deterministic generator in
- * `completedTowerFixture.slow.test.tsx`. This test never grinds the sim — it
+ * `completedTowerFixture.test.tsx`. This test never grinds the sim — it
  * only loads the JSON and asserts the end-of-game invariants and that it
  * round-trips through the real v2 save import/migration path unchanged.
  *
