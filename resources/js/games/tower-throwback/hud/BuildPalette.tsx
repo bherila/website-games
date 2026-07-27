@@ -26,6 +26,7 @@ interface PaletteEntry {
   perTile: boolean
   starRequired: StarLevel
   locked: boolean
+  mapUnavailable: boolean
   itemDef: ItemDef | null
   shaftDef: ShaftDef | null
   summary: string | null
@@ -104,12 +105,12 @@ function PaletteDetails({ entry }: PaletteDetailsProps): ReactElement {
           {entry.name}
         </div>
         <span className="text-[11px] text-amber-200" data-testid="tool-details-star">
-          Requires ★{entry.starRequired}
+          {entry.mapUnavailable ? `★${entry.starRequired} on supported maps` : `Requires ★${entry.starRequired}`}
         </span>
       </div>
       {entry.locked && (
         <div className="mt-1 text-[11px] font-semibold text-amber-200" data-testid="tool-details-locked">
-          Unlock: requires ★{entry.starRequired}
+          {entry.mapUnavailable ? 'Unavailable on this map' : `Unlock: requires ★${entry.starRequired}`}
         </div>
       )}
       <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
@@ -182,6 +183,7 @@ function createPaletteCatalog(maxStarReached: StarLevel, mapId: string): Palette
       perTile: def.perTile === true,
       starRequired: def.starRequired,
       locked: !isItemAvailable(def.kind, maxStarReached, map),
+      mapUnavailable: map.disallowedItems.includes(def.kind),
       itemDef: def,
       shaftDef: null,
       summary: null,
@@ -196,6 +198,7 @@ function createPaletteCatalog(maxStarReached: StarLevel, mapId: string): Palette
       perTile: false,
       starRequired: SHAFT_STAR_REQUIRED[def.kind],
       locked: !isShaftAvailable(def.kind, maxStarReached, map),
+      mapUnavailable: map.disallowedItems.includes(def.kind),
       itemDef: null,
       shaftDef: def,
       summary: shaftPaletteSummary(def),
@@ -298,7 +301,7 @@ function ToolButton({ entry, selected, compact = false, onActivate, onActiveChan
             data-testid={`lock-${entry.kind}`}
             className={`${compact ? 'absolute right-0.5 top-0.5' : ''} rounded bg-slate-950/70 px-1 text-[9px] font-bold text-amber-200`}
           >
-            {entry.starRequired}★
+            {entry.mapUnavailable ? 'MAP' : `${entry.starRequired}★`}
           </span>
         )}
         {!compact && !entry.locked && (
@@ -307,7 +310,11 @@ function ToolButton({ entry, selected, compact = false, onActivate, onActiveChan
           </span>
         )}
         {entry.summary && <span className="sr-only" data-testid={`summary-${entry.kind}`}>{entry.summary}</span>}
-        {entry.locked && <span className="sr-only" data-testid={`unlock-reason-${entry.kind}`}>Requires ★{entry.starRequired}</span>}
+        {entry.locked && (
+          <span className="sr-only" data-testid={`unlock-reason-${entry.kind}`}>
+            {entry.mapUnavailable ? 'Unavailable on this map' : `Requires ★${entry.starRequired}`}
+          </span>
+        )}
       </button>
     </div>
   )
