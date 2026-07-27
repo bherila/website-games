@@ -14,6 +14,9 @@ describe('IncidentBanner', () => {
     render(<IncidentBanner threat={threat()} hasSecurityOffice={true} onResolve={onResolve} onViewFloor={onViewFloor} />)
 
     expect(screen.getByTestId('incident-banner')).toHaveTextContent('floor 7')
+    expect(screen.getByTestId('incident-banner')).toHaveClass('max-w-3xl')
+    expect(screen.getByTestId('incident-actions')).toHaveClass('flex-wrap')
+    expect(screen.getByTestId('view-incident-floor')).toHaveClass('min-h-11')
     fireEvent.click(screen.getByTestId('pay-ransom'))
     expect(onResolve).toHaveBeenCalledWith('ransom')
     expect(screen.getByTestId('pay-ransom')).toHaveTextContent('$100,000')
@@ -59,6 +62,8 @@ describe('FireBanner', () => {
     )
 
     expect(screen.getByTestId('fire-banner')).toHaveTextContent('Fire on floor 8')
+    expect(screen.getByTestId('fire-banner')).toHaveClass('max-w-3xl')
+    expect(screen.getByTestId('fire-actions')).toHaveClass('flex-wrap')
     expect(screen.getByTestId('fire-banner')).toHaveTextContent('Security response in 13 min')
     expect(screen.getByTestId('fire-banner')).toHaveTextContent('2 units burning')
     fireEvent.click(screen.getByTestId('view-incident-floor'))

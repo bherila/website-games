@@ -133,7 +133,7 @@ function incomeLine(unit: Unit): string | null {
   }
   switch (income.type) {
     case 'rent':
-      return `${money(income.perDay * TUNING.rent.incomeMultiplier[unit.rentTier])}/day rent`
+      return `${money(currency(income.perDay).multiply(TUNING.rent.incomeMultiplier[unit.rentTier]).value)}/day rent`
     case 'perVisit':
       if (unit.kind === 'medicalClinic') {
         return `${money(income.amount * TUNING.clinic.copayMultiplier[unit.rentTier])} copay/visit`
@@ -144,6 +144,22 @@ function incomeLine(unit: Unit): string | null {
     case 'perEvent':
       return `${money(income.amount)} per event`
   }
+}
+
+function unitMaintenancePerDay(unit: Unit): number {
+  const def = itemDef(unit.kind)
+  return currency(def.maintPerDay)
+    .multiply(def.perTile ? unit.width : 1)
+    .value
+}
+
+function fixedDailyNet(unit: Unit, maintenance: number): number | null {
+  const income = itemDef(unit.kind).income
+  if (income?.type !== 'rent') {
+    return null
+  }
+
+  return currency(income.perDay).multiply(TUNING.rent.incomeMultiplier[unit.rentTier]).subtract(maintenance).value
 }
 
 function UnitInspect({
@@ -175,6 +191,8 @@ function UnitInspect({
   const pop = unit.population
   const popTotal = pop.low + pop.med + pop.high + pop.vip
   const income = incomeLine(unit)
+  const maintenance = unitMaintenancePerDay(unit)
+  const dailyNet = fixedDailyNet(unit, maintenance)
   const upgrades = upgradesFor(unit.kind, maxStarReached)
   const refund = Math.round(TUNING.economy.demolitionRefundRate * unitBuildCost(unit, lobbyHeight, mapId))
   const issues = unitIssues(unit)
@@ -254,6 +272,22 @@ function UnitInspect({
           <>
             <dt className="text-white/50">Income</dt>
             <dd data-testid="income-line">{income}</dd>
+          </>
+        )}
+        {unit.kind !== 'slab' && (
+          <>
+            <dt className="text-white/50">Maintenance</dt>
+            <dd className="tabular-nums" data-testid="maintenance-line">
+              {money(maintenance)}/day
+            </dd>
+          </>
+        )}
+        {dailyNet !== null && (
+          <>
+            <dt className="text-white/50">Daily net</dt>
+            <dd className="tabular-nums" data-testid="daily-net-line">
+              {money(dailyNet)}/day
+            </dd>
           </>
         )}
       </dl>

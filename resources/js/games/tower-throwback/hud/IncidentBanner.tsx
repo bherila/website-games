@@ -23,7 +23,7 @@ function ViewIncidentFloorButton({ floor, onViewFloor }: ViewIncidentFloorButton
       type="button"
       data-testid="view-incident-floor"
       onClick={() => onViewFloor(floor)}
-      className="rounded bg-white/15 px-2 py-1 text-[12px] font-bold text-white hover:bg-white/25"
+      className="min-h-11 rounded bg-white/15 px-3 py-2 text-[12px] font-bold text-white hover:bg-white/25"
     >
       View floor
     </button>
@@ -35,11 +35,11 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
   const sweeping = threat.sweepRemainingMin !== null
   return (
     <div
-      className="pointer-events-auto w-fit rounded-xl border border-red-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm"
+      className="pointer-events-auto w-[calc(100vw-1rem)] max-w-3xl rounded-xl border border-red-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
       role="alert"
       data-testid="incident-banner"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         <span className="text-lg">💣</span>
         <div>
           <div className="font-bold text-red-100">Bomb threat on floor {floorLabel(threat.floor)}!</div>
@@ -53,7 +53,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2" data-testid="incident-actions">
           <ViewIncidentFloorButton floor={threat.floor} onViewFloor={onViewFloor} />
           {!sweeping && (
             <>
@@ -61,7 +61,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
                 type="button"
                 data-testid="pay-ransom"
                 onClick={() => onResolve('ransom')}
-                className="rounded bg-amber-500/85 px-3 py-1 font-bold text-slate-950 hover:bg-amber-400"
+                className="min-h-11 rounded bg-amber-500/85 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400"
               >
                 Pay {currency(threat.ransom, { precision: 0 }).format()}
               </button>
@@ -69,7 +69,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
                 type="button"
                 data-testid="start-sweep"
                 onClick={() => onResolve('sweep')}
-                className="rounded bg-white/15 px-3 py-1 font-bold text-white hover:bg-white/25"
+                className="min-h-11 rounded bg-white/15 px-3 py-2 font-bold text-white hover:bg-white/25"
               >
                 {hasSecurityOffice ? 'Sweep' : 'Risk it'}
               </button>
@@ -92,11 +92,11 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
   const burningCount = fire.burningUnitIds.length
   return (
     <div
-      className="pointer-events-auto w-fit rounded-xl border border-orange-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm"
+      className="pointer-events-auto w-[calc(100vw-1rem)] max-w-3xl rounded-xl border border-orange-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
       role="alert"
       data-testid="fire-banner"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         <span className="text-lg">🔥</span>
         <div>
           <div className="font-bold text-orange-100">Fire on floor {floorLabel(fire.floor)}!</div>
@@ -105,13 +105,13 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
             {burningCount === 1 ? '' : 's'} burning
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2" data-testid="fire-actions">
           <ViewIncidentFloorButton floor={fire.floor} onViewFloor={onViewFloor} />
           <button
             type="button"
             data-testid="fire-dispatch"
             onClick={() => onRespond('dispatch')}
-            className="rounded bg-amber-500/85 px-3 py-1 font-bold text-slate-950 hover:bg-amber-400"
+            className="min-h-11 rounded bg-amber-500/85 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400"
           >
             Dispatch {currency(fireDispatchCost(fire), { precision: 0 }).format()}
           </button>
@@ -119,7 +119,7 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
             type="button"
             data-testid="fire-firebreak"
             onClick={() => onRespond('firebreak')}
-            className="rounded bg-white/15 px-3 py-1 font-bold text-white hover:bg-white/25"
+            className="min-h-11 rounded bg-white/15 px-3 py-2 font-bold text-white hover:bg-white/25"
           >
             Firebreak
           </button>
