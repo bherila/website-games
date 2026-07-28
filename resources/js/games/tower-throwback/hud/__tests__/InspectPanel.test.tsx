@@ -368,6 +368,13 @@ describe('InspectPanel — incident actions', () => {
     expect(screen.getByTestId('repair')).toHaveTextContent('$12,000') // 2000 × width 6
   })
 
+  it('quotes the higher repair rate for fire damage', () => {
+    const unit = makeUnit({ offline: true, damageKind: 'fire' })
+    render(<InspectPanel selection={{ type: 'unit', unit }} maxStarReached={2} {...handlers()} />)
+
+    expect(screen.getByTestId('repair')).toHaveTextContent('$15,000') // 2500 × width 6
+  })
+
   it('hides both buttons on a healthy unit', () => {
     const h = handlers()
     render(<InspectPanel selection={{ type: 'unit', unit: makeUnit() }} maxStarReached={2} {...h} />)

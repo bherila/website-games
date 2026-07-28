@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 
 import { EXCAVATION_COST, itemDef, shaftDef, upgradesFor } from '../engine/catalog'
 import { isSlabFamily } from '../engine/grid'
+import { repairCost } from '../engine/incidents'
 import { isExcavated } from '../engine/mapGeometry'
 import { CITY_TOWER, getMap } from '../engine/maps'
 import type { EvalBreakdown } from '../engine/occupancy'
@@ -371,7 +372,7 @@ function UnitInspect({
           onClick={() => onRepair?.(unit.id)}
           className="w-full rounded bg-orange-500/25 px-2 py-1 text-[12px] font-bold text-orange-200 hover:bg-orange-500/40"
         >
-          Repair · {money(TUNING.incidents.repairCostPerTile * unit.width)}
+          Repair · {money(repairCost(unit))}
         </button>
       )}
       {upgrades.map((upgrade) => (

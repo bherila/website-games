@@ -47,6 +47,17 @@ describe('BuildPalette', () => {
     expect(screen.getByTestId('tool-standard')).toBeEnabled()
   })
 
+  it('labels tools prohibited by the active map instead of promising a star unlock', () => {
+    render(<BuildPalette maxStarReached={5} mapId="niagara-falls" selectedTool={null} onSelectTool={jest.fn()} />)
+
+    expect(screen.getByTestId('tool-subway')).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByTestId('unlock-reason-subway')).toHaveTextContent('Unavailable on this map')
+    expect(screen.getByTestId('unlock-reason-subway')).not.toHaveTextContent('Requires ★')
+
+    fireEvent.focus(screen.getByTestId('tool-cathedral'))
+    expect(screen.getByTestId('tool-details-locked')).toHaveTextContent('Unavailable on this map')
+  })
+
   it('surfaces shaft semantics in an accessible family flyout', () => {
     render(<BuildPalette maxStarReached={4} mapId="city-tower" selectedTool={null} onSelectTool={jest.fn()} />)
     openFamily('elevators')

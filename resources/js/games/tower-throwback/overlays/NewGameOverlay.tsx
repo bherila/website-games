@@ -1,11 +1,12 @@
 import currency from 'currency.js'
-import { type ReactElement, useRef, useState } from 'react'
+import { type ChangeEvent, type ReactElement, useRef, useState } from 'react'
 
 import { decodeChallengeCode, formatChallengeCode } from '../challengeCode'
 import { allMaps, CITY_TOWER, getMap } from '../engine/maps'
 import type { SandboxSlotSummary } from '../gameProgress'
 import { SANDBOX_SLOT_IDS, type SandboxSlotId } from '../gameTypes'
 import { DestructiveActionConfirmation } from './DestructiveActionConfirmation'
+import { readTowerSaveFile } from './importSaveFile'
 
 interface ImportFeedback {
   kind: 'success' | 'error'
@@ -91,6 +92,23 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
     runImport()
   }
 
+  const loadImportFile = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    void readTowerSaveFile(file)
+      .then((payload) => {
+        setImportPayload(payload)
+        setImportFeedback(null)
+      })
+      .catch(() => {
+        setImportFeedback({ kind: 'error', text: 'Could not read that save file.' })
+      })
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/90 p-4">
       <div className="max-h-[90vh] w-[34rem] overflow-y-auto rounded-2xl bg-slate-900 p-6 shadow-2xl">
@@ -107,10 +125,11 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
                   type="button"
                   data-testid={`map-${map.id}`}
                   aria-pressed={mapId === map.id}
+                  disabled={decodedChallenge !== null}
                   onClick={() => setMapId(map.id)}
                   className={`flex-1 rounded-lg border p-2 text-left text-sm transition-colors ${
                     mapId === map.id ? 'border-sky-400 bg-sky-500/20' : 'border-white/15 bg-white/5 hover:bg-white/10'
-                  }`}
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
                 >
                   <div className="font-bold">{map.name}</div>
                   <div className="text-[11px] text-white/60">{map.blurb}</div>
@@ -131,12 +150,13 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
                 type="button"
                 data-testid={`lobby-${choice.height}`}
                 aria-pressed={lobbyHeight === choice.height}
+                disabled={decodedChallenge !== null}
                 onClick={() => setLobbyHeight(choice.height)}
                 className={`flex-1 rounded-lg border p-2 text-left text-sm transition-colors ${
                   lobbyHeight === choice.height
                     ? 'border-emerald-400 bg-emerald-500/20'
                     : 'border-white/15 bg-white/5 hover:bg-white/10'
-                }`}
+                } disabled:cursor-not-allowed disabled:opacity-40`}
               >
                 <div className="font-bold">{choice.name}</div>
                 <div className="text-[11px] text-white/60">{choice.note}</div>
@@ -169,7 +189,7 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
               <span className="text-red-200">That code is not valid. Check for a mistyped character.</span>
             ) : decodedChallenge ? (
               <span className="text-emerald-200">
-                Ready — {getMap(decodedChallenge.mapId).name}, {decodedChallenge.lobbyHeight === 1 ? 'standard' : decodedChallenge.lobbyHeight === 2 ? 'grand' : 'super'} lobby. The choices above are ignored.
+                Ready — {getMap(decodedChallenge.mapId).name}, {decodedChallenge.lobbyHeight === 1 ? 'standard' : decodedChallenge.lobbyHeight === 2 ? 'grand' : 'super'} lobby. Map and lobby choices are locked to this code.
               </span>
             ) : (
               <span className="text-white/45">Leave blank for a fresh random tower.</span>
@@ -223,6 +243,16 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
             className="h-20 w-full resize-none rounded bg-slate-950/70 p-2 font-mono text-[11px] text-white/75"
             placeholder="Paste exported tower JSON."
           />
+          <label className="mt-2 inline-flex cursor-pointer rounded bg-white/10 px-3 py-1.5 text-sm font-bold text-white/85 hover:bg-white/20">
+            Choose JSON file
+            <input
+              type="file"
+              accept=".json,application/json"
+              data-testid="title-import-file"
+              onChange={loadImportFile}
+              className="sr-only"
+            />
+          </label>
           {importFeedback && (
             <div
               data-testid="title-import-message"

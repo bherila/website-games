@@ -462,14 +462,19 @@ export function pestControl(state: EngineState, unitId: number, events: EngineEv
   events.push({ type: 'incidentResolved', kind: 'cockroach', outcome: 'pest control' })
 }
 
-/** Player command seam: repairCostPerTile × width, brings the unit back online. */
+/** Exact player-facing repair quote for a damaged unit. */
+export function repairCost(unit: Pick<Unit, 'damageKind' | 'width'>): number {
+  const repairPerTile = unit.damageKind === 'fire' ? TUNING.incidents.fire.repairPerTile : TUNING.incidents.repairCostPerTile
+  return repairPerTile * unit.width
+}
+
+/** Player command seam: damage-specific per-tile rate × width, brings the unit back online. */
 export function repairUnit(state: EngineState, unitId: number, events: EngineEvent[]): void {
   const unit = state.units.find((u) => u.id === unitId)
   if (!unit || !unit.offline) {
     return
   }
-  const repairPerTile = unit.damageKind === 'fire' ? TUNING.incidents.fire.repairPerTile : TUNING.incidents.repairCostPerTile
-  const cost = repairPerTile * unit.width
+  const cost = repairCost(unit)
   if (!requestSpend(state, cost, events)) {
     return
   }
