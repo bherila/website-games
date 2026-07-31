@@ -1,3 +1,4 @@
+import { maximumLoanOffer } from '../engine/economy'
 import { createEngineState, personTickAccumulatorOf, restorePersonTickAccumulator, stepEngine } from '../engine/engine'
 import { restoreHotelRuntime, snapshotHotelRuntime } from '../engine/hotel'
 import { restoreIncidentRuntime, snapshotIncidentRuntime } from '../engine/incidents'
@@ -842,7 +843,7 @@ describe('sandbox persistence', () => {
     restoreIncidentRuntime(uninterrupted, { threatDeadlineAbs: null, requestBaseline: [], evalBonusUntilDay: null })
     uninterrupted.ledgerToday.lines['sales.commerce'] = 321
     uninterrupted.ledgerHistory.push({ day: 0, lines: { 'rent.office': 456 } })
-    uninterrupted.pendingLoanPrompt = { shortfall: 10_000, suggested: 50_000 }
+    uninterrupted.pendingLoanPrompt = { shortfall: 10_000, suggested: 100_000 }
     uninterrupted.pendingLoanCommands = [{ type: 'place', kind: 'officeS', floor: 2, x: 112 }]
 
     for (let index = 0; index < 37; index++) {
@@ -850,6 +851,8 @@ describe('sandbox persistence', () => {
     }
     saveSandbox(uninterrupted, 'slot-a')
     const resumed = restoreSandbox(loadSandbox('slot-a')!)
+    expect(resumed.pendingLoanPrompt).toEqual({ shortfall: 10_000, suggested: 100_000 })
+    expect(maximumLoanOffer(resumed.pendingLoanPrompt!)).toBe(200_000)
 
     const uninterruptedLog = []
     const resumedLog = []

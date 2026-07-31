@@ -60,7 +60,30 @@ function offerLoan(state: EngineState, additionalShortfall: number, events: Engi
   events.push({ type: 'loanPrompt', shortfall, suggested })
 }
 
-export function acceptLoan(state: EngineState, amount: number, events: EngineEvent[]): void {
+type LoanPrompt = NonNullable<EngineState['pendingLoanPrompt']>
+
+/** Highest principal the bank will offer for a given shortfall prompt. */
+export function maximumLoanOffer(prompt: LoanPrompt): number {
+  return prompt.suggested * TUNING.economy.loanOfferMaxMultiplier
+}
+
+/**
+ * Keep accepted principals inside the displayed offer and on the same
+ * increment grid. This is enforced at the engine seam as well as in the UI.
+ */
+export function normalizeLoanOffer(prompt: LoanPrompt, requested: number): number {
+  const increment = TUNING.economy.loanIncrement
+  const requestedExtra = Number.isFinite(requested) ? Math.max(0, requested - prompt.suggested) : 0
+  const stepped = prompt.suggested + Math.floor(requestedExtra / increment) * increment
+  return Math.min(maximumLoanOffer(prompt), stepped)
+}
+
+export function acceptLoan(state: EngineState, requested: number, events: EngineEvent[]): boolean {
+  const prompt = state.pendingLoanPrompt
+  if (!prompt) {
+    return false
+  }
+  const amount = normalizeLoanOffer(prompt, requested)
   const loan: Loan = { id: state.nextId, principal: amount, outstanding: amount }
   state.nextId += 1
   state.loans.push(loan)
@@ -68,6 +91,7 @@ export function acceptLoan(state: EngineState, amount: number, events: EngineEve
   accrue(state, 'loan.principal', amount)
   state.pendingLoanPrompt = null
   events.push({ type: 'loanTaken', amount })
+  return true
 }
 
 export function declineLoan(state: EngineState): void {

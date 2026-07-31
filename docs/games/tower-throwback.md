@@ -388,7 +388,7 @@ consumes zero disaster rng draws. Legacy saves default this option to on.
 | Rent tier multipliers | low ×0.8 · avg ×1.0 · high ×1.25 of catalog rent |
 | Tenant tier mix by rent | low rent → 70% low / 30% med · avg → 20/60/20 low/med/high · high → 30% med / 70% high |
 | Rent/maintenance settlement | daily at midnight; per-visit sales and construction post immediately |
-| Loan | $100,000 increments; repayment 5% of outstanding principal per game-day, interest-free, as a ledger line item; offered automatically whenever funds would go below zero; refinance indefinitely |
+| Loan | $100,000 increments; repayment 5% of outstanding principal per game-day, interest-free, as a ledger line item; offered automatically whenever funds would go below zero; each offer ranges from the rounded shortfall suggestion to 2× that suggestion; existing debt may be refinanced |
 | Starting funds | $2,000,000 |
 | Star-up bonus | $100,000 × new star level |
 | VIP visit bonus | success $50,000 × star · fail $10,000 |
@@ -621,6 +621,7 @@ this table in the same commit; the test fails otherwise.
 | `economy.vipFailBonus` | `10000` |
 | `economy.demolitionRefundRate` | `0.5` |
 | `economy.loanIncrement` | `100000` |
+| `economy.loanOfferMaxMultiplier` | `2` |
 | `economy.loanDailyRepayRate` | `0.05` |
 | `economy.passByShopP` | `0.15` |
 | `economy.passByFastFoodP` | `0.1` |

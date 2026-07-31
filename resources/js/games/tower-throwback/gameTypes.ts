@@ -854,6 +854,7 @@ export const TUNING = {
     vipFailBonus: 10_000,
     demolitionRefundRate: 0.5,
     loanIncrement: 100_000,
+    loanOfferMaxMultiplier: 2,
     loanDailyRepayRate: 0.05,
     passByShopP: 0.15,
     passByFastFoodP: 0.1,
