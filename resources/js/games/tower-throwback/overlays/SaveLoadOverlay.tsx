@@ -213,6 +213,9 @@ export function SaveLoadOverlay({
   }, [restoreFocus])
 
   useEffect(() => {
+    // Strict Mode replays setup → cleanup → setup in development. Re-arm the
+    // guard so the later real close/unmount still restores focus.
+    focusRestoredRef.current = false
     closeButtonRef.current?.focus()
     return restoreFocus
   }, [restoreFocus])

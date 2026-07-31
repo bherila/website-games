@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 
 import type { SandboxSlotSummary } from '../../gameProgress'
 import { SANDBOX_SLOT_IDS, SANDBOX_SLOT_LABELS, type SandboxSlotId } from '../../gameTypes'
@@ -91,6 +92,37 @@ describe('SaveLoadOverlay', () => {
 
     unmount()
 
+    expect(onRestoreFocus).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-arms focus restoration after Strict Mode effect replay', () => {
+    const onClose = jest.fn()
+    const onRestoreFocus = jest.fn()
+    render(
+      <StrictMode>
+        <SaveLoadOverlay
+          slots={slots()}
+          activeSlotId="autosave"
+          canSave={true}
+          exportText=""
+          message={null}
+          disastersEnabled={false}
+          onClose={onClose}
+          onRestoreFocus={onRestoreFocus}
+          onSave={jest.fn()}
+          onLoad={jest.fn()}
+          onExport={jest.fn()}
+          onImport={jest.fn()}
+          onClear={jest.fn()}
+          onSetDisastersEnabled={jest.fn()}
+        />
+      </StrictMode>,
+    )
+    onRestoreFocus.mockClear()
+
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Save / Load' }), { key: 'Escape' })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
     expect(onRestoreFocus).toHaveBeenCalledTimes(1)
   })
 
