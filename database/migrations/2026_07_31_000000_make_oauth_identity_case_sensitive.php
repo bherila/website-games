@@ -23,7 +23,7 @@ return new class extends Migration
 
         DB::statement(
             'ALTER TABLE users
-                MODIFY oauth_provider VARBINARY(64) NULL,
+                MODIFY oauth_provider VARBINARY(256) NULL,
                 MODIFY oauth_subject VARBINARY(191) NULL'
         );
     }

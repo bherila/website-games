@@ -8,6 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Link an account that predates the identity provider to its provider subject.
@@ -39,13 +40,20 @@ class BindOAuthSubjectCommand extends Command
     {
         $provider = $this->resolveProvider();
 
-        if ($provider === null || strlen($provider) > 64) {
-            $this->components->error('The provider must be a non-empty value of at most 64 characters.');
+        if (
+            $provider === null
+            || $provider !== trim($provider)
+            || Str::length($provider) > 64
+            || strlen($provider) > 256
+        ) {
+            $this->components->error('The provider must have no surrounding whitespace and contain at most 64 characters.');
 
             return self::FAILURE;
         }
 
-        $subject = trim((string) $this->argument('subject'));
+        // OIDC subjects are exact, case-sensitive strings. Do not trim: a
+        // trailing space is part of the identifier and VARBINARY preserves it.
+        $subject = (string) $this->argument('subject');
 
         if ($subject === '' || strlen($subject) > 191) {
             $this->components->error('The subject must be a non-empty value of at most 191 characters.');
@@ -152,13 +160,13 @@ class BindOAuthSubjectCommand extends Command
     {
         $option = $this->option('provider');
 
-        if (is_string($option) && trim($option) !== '') {
-            return trim($option);
+        if (is_string($option) && $option !== '') {
+            return $option;
         }
 
         $configured = config('services.identity_provider.name');
 
-        return is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
+        return is_string($configured) && $configured !== '' ? $configured : null;
     }
 
     /**

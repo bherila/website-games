@@ -216,6 +216,15 @@ class OAuthLoginController extends Controller
         $value = config("services.identity_provider.{$key}");
 
         abort_unless(is_string($value) && $value !== '', 503, 'OAuth is not configured.');
+        if ($key === 'name') {
+            abort_unless(
+                $value === trim($value)
+                && Str::length($value) <= 64
+                && strlen($value) <= 256,
+                503,
+                'OAuth is not configured.',
+            );
+        }
 
         return rtrim($value, $key === 'base_url' ? '/' : '');
     }

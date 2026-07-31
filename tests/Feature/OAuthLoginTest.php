@@ -105,6 +105,19 @@ class OAuthLoginTest extends TestCase
         $this->assertNull($newUser->email_verified_at);
     }
 
+    public function test_callback_refuses_to_normalize_provider_whitespace(): void
+    {
+        Config::set('services.identity_provider.name', ' bherila ');
+        $this->fakeProvider('provider-subject', 'Account', 'account@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertServiceUnavailable();
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('users', 0);
+    }
+
     public function test_subject_resolution_is_case_sensitive(): void
     {
         $existingUser = User::factory()->create(['email' => 'upper-subject@example.test']);

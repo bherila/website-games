@@ -85,6 +85,16 @@ class BindOAuthSubjectCommandTest extends TestCase
         $this->assertSame('other-provider', $user->fresh()?->oauth_provider);
     }
 
+    public function test_it_preserves_the_exact_subject_bytes(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => 'subject-a '])
+            ->assertSuccessful();
+
+        $this->assertSame('subject-a ', $user->fresh()?->oauth_subject);
+    }
+
     /**
      * Re-running the same link must not be an error; an operator who is unsure whether a
      * correction landed should be able to run it again rather than go poking at the database.
@@ -136,7 +146,7 @@ class BindOAuthSubjectCommandTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => '   '])
+        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => ''])
             ->assertFailed();
 
         $this->assertNull($user->fresh()?->oauth_subject);
@@ -171,6 +181,19 @@ class BindOAuthSubjectCommandTest extends TestCase
             'user' => $user->getKey(),
             'subject' => 'subject-a',
             '--provider' => str_repeat('p', 65),
+        ])->assertFailed();
+
+        $this->assertNull($user->fresh()?->oauth_subject);
+    }
+
+    public function test_it_refuses_to_normalize_provider_whitespace(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan('oauth:bind-subject', [
+            'user' => $user->getKey(),
+            'subject' => 'subject-a',
+            '--provider' => ' bherila ',
         ])->assertFailed();
 
         $this->assertNull($user->fresh()?->oauth_subject);
