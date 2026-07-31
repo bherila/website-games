@@ -2,6 +2,7 @@ import currency from 'currency.js'
 import type { ReactElement } from 'react'
 
 import { EXCAVATION_COST, itemDef, shaftDef, upgradesFor } from '../engine/catalog'
+import { nightlyRoomIncome } from '../engine/economy'
 import { isSlabFamily } from '../engine/grid'
 import { repairCost } from '../engine/incidents'
 import { isExcavated } from '../engine/mapGeometry'
@@ -141,7 +142,7 @@ function incomeLine(unit: Unit): string | null {
       }
       return `${money(income.amount)} per visit`
     case 'perNight':
-      return `${money(income.amount)} per night`
+      return `${money(nightlyRoomIncome(unit))} per night`
     case 'perEvent':
       return `${money(income.amount)} per event`
   }

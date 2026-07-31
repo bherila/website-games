@@ -112,6 +112,18 @@ describe('InspectPanel — unit', () => {
     expect(screen.queryByTestId('daily-net-line')).toBeNull()
   })
 
+  it('shows the same nightly hotel rate that settlement credits', () => {
+    const averageRoom = makeUnit({ kind: 'hotel2p', rentTier: 'avg' })
+    const { rerender } = render(
+      <InspectPanel selection={{ type: 'unit', unit: averageRoom }} maxStarReached={3} {...handlers()} />,
+    )
+    expect(screen.getByTestId('income-line')).toHaveTextContent('$600 per night')
+
+    const luxuryRoom = makeUnit({ kind: 'hotel2p', grade: 'luxury', rentTier: 'high' })
+    rerender(<InspectPanel selection={{ type: 'unit', unit: luxuryRoom }} maxStarReached={3} {...handlers()} />)
+    expect(screen.getByTestId('income-line')).toHaveTextContent('$1,200 per night')
+  })
+
   it('shows the vacancy banner, flag warnings, upgrades, and refund', () => {
     const h = handlers()
     const unit = makeUnit({

@@ -60,6 +60,8 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
   const trimmedCode = challengeCode.trim()
   const decodedChallenge = trimmedCode.length > 0 ? decodeChallengeCode(trimmedCode) : null
   const challengeInvalid = trimmedCode.length > 0 && decodedChallenge === null
+  const displayedMapId = decodedChallenge?.mapId ?? mapId
+  const displayedLobbyHeight = decodedChallenge?.lobbyHeight ?? lobbyHeight
 
   const start = (): void => {
     // A code that is present but unreadable must never fall back to a random
@@ -124,11 +126,11 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
                   key={map.id}
                   type="button"
                   data-testid={`map-${map.id}`}
-                  aria-pressed={mapId === map.id}
+                  aria-pressed={displayedMapId === map.id}
                   disabled={decodedChallenge !== null}
                   onClick={() => setMapId(map.id)}
                   className={`flex-1 rounded-lg border p-2 text-left text-sm transition-colors ${
-                    mapId === map.id ? 'border-sky-400 bg-sky-500/20' : 'border-white/15 bg-white/5 hover:bg-white/10'
+                    displayedMapId === map.id ? 'border-sky-400 bg-sky-500/20' : 'border-white/15 bg-white/5 hover:bg-white/10'
                   } disabled:cursor-not-allowed disabled:opacity-40`}
                 >
                   <div className="font-bold">{map.name}</div>
@@ -149,11 +151,11 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
                 key={choice.height}
                 type="button"
                 data-testid={`lobby-${choice.height}`}
-                aria-pressed={lobbyHeight === choice.height}
+                aria-pressed={displayedLobbyHeight === choice.height}
                 disabled={decodedChallenge !== null}
                 onClick={() => setLobbyHeight(choice.height)}
                 className={`flex-1 rounded-lg border p-2 text-left text-sm transition-colors ${
-                  lobbyHeight === choice.height
+                  displayedLobbyHeight === choice.height
                     ? 'border-emerald-400 bg-emerald-500/20'
                     : 'border-white/15 bg-white/5 hover:bg-white/10'
                 } disabled:cursor-not-allowed disabled:opacity-40`}

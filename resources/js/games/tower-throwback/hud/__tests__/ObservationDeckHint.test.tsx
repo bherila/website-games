@@ -22,6 +22,7 @@ function snapshot(overrides: Partial<HudSnapshot> = {}): HudSnapshot {
     weekend: false,
     speed: 1,
     fastMode: false,
+    effectiveSpeed: 1,
     fastModeActive: false,
     disastersEnabled: true,
     activePeople: 0,
