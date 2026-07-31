@@ -130,17 +130,21 @@ class OAuthLoginController extends Controller
                     return User::query()->forceCreate([
                         'name' => $name,
                         'email' => $email,
-                        'email_verified_at' => now(),
+                        // The provider does not return an email_verified claim.
+                        'email_verified_at' => null,
                         'password' => Hash::make(Str::random(64)),
                         'oauth_provider' => $provider,
                         'oauth_subject' => $subject,
                     ]);
                 }
 
+                $emailChanged = strcasecmp($user->email, $email) !== 0;
                 $user->forceFill([
                     'name' => $name,
                     'email' => $email,
-                    'email_verified_at' => now(),
+                    // Preserve independent verification only while the address is
+                    // unchanged; the provider does not verify a replacement address.
+                    'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
                 ])->save();
 
                 return $user;
@@ -212,6 +216,15 @@ class OAuthLoginController extends Controller
         $value = config("services.identity_provider.{$key}");
 
         abort_unless(is_string($value) && $value !== '', 503, 'OAuth is not configured.');
+        if ($key === 'name') {
+            abort_unless(
+                $value === trim($value)
+                && Str::length($value) <= 64
+                && strlen($value) <= 256,
+                503,
+                'OAuth is not configured.',
+            );
+        }
 
         return rtrim($value, $key === 'base_url' ? '/' : '');
     }

@@ -3,8 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionBeginning;
+use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 /**
@@ -37,6 +42,36 @@ class BindOAuthSubjectCommandTest extends TestCase
         ]);
     }
 
+    public function test_it_locks_and_checks_the_target_inside_the_write_transaction(): void
+    {
+        $user = User::factory()->create();
+        $transactionOpen = false;
+        $targetReadInsideTransaction = false;
+
+        Event::listen(function (TransactionBeginning $event) use (&$transactionOpen): void {
+            $transactionOpen = true;
+        });
+        Event::listen(function (TransactionCommitted $event) use (&$transactionOpen): void {
+            $transactionOpen = false;
+        });
+        DB::listen(function (QueryExecuted $query) use ($user, &$transactionOpen, &$targetReadInsideTransaction): void {
+            if (
+                $transactionOpen
+                && str_starts_with($query->sql, 'select')
+                && str_contains($query->sql, 'from "users"')
+                && in_array((string) $user->getKey(), array_map('strval', $query->bindings), true)
+            ) {
+                $targetReadInsideTransaction = true;
+            }
+        });
+
+        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => 'subject-a'])
+            ->assertSuccessful();
+
+        $this->assertTrue($targetReadInsideTransaction, 'The target binding guard must run while the write transaction is open.');
+        $this->assertFalse($transactionOpen);
+    }
+
     public function test_it_uses_an_explicit_provider_over_the_configured_one(): void
     {
         $user = User::factory()->create();
@@ -48,6 +83,16 @@ class BindOAuthSubjectCommandTest extends TestCase
         ])->assertSuccessful();
 
         $this->assertSame('other-provider', $user->fresh()?->oauth_provider);
+    }
+
+    public function test_it_preserves_the_exact_subject_bytes(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => 'subject-a '])
+            ->assertSuccessful();
+
+        $this->assertSame('subject-a ', $user->fresh()?->oauth_subject);
     }
 
     /**
@@ -101,7 +146,7 @@ class BindOAuthSubjectCommandTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => '   '])
+        $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => ''])
             ->assertFailed();
 
         $this->assertNull($user->fresh()?->oauth_subject);
@@ -124,6 +169,32 @@ class BindOAuthSubjectCommandTest extends TestCase
 
         $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => 'subject-a'])
             ->assertFailed();
+
+        $this->assertNull($user->fresh()?->oauth_subject);
+    }
+
+    public function test_it_refuses_a_provider_longer_than_the_column(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan('oauth:bind-subject', [
+            'user' => $user->getKey(),
+            'subject' => 'subject-a',
+            '--provider' => str_repeat('p', 65),
+        ])->assertFailed();
+
+        $this->assertNull($user->fresh()?->oauth_subject);
+    }
+
+    public function test_it_refuses_to_normalize_provider_whitespace(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan('oauth:bind-subject', [
+            'user' => $user->getKey(),
+            'subject' => 'subject-a',
+            '--provider' => ' bherila ',
+        ])->assertFailed();
 
         $this->assertNull($user->fresh()?->oauth_subject);
     }

@@ -6,7 +6,9 @@ use App\Models\User;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Link an account that predates the identity provider to its provider subject.
@@ -38,13 +40,20 @@ class BindOAuthSubjectCommand extends Command
     {
         $provider = $this->resolveProvider();
 
-        if ($provider === null) {
-            $this->components->error('No provider name was given and none is configured.');
+        if (
+            $provider === null
+            || $provider !== trim($provider)
+            || Str::length($provider) > 64
+            || strlen($provider) > 256
+        ) {
+            $this->components->error('The provider must have no surrounding whitespace and contain at most 64 characters.');
 
             return self::FAILURE;
         }
 
-        $subject = trim((string) $this->argument('subject'));
+        // OIDC subjects are exact, case-sensitive strings. Do not trim: a
+        // trailing space is part of the identifier and VARBINARY preserves it.
+        $subject = (string) $this->argument('subject');
 
         if ($subject === '' || strlen($subject) > 191) {
             $this->components->error('The subject must be a non-empty value of at most 191 characters.');
@@ -53,53 +62,98 @@ class BindOAuthSubjectCommand extends Command
         }
 
         $userId = (string) $this->argument('user');
-        $user = User::query()->find($userId);
 
-        if ($user === null) {
-            $this->components->error(sprintf('There is no users#%s to link.', $userId));
+        try {
+            $result = DB::transaction(function () use ($userId, $provider, $subject): array {
+                // The decision and write belong under one row lock. Checking first and
+                // opening the transaction afterwards lets a concurrent bind re-point
+                // the account between those two operations.
+                $user = User::query()->lockForUpdate()->find($userId);
 
-            return self::FAILURE;
-        }
+                if ($user === null) {
+                    return $this->result(
+                        self::FAILURE,
+                        'error',
+                        sprintf('There is no users#%s to link.', $userId),
+                    );
+                }
 
-        if ($user->oauth_subject !== null) {
-            if ($user->oauth_provider === $provider && $user->oauth_subject === $subject) {
-                $this->components->info(sprintf('users#%s is already linked to that subject.', $user->getKey()));
+                if ($user->oauth_subject !== null) {
+                    if ($user->oauth_provider === $provider && $user->oauth_subject === $subject) {
+                        return $this->result(
+                            self::SUCCESS,
+                            'info',
+                            sprintf('users#%s is already linked to that subject.', $user->getKey()),
+                        );
+                    }
 
-                return self::SUCCESS;
+                    return $this->result(
+                        self::FAILURE,
+                        'error',
+                        sprintf(
+                            'users#%s is already linked to a different identity. Refusing to re-point it.',
+                            $user->getKey(),
+                        ),
+                    );
+                }
+
+                $claimant = User::query()
+                    ->where('oauth_provider', $provider)
+                    ->where('oauth_subject', $subject)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($claimant !== null) {
+                    return $this->result(
+                        self::FAILURE,
+                        'error',
+                        sprintf(
+                            'That subject is already claimed by users#%s. Refusing to bind it twice.',
+                            $claimant->getKey(),
+                        ),
+                    );
+                }
+
+                $user->forceFill([
+                    'oauth_provider' => $provider,
+                    'oauth_subject' => $subject,
+                ])->save();
+
+                return $this->result(
+                    self::SUCCESS,
+                    'info',
+                    sprintf('Linked users#%s to the %s identity.', $user->getKey(), $provider),
+                );
+            });
+        } catch (QueryException $exception) {
+            // A second target can still race for the same previously-unclaimed
+            // subject on databases without a locking gap read. The unique index is
+            // the final guard; turn that expected refusal into operator-facing output.
+            if (! in_array($exception->errorInfo[0] ?? null, ['23000', '23505'], true)) {
+                throw $exception;
             }
 
-            $this->components->error(sprintf(
-                'users#%s is already linked to a different identity. Refusing to re-point it.',
-                $user->getKey(),
-            ));
-
-            return self::FAILURE;
+            $claimant = User::query()
+                ->where('oauth_provider', $provider)
+                ->where('oauth_subject', $subject)
+                ->first();
+            $result = $this->result(
+                self::FAILURE,
+                'error',
+                $claimant === null
+                    ? 'The identity changed while it was being linked. Nothing was re-pointed; retry after checking the account.'
+                    : sprintf(
+                        'That subject is already claimed by users#%s. Refusing to bind it twice.',
+                        $claimant->getKey(),
+                    ),
+            );
         }
 
-        $claimant = User::query()
-            ->where('oauth_provider', $provider)
-            ->where('oauth_subject', $subject)
-            ->first();
+        $result['kind'] === 'info'
+            ? $this->components->info($result['message'])
+            : $this->components->error($result['message']);
 
-        if ($claimant !== null) {
-            $this->components->error(sprintf(
-                'That subject is already claimed by users#%s. Refusing to bind it twice.',
-                $claimant->getKey(),
-            ));
-
-            return self::FAILURE;
-        }
-
-        DB::transaction(function () use ($user, $provider, $subject): void {
-            $user->forceFill([
-                'oauth_provider' => $provider,
-                'oauth_subject' => $subject,
-            ])->save();
-        });
-
-        $this->components->info(sprintf('Linked users#%s to the %s identity.', $user->getKey(), $provider));
-
-        return self::SUCCESS;
+        return $result['exit'];
     }
 
     private function resolveProvider(): ?string
@@ -113,5 +167,17 @@ class BindOAuthSubjectCommand extends Command
         $configured = config('services.identity_provider.name');
 
         return is_string($configured) && $configured !== '' ? $configured : null;
+    }
+
+    /**
+     * @return array{exit: int, kind: 'error'|'info', message: string}
+     */
+    private function result(int $exit, string $kind, string $message): array
+    {
+        return [
+            'exit' => $exit,
+            'kind' => $kind,
+            'message' => $message,
+        ];
     }
 }
