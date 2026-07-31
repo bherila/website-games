@@ -102,6 +102,47 @@ class OAuthLoginTest extends TestCase
             ->sole();
 
         $this->assertAuthenticatedAs($newUser);
+        $this->assertNull($newUser->email_verified_at);
+    }
+
+    public function test_subject_resolution_is_case_sensitive(): void
+    {
+        $existingUser = User::factory()->create(['email' => 'upper-subject@example.test']);
+        $existingUser->forceFill([
+            'oauth_provider' => 'bherila',
+            'oauth_subject' => 'CaseSensitiveSubject',
+        ])->save();
+        $this->fakeProvider('casesensitivesubject', 'Different Account', 'lower-subject@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $newUser = User::query()
+            ->where('oauth_subject', 'casesensitivesubject')
+            ->sole();
+        $this->assertAuthenticatedAs($newUser);
+        $this->assertNotSame($existingUser->getKey(), $newUser->getKey());
+        $this->assertDatabaseCount('users', 2);
+    }
+
+    public function test_refreshing_to_a_new_unverified_email_clears_previous_verification(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'verified-address@example.test',
+            'email_verified_at' => now(),
+        ]);
+        $user->forceFill([
+            'oauth_provider' => 'bherila',
+            'oauth_subject' => 'provider-subject-with-new-email',
+        ])->save();
+        $this->fakeProvider('provider-subject-with-new-email', 'Updated Name', 'unverified-address@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $this->assertNull($user->fresh()?->email_verified_at);
     }
 
     public function test_matching_email_never_rebinds_a_different_account(): void
