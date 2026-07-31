@@ -22,6 +22,47 @@ describe('SaveLoadOverlay', () => {
     jest.restoreAllMocks()
   })
 
+  it('behaves as a named modal, traps Tab, closes on Escape, and restores focus', () => {
+    const onClose = jest.fn()
+    const onRestoreFocus = jest.fn()
+    render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText=""
+        message={null}
+        disastersEnabled={false}
+        onClose={onClose}
+        onRestoreFocus={onRestoreFocus}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Save / Load' })
+    const focusable = dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    )
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+    expect(first).toHaveFocus()
+
+    last.focus()
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(first).toHaveFocus()
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onRestoreFocus).toHaveBeenCalledTimes(1)
+  })
+
   it('protects an unknown-map save from overwrite while allowing explicit clearing', () => {
     const onSave = jest.fn()
     const unknownMapSlots = slots().map((slot) =>

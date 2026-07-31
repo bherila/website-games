@@ -1,5 +1,5 @@
 import currency from 'currency.js'
-import { type ChangeEvent, type MouseEvent, type ReactElement, useCallback, useRef, useState } from 'react'
+import { type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import type { CloudSlotStatus, CloudSlotView } from '../cloudSync'
 import type { SandboxSlotSummary } from '../gameProgress'
@@ -28,6 +28,7 @@ interface SaveLoadOverlayProps {
   onImport: (slotId: SandboxSlotId, raw: string) => void
   onClear: (slotId: SandboxSlotId) => void
   onSetDisastersEnabled: (enabled: boolean) => void
+  onRestoreFocus?: () => void
   cloudEnabled?: boolean
   cloudSlots?: Record<SandboxSlotId, CloudSlotView>
   onCloudRestore?: (slotId: SandboxSlotId) => void
@@ -173,6 +174,7 @@ export function SaveLoadOverlay({
   onImport,
   onClear,
   onSetDisastersEnabled,
+  onRestoreFocus,
   cloudEnabled = false,
   cloudSlots,
   onCloudRestore,
@@ -185,8 +187,60 @@ export function SaveLoadOverlay({
   const [exportCopyResult, setExportCopyResult] = useState<{ state: 'copied' | 'failed'; text: string } | null>(null)
   const [importFileError, setImportFileError] = useState(false)
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const exportRef = useRef<HTMLTextAreaElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  const onRestoreFocusRef = useRef(onRestoreFocus)
   const exportCopyState = exportCopyResult?.text === exportText ? exportCopyResult.state : 'idle'
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+    onRestoreFocusRef.current = onRestoreFocus
+  }, [onClose, onRestoreFocus])
+
+  const close = useCallback((): void => {
+    onCloseRef.current()
+    onRestoreFocusRef.current?.()
+  }, [])
+
+  useEffect(() => {
+    closeButtonRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [close])
+
+  const trapTabKey = (event: ReactKeyboardEvent<HTMLElement>): void => {
+    if (event.key !== 'Tab') {
+      return
+    }
+    const dialog = dialogRef.current
+    if (!dialog) {
+      return
+    }
+    const focusable = [...dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+    )].filter((element) => element.getAttribute('aria-hidden') !== 'true')
+    const first = focusable[0]
+    const last = focusable.at(-1)
+    if (!first || !last) {
+      event.preventDefault()
+      return
+    }
+    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   const copyExport = useCallback((): void => {
     exportRef.current?.focus()
@@ -282,13 +336,21 @@ export function SaveLoadOverlay({
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 p-4">
-      <div className="flex max-h-[90vh] w-[42rem] flex-col gap-4 overflow-y-auto rounded-2xl bg-slate-900 p-5 shadow-2xl">
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="save-load-title"
+        onKeyDown={trapTabKey}
+        className="flex max-h-[90vh] w-[42rem] flex-col gap-4 overflow-y-auto rounded-2xl bg-slate-900 p-5 shadow-2xl"
+      >
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-black tracking-tight">Save / Load</h2>
+          <h2 id="save-load-title" className="text-xl font-black tracking-tight">Save / Load</h2>
           <button
+            ref={closeButtonRef}
             type="button"
             aria-label="Close save overlay"
-            onClick={onClose}
+            onClick={close}
             className="rounded-md bg-white/10 px-2.5 py-1 text-sm font-bold text-white/80 hover:bg-white/20"
           >
             Close
@@ -477,7 +539,7 @@ export function SaveLoadOverlay({
         <p className="text-[12px] text-white/55">
           Loads resume the full deterministic simulation, including active journeys, incidents, requests, ledgers, and scheduled work.
         </p>
-      </div>
+      </section>
     </div>
   )
 }

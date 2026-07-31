@@ -1,9 +1,11 @@
 import { makeTestState } from '../engine/__tests__/testState'
+import { stepEngine } from '../engine/engine'
 import {
   beginPlacementDrag,
   bulkGhostsForCommands,
   hoverPreviewRequiresClear,
   keyboardActionForKey,
+  keyboardPlacementCommand,
   overlayRefreshRequired,
 } from '../TowerScene'
 
@@ -43,6 +45,21 @@ describe('canvas keyboard navigation', () => {
     expect(keyboardActionForKey('Escape')).toEqual({ type: 'cancel' })
     expect(keyboardActionForKey('Enter')).toEqual({ type: 'activate' })
     expect(keyboardActionForKey('Tab')).toBeNull()
+  })
+
+  it('routes invalid keyboard placement through the engine rejection seam', () => {
+    const state = makeTestState()
+    const command = keyboardPlacementCommand(
+      { isShaft: false, kind: 'officeS' },
+      { floor: 20, x: 10 },
+    )
+
+    const events = stepEngine(state, [command], 0)
+
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'placementRejected' }),
+    ]))
+    expect(state.units).toHaveLength(0)
   })
 })
 

@@ -188,6 +188,7 @@ export function TowerGame(): ReactElement {
   const sandboxSessionIdRef = useRef(getOrCreateTabSessionId())
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
+  const saveLoadButtonRef = useRef<HTMLButtonElement | null>(null)
 
   const [snapshot, setSnapshot] = useState<HudSnapshot | null>(null)
   const [mode, setMode] = useState<GameMode>('run')
@@ -721,7 +722,7 @@ export function TowerGame(): ReactElement {
       </div>
 
       {snapshot && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-2">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-wrap items-start justify-between gap-2 p-2">
           <div className="pointer-events-auto">
             <TopBar snapshot={snapshot} />
             <div className="mt-2">
@@ -772,6 +773,7 @@ export function TowerGame(): ReactElement {
               Inventory
             </button>
             <button
+              ref={saveLoadButtonRef}
               type="button"
               onClick={() => {
                 refreshSlots()
@@ -918,7 +920,7 @@ export function TowerGame(): ReactElement {
       )}
 
       {(engineState.activeBombThreat || engineState.activeFire || engineState.activeRequest) && (
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex flex-col items-center gap-2">
+        <div className="pointer-events-none absolute inset-x-0 top-14 z-20 flex flex-col items-center gap-2">
           {engineState.activeBombThreat && (
             <IncidentBanner
               threat={engineState.activeBombThreat}
@@ -995,6 +997,7 @@ export function TowerGame(): ReactElement {
           onImport={importToSlot}
           onClear={clearSlot}
           onSetDisastersEnabled={setDisastersEnabled}
+          onRestoreFocus={() => saveLoadButtonRef.current?.focus()}
           cloudEnabled={cloud.enabled}
           cloudSlots={cloud.slots}
           onCloudRestore={restoreFromCloud}

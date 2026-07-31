@@ -148,7 +148,7 @@ export function keyboardActionForKey(key: string, shiftKey = false): TowerSceneK
   }
 }
 
-type PlacementCmd = Extract<EngineCommand, { type: 'place' } | { type: 'placeShaft' }>
+export type PlacementCmd = Extract<EngineCommand, { type: 'place' } | { type: 'placeShaft' }>
 type PlaceItemCmd = Extract<EngineCommand, { type: 'place' }>
 
 export function overlayRefreshRequired(
@@ -181,6 +181,15 @@ function buildToolCommand(tool: SelectedTool, anchor: Tile, current: Tile): Plac
     return { type: 'place', kind, floor: anchor.floor, x, widthTiles: Math.abs(current.x - anchor.x) + 1 }
   }
   return { type: 'place', kind, floor: current.floor, x: current.x }
+}
+
+/**
+ * Keyboard placement deliberately returns the command even when the target is
+ * invalid. The engine command seam owns validation and emits the same
+ * placementRejected event (and toast) used by pointer placement.
+ */
+export function keyboardPlacementCommand(tool: SelectedTool, tile: Tile): PlacementCmd {
+  return buildToolCommand(tool, tile, tile)
 }
 
 function itemStoreys(kind: ItemKind, state: EngineState): number {
@@ -517,7 +526,6 @@ export function TowerScene({
       }
     }
     const onKeyDown = (event: KeyboardEvent): void => {
-      const state = stateRef.current
       const action = keyboardActionForKey(event.key, event.shiftKey)
       if (!action) {
         return
@@ -538,10 +546,7 @@ export function TowerScene({
         if (!tool) {
           onSelectTileRef.current?.(tile)
         } else {
-          const command = buildToolCommand(tool, tile, tile)
-          if (validatePlacement(state, command).ok) {
-            onPlaceCommandRef.current?.(command)
-          }
+          onPlaceCommandRef.current?.(keyboardPlacementCommand(tool, tile))
         }
       }
       event.preventDefault()

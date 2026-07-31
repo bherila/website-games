@@ -166,7 +166,7 @@ describe('toastsFromEvents', () => {
 })
 
 describe('Toasts', () => {
-  it('renders the stack, dismisses on click, and auto-dismisses after 5 s', () => {
+  it('renders the stack, dismisses with a semantic button, and auto-dismisses after 5 s', () => {
     jest.useFakeTimers()
     const onDismiss = jest.fn()
     const toasts = toastsFromEvents(
@@ -179,13 +179,39 @@ describe('Toasts', () => {
     render(<Toasts toasts={toasts} onDismiss={onDismiss} />)
 
     expect(screen.getByTestId('toast-starUp')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('toast-info'))
+    fireEvent.click(screen.getByRole('button', { name: /dismiss loan taken/i }))
     expect(onDismiss).toHaveBeenCalledWith(toasts[1]?.id)
 
     act(() => {
       jest.advanceTimersByTime(5100)
     })
     expect(onDismiss).toHaveBeenCalledWith(toasts[0]?.id)
+    jest.useRealTimers()
+  })
+
+  it('pauses and resumes the remaining timer while hover or focus is within the toast', () => {
+    jest.useFakeTimers()
+    const onDismiss = jest.fn()
+    const toast = toastsFromEvents([{ type: 'loanTaken', amount: 100_000 }], CLOCK)[0]!
+    render(<Toasts toasts={[toast]} onDismiss={onDismiss} />)
+    const container = screen.getByTestId('toast-info')
+    const dismiss = screen.getByRole('button', { name: /dismiss loan taken/i })
+
+    act(() => jest.advanceTimersByTime(3_000))
+    fireEvent.mouseEnter(container)
+    act(() => jest.advanceTimersByTime(5_000))
+    expect(onDismiss).not.toHaveBeenCalled()
+
+    dismiss.focus()
+    fireEvent.mouseLeave(container)
+    act(() => jest.advanceTimersByTime(5_000))
+    expect(onDismiss).not.toHaveBeenCalled()
+
+    fireEvent.blur(dismiss, { relatedTarget: document.body })
+    act(() => jest.advanceTimersByTime(1_999))
+    expect(onDismiss).not.toHaveBeenCalled()
+    act(() => jest.advanceTimersByTime(1))
+    expect(onDismiss).toHaveBeenCalledWith(toast.id)
     jest.useRealTimers()
   })
 })
