@@ -340,8 +340,9 @@ function dispatch(state: EngineState, cmd: EngineCommand, events: EngineEvent[])
       state.options.disastersEnabled = cmd.enabled
       return
     case 'acceptLoan':
-      acceptLoan(state, cmd.amount, events)
-      resumePendingLoanCommands(state, events)
+      if (acceptLoan(state, cmd.amount, events)) {
+        resumePendingLoanCommands(state, events)
+      }
       return
     case 'declineLoan':
       declineLoan(state)

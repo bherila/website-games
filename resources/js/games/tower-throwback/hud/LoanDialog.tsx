@@ -1,6 +1,7 @@
 import currency from 'currency.js'
 import { type ReactElement, useState } from 'react'
 
+import { maximumLoanOffer } from '../engine/economy'
 import { TUNING } from '../gameTypes'
 
 interface LoanDialogProps {
@@ -19,7 +20,9 @@ function money(value: number): string {
 export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialogProps): ReactElement {
   const increment = TUNING.economy.loanIncrement
   const [extraIncrements, setExtraIncrements] = useState(0)
-  const amount = prompt.suggested + extraIncrements * increment
+  const maximum = maximumLoanOffer(prompt)
+  const maximumExtraIncrements = Math.floor((maximum - prompt.suggested) / increment)
+  const amount = prompt.suggested + Math.min(extraIncrements, maximumExtraIncrements) * increment
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50">
@@ -34,6 +37,7 @@ export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialog
           <button
             type="button"
             data-testid="amount-down"
+            aria-label="Decrease loan amount"
             disabled={extraIncrements === 0}
             onClick={() => setExtraIncrements((current) => Math.max(0, current - 1))}
             className="rounded bg-white/10 px-3 py-1 font-bold hover:bg-white/20 disabled:opacity-40"
@@ -46,12 +50,15 @@ export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialog
           <button
             type="button"
             data-testid="amount-up"
-            onClick={() => setExtraIncrements((current) => current + 1)}
-            className="rounded bg-white/10 px-3 py-1 font-bold hover:bg-white/20"
+            aria-label="Increase loan amount"
+            disabled={extraIncrements >= maximumExtraIncrements}
+            onClick={() => setExtraIncrements((current) => Math.min(maximumExtraIncrements, current + 1))}
+            className="rounded bg-white/10 px-3 py-1 font-bold hover:bg-white/20 disabled:opacity-40"
           >
             +
           </button>
         </div>
+        <p className="mt-1 text-center text-xs text-white/60">Maximum offer: {money(maximum)}</p>
 
         <div className="mt-4 flex gap-2">
           <button

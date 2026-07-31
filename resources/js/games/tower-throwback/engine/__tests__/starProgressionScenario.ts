@@ -25,6 +25,7 @@
 
 import type { EngineCommand, EngineEvent, EngineState, ItemKind, StarLevel } from '../../gameTypes'
 import { TUNING } from '../../gameTypes'
+import { requestSpend } from '../economy'
 import { createEngineState, stepEngine } from '../engine'
 import { applyStarUp, populationOf, starUpArmed } from '../stars'
 
@@ -220,8 +221,9 @@ function driveUntil(
 export function runStarProgression(seed: number = SEED_DEFAULT): ProgressionResult {
   const state = createEngineState({ seed, mapId: 'city-tower', lobbyHeight: 1 })
   run(state, [{ type: 'setSpeed', speed: 4 }])
-  // Fund the whole build up front with a loan (a public mechanism); the leased
-  // tower is wildly cash-positive afterwards, so this never re-prompts.
+  // Arm a real shortfall offer, then fund the whole build through the public
+  // loan command. The leased tower is wildly cash-positive afterwards.
+  requestSpend(state, state.funds + 12_000_000, [])
   run(state, [{ type: 'acceptLoan', amount: 12_000_000 }])
   run(state, [place('lobby', 0, OFFICE_X0, TOWER_X0 + TOWER_WIDTH - OFFICE_X0)])
 

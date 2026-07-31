@@ -1,6 +1,6 @@
 import type { EngineEvent } from '../../gameTypes'
 import { advanceClock } from '../clock'
-import { acceptLoan, accrue, declineLoan, postImmediate, requestSpend, settleMidnight } from '../economy'
+import { acceptLoan, accrue, declineLoan, maximumLoanOffer, postImmediate, requestSpend, settleMidnight } from '../economy'
 import { injectUnit, makeTestState, placeShaft, placeSlabRow } from './testState'
 
 describe('accrue & postImmediate', () => {
@@ -170,6 +170,31 @@ describe('loan flow', () => {
     expect(state.ledgerToday.lines['loan.principal']).toBe(300_000)
     expect(state.pendingLoanPrompt).toBeNull()
     expect(events).toContainEqual({ type: 'loanTaken', amount: 300_000 })
+  })
+
+  it('bounds an accepted offer, snaps it to increments, and requires an active prompt', () => {
+    const state = makeTestState({ funds: 1000 })
+    requestSpend(state, 250_900, [])
+    expect(maximumLoanOffer(state.pendingLoanPrompt!)).toBe(600_000)
+
+    const events: EngineEvent[] = []
+    expect(acceptLoan(state, 99_999_999, events)).toBe(true)
+    expect(state.loans).toEqual([{ id: 1, principal: 600_000, outstanding: 600_000 }])
+    expect(events).toContainEqual({ type: 'loanTaken', amount: 600_000 })
+
+    const funds = state.funds
+    expect(acceptLoan(state, 12_000_000, events)).toBe(false)
+    expect(state.funds).toBe(funds)
+    expect(state.loans).toHaveLength(1)
+  })
+
+  it('normalizes a custom accepted amount to the offer increment', () => {
+    const state = makeTestState({ funds: 1000 })
+    requestSpend(state, 250_900, [])
+
+    acceptLoan(state, 550_000, [])
+
+    expect(state.loans[0]?.principal).toBe(500_000)
   })
 
   it('declineLoan clears the prompt', () => {
