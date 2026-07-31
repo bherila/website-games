@@ -126,6 +126,27 @@ class OAuthLoginTest extends TestCase
         $this->assertDatabaseCount('users', 2);
     }
 
+    public function test_subject_resolution_preserves_trailing_spaces(): void
+    {
+        $existingUser = User::factory()->create(['email' => 'plain-subject@example.test']);
+        $existingUser->forceFill([
+            'oauth_provider' => 'bherila',
+            'oauth_subject' => 'subject-with-space',
+        ])->save();
+        $this->fakeProvider('subject-with-space ', 'Different Account', 'spaced-subject@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $newUser = User::query()
+            ->where('oauth_subject', 'subject-with-space ')
+            ->sole();
+        $this->assertAuthenticatedAs($newUser);
+        $this->assertNotSame($existingUser->getKey(), $newUser->getKey());
+        $this->assertDatabaseCount('users', 2);
+    }
+
     public function test_refreshing_to_a_new_unverified_email_clears_previous_verification(): void
     {
         $user = User::factory()->create([
