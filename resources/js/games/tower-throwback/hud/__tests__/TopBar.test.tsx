@@ -31,6 +31,7 @@ function snapshot(overrides: Partial<HudSnapshot> = {}): HudSnapshot {
     weekend: false,
     speed: 1,
     fastMode: false,
+    effectiveSpeed: 1,
     fastModeActive: false,
     disastersEnabled: true,
     activePeople: 12,
@@ -64,6 +65,16 @@ describe('TopBar', () => {
     expect(screen.getByTestId('net-yesterday')).toHaveTextContent('+$2,500 yesterday')
     expect(screen.getByTestId('phase')).toHaveTextContent('Weekend')
     expect(screen.getByTestId('star-badge')).toHaveTextContent('TOWER')
+  })
+
+  it('shows the speed multiplier the engine is actually applying in fast mode', () => {
+    const { rerender } = render(
+      <TopBar snapshot={snapshot({ speed: 8, fastMode: true, effectiveSpeed: 24, fastModeActive: true })} />,
+    )
+    expect(screen.getByTestId('fast-mode-badge')).toHaveTextContent('FAST 24×')
+
+    rerender(<TopBar snapshot={snapshot({ speed: 16, fastMode: true, effectiveSpeed: 48, fastModeActive: true })} />)
+    expect(screen.getByTestId('fast-mode-badge')).toHaveTextContent('FAST 48×')
   })
 
   it('surfaces pending and blocked VIP goal state', () => {

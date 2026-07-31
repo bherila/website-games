@@ -134,6 +134,10 @@ describe('NewGameOverlay', () => {
     expect(screen.getByTestId('map-niagara-falls')).toBeDisabled()
     expect(screen.getByTestId('lobby-1')).toBeDisabled()
     expect(screen.getByTestId('lobby-3')).toBeDisabled()
+    expect(screen.getByTestId('map-city-tower')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('map-niagara-falls')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('lobby-1')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('lobby-3')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('challenge-code-status')).toHaveTextContent('locked to this code')
 
     fireEvent.click(screen.getByTestId('start'))
@@ -144,6 +148,8 @@ describe('NewGameOverlay', () => {
     expect(screen.getByTestId('map-niagara-falls')).toBeEnabled()
     expect(screen.getByTestId('lobby-1')).toBeEnabled()
     expect(screen.getByTestId('lobby-3')).toBeEnabled()
+    expect(screen.getByTestId('map-city-tower')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('lobby-1')).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('confirms before importing over an occupied slot', () => {

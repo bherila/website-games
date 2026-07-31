@@ -123,7 +123,7 @@ export function TopBar({ snapshot }: TopBarProps): ReactElement {
               className="rounded bg-amber-400/90 px-1 text-[10px] font-bold text-slate-950"
               data-testid="fast-mode-badge"
             >
-              FAST 48×
+              FAST {snapshot.effectiveSpeed}×
             </span>
           )}
         </span>

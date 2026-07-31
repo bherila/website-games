@@ -482,7 +482,7 @@ export interface EngineState {
   rng: Rng
   clock: GameClock
   speed: GameSpeed
-  /** SimTower-style fast-forward: when on AND activity is low, time runs at 48×. */
+  /** SimTower-style fast-forward: when on and activity is low, time runs at up to 48×. */
   fastMode: boolean
   options: EngineOptions
   funds: number
@@ -639,6 +639,8 @@ export interface HudSnapshot {
   speed: GameSpeed
   /** User's fast-forward toggle. */
   fastMode: boolean
+  /** Speed multiplier the engine is applying after dynamic fast-mode rules. */
+  effectiveSpeed: number
   /** True when fast mode is actively boosting time right now (low activity). */
   fastModeActive: boolean
   disastersEnabled: boolean

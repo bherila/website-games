@@ -502,6 +502,7 @@ export function buildHudSnapshot(state: EngineState): HudSnapshot {
   const netYesterday = yesterday ? Object.values(yesterday.lines).reduce((sum, v) => sum + (v ?? 0), 0) : 0
   const population = populationOf(state)
   const starProgress = buildStarProgress(state.star, population)
+  const appliedSpeed = effectiveSpeed(state)
   const activePeople = state.people.length
   const peopleCap = { active: activePeople, max: TUNING.people.maxActive, atCap: activePeople >= TUNING.people.maxActive }
   const map = getMap(state.mapId)
@@ -529,7 +530,8 @@ export function buildHudSnapshot(state: EngineState): HudSnapshot {
     weekend: isWeekend(state.clock.day),
     speed: state.speed,
     fastMode: state.fastMode,
-    fastModeActive: effectiveSpeed(state) > state.speed,
+    effectiveSpeed: appliedSpeed,
+    fastModeActive: appliedSpeed > state.speed,
     disastersEnabled: state.options.disastersEnabled,
     activePeople,
     peopleCap,

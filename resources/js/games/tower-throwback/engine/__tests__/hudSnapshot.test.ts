@@ -28,6 +28,14 @@ function vipRecord(overrides: Partial<VipRecord>): VipRecord {
 }
 
 describe('buildHudSnapshot star and VIP display fields', () => {
+  it('exposes the effective speed used by dynamic fast mode', () => {
+    const state = makeTestState({ speed: 8, fastMode: true, clock: { day: 1, minute: 2 * 60 } })
+    const snapshot = buildHudSnapshot(state)
+
+    expect(snapshot.effectiveSpeed).toBe(24)
+    expect(snapshot.fastModeActive).toBe(true)
+  })
+
   it('reports progress one below a star threshold', () => {
     const state = makeTestState()
     addPopulation(state, TUNING.stars.popThresholds[2] - 1)
