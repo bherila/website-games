@@ -23,7 +23,7 @@ function ViewIncidentFloorButton({ floor, onViewFloor }: ViewIncidentFloorButton
       type="button"
       data-testid="view-incident-floor"
       onClick={() => onViewFloor(floor)}
-      className="min-h-11 rounded bg-white/15 px-3 py-2 text-[12px] font-bold text-white hover:bg-white/25"
+      className="pointer-events-auto min-h-11 rounded bg-white/15 px-3 py-2 text-[12px] font-bold text-white hover:bg-white/25"
     >
       View floor
     </button>
@@ -35,7 +35,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
   const sweeping = threat.sweepRemainingMin !== null
   return (
     <div
-      className="pointer-events-auto w-[calc(100vw-1rem)] max-w-3xl rounded-xl border border-red-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
+      className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-xl border border-red-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
       role="alert"
       data-testid="incident-banner"
     >
@@ -61,7 +61,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
                 type="button"
                 data-testid="pay-ransom"
                 onClick={() => onResolve('ransom')}
-                className="min-h-11 rounded bg-amber-500/85 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400"
+                className="pointer-events-auto min-h-11 rounded bg-amber-500/85 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400"
               >
                 Pay {currency(threat.ransom, { precision: 0 }).format()}
               </button>
@@ -69,7 +69,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
                 type="button"
                 data-testid="start-sweep"
                 onClick={() => onResolve('sweep')}
-                className="min-h-11 rounded bg-white/15 px-3 py-2 font-bold text-white hover:bg-white/25"
+                className="pointer-events-auto min-h-11 rounded bg-white/15 px-3 py-2 font-bold text-white hover:bg-white/25"
               >
                 {hasSecurityOffice ? 'Sweep' : 'Risk it'}
               </button>
@@ -92,7 +92,7 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
   const burningCount = fire.burningUnitIds.length
   return (
     <div
-      className="pointer-events-auto w-[calc(100vw-1rem)] max-w-3xl rounded-xl border border-orange-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
+      className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-xl border border-orange-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
       role="alert"
       data-testid="fire-banner"
     >
@@ -111,7 +111,7 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
             type="button"
             data-testid="fire-dispatch"
             onClick={() => onRespond('dispatch')}
-            className="min-h-11 rounded bg-amber-500/85 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400"
+            className="pointer-events-auto min-h-11 rounded bg-amber-500/85 px-3 py-2 font-bold text-slate-950 hover:bg-amber-400"
           >
             Dispatch {currency(fireDispatchCost(fire), { precision: 0 }).format()}
           </button>
@@ -119,7 +119,7 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
             type="button"
             data-testid="fire-firebreak"
             onClick={() => onRespond('firebreak')}
-            className="min-h-11 rounded bg-white/15 px-3 py-2 font-bold text-white hover:bg-white/25"
+            className="pointer-events-auto min-h-11 rounded bg-white/15 px-3 py-2 font-bold text-white hover:bg-white/25"
           >
             Firebreak
           </button>

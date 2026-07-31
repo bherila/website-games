@@ -188,6 +188,9 @@ export function TowerGame(): ReactElement {
   const sandboxSessionIdRef = useRef(getOrCreateTabSessionId())
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
+  const saveLoadButtonRef = useRef<HTMLButtonElement | null>(null)
+  const saveLoadReturnFocusRef = useRef<HTMLElement | null>(null)
+  const topHudRef = useRef<HTMLDivElement | null>(null)
 
   const [snapshot, setSnapshot] = useState<HudSnapshot | null>(null)
   const [mode, setMode] = useState<GameMode>('run')
@@ -222,6 +225,8 @@ export function TowerGame(): ReactElement {
   const [showTowerCard, setShowTowerCard] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
   const inventoryButtonRef = useRef<HTMLButtonElement | null>(null)
+  const toastBatchRef = useRef(0)
+  const [incidentStackTop, setIncidentStackTop] = useState(56)
 
   const presentation = usePresentationPrefs()
 
@@ -247,6 +252,20 @@ export function TowerGame(): ReactElement {
   useEffect(() => {
     activeSlotRef.current = activeSlotId
   }, [activeSlotId])
+
+  const topHudVisible = engineState !== null && snapshot !== null
+  useEffect(() => {
+    const topHud = topHudRef.current
+    if (!topHud || typeof ResizeObserver === 'undefined') {
+      return
+    }
+    const observer = new ResizeObserver(() => {
+      const nextTop = Math.ceil(topHud.getBoundingClientRect().bottom + 8)
+      setIncidentStackTop((current) => current === nextTop ? current : nextTop)
+    })
+    observer.observe(topHud)
+    return () => observer.disconnect()
+  }, [topHudVisible])
 
   const markDirtyRef = useRef<() => void>(() => {})
 
@@ -371,7 +390,8 @@ export function TowerGame(): ReactElement {
       return
     }
     playEventsRef.current(events)
-    const newToasts = toastsFromEvents(events, state.clock)
+    const newToasts = toastsFromEvents(events, state.clock, toastBatchRef.current)
+    toastBatchRef.current += 1
     if (newToasts.length > 0) {
       const toastClock = { ...state.clock }
       // Cap the COMBINED list — capping only prev lets one large batch
@@ -623,6 +643,11 @@ export function TowerGame(): ReactElement {
   const zoomIn = useCallback(() => sceneControllerRef.current?.zoomBy(1 / ZOOM_STEP), [])
   const zoomOut = useCallback(() => sceneControllerRef.current?.zoomBy(ZOOM_STEP), [])
   const fitTower = useCallback(() => sceneControllerRef.current?.fitTower(), [])
+  const restoreSaveLoadFocus = useCallback(() => {
+    const target = saveLoadReturnFocusRef.current ?? saveLoadButtonRef.current
+    saveLoadReturnFocusRef.current = null
+    target?.focus()
+  }, [])
   const saveCurrentTowerAndExit = useCallback(() => {
     const state = engineStateRef.current
     if (!state) {
@@ -635,6 +660,9 @@ export function TowerGame(): ReactElement {
       () => window.location.assign('/'),
     )
     if (!result.ok) {
+      saveLoadReturnFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : saveLoadButtonRef.current
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
       refreshSlots()
       setShowSaveLoad(true)
@@ -690,6 +718,7 @@ export function TowerGame(): ReactElement {
   const renderPoolUtilization = measureDynamicPoolUtilization(engineState, STYLE_GATE_PERSON_CAP)
   const occupiedFloors = floorRangeForState(engineState)
   const inspectorVisible = selection !== null || overlaySample !== null
+  const activeAlert = engineState.activeBombThreat !== null || engineState.activeFire !== null || engineState.activeRequest !== null
   const incidentFloors = [
     ...(engineState.activeBombThreat ? [{ floor: engineState.activeBombThreat.floor, kind: 'bomb' as const }] : []),
     ...(engineState.activeFire ? [{ floor: engineState.activeFire.floor, kind: 'fire' as const }] : []),
@@ -721,7 +750,12 @@ export function TowerGame(): ReactElement {
       </div>
 
       {snapshot && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-2">
+        <div
+          ref={topHudRef}
+          className={`pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-2 ${
+            activeAlert ? 'max-h-[calc(100vh-12rem)] overflow-y-auto' : ''
+          }`}
+        >
           <div className="pointer-events-auto">
             <TopBar snapshot={snapshot} />
             <div className="mt-2">
@@ -772,8 +806,10 @@ export function TowerGame(): ReactElement {
               Inventory
             </button>
             <button
+              ref={saveLoadButtonRef}
               type="button"
-              onClick={() => {
+              onClick={(event) => {
+                saveLoadReturnFocusRef.current = event.currentTarget
                 refreshSlots()
                 setShowSaveLoad(true)
               }}
@@ -858,7 +894,7 @@ export function TowerGame(): ReactElement {
 
       {cameraViewport && (
         <div
-          className={`pointer-events-auto absolute bottom-2 right-2 z-10 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 ${
+          className={`pointer-events-auto absolute bottom-2 right-2 z-[5] sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 ${
             inspectorVisible ? 'sm:right-[21rem]' : 'sm:right-2'
           }`}
         >
@@ -917,8 +953,11 @@ export function TowerGame(): ReactElement {
         </div>
       )}
 
-      {(engineState.activeBombThreat || engineState.activeFire || engineState.activeRequest) && (
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-30 flex flex-col items-center gap-2">
+      {activeAlert && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-2 z-30 flex flex-col items-start gap-2 overflow-y-auto pl-2 pr-16 sm:items-center sm:px-0"
+          style={{ top: incidentStackTop }}
+        >
           {engineState.activeBombThreat && (
             <IncidentBanner
               threat={engineState.activeBombThreat}
@@ -995,6 +1034,7 @@ export function TowerGame(): ReactElement {
           onImport={importToSlot}
           onClear={clearSlot}
           onSetDisastersEnabled={setDisastersEnabled}
+          onRestoreFocus={restoreSaveLoadFocus}
           cloudEnabled={cloud.enabled}
           cloudSlots={cloud.slots}
           onCloudRestore={restoreFromCloud}
