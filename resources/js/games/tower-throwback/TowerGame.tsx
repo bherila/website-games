@@ -189,6 +189,7 @@ export function TowerGame(): ReactElement {
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
   const saveLoadButtonRef = useRef<HTMLButtonElement | null>(null)
+  const topHudRef = useRef<HTMLDivElement | null>(null)
 
   const [snapshot, setSnapshot] = useState<HudSnapshot | null>(null)
   const [mode, setMode] = useState<GameMode>('run')
@@ -223,6 +224,7 @@ export function TowerGame(): ReactElement {
   const [showTowerCard, setShowTowerCard] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
   const inventoryButtonRef = useRef<HTMLButtonElement | null>(null)
+  const [incidentStackTop, setIncidentStackTop] = useState(56)
 
   const presentation = usePresentationPrefs()
 
@@ -248,6 +250,20 @@ export function TowerGame(): ReactElement {
   useEffect(() => {
     activeSlotRef.current = activeSlotId
   }, [activeSlotId])
+
+  const topHudVisible = engineState !== null && snapshot !== null
+  useEffect(() => {
+    const topHud = topHudRef.current
+    if (!topHud || typeof ResizeObserver === 'undefined') {
+      return
+    }
+    const observer = new ResizeObserver(() => {
+      const nextTop = Math.ceil(topHud.getBoundingClientRect().bottom + 8)
+      setIncidentStackTop((current) => current === nextTop ? current : nextTop)
+    })
+    observer.observe(topHud)
+    return () => observer.disconnect()
+  }, [topHudVisible])
 
   const markDirtyRef = useRef<() => void>(() => {})
 
@@ -722,7 +738,7 @@ export function TowerGame(): ReactElement {
       </div>
 
       {snapshot && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex flex-wrap items-start justify-between gap-2 p-2">
+        <div ref={topHudRef} className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-2">
           <div className="pointer-events-auto">
             <TopBar snapshot={snapshot} />
             <div className="mt-2">
@@ -920,7 +936,10 @@ export function TowerGame(): ReactElement {
       )}
 
       {(engineState.activeBombThreat || engineState.activeFire || engineState.activeRequest) && (
-        <div className="pointer-events-none absolute inset-x-0 top-14 z-20 flex flex-col items-center gap-2">
+        <div
+          className="pointer-events-none absolute inset-x-0 z-30 flex flex-col items-center gap-2"
+          style={{ top: incidentStackTop }}
+        >
           {engineState.activeBombThreat && (
             <IncidentBanner
               threat={engineState.activeBombThreat}

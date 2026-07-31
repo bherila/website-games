@@ -20,7 +20,7 @@ function requestedKindName(request: TenantRequest): string {
 export function TenantRequestCard({ request, onViewFloor }: TenantRequestCardProps): ReactElement {
   return (
     <section
-      className="pointer-events-auto w-[calc(100vw-1rem)] max-w-xl rounded-xl border border-sky-400/60 bg-slate-950/90 px-4 py-3 text-sm shadow-2xl backdrop-blur-sm"
+      className="pointer-events-none w-[calc(100vw-1rem)] max-w-xl rounded-xl border border-sky-400/60 bg-slate-950/90 px-4 py-3 text-sm shadow-2xl backdrop-blur-sm"
       data-testid="tenant-request-card"
       aria-labelledby="tenant-request-title"
     >
@@ -49,7 +49,7 @@ export function TenantRequestCard({ request, onViewFloor }: TenantRequestCardPro
           type="button"
           data-testid="view-request-floor"
           onClick={() => onViewFloor(request.nearFloor)}
-          className="min-h-11 shrink-0 rounded bg-sky-500/25 px-3 py-2 text-[12px] font-bold text-sky-100 hover:bg-sky-500/40"
+          className="pointer-events-auto min-h-11 shrink-0 rounded bg-sky-500/25 px-3 py-2 text-[12px] font-bold text-sky-100 hover:bg-sky-500/40"
         >
           View floor
         </button>

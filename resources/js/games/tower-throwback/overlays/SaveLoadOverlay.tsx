@@ -192,6 +192,7 @@ export function SaveLoadOverlay({
   const exportRef = useRef<HTMLTextAreaElement | null>(null)
   const onCloseRef = useRef(onClose)
   const onRestoreFocusRef = useRef(onRestoreFocus)
+  const focusRestoredRef = useRef(false)
   const exportCopyState = exportCopyResult?.text === exportText ? exportCopyResult.state : 'idle'
 
   useEffect(() => {
@@ -199,24 +200,30 @@ export function SaveLoadOverlay({
     onRestoreFocusRef.current = onRestoreFocus
   }, [onClose, onRestoreFocus])
 
+  const restoreFocus = useCallback((): void => {
+    if (!focusRestoredRef.current) {
+      focusRestoredRef.current = true
+      onRestoreFocusRef.current?.()
+    }
+  }, [])
+
   const close = useCallback((): void => {
     onCloseRef.current()
-    onRestoreFocusRef.current?.()
-  }, [])
+    restoreFocus()
+  }, [restoreFocus])
 
   useEffect(() => {
     closeButtonRef.current?.focus()
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        close()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [close])
+    return restoreFocus
+  }, [restoreFocus])
 
   const trapTabKey = (event: ReactKeyboardEvent<HTMLElement>): void => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      close()
+      return
+    }
     if (event.key !== 'Tab') {
       return
     }

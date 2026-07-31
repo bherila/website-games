@@ -25,23 +25,26 @@ describe('SaveLoadOverlay', () => {
   it('behaves as a named modal, traps Tab, closes on Escape, and restores focus', () => {
     const onClose = jest.fn()
     const onRestoreFocus = jest.fn()
+    const onUnderlyingKeyDown = jest.fn()
     render(
-      <SaveLoadOverlay
-        slots={slots()}
-        activeSlotId="autosave"
-        canSave={true}
-        exportText=""
-        message={null}
-        disastersEnabled={false}
-        onClose={onClose}
-        onRestoreFocus={onRestoreFocus}
-        onSave={jest.fn()}
-        onLoad={jest.fn()}
-        onExport={jest.fn()}
-        onImport={jest.fn()}
-        onClear={jest.fn()}
-        onSetDisastersEnabled={jest.fn()}
-      />,
+      <div onKeyDown={onUnderlyingKeyDown}>
+        <SaveLoadOverlay
+          slots={slots()}
+          activeSlotId="autosave"
+          canSave={true}
+          exportText=""
+          message={null}
+          disastersEnabled={false}
+          onClose={onClose}
+          onRestoreFocus={onRestoreFocus}
+          onSave={jest.fn()}
+          onLoad={jest.fn()}
+          onExport={jest.fn()}
+          onImport={jest.fn()}
+          onClear={jest.fn()}
+          onSetDisastersEnabled={jest.fn()}
+        />
+      </div>,
     )
 
     const dialog = screen.getByRole('dialog', { name: 'Save / Load' })
@@ -58,8 +61,36 @@ describe('SaveLoadOverlay', () => {
     fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
     expect(last).toHaveFocus()
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    onUnderlyingKeyDown.mockClear()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onRestoreFocus).toHaveBeenCalledTimes(1)
+    expect(onUnderlyingKeyDown).not.toHaveBeenCalled()
+  })
+
+  it('restores focus when a successful parent action unmounts the overlay', () => {
+    const onRestoreFocus = jest.fn()
+    const { unmount } = render(
+      <SaveLoadOverlay
+        slots={slots()}
+        activeSlotId="autosave"
+        canSave={true}
+        exportText=""
+        message={null}
+        disastersEnabled={false}
+        onClose={jest.fn()}
+        onRestoreFocus={onRestoreFocus}
+        onSave={jest.fn()}
+        onLoad={jest.fn()}
+        onExport={jest.fn()}
+        onImport={jest.fn()}
+        onClear={jest.fn()}
+        onSetDisastersEnabled={jest.fn()}
+      />,
+    )
+
+    unmount()
+
     expect(onRestoreFocus).toHaveBeenCalledTimes(1)
   })
 
