@@ -163,6 +163,15 @@ describe('toastsFromEvents', () => {
     ]
     expect(toastsFromEvents(events, CLOCK)).toHaveLength(1)
   })
+
+  it('keeps ids unique across event batches within the same game minute', () => {
+    const event: EngineEvent[] = [{ type: 'placementRejected', kind: 'officeS', reason: 'No support below' }]
+
+    const first = toastsFromEvents(event, CLOCK, 7)
+    const second = toastsFromEvents(event, CLOCK, 8)
+
+    expect(first[0]?.id).not.toBe(second[0]?.id)
+  })
 })
 
 describe('Toasts', () => {

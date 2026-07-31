@@ -189,6 +189,7 @@ export function TowerGame(): ReactElement {
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
   const saveLoadButtonRef = useRef<HTMLButtonElement | null>(null)
+  const saveLoadReturnFocusRef = useRef<HTMLElement | null>(null)
   const topHudRef = useRef<HTMLDivElement | null>(null)
 
   const [snapshot, setSnapshot] = useState<HudSnapshot | null>(null)
@@ -224,6 +225,7 @@ export function TowerGame(): ReactElement {
   const [showTowerCard, setShowTowerCard] = useState(false)
   const [showShortcutHelp, setShowShortcutHelp] = useState(false)
   const inventoryButtonRef = useRef<HTMLButtonElement | null>(null)
+  const toastBatchRef = useRef(0)
   const [incidentStackTop, setIncidentStackTop] = useState(56)
 
   const presentation = usePresentationPrefs()
@@ -388,7 +390,8 @@ export function TowerGame(): ReactElement {
       return
     }
     playEventsRef.current(events)
-    const newToasts = toastsFromEvents(events, state.clock)
+    const newToasts = toastsFromEvents(events, state.clock, toastBatchRef.current)
+    toastBatchRef.current += 1
     if (newToasts.length > 0) {
       const toastClock = { ...state.clock }
       // Cap the COMBINED list — capping only prev lets one large batch
@@ -640,6 +643,11 @@ export function TowerGame(): ReactElement {
   const zoomIn = useCallback(() => sceneControllerRef.current?.zoomBy(1 / ZOOM_STEP), [])
   const zoomOut = useCallback(() => sceneControllerRef.current?.zoomBy(ZOOM_STEP), [])
   const fitTower = useCallback(() => sceneControllerRef.current?.fitTower(), [])
+  const restoreSaveLoadFocus = useCallback(() => {
+    const target = saveLoadReturnFocusRef.current ?? saveLoadButtonRef.current
+    saveLoadReturnFocusRef.current = null
+    target?.focus()
+  }, [])
   const saveCurrentTowerAndExit = useCallback(() => {
     const state = engineStateRef.current
     if (!state) {
@@ -652,6 +660,9 @@ export function TowerGame(): ReactElement {
       () => window.location.assign('/'),
     )
     if (!result.ok) {
+      saveLoadReturnFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : saveLoadButtonRef.current
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
       refreshSlots()
       setShowSaveLoad(true)
@@ -791,7 +802,8 @@ export function TowerGame(): ReactElement {
             <button
               ref={saveLoadButtonRef}
               type="button"
-              onClick={() => {
+              onClick={(event) => {
+                saveLoadReturnFocusRef.current = event.currentTarget
                 refreshSlots()
                 setShowSaveLoad(true)
               }}
@@ -937,8 +949,8 @@ export function TowerGame(): ReactElement {
 
       {(engineState.activeBombThreat || engineState.activeFire || engineState.activeRequest) && (
         <div
-          className="pointer-events-none absolute inset-x-0 z-30 flex flex-col items-center gap-2"
-          style={{ top: incidentStackTop }}
+          className="pointer-events-none absolute inset-x-0 bottom-2 z-30 flex flex-col items-start gap-2 overflow-y-auto pl-2 pr-16 sm:items-center sm:px-0"
+          style={{ top: `min(${incidentStackTop}px, calc(100vh - 12rem))` }}
         >
           {engineState.activeBombThreat && (
             <IncidentBanner
@@ -1016,7 +1028,7 @@ export function TowerGame(): ReactElement {
           onImport={importToSlot}
           onClear={clearSlot}
           onSetDisastersEnabled={setDisastersEnabled}
-          onRestoreFocus={() => saveLoadButtonRef.current?.focus()}
+          onRestoreFocus={restoreSaveLoadFocus}
           cloudEnabled={cloud.enabled}
           cloudSlots={cloud.slots}
           onCloudRestore={restoreFromCloud}

@@ -24,14 +24,15 @@ function vipVisitId(target: VipTarget): string {
 
 /**
  * Map engine events to toast items. Pure and deterministic: ids derive from
- * the clock + the event's position in this batch (never Date.now()).
+ * the clock + a caller-owned batch sequence + the event's position (never
+ * Date.now()).
  * unitVacated is throttled to at most one toast per batch; placementRejected
  * coalesces per reason (a shift-drag bulk build can reject hundreds of cells
  * in one tick).
  */
-export function toastsFromEvents(events: EngineEvent[], clock: GameClock): ToastItem[] {
+export function toastsFromEvents(events: EngineEvent[], clock: GameClock, batchId = 0): ToastItem[] {
   const toasts: ToastItem[] = []
-  const id = (index: number, kind: string): string => `${clock.day}:${Math.floor(clock.minute)}:${index}:${kind}`
+  const id = (index: number, kind: string): string => `${clock.day}:${Math.floor(clock.minute)}:${batchId}:${index}:${kind}`
   let vacatedShown = false
   const rejectionsByReason = new Map<string, { firstIndex: number; count: number }>()
 

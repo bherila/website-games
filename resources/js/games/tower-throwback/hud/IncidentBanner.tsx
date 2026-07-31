@@ -35,7 +35,7 @@ export function IncidentBanner({ threat, hasSecurityOffice, onResolve, onViewFlo
   const sweeping = threat.sweepRemainingMin !== null
   return (
     <div
-      className="pointer-events-none w-[calc(100vw-1rem)] max-w-3xl rounded-xl border border-red-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
+      className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-xl border border-red-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
       role="alert"
       data-testid="incident-banner"
     >
@@ -92,7 +92,7 @@ export function FireBanner({ fire, onRespond, onViewFloor }: FireBannerProps): R
   const burningCount = fire.burningUnitIds.length
   return (
     <div
-      className="pointer-events-none w-[calc(100vw-1rem)] max-w-3xl rounded-xl border border-orange-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
+      className="pointer-events-auto w-full max-w-3xl shrink-0 rounded-xl border border-orange-500/70 bg-red-950/90 px-4 py-2 text-sm shadow-2xl backdrop-blur-sm sm:w-fit"
       role="alert"
       data-testid="fire-banner"
     >

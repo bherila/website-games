@@ -20,7 +20,7 @@ function requestedKindName(request: TenantRequest): string {
 export function TenantRequestCard({ request, onViewFloor }: TenantRequestCardProps): ReactElement {
   return (
     <section
-      className="pointer-events-none w-[calc(100vw-1rem)] max-w-xl rounded-xl border border-sky-400/60 bg-slate-950/90 px-4 py-3 text-sm shadow-2xl backdrop-blur-sm"
+      className="pointer-events-auto w-full max-w-xl shrink-0 rounded-xl border border-sky-400/60 bg-slate-950/90 px-4 py-3 text-sm shadow-2xl backdrop-blur-sm"
       data-testid="tenant-request-card"
       aria-labelledby="tenant-request-title"
     >
