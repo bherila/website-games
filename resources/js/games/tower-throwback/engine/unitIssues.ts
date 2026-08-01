@@ -13,7 +13,7 @@
 
 import type { Unit, VacancyReason } from '../gameTypes'
 import { TUNING } from '../gameTypes'
-import { weeklyTenantStress } from './tenantStress'
+import { weeklyStressThreshold, weeklyTenantStress } from './tenantStress'
 
 export type IssueSeverity = 'warning' | 'critical'
 
@@ -71,13 +71,15 @@ export function unitIssues(unit: Unit): UnitIssue[] {
 
   const weeklyStress = weeklyTenantStress(unit)
   if (weeklyStress && weeklyStress.marks >= weeklyStress.threshold) {
+    const rentCutCanPreventMoveOut = unit.rentTier !== 'low'
+      && weeklyStress.marks < weeklyStressThreshold('low')
     issues.push({
       key: 'weeklyStressCritical',
       severity: 'critical',
       label: `Weekly stress at move-out risk — ${weeklyStress.marks}/${weeklyStress.threshold}`,
-      hint: unit.rentTier === 'low'
-        ? 'This week\'s move-out is unavoidable at the weekly pass; improve elevator service now to protect the next tenant.'
-        : 'Lower rent to the low tier before the weekly pass to raise this tenant\'s threshold; better elevator service only prevents future marks.',
+      hint: rentCutCanPreventMoveOut
+        ? 'Lower rent to the low tier before the weekly pass to raise this tenant\'s threshold; better elevator service only prevents future marks.'
+        : 'This week\'s move-out is unavoidable at the weekly pass; improve elevator service now to protect the next tenant.',
     })
   }
 

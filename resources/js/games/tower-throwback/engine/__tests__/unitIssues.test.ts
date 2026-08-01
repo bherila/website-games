@@ -1,4 +1,5 @@
 import type { Unit } from '../../gameTypes'
+import { weeklyStressThreshold } from '../tenantStress'
 import { unitIssues, worstUnitSeverity } from '../unitIssues'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
@@ -84,6 +85,16 @@ describe('unitIssues', () => {
       expect(critical?.hint).toMatch(/lower rent to the low tier/i)
       expect(critical?.hint).toMatch(/future marks/i)
     }
+  })
+
+  it.each(['avg', 'high'] as const)('treats %s-rent stress at the low-tier ceiling as unavoidable', (rentTier) => {
+    const critical = unitIssues(unit({
+      rentTier,
+      stressMarks: weeklyStressThreshold('low'),
+    })).find((issue) => issue.key === 'weeklyStressCritical')
+
+    expect(critical?.hint).toMatch(/unavoidable/i)
+    expect(critical?.hint).not.toMatch(/lower rent/i)
   })
 
   it('does not report weekly stress for zero marks, non-tenants, or VIP homes', () => {

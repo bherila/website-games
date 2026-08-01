@@ -1687,14 +1687,23 @@ function hasValidEntityReferences(saved: SavedSandbox): boolean {
     if (!hasUnit(person.tenantUnitId) || !hasUnit(person.destUnitId)) {
       return false
     }
-    for (const leg of person.legs) {
+    for (const [index, leg] of person.legs.entries()) {
       if (leg.type !== 'elevator') {
         if (leg.shaftId !== undefined) {
           return false
         }
         continue
       }
-      const shaft = leg.shaftId === undefined ? undefined : shaftsById.get(leg.shaftId)
+      if (leg.shaftId === undefined) {
+        return false
+      }
+      // Completed legs are immutable journey history. Their shaft or landing
+      // may have been demolished/resized after the rider moved on; only the
+      // current and future route must still resolve against live topology.
+      if (index < person.legIndex) {
+        continue
+      }
+      const shaft = shaftsById.get(leg.shaftId)
       if (!shaft
         || leg.fromX !== shaft.x
         || leg.toX !== shaft.x

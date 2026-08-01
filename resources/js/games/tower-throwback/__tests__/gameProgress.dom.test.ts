@@ -1096,6 +1096,38 @@ describe('sandbox persistence', () => {
     expect(migrateSandboxPayload(saved)).not.toBeNull()
   })
 
+  it('keeps completed elevator legs loadable after their shaft or landing is removed', () => {
+    const withHistoricalLeg = (saved: SavedSandbox, toFloor: number): void => {
+      const oldShaft = saved.shafts[0]!
+      const walker = person(saved.nextId++)
+      walker.state = 'walking'
+      walker.floor = 2
+      walker.legs = [
+        {
+          type: 'elevator',
+          fromFloor: 0,
+          fromX: oldShaft.x,
+          toFloor,
+          toX: oldShaft.x,
+          shaftId: oldShaft.id,
+        },
+        { type: 'walk', fromFloor: 2, fromX: oldShaft.x, toFloor: 2, toX: 100 },
+      ]
+      walker.legIndex = 1
+      saved.people.push(walker)
+    }
+
+    const afterDemolition = validSaved()
+    withHistoricalLeg(afterDemolition, 2)
+    afterDemolition.shafts = []
+    expect(migrateSandboxPayload(afterDemolition)).not.toBeNull()
+
+    const afterResize = validSaved()
+    withHistoricalLeg(afterResize, 1)
+    expect(afterResize.shafts[0]!.stops).not.toContain(1)
+    expect(migrateSandboxPayload(afterResize)).not.toBeNull()
+  })
+
   it('keeps in-flight references to a legitimately demolished unit loadable', () => {
     const state = builtState()
     const template = state.units.find((unit) => unit.kind === 'officeS')!
