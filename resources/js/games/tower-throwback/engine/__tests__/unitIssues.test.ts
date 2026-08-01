@@ -78,6 +78,12 @@ describe('unitIssues', () => {
     const critical = unitIssues(unit({ rentTier, stressMarks: threshold })).find((issue) => issue.key === 'weeklyStressCritical')
     expect(critical).toMatchObject({ severity: 'critical' })
     expect(critical?.label).toContain(`${threshold}/${threshold}`)
+    if (rentTier === 'low') {
+      expect(critical?.hint).toMatch(/unavoidable/i)
+    } else {
+      expect(critical?.hint).toMatch(/lower rent to the low tier/i)
+      expect(critical?.hint).toMatch(/future marks/i)
+    }
   })
 
   it('does not report weekly stress for zero marks, non-tenants, or VIP homes', () => {

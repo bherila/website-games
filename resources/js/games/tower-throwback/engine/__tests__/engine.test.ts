@@ -248,6 +248,26 @@ describe('command dispatch', () => {
     expect(state.structureVersion).toBe(versionBefore)
   })
 
+  test('disabling a stop clears matching car home floors', () => {
+    const state = newState()
+    run(state, [
+      place('lobby', 0, 0, 30),
+      place('slab', 1, 0, 30),
+      place('slab', 2, 0, 30),
+      { type: 'placeShaft', kind: 'standard', x: 4, bottomFloor: 0, topFloor: 2 },
+    ])
+    const shaft = state.shafts[0]
+    if (!shaft) {
+      throw new Error('shaft placement failed')
+    }
+    shaft.cars[0]!.homeFloor = 2
+
+    run(state, [{ type: 'setStopEnabled', shaftId: shaft.id, floor: 2, enabled: false }])
+
+    expect(shaft.enabledStops).not.toContain(2)
+    expect(shaft.cars[0]!.homeFloor).toBeNull()
+  })
+
   test('route severance evicts tenants immediately', () => {
     const state = newState()
     run(state, [place('lobby', 0, 0, 30)])

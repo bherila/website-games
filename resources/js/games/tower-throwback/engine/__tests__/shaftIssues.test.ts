@@ -30,13 +30,37 @@ describe('shaftIssues', () => {
     ])
   })
 
-  it('reuses patience and vacancy thresholds for warning and critical waits', () => {
-    expect(shaftIssues(shaft({ stats: { avgWaitGameMin: 5, peakWaitGameMin: 5 } }))[0]).toMatchObject({
+  it('tells a single-landing shaft to add and refresh a landing', () => {
+    const issue = shaftIssues(shaft({
+      topFloor: 0,
+      stops: [0],
+      enabledStops: [0],
+    })).find((candidate) => candidate.key === 'noService')
+
+    expect(issue).toMatchObject({ label: 'Only one landing' })
+    expect(issue?.hint).toMatch(/add another reachable landing/i)
+    expect(issue?.hint).toMatch(/resize or refresh/i)
+  })
+
+  it('still tells a multi-landing shaft to enable a second stop', () => {
+    const issue = shaftIssues(shaft({ enabledStops: [0] })).find((candidate) => candidate.key === 'noService')
+
+    expect(issue).toMatchObject({ label: 'No usable service' })
+    expect(issue?.hint).toMatch(/enable at least two stops/i)
+  })
+
+  it('reuses patience and vacancy thresholds against the daily peak wait', () => {
+    expect(shaftIssues(shaft({ stats: { avgWaitGameMin: 1, peakWaitGameMin: 5 } }))[0]).toMatchObject({
       key: 'waitRising', severity: 'warning',
     })
-    expect(shaftIssues(shaft({ stats: { avgWaitGameMin: ELEVATOR_CROWDED_WAIT_MIN, peakWaitGameMin: 20 } }))[0]).toMatchObject({
+    const critical = shaftIssues(shaft({ stats: { avgWaitGameMin: 2, peakWaitGameMin: ELEVATOR_CROWDED_WAIT_MIN } }))[0]
+    expect(critical).toMatchObject({
       key: 'congested', severity: 'critical',
     })
+    expect(critical?.label).toContain(`${ELEVATOR_CROWDED_WAIT_MIN.toFixed(1)} min peak wait`)
+    expect(critical?.hint).toContain('Live average: 2.0 min')
+
+    expect(shaftIssues(shaft({ stats: { avgWaitGameMin: 20, peakWaitGameMin: 0 } }))).toEqual([])
   })
 
   it('warns on sparse but still usable stop programs', () => {

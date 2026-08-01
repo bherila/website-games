@@ -1549,14 +1549,23 @@ function parseShaft(value: unknown): Shaft | null {
       car.index !== index
       || car.y < bottomFloor
       || car.y > topFloor
-      || (car.homeFloor !== null && !enabledStops.includes(car.homeFloor))
+      || (car.homeFloor !== null && !stops.includes(car.homeFloor))
       || car.passengerIds.length > SHAFT_DEFS[kind].carCapacity
     ))
   ) {
     return null
   }
 
-  return { id, kind, x, bottomFloor, topFloor, stops, enabledStops, cars, program, stats: { avgWaitGameMin, peakWaitGameMin } }
+  // Older/current saves can legitimately retain a home floor after that stop
+  // is disabled. Normalize it like the live command path rather than rejecting
+  // the player's whole tower.
+  const normalizedCars = cars.map((car) => (
+    car.homeFloor !== null && !enabledStops.includes(car.homeFloor)
+      ? { ...car, homeFloor: null }
+      : car
+  ))
+
+  return { id, kind, x, bottomFloor, topFloor, stops, enabledStops, cars: normalizedCars, program, stats: { avgWaitGameMin, peakWaitGameMin } }
 }
 
 function parseVipRecord(value: unknown): VipRecord | null {

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { RendererUnavailable } from '../RendererUnavailable'
 
 describe('RendererUnavailable', () => {
-  it('requires an explicit trapped choice and restores focus after recovery', () => {
+  it('requires an explicit trapped choice and restores focus after recovery', async () => {
     const trigger = document.createElement('button')
     document.body.append(trigger)
     trigger.focus()
@@ -25,7 +25,7 @@ describe('RendererUnavailable', () => {
     expect(onExit).not.toHaveBeenCalled()
 
     rendered.unmount()
-    expect(trigger).toHaveFocus()
+    await waitFor(() => expect(trigger).toHaveFocus())
     trigger.remove()
   })
 })

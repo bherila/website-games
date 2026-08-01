@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { TowerComplete } from '../TowerComplete'
 
@@ -23,7 +23,7 @@ describe('TowerComplete', () => {
     expect(screen.getByTestId('tower-complete')).not.toHaveTextContent('cathedral bells')
   })
 
-  it('owns focus and Escape while restoring the previous control on unmount', () => {
+  it('owns focus and Escape while restoring the previous control on unmount', async () => {
     const trigger = document.createElement('button')
     document.body.append(trigger)
     trigger.focus()
@@ -39,7 +39,7 @@ describe('TowerComplete', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1)
 
     rendered.unmount()
-    expect(trigger).toHaveFocus()
+    await waitFor(() => expect(trigger).toHaveFocus())
     trigger.remove()
   })
 })

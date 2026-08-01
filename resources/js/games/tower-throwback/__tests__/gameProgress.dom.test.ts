@@ -1016,9 +1016,6 @@ describe('sandbox persistence', () => {
         }
       },
       (saved) => {
-        saved.shafts[0]!.cars[0]!.homeFloor = 1
-      },
-      (saved) => {
         saved.activeFire = { kind: 'fire', floor: 2, burningUnitIds: [missingId], spreadRemainingMin: 1, responseRemainingMin: 1 }
       },
     ]
@@ -1026,6 +1023,18 @@ describe('sandbox persistence', () => {
     for (const mutate of mutations) {
       expectInvalidMutation(mutate)
     }
+  })
+
+  it('normalizes a car home floor whose landing was later disabled', () => {
+    const saved = validSaved()
+    const shaft = saved.shafts[0]!
+    shaft.cars[0]!.homeFloor = 2
+    shaft.enabledStops = shaft.enabledStops.filter((floor) => floor !== 2)
+
+    const migrated = migrateSandboxPayload(saved)
+
+    expect(migrated).not.toBeNull()
+    expect(migrated?.shafts[0]?.cars[0]?.homeFloor).toBeNull()
   })
 
   it('preserves nullable and historical IDs plus valid in-flight rider references', () => {

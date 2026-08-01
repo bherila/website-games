@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { StrictMode } from 'react'
 
 import type { Shaft, Unit } from '../../gameTypes'
 import { deriveTowerInventory, TowerInventory } from '../TowerInventory'
@@ -156,6 +157,29 @@ describe('TowerInventory', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close tower inventory' }))
     expect(onClose).toHaveBeenCalledTimes(2)
     expect(restoreFocus).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not restore focus during Strict Mode effect replay', async () => {
+    const restoreFocus = jest.fn()
+    const { unmount } = render(
+      <StrictMode>
+        <TowerInventory
+          units={[]}
+          shafts={[]}
+          onClose={jest.fn()}
+          onSelectUnit={jest.fn()}
+          onSelectShaft={jest.fn()}
+          onViewFloor={jest.fn()}
+          onFocusInspector={jest.fn()}
+          onRestoreFocus={restoreFocus}
+        />
+      </StrictMode>,
+    )
+
+    expect(restoreFocus).not.toHaveBeenCalled()
+
+    unmount()
+    await waitFor(() => expect(restoreFocus).toHaveBeenCalledTimes(1))
   })
 
   it('bounds the rendered entity rows for a 5,000-unit floor while keeping every item reachable', () => {

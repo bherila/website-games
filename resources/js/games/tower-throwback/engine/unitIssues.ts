@@ -75,7 +75,9 @@ export function unitIssues(unit: Unit): UnitIssue[] {
       key: 'weeklyStressCritical',
       severity: 'critical',
       label: `Weekly stress at move-out risk — ${weeklyStress.marks}/${weeklyStress.threshold}`,
-      hint: 'Reduce elevator waits before the weekly reset or this tenant may leave.',
+      hint: unit.rentTier === 'low'
+        ? 'This week\'s move-out is unavoidable at the weekly pass; improve elevator service now to protect the next tenant.'
+        : 'Lower rent to the low tier before the weekly pass to raise this tenant\'s threshold; better elevator service only prevents future marks.',
     })
   }
 
