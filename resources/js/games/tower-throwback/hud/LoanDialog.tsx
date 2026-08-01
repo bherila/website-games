@@ -1,8 +1,9 @@
 import currency from 'currency.js'
-import { type ReactElement, useState } from 'react'
+import { type ReactElement, useRef, useState } from 'react'
 
 import { maximumLoanOffer } from '../engine/economy'
 import { TUNING } from '../gameTypes'
+import { useDialogFocus } from '../overlays/dialogFocus'
 
 interface LoanDialogProps {
   prompt: { shortfall: number; suggested: number }
@@ -18,6 +19,13 @@ function money(value: number): string {
 
 /** Modal shown while pendingLoanPrompt is set; the sim never overdrafts. */
 export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialogProps): ReactElement {
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const declineButtonRef = useRef<HTMLButtonElement | null>(null)
+  const { onDialogKeyDown } = useDialogFocus({
+    dialogRef,
+    initialFocusRef: declineButtonRef,
+    onEscape: onDecline,
+  })
   const increment = TUNING.economy.loanIncrement
   const [extraIncrements, setExtraIncrements] = useState(0)
   const maximum = maximumLoanOffer(prompt)
@@ -26,8 +34,15 @@ export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialog
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50">
-      <div className="w-80 rounded-xl bg-slate-900 p-4 text-sm shadow-2xl">
-        <h3 className="font-bold">{hasLoans ? 'Refinance offer' : 'Loan offer'}</h3>
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="loan-offer-title"
+        onKeyDown={onDialogKeyDown}
+        className="w-80 rounded-xl bg-slate-900 p-4 text-sm shadow-2xl"
+      >
+        <h3 id="loan-offer-title" className="font-bold">{hasLoans ? 'Refinance offer' : 'Loan offer'}</h3>
         <p className="mt-1 text-white/70">
           You're <span className="font-bold text-red-300" data-testid="shortfall">{money(prompt.shortfall)}</span> short. The
           bank offers interest-free credit, repaid at 5% of the balance per day.
@@ -70,6 +85,7 @@ export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialog
             Accept
           </button>
           <button
+            ref={declineButtonRef}
             type="button"
             data-testid="decline-loan"
             onClick={onDecline}
@@ -78,7 +94,7 @@ export function LoanDialog({ prompt, hasLoans, onAccept, onDecline }: LoanDialog
             Decline
           </button>
         </div>
-      </div>
+      </section>
     </div>
   )
 }

@@ -149,9 +149,13 @@ describe('TowerInventory', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Close tower inventory' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Tower inventory' }), { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(restoreFocus).not.toHaveBeenCalled()
+
     fireEvent.click(screen.getByRole('button', { name: 'Close tower inventory' }))
-    expect(onClose).toHaveBeenCalled()
-    expect(restoreFocus).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(restoreFocus).toHaveBeenCalledTimes(1)
   })
 
   it('bounds the rendered entity rows for a 5,000-unit floor while keeping every item reachable', () => {

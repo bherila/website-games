@@ -1,4 +1,4 @@
-import { render, renderHook, screen } from '@testing-library/react'
+import { fireEvent, render, renderHook, screen } from '@testing-library/react'
 
 import { ShortcutHelpOverlay } from '../overlays/ShortcutHelpOverlay'
 import { TOWER_SHORTCUT_BINDINGS, useTowerKeyboardShortcuts } from '../useTowerKeyboardShortcuts'
@@ -13,7 +13,6 @@ function state(overrides: Partial<ShortcutState> = {}): ShortcutState {
     hasSelectedTool: false,
     hasSelection: false,
     modalOpen: false,
-    helpOpen: false,
     ...overrides,
   } satisfies ShortcutState
 }
@@ -62,7 +61,7 @@ describe('useTowerKeyboardShortcuts', () => {
     keydown('6')
     keydown('16')
 
-    expect(h.onSetSpeed.mock.calls).toEqual([[0], [1], [8], [16], [16]])
+    expect(h.onSetSpeed.mock.calls).toEqual([[0], [1], [8], [16]])
 
     rerender({ shortcutState: state({ speed: 0 }) })
     keydown(' ')
@@ -178,10 +177,26 @@ describe('useTowerKeyboardShortcuts', () => {
     keydown(' ')
     keydown('b')
     keydown('o')
+    keydown('Escape')
+    keydown('?')
 
     expect(h.onSetSpeed).not.toHaveBeenCalled()
     expect(h.onToggleBuildMode).not.toHaveBeenCalled()
     expect(h.onSetOverlay).not.toHaveBeenCalled()
+    expect(h.onCancelTool).not.toHaveBeenCalled()
+    expect(h.onToggleHelp).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when a semantic modal is open before parent state propagates', () => {
+    const h = handlers()
+    render(<section role="dialog" aria-modal="true" aria-label="Blocking surface" />)
+    renderHook(() => useTowerKeyboardShortcuts(state(), h))
+
+    keydown('b')
+    keydown('6')
+
+    expect(h.onToggleBuildMode).not.toHaveBeenCalled()
+    expect(h.onSetSpeed).not.toHaveBeenCalled()
   })
 
   it('uses Escape for tool cancel before selection deselect', () => {
@@ -208,23 +223,6 @@ describe('useTowerKeyboardShortcuts', () => {
     expect(h.onToggleHelp).toHaveBeenCalledTimes(1)
     // ? is Shift+/, and Shift alone must not gate the shortcut out.
     expect(h.onToggleBuildMode).not.toHaveBeenCalled()
-  })
-
-  it('closes the help overlay with Escape before tool/selection handling', () => {
-    const h = handlers()
-    const { rerender } = renderHook(({ shortcutState }) => useTowerKeyboardShortcuts(shortcutState, h), {
-      initialProps: { shortcutState: state({ helpOpen: true, hasSelectedTool: true, hasSelection: true }) },
-    })
-
-    keydown('Escape')
-    expect(h.onToggleHelp).toHaveBeenCalledTimes(1)
-    expect(h.onCancelTool).not.toHaveBeenCalled()
-    expect(h.onDeselect).not.toHaveBeenCalled()
-
-    keyup('Escape')
-    rerender({ shortcutState: state({ helpOpen: false, hasSelectedTool: true }) })
-    keydown('Escape')
-    expect(h.onCancelTool).toHaveBeenCalledTimes(1)
   })
 
   it('suppresses the ? shortcut while an editable target has focus', () => {
@@ -265,6 +263,8 @@ describe('ShortcutHelpOverlay', () => {
       expect(screen.getByText(binding.label)).toBeInTheDocument()
       expect(screen.getByText(binding.description)).toBeInTheDocument()
     }
+    expect(screen.getByText('1 / 8 / 6')).toBeInTheDocument()
+    expect(screen.queryByText('1 / 8 / 16')).not.toBeInTheDocument()
   })
 
   it('closes when its Esc button is clicked', () => {
@@ -272,5 +272,24 @@ describe('ShortcutHelpOverlay', () => {
     render(<ShortcutHelpOverlay onClose={onClose} />)
     screen.getByLabelText('Close shortcuts').click()
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('owns close keys and isolates them from gameplay handlers', () => {
+    const onClose = jest.fn()
+    const underlyingKeyDown = jest.fn()
+    render(
+      <div onKeyDown={underlyingKeyDown}>
+        <ShortcutHelpOverlay onClose={onClose} />
+      </div>,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'KEYBOARD SHORTCUTS' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByLabelText('Close shortcuts')).toHaveFocus()
+
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    fireEvent.keyDown(dialog, { key: '?' })
+    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(underlyingKeyDown).not.toHaveBeenCalled()
   })
 })

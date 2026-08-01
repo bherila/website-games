@@ -1,10 +1,11 @@
-import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactElement, useCallback, useRef, useState } from 'react'
 
 import { itemDef, shaftDef } from '../engine/catalog'
 import { shaftIssues } from '../engine/shaftIssues'
 import { unitIssues } from '../engine/unitIssues'
 import { floorLabel } from '../floorLabels'
 import type { Shaft, Unit } from '../gameTypes'
+import { useDialogFocus } from '../overlays/dialogFocus'
 import { BUILD_TOOL_ICON_URLS } from './hudIcons'
 
 const INVENTORY_PAGE_SIZE = 100
@@ -121,26 +122,28 @@ export function TowerInventory({
   const groups = deriveTowerInventory(units, shafts)
   const [expandedFloor, setExpandedFloor] = useState<number | null>(groups[0]?.floor ?? null)
   const [visibleCounts, setVisibleCounts] = useState<Record<number, number>>({})
+  const dialogRef = useRef<HTMLElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const selectedEntryRef = useRef(false)
+  const restoreInventoryFocus = useCallback((): void => {
+    if (!selectedEntryRef.current) {
+      onRestoreFocus()
+    }
+  }, [onRestoreFocus])
+  const { onDialogKeyDown, restoreFocus } = useDialogFocus({
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+    onRestoreFocus: restoreInventoryFocus,
+  })
 
   const close = useCallback(() => {
     onClose()
-    onRestoreFocus()
-  }, [onClose, onRestoreFocus])
-
-  useEffect(() => {
-    closeButtonRef.current?.focus()
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        close()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [close])
+    restoreFocus()
+  }, [onClose, restoreFocus])
 
   const choose = (entry: TowerInventoryEntry): void => {
+    selectedEntryRef.current = true
     if (entry.type === 'unit') {
       onSelectUnit(entry.id)
     } else {
@@ -154,9 +157,11 @@ export function TowerInventory({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 p-4">
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tower-inventory-title"
+        onKeyDown={onDialogKeyDown}
         className="flex max-h-[90vh] w-[44rem] max-w-full flex-col rounded-2xl border border-white/15 bg-slate-900 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">

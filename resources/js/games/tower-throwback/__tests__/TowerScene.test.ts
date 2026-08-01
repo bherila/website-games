@@ -7,6 +7,7 @@ import {
   keyboardActionForKey,
   keyboardPlacementCommand,
   overlayRefreshRequired,
+  towerSceneKeyboardBlocked,
 } from '../TowerScene'
 
 describe('bulkGhostsForCommands', () => {
@@ -45,6 +46,13 @@ describe('canvas keyboard navigation', () => {
     expect(keyboardActionForKey('Escape')).toEqual({ type: 'cancel' })
     expect(keyboardActionForKey('Enter')).toEqual({ type: 'activate' })
     expect(keyboardActionForKey('Tab')).toBeNull()
+  })
+
+  it('blocks canvas keyboard actions while play is paused or the renderer is unavailable', () => {
+    expect(towerSceneKeyboardBlocked(false, false)).toBe(false)
+    expect(towerSceneKeyboardBlocked(true, false)).toBe(true)
+    expect(towerSceneKeyboardBlocked(false, true)).toBe(true)
+    expect(towerSceneKeyboardBlocked(false, false, true)).toBe(true)
   })
 
   it('routes invalid keyboard placement through the engine rejection seam', () => {

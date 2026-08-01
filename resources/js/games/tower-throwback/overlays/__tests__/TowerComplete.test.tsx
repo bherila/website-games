@@ -22,4 +22,24 @@ describe('TowerComplete', () => {
     expect(screen.getByTestId('tower-complete')).toHaveTextContent('Observation Deck opens above the gorge')
     expect(screen.getByTestId('tower-complete')).not.toHaveTextContent('cathedral bells')
   })
+
+  it('owns focus and Escape while restoring the previous control on unmount', () => {
+    const trigger = document.createElement('button')
+    document.body.append(trigger)
+    trigger.focus()
+    const onDismiss = jest.fn()
+    const rendered = render(
+      <TowerComplete daysElapsed={90} population={10_100} funds={2_000_000} endgameKind="observationDeck" onDismiss={onDismiss} />,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'TOWER' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByTestId('keep-building')).toHaveFocus()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+
+    rendered.unmount()
+    expect(trigger).toHaveFocus()
+    trigger.remove()
+  })
 })

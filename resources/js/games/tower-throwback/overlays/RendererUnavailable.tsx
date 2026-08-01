@@ -7,7 +7,9 @@
  * recover, so the job is to say so plainly, offer a retry, and keep the player's
  * save reachable instead of leaving a blank rectangle behind.
  */
-import type { ReactElement } from 'react'
+import { type ReactElement, useRef } from 'react'
+
+import { useDialogFocus } from './dialogFocus'
 
 interface RendererUnavailableProps {
   /** Best-effort detail from the failed construction; omitted when unknown. */
@@ -17,15 +19,27 @@ interface RendererUnavailableProps {
 }
 
 export function RendererUnavailable({ detail, onRetry, onExit }: RendererUnavailableProps): ReactElement {
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const retryButtonRef = useRef<HTMLButtonElement | null>(null)
+  const { onDialogKeyDown } = useDialogFocus({
+    dialogRef,
+    initialFocusRef: retryButtonRef,
+  })
+
   return (
     <div
       className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950 p-6"
       data-testid="renderer-unavailable"
-      role="alertdialog"
-      aria-label="Graphics unavailable"
     >
-      <div className="max-w-md rounded-xl border border-amber-400/40 bg-slate-900/90 p-5 text-white shadow-xl">
-        <h2 className="text-lg font-bold text-amber-100">Graphics unavailable</h2>
+      <section
+        ref={dialogRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="renderer-unavailable-title"
+        onKeyDown={onDialogKeyDown}
+        className="max-w-md rounded-xl border border-amber-400/40 bg-slate-900/90 p-5 text-white shadow-xl"
+      >
+        <h2 id="renderer-unavailable-title" className="text-lg font-bold text-amber-100">Graphics unavailable</h2>
         <p className="mt-2 text-sm text-white/75">
           Tower Throwback needs WebGL, and this browser could not start it. Hardware acceleration may be turned off, or
           too many other 3D tabs may be open.
@@ -38,6 +52,7 @@ export function RendererUnavailable({ detail, onRetry, onExit }: RendererUnavail
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
+            ref={retryButtonRef}
             type="button"
             data-testid="renderer-retry"
             onClick={onRetry}
@@ -54,7 +69,7 @@ export function RendererUnavailable({ detail, onRetry, onExit }: RendererUnavail
             Back to games
           </button>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
