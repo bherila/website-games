@@ -68,7 +68,7 @@ describe('TowerInventory', () => {
         unit({ id: 3, floor: 3, x: 12, kind: 'aptStudio', offline: true }),
         unit({ id: 2, floor: 3, x: 4, kind: 'officeS' }),
       ],
-      [shaft({ id: 7, bottomFloor: -2, topFloor: 3, x: 8 })],
+      [shaft({ id: 7, bottomFloor: -2, topFloor: 3, x: 8, cars: [{ index: 0, y: 0, dir: 0, state: 'idle', doorTimer: 0, homeFloor: null, passengerIds: [] }] })],
     )
 
     expect(result.map((group) => group.floor)).toEqual([3, -2])
@@ -84,7 +84,16 @@ describe('TowerInventory', () => {
     }))
     expect(result[1]?.entries[0]).toEqual(expect.objectContaining({
       label: 'Elevator',
-      occupancy: 'B2–3 · 0 cars',
+      occupancy: 'B2–3 · 1 car',
+      issue: null,
+    }))
+  })
+
+  it('surfaces the worst actionable shaft issue in inventory', () => {
+    const result = deriveTowerInventory([], [shaft({ cars: [], stats: { avgWaitGameMin: 18, peakWaitGameMin: 20 } })])
+    expect(result[0]?.entries[0]).toEqual(expect.objectContaining({
+      type: 'shaft',
+      issue: 'No elevator cars',
     }))
   })
 

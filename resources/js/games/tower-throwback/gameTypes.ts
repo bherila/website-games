@@ -562,7 +562,7 @@ export type EngineEvent =
   | { type: 'loanRepaid'; loanId: number }
   | { type: 'settlement'; day: number; net: number }
   | { type: 'unitLeased'; unitId: number }
-  | { type: 'unitVacated'; unitId: number; reason: VacancyReason }
+  | { type: 'unitVacated'; unitId: number; unitKind: ItemKind; floor: number; reason: VacancyReason }
   | { type: 'incidentStarted'; kind: IncidentKind; floor: number }
   | { type: 'incidentResolved'; kind: IncidentKind; outcome: string }
   | { type: 'explosion'; floor: number; damagedUnitIds: number[] }

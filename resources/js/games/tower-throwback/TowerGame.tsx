@@ -909,10 +909,17 @@ export function TowerGame(): ReactElement {
             />
             <TowerIssuesNavigator
               units={engineState.units}
+              shafts={engineState.shafts}
               onSelectUnit={(unitId) => {
                 const unit = engineState.units.find((candidate) => candidate.id === unitId)
                 if (unit) {
                   setSelection({ type: 'unit', unit })
+                }
+              }}
+              onSelectShaft={(shaftId) => {
+                const shaft = engineState.shafts.find((candidate) => candidate.id === shaftId)
+                if (shaft) {
+                  setSelection({ type: 'shaft', shaft })
                 }
               }}
               onViewFloor={goToFloor}

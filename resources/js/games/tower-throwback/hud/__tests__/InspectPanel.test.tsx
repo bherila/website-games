@@ -98,10 +98,23 @@ describe('InspectPanel — unit', () => {
     expect(screen.getByTestId('income-line')).toHaveTextContent('$400/day rent') // avg ×1.0
     expect(screen.getByTestId('maintenance-line')).toHaveTextContent('$0/day')
     expect(screen.getByTestId('daily-net-line')).toHaveTextContent('$400/day')
+    expect(screen.getByTestId('weekly-stress')).toHaveTextContent('0/3 marks')
 
     expect(screen.getByTestId('rent-avg')).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByTestId('rent-high'))
     expect(h.onSetRentTier).toHaveBeenCalledWith(7, 'high')
+  })
+
+  it('shows the exact weekly stress risk in both status and actionable issues', () => {
+    render(
+      <InspectPanel
+        selection={{ type: 'unit', unit: makeUnit({ rentTier: 'low', stressMarks: 4 }) }}
+        maxStarReached={2}
+        {...handlers()}
+      />,
+    )
+    expect(screen.getByTestId('weekly-stress')).toHaveTextContent('4/5 marks')
+    expect(screen.getByTestId('issue-weeklyStress')).toHaveTextContent('4/5')
   })
 
   it('shows maintenance without promising daily net for variable income', () => {
@@ -271,7 +284,7 @@ describe('InspectPanel — shaft', () => {
     shaft.enabledStops = [0, 40]
     render(<InspectPanel selection={{ type: 'shaft', shaft }} maxStarReached={2} {...h} />)
 
-    expect(screen.getByTestId('sparse-stops-warning')).toHaveTextContent('Only 2 stops')
+    expect(screen.getByTestId('shaft-issue-sparseStops')).toHaveTextContent('2 enabled stops')
     fireEvent.click(screen.getByTestId('stop-20'))
     expect(h.onSetStopEnabled).toHaveBeenCalledWith(12, 20, true)
   })

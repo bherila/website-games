@@ -66,6 +66,26 @@ describe('unitIssues', () => {
     expect(worstUnitSeverity(unit({ lowEvalDays: 2 }))).toBe('critical')
   })
 
+  it.each([
+    ['low', 5],
+    ['avg', 3],
+    ['high', 3],
+  ] as const)('warns at threshold-1 and escalates at the %s-rent weekly stress threshold', (rentTier, threshold) => {
+    const warning = unitIssues(unit({ rentTier, stressMarks: threshold - 1 })).find((issue) => issue.key === 'weeklyStress')
+    expect(warning).toMatchObject({ severity: 'warning' })
+    expect(warning?.label).toContain(`${threshold - 1}/${threshold}`)
+
+    const critical = unitIssues(unit({ rentTier, stressMarks: threshold })).find((issue) => issue.key === 'weeklyStressCritical')
+    expect(critical).toMatchObject({ severity: 'critical' })
+    expect(critical?.label).toContain(`${threshold}/${threshold}`)
+  })
+
+  it('does not report weekly stress for zero marks, non-tenants, or VIP homes', () => {
+    expect(unitIssues(unit()).some((issue) => issue.key.startsWith('weeklyStress'))).toBe(false)
+    expect(unitIssues(unit({ kind: 'shop', stressMarks: 99 })).some((issue) => issue.key.startsWith('weeklyStress'))).toBe(false)
+    expect(unitIssues(unit({ stressMarks: 99, population: { low: 0, med: 0, high: 0, vip: 1 } })).some((issue) => issue.key.startsWith('weeklyStress'))).toBe(false)
+  })
+
   it('critical outranks warning in worstUnitSeverity', () => {
     const u = unit({ offline: true, dirty: true })
     expect(worstUnitSeverity(u)).toBe('critical')

@@ -8,6 +8,8 @@ import { repairCost } from '../engine/incidents'
 import { isExcavated } from '../engine/mapGeometry'
 import { CITY_TOWER, getMap } from '../engine/maps'
 import type { EvalBreakdown } from '../engine/occupancy'
+import { shaftIssues } from '../engine/shaftIssues'
+import { weeklyTenantStress } from '../engine/tenantStress'
 import { unitIssues } from '../engine/unitIssues'
 import { floorLabel } from '../floorLabels'
 import type {
@@ -26,7 +28,7 @@ import type { HeatmapTileSample } from '../scene/heatmapLayer'
 import { vipRecordDisplayName, vipReportLine, vipVisitIdForTarget } from '../vipFlavor'
 import { DemolishControl } from './DemolishControl'
 import { evalFactorLines } from './evalFactors'
-import { programForPreset, SHAFT_PROGRAM_PRESETS, type ShaftProgramPresetId, sparseStopsWarning } from './shaftProgramPresets'
+import { programForPreset, SHAFT_PROGRAM_PRESETS, type ShaftProgramPresetId } from './shaftProgramPresets'
 
 export type InspectSelection = { type: 'unit'; unit: Unit } | { type: 'shaft'; shaft: Shaft }
 
@@ -198,6 +200,7 @@ function UnitInspect({
   const upgrades = upgradesFor(unit.kind, maxStarReached)
   const refund = Math.round(TUNING.economy.demolitionRefundRate * unitBuildCost(unit, lobbyHeight, mapId))
   const issues = unitIssues(unit)
+  const weeklyStress = weeklyTenantStress(unit)
   const factorLines = evalBreakdown ? evalFactorLines(evalBreakdown) : []
   const vipRecord = vipRecords.find((record) => record.state === 'resident' && record.unitId === unit.id)
   const vipReport = vipRecord?.lastReport[0]
@@ -289,6 +292,14 @@ function UnitInspect({
             <dt className="text-white/50">Daily net</dt>
             <dd className="tabular-nums" data-testid="daily-net-line">
               {money(dailyNet)}/day
+            </dd>
+          </>
+        )}
+        {weeklyStress && (
+          <>
+            <dt className="text-white/50">Weekly stress</dt>
+            <dd className="tabular-nums" data-testid="weekly-stress">
+              {weeklyStress.marks}/{weeklyStress.threshold} marks
             </dd>
           </>
         )}
@@ -415,7 +426,7 @@ function ShaftInspect({
 }): ReactElement {
   const def = shaftDef(shaft.kind)
   const refund = Math.round(TUNING.economy.demolitionRefundRate * shaftBuildCost(shaft))
-  const stopsWarning = sparseStopsWarning(shaft)
+  const issues = shaftIssues(shaft)
   const serviceOnly = def.serviceOnly === true
 
   const patchProgram = (patch: Partial<ShaftProgram>): void => {
@@ -443,6 +454,26 @@ function ShaftInspect({
           Floors {floorLabel(shaft.bottomFloor)}–{floorLabel(shaft.topFloor)}
         </span>
       </div>
+
+      {issues.length > 0 && (
+        <div className="flex flex-col gap-1" data-testid="shaft-issues">
+          {issues.map((issue) => (
+            <div
+              key={issue.key}
+              data-testid={`shaft-issue-${issue.key}`}
+              data-severity={issue.severity}
+              className={`rounded px-2 py-1 text-[12px] ${
+                issue.severity === 'critical' ? 'bg-red-500/20 text-red-200' : 'bg-amber-500/20 text-amber-200'
+              }`}
+            >
+              <div className="font-bold">
+                <span aria-hidden="true">{issue.severity === 'critical' ? '🔴' : '🟡'}</span> {issue.label}
+              </div>
+              <div className="pt-0.5 text-white/70">{issue.hint}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center justify-between text-[12px]">
         <span>
@@ -502,11 +533,6 @@ function ShaftInspect({
             )
           })}
         </div>
-        {stopsWarning && (
-          <div className="mt-1 rounded bg-amber-500/20 px-2 py-1 text-[11px] text-amber-100" data-testid="sparse-stops-warning">
-            {stopsWarning}
-          </div>
-        )}
       </div>
 
       <div>

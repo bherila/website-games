@@ -1,9 +1,11 @@
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { itemDef, shaftDef } from '../engine/catalog'
+import { shaftIssues } from '../engine/shaftIssues'
 import { unitIssues } from '../engine/unitIssues'
 import { floorLabel } from '../floorLabels'
 import type { Shaft, Unit } from '../gameTypes'
+import { BUILD_TOOL_ICON_URLS } from './hudIcons'
 
 const INVENTORY_PAGE_SIZE = 100
 
@@ -15,6 +17,7 @@ export interface TowerInventoryEntry {
   label: string
   occupancy: string
   issue: string | null
+  iconUrl: string
 }
 
 export interface TowerInventoryFloor {
@@ -65,6 +68,7 @@ export function deriveTowerInventory(units: readonly Unit[], shafts: readonly Sh
       label: itemDef(unit.kind).name,
       occupancy: unitOccupancy(unit),
       issue: unitIssues(unit)[0]?.label ?? null,
+      iconUrl: BUILD_TOOL_ICON_URLS[unit.kind],
     })
   }
   for (const shaft of shafts) {
@@ -75,7 +79,8 @@ export function deriveTowerInventory(units: readonly Unit[], shafts: readonly Sh
       x: shaft.x,
       label: shaftDef(shaft.kind).name,
       occupancy: shaftOccupancy(shaft),
-      issue: null,
+      issue: shaftIssues(shaft)[0]?.label ?? null,
+      iconUrl: BUILD_TOOL_ICON_URLS[shaft.kind],
     })
   }
 
@@ -209,9 +214,14 @@ export function TowerInventory({
                                 onClick={() => choose(entry)}
                                 className="w-full rounded px-2 py-1 text-left hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300"
                               >
-                                <span className="block text-sm font-bold text-white/90">{entry.label}</span>
-                                <span className="block text-xs text-white/60">{entry.occupancy}</span>
-                                {entry.issue && <span className="block text-xs font-semibold text-red-200">{entry.issue}</span>}
+                                <span className="flex items-start gap-2">
+                                  <img src={entry.iconUrl} alt="" aria-hidden="true" className="mt-0.5 size-6 shrink-0" />
+                                  <span>
+                                    <span className="block text-sm font-bold text-white/90">{entry.label}</span>
+                                    <span className="block text-xs text-white/60">{entry.occupancy}</span>
+                                    {entry.issue && <span className="block text-xs font-semibold text-red-200">{entry.issue}</span>}
+                                  </span>
+                                </span>
                               </button>
                             </li>
                           ))}

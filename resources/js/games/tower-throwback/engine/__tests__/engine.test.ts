@@ -263,7 +263,9 @@ describe('command dispatch', () => {
 
     // Disabling the only stop serving floor 6 evicts the tenant on the spot.
     const events = run(state, [{ type: 'setStopEnabled', shaftId: shaft.id, floor: 6, enabled: false }])
-    expect(events).toContainEqual({ type: 'unitVacated', unitId: office.id, reason: 'noRoute' })
+    expect(events).toContainEqual({
+      type: 'unitVacated', unitId: office.id, unitKind: office.kind, floor: office.floor, reason: 'noRoute',
+    })
     expect(office.occupied).toBe(false)
     expect(office.flags.noRoute).toBe(true)
 
@@ -315,7 +317,9 @@ describe('command dispatch', () => {
     room.population.med = 1
 
     const events = run(state, [{ type: 'demolishShaft', shaftId: shaft.id }])
-    expect(events).toContainEqual({ type: 'unitVacated', unitId: room.id, reason: 'noRoute' })
+    expect(events).toContainEqual({
+      type: 'unitVacated', unitId: room.id, unitKind: room.kind, floor: room.floor, reason: 'noRoute',
+    })
     expect(room.occupied).toBe(false)
   })
 

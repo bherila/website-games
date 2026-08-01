@@ -136,7 +136,7 @@ describe('useGameSounds', () => {
     const warnings: EngineEvent[] = [
       { type: 'starLost', star: 1, report: [] },
       { type: 'incidentStarted', kind: 'cockroach', floor: 3 },
-      { type: 'unitVacated', unitId: 9, reason: 'tooNoisy' },
+      { type: 'unitVacated', unitId: 9, unitKind: 'aptStudio', floor: 3, reason: 'tooNoisy' },
     ]
 
     act(() => {
@@ -217,7 +217,7 @@ describe('useGameSounds', () => {
       loanRepaid: { type: 'loanRepaid', loanId: 1 },
       settlement: { type: 'settlement', day: 2, net: 1000 },
       unitLeased: { type: 'unitLeased', unitId: 1 },
-      unitVacated: { type: 'unitVacated', unitId: 1, reason: 'tooNoisy' },
+      unitVacated: { type: 'unitVacated', unitId: 1, unitKind: 'officeS', floor: 1, reason: 'tooNoisy' },
       incidentStarted: { type: 'incidentStarted', kind: 'bombThreat', floor: 3 },
       incidentResolved: { type: 'incidentResolved', kind: 'bombThreat', outcome: 'swept' },
       explosion: { type: 'explosion', floor: 4, damagedUnitIds: [] },

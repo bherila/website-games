@@ -1,9 +1,9 @@
 import currency from 'currency.js'
 import { type FocusEvent, type ReactElement, useCallback, useEffect, useRef } from 'react'
 
-import { UPGRADE_PATHS } from '../engine/catalog'
+import { itemDef, UPGRADE_PATHS } from '../engine/catalog'
 import { floorLabel } from '../floorLabels'
-import type { EngineEvent, GameClock, VipTarget } from '../gameTypes'
+import type { EngineEvent, GameClock, VacancyReason, VipTarget } from '../gameTypes'
 import { vipFlavorFor, vipReportLine, vipVisitIdForTarget } from '../vipFlavor'
 
 export type ToastType = 'starUp' | 'vip' | 'warning' | 'info'
@@ -13,6 +13,8 @@ export interface ToastItem {
   type: ToastType
   title: string
   body?: string | undefined
+  /** Durable context rendered in Recent events, intentionally omitted from the live toast. */
+  details?: string[] | undefined
   unlocked?: string[]
 }
 
@@ -20,6 +22,42 @@ const AUTO_DISMISS_MS = 5000
 
 function vipVisitId(target: VipTarget): string {
   return vipVisitIdForTarget(target)
+}
+
+const VACANCY_REASON_LABEL: Record<VacancyReason, string> = {
+  elevatorCrowded: 'Elevator congestion',
+  tooNoisy: 'Too noisy',
+  noRestroom: 'No nearby restroom',
+  rentTooHigh: 'Rent too high',
+  noRoute: 'No route to the lobby',
+  hotelDirty: 'Room left dirty',
+  noReception: 'No hotel reception',
+  lowEval: 'Poor conditions',
+  incidentDamage: 'Incident damage',
+}
+
+type VacancyEvent = Extract<EngineEvent, { type: 'unitVacated' }>
+
+function vacancyToast(event: VacancyEvent, allVacancies: readonly VacancyEvent[], id: string): ToastItem {
+  const firstContext = `${itemDef(event.unitKind).name} on ${floorLabel(event.floor)} — ${VACANCY_REASON_LABEL[event.reason]}`
+  if (allVacancies.length === 1) {
+    return { id, type: 'warning', title: 'Tenant moved out', body: firstContext }
+  }
+
+  const reasonCounts = new Map<VacancyReason, number>()
+  for (const vacancy of allVacancies) {
+    reasonCounts.set(vacancy.reason, (reasonCounts.get(vacancy.reason) ?? 0) + 1)
+  }
+  const reasonSummary = [...reasonCounts]
+    .map(([reason, count]) => `${VACANCY_REASON_LABEL[reason]} ×${count}`)
+    .join(' · ')
+  return {
+    id,
+    type: 'warning',
+    title: `${allVacancies.length.toLocaleString()} tenants moved out`,
+    body: `${firstContext}; +${(allVacancies.length - 1).toLocaleString()} more`,
+    details: [`First loss: ${firstContext} (unit #${event.unitId})`, `Reasons: ${reasonSummary}`],
+  }
 }
 
 /**
@@ -34,6 +72,7 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock, batchI
   const toasts: ToastItem[] = []
   const id = (index: number, kind: string): string => `${clock.day}:${Math.floor(clock.minute)}:${batchId}:${index}:${kind}`
   let vacatedShown = false
+  const vacancyEvents = events.filter((event): event is VacancyEvent => event.type === 'unitVacated')
   const rejectionsByReason = new Map<string, { firstIndex: number; count: number }>()
 
   events.forEach((event, index) => {
@@ -53,6 +92,7 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock, batchI
           type: 'warning',
           title: `Star lost — back to ${'★'.repeat(event.star)}`,
           body: event.report[0],
+          details: event.report.slice(1),
         })
         return
       case 'towerAchieved':
@@ -79,6 +119,9 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock, batchI
           body: event.success
             ? `${flavor.title} - Score ${event.score} - Bonus ${currency(event.bonus, { precision: 0 }).format()}`
             : vipReportLine(event.target, visitId, event.report[0] ?? 'No report filed'),
+          details: event.success
+            ? undefined
+            : event.report.slice(1).map((line) => vipReportLine(event.target, visitId, line)),
         })
         return
       }
@@ -96,6 +139,7 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock, batchI
           type: 'vip',
           title: `${flavor.name} moved out`,
           body: vipReportLine(event.target, visitId, event.report[0] ?? 'No report filed'),
+          details: event.report.slice(1).map((line) => vipReportLine(event.target, visitId, line)),
         })
         return
       }
@@ -172,7 +216,7 @@ export function toastsFromEvents(events: EngineEvent[], clock: GameClock, batchI
       case 'unitVacated':
         if (!vacatedShown) {
           vacatedShown = true
-          toasts.push({ id: id(index, 'vacated'), type: 'warning', title: 'A tenant moved out' })
+          toasts.push(vacancyToast(event, vacancyEvents, id(index, 'vacated')))
         }
         return
       default:
