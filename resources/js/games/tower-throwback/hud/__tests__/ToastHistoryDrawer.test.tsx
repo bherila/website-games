@@ -55,4 +55,17 @@ describe('toast history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close recent events' }))
     expect(screen.queryByRole('complementary', { name: 'Recent events' })).not.toBeInTheDocument()
   })
+
+  it('renders durable detail lines that stay out of the live toast body', () => {
+    const report = toast(1, 'Star lost')
+    report.body = 'Population fell below 5,000'
+    report.details = ['Needs three restaurants', 'VIP visit failed']
+    const history = appendToastHistory([], [report], { day: 3, minute: 485 })
+    render(<ToastHistoryDrawer history={history} onClose={jest.fn()} />)
+
+    const details = screen.getByRole('list', { name: 'Event details' })
+    expect(details).toHaveTextContent('Needs three restaurants')
+    expect(details).toHaveTextContent('VIP visit failed')
+    expect(details).not.toHaveTextContent('Population fell below 5,000')
+  })
 })

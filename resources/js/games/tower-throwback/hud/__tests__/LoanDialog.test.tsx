@@ -53,4 +53,25 @@ describe('LoanDialog', () => {
     expect(screen.getByTestId('amount')).toHaveTextContent('$200,000')
     expect(screen.getByText('Maximum offer: $400,000')).toBeInTheDocument()
   })
+
+  it('is an isolated modal with safe initial focus, trapped Tab, and Escape decline', () => {
+    const onDecline = jest.fn()
+    const underlyingKeyDown = jest.fn()
+    render(
+      <div onKeyDown={underlyingKeyDown}>
+        <LoanDialog prompt={{ shortfall: 1000, suggested: 100_000 }} hasLoans={false} onAccept={jest.fn()} onDecline={onDecline} />
+      </div>,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Loan offer' })
+    const decline = screen.getByTestId('decline-loan')
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(decline).toHaveFocus()
+
+    fireEvent.keyDown(decline, { key: 'Tab' })
+    expect(screen.getByTestId('amount-up')).toHaveFocus()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(onDecline).toHaveBeenCalledTimes(1)
+    expect(underlyingKeyDown).not.toHaveBeenCalled()
+  })
 })

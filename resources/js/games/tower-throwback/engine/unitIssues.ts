@@ -13,6 +13,7 @@
 
 import type { Unit, VacancyReason } from '../gameTypes'
 import { TUNING } from '../gameTypes'
+import { weeklyStressThreshold, weeklyTenantStress } from './tenantStress'
 
 export type IssueSeverity = 'warning' | 'critical'
 
@@ -68,6 +69,20 @@ export function unitIssues(unit: Unit): UnitIssue[] {
     })
   }
 
+  const weeklyStress = weeklyTenantStress(unit)
+  if (weeklyStress && weeklyStress.marks >= weeklyStress.threshold) {
+    const rentCutCanPreventMoveOut = unit.rentTier !== 'low'
+      && weeklyStress.marks < weeklyStressThreshold('low')
+    issues.push({
+      key: 'weeklyStressCritical',
+      severity: 'critical',
+      label: `Weekly stress at move-out risk — ${weeklyStress.marks}/${weeklyStress.threshold}`,
+      hint: rentCutCanPreventMoveOut
+        ? 'Lower rent to the low tier before the weekly pass to raise this tenant\'s threshold; better elevator service only prevents future marks.'
+        : 'This week\'s move-out is unavoidable at the weekly pass; improve elevator service now to protect the next tenant.',
+    })
+  }
+
   if (unit.flags.noRestroom) {
     issues.push({
       key: 'noRestroom',
@@ -86,6 +101,14 @@ export function unitIssues(unit: Unit): UnitIssue[] {
     issues.push({ key: 'dirty', severity: 'warning', label: 'Room needs cleaning', hint: 'Housekeeping will clean it — ensure a reception and a service elevator can reach.' })
   } else if (unit.occupied && unit.lowEvalDays > 0 && unit.lowEvalDays < TUNING.stress.lowEvalRiskDays - 1) {
     issues.push({ key: 'lowEval', severity: 'warning', label: 'Desirability slipping', hint: 'Improve nearby amenities or reduce noise before tenants leave.' })
+  }
+  if (weeklyStress && weeklyStress.marks > 0 && weeklyStress.marks < weeklyStress.threshold) {
+    issues.push({
+      key: 'weeklyStress',
+      severity: 'warning',
+      label: `Elevator stress building — ${weeklyStress.marks}/${weeklyStress.threshold}`,
+      hint: 'Tenants record failed elevator trips until the weekly reset; reduce waits before the threshold is reached.',
+    })
   }
 
   return issues

@@ -529,7 +529,13 @@ describe('occupancyPass — vacancy', () => {
     expect(apt.occupied).toBe(false)
     expect(apt.vacancyReason).toBe('tooNoisy') // noise 21 ≥ 15
     expect(apt.population).toEqual({ low: 0, med: 0, high: 0, vip: 0 })
-    expect(events).toContainEqual({ type: 'unitVacated', unitId: apt.id, reason: 'tooNoisy' })
+    expect(events).toContainEqual({
+      type: 'unitVacated',
+      unitId: apt.id,
+      unitKind: apt.kind,
+      floor: apt.floor,
+      reason: 'tooNoisy',
+    })
   })
 
   it('a recovered eval resets the streak', () => {

@@ -148,6 +148,10 @@ export function keyboardActionForKey(key: string, shiftKey = false): TowerSceneK
   }
 }
 
+export function towerSceneKeyboardBlocked(paused: boolean, rendererUnavailable: boolean, semanticModalOpen = false): boolean {
+  return paused || rendererUnavailable || semanticModalOpen
+}
+
 export type PlacementCmd = Extract<EngineCommand, { type: 'place' } | { type: 'placeShaft' }>
 type PlaceItemCmd = Extract<EngineCommand, { type: 'place' }>
 
@@ -298,6 +302,7 @@ export function TowerScene({
   // Read inside the rAF loop, which is created once and must not be torn down
   // and rebuilt every time a modal opens.
   const pausedRef = useRef(paused)
+  const rendererUnavailableRef = useRef(false)
   // Non-null once renderer construction has failed; bumping `initAttempt`
   // re-runs the scene effect so "Try again" is a real retry, not a page reload.
   const [rendererError, setRendererError] = useState<string | null>(null)
@@ -359,6 +364,10 @@ export function TowerScene({
   useEffect(() => {
     pausedRef.current = paused
   }, [paused])
+
+  useEffect(() => {
+    rendererUnavailableRef.current = rendererError !== null
+  }, [rendererError])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -526,6 +535,13 @@ export function TowerScene({
       }
     }
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (towerSceneKeyboardBlocked(
+        pausedRef.current,
+        rendererUnavailableRef.current,
+        document.querySelector('[aria-modal="true"]') !== null,
+      )) {
+        return
+      }
       const action = keyboardActionForKey(event.key, event.shiftKey)
       if (!action) {
         return

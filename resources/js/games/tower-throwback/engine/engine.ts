@@ -316,6 +316,13 @@ function dispatch(state: EngineState, cmd: EngineCommand, events: EngineEvent[])
         return
       }
       shaft.enabledStops = [...enabled].sort((a, b) => a - b)
+      if (!cmd.enabled) {
+        for (const car of shaft.cars) {
+          if (car.homeFloor === cmd.floor) {
+            car.homeFloor = null
+          }
+        }
+      }
       state.structureVersion += 1
       if (!cmd.enabled) {
         vacateUnroutableUnits(state, events) // severed floors evict immediately

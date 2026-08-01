@@ -35,6 +35,8 @@ import { getMap } from './maps'
 import { parkingShortfall, refreshParkingFlags } from './parking'
 import { pickWeighted } from './rng'
 import { findRoute, hasRouteToLobby } from './routing'
+import { ELEVATOR_CROWDED_WAIT_MIN } from './shaftIssues'
+import { weeklyStressThreshold } from './tenantStress'
 import { vipWeeklyPass } from './vip'
 
 /** Per-source amenity bonuses; conference/eventSpace are tower-wide per receiver category. */
@@ -446,7 +448,6 @@ function refreshFlags(state: EngineState, unit: Unit): void {
 // ── Vacancy reasons ──────────────────────────────────────────────────────────
 
 const TOO_NOISY_THRESHOLD = 15
-const CROWDED_THRESHOLD = 15
 const RESTROOM_THRESHOLD = 15
 
 function dominantVacancyReason(unit: Unit, breakdown: EvalBreakdown, fallback: VacancyReason): VacancyReason {
@@ -462,7 +463,7 @@ function dominantVacancyReason(unit: Unit, breakdown: EvalBreakdown, fallback: V
   if (breakdown.noisePenalty >= TOO_NOISY_THRESHOLD) {
     return 'tooNoisy'
   }
-  if (breakdown.congestionPenalty >= CROWDED_THRESHOLD) {
+  if (breakdown.congestionPenalty >= ELEVATOR_CROWDED_WAIT_MIN) {
     return 'elevatorCrowded'
   }
   const thresholds = TUNING.rent.leasabilityThreshold
@@ -473,11 +474,12 @@ function dominantVacancyReason(unit: Unit, breakdown: EvalBreakdown, fallback: V
 }
 
 export function vacateUnit(unit: Unit, reason: VacancyReason, events: EngineEvent[]): void {
+  const { floor, id: unitId, kind: unitKind } = unit
   unit.occupied = false
   unit.population = { low: 0, med: 0, high: 0, vip: 0 }
   unit.vacancyReason = reason
   unit.lowEvalDays = 0
-  events.push({ type: 'unitVacated', unitId: unit.id, reason })
+  events.push({ type: 'unitVacated', unitId, unitKind, floor, reason })
 }
 
 // ── Leasing ──────────────────────────────────────────────────────────────────
@@ -618,7 +620,7 @@ export function weeklyStressPass(state: EngineState, events: EngineEvent[]): voi
     const category = itemDef(unit.kind).category
     // VIP homes vacate only through the VIP system (population.vip > 0 guard).
     if (unit.occupied && unit.population.vip === 0 && (category === 'office' || category === 'residential')) {
-      const threshold = Math.ceil(TUNING.stress.weeklyMarksBase * TUNING.rent.toleranceMultiplier[unit.rentTier])
+      const threshold = weeklyStressThreshold(unit.rentTier)
       if (unit.stressMarks >= threshold) {
         vacateUnit(unit, dominantVacancyReason(unit, evalBreakdown(state, unit), 'elevatorCrowded'), events)
       }

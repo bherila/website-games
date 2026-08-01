@@ -92,6 +92,11 @@ export function ToastHistoryDrawer({ history, onClose }: ToastHistoryDrawerProps
                 <time className="shrink-0 text-[10px] opacity-60">{clockLabel(clock)}</time>
               </div>
               {toast.body && <div className="text-[12px] opacity-80">{toast.body}</div>}
+              {toast.details && toast.details.length > 0 && (
+                <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[11px] opacity-80" aria-label="Event details">
+                  {toast.details.map((detail) => <li key={detail}>{detail}</li>)}
+                </ul>
+              )}
               {toast.unlocked && toast.unlocked.length > 0 && (
                 <div className="mt-1 text-[11px] opacity-80">Unlocked: {toast.unlocked.join(', ')}</div>
               )}

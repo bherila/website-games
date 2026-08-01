@@ -1,6 +1,7 @@
-import type { ReactElement } from 'react'
+import { type KeyboardEvent as ReactKeyboardEvent, type ReactElement, useRef } from 'react'
 
 import { TOWER_SHORTCUT_BINDINGS } from '../useTowerKeyboardShortcuts'
+import { useDialogFocus } from './dialogFocus'
 
 interface ShortcutHelpOverlayProps {
   onClose: () => void
@@ -10,23 +11,46 @@ interface ShortcutHelpOverlayProps {
  * Static keyboard cheat-sheet generated from the shared TOWER_SHORTCUT_BINDINGS
  * table so it can never drift from the keys the hook actually dispatches. As a
  * blocking surface it PAUSES the sim while open (TowerGame passes `paused` to
- * TowerScene); Esc and the `?` key both close it (handled by
- * useTowerKeyboardShortcuts), plus the close button here.
+ * TowerScene); the dialog owns Esc and `?` while open so those keys cannot
+ * fall through to gameplay, and the close button offers the pointer path.
  */
 export function ShortcutHelpOverlay({ onClose }: ShortcutHelpOverlayProps): ReactElement {
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  const { onDialogKeyDown } = useDialogFocus({
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+  })
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>): void => {
+    if (event.key === '?') {
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+      return
+    }
+    onDialogKeyDown(event)
+  }
+
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/80 p-4"
       data-testid="shortcut-help"
       onClick={onClose}
     >
-      <div
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcut-help-title"
         className="w-[24rem] max-w-full rounded-2xl border border-white/15 bg-slate-900/95 p-5 shadow-2xl"
+        onKeyDown={handleKeyDown}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3">
-          <h2 className="text-sm font-bold tracking-widest text-white/80">KEYBOARD SHORTCUTS</h2>
+          <h2 id="shortcut-help-title" className="text-sm font-bold tracking-widest text-white/80">KEYBOARD SHORTCUTS</h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="Close shortcuts"
@@ -50,7 +74,7 @@ export function ShortcutHelpOverlay({ onClose }: ShortcutHelpOverlayProps): Reac
             </div>
           ))}
         </dl>
-      </div>
+      </section>
     </div>
   )
 }

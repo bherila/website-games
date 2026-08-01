@@ -1,4 +1,5 @@
 import type { Unit } from '../../gameTypes'
+import { weeklyStressThreshold } from '../tenantStress'
 import { unitIssues, worstUnitSeverity } from '../unitIssues'
 
 function unit(overrides: Partial<Unit> = {}): Unit {
@@ -64,6 +65,42 @@ describe('unitIssues', () => {
     expect(unitIssues(unit({ lowEvalDays: 1 })).find((i) => i.key === 'lowEval')?.severity).toBe('warning')
     expect(unitIssues(unit({ lowEvalDays: 2 })).some((i) => i.key === 'vacating' && i.severity === 'critical')).toBe(true)
     expect(worstUnitSeverity(unit({ lowEvalDays: 2 }))).toBe('critical')
+  })
+
+  it.each([
+    ['low', 5],
+    ['avg', 3],
+    ['high', 3],
+  ] as const)('warns at threshold-1 and escalates at the %s-rent weekly stress threshold', (rentTier, threshold) => {
+    const warning = unitIssues(unit({ rentTier, stressMarks: threshold - 1 })).find((issue) => issue.key === 'weeklyStress')
+    expect(warning).toMatchObject({ severity: 'warning' })
+    expect(warning?.label).toContain(`${threshold - 1}/${threshold}`)
+
+    const critical = unitIssues(unit({ rentTier, stressMarks: threshold })).find((issue) => issue.key === 'weeklyStressCritical')
+    expect(critical).toMatchObject({ severity: 'critical' })
+    expect(critical?.label).toContain(`${threshold}/${threshold}`)
+    if (rentTier === 'low') {
+      expect(critical?.hint).toMatch(/unavoidable/i)
+    } else {
+      expect(critical?.hint).toMatch(/lower rent to the low tier/i)
+      expect(critical?.hint).toMatch(/future marks/i)
+    }
+  })
+
+  it.each(['avg', 'high'] as const)('treats %s-rent stress at the low-tier ceiling as unavoidable', (rentTier) => {
+    const critical = unitIssues(unit({
+      rentTier,
+      stressMarks: weeklyStressThreshold('low'),
+    })).find((issue) => issue.key === 'weeklyStressCritical')
+
+    expect(critical?.hint).toMatch(/unavoidable/i)
+    expect(critical?.hint).not.toMatch(/lower rent/i)
+  })
+
+  it('does not report weekly stress for zero marks, non-tenants, or VIP homes', () => {
+    expect(unitIssues(unit()).some((issue) => issue.key.startsWith('weeklyStress'))).toBe(false)
+    expect(unitIssues(unit({ kind: 'shop', stressMarks: 99 })).some((issue) => issue.key.startsWith('weeklyStress'))).toBe(false)
+    expect(unitIssues(unit({ stressMarks: 99, population: { low: 0, med: 0, high: 0, vip: 1 } })).some((issue) => issue.key.startsWith('weeklyStress'))).toBe(false)
   })
 
   it('critical outranks warning in worstUnitSeverity', () => {

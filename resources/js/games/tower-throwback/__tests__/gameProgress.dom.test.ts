@@ -1,3 +1,4 @@
+import { ITEM_DEFS } from '../engine/catalog'
 import { maximumLoanOffer } from '../engine/economy'
 import { createEngineState, personTickAccumulatorOf, restorePersonTickAccumulator, stepEngine } from '../engine/engine'
 import { restoreHotelRuntime, snapshotHotelRuntime } from '../engine/hotel'
@@ -27,10 +28,11 @@ import {
   migrateSandboxPayload,
   recordMilestone,
   restoreSandbox,
+  type SavedSandbox,
   saveProgress,
   saveSandbox,
 } from '../gameProgress'
-import { FLOOR_MAX, type Person, PROGRESS_STORAGE_KEY, SANDBOX_STORAGE_KEY } from '../gameTypes'
+import { FLOOR_MAX, type ItemKind, type Person, PROGRESS_STORAGE_KEY, SANDBOX_STORAGE_KEY, TUNING } from '../gameTypes'
 
 const FROZEN_V1_SANDBOX = Object.freeze({
   version: 1,
@@ -203,6 +205,18 @@ describe('sandbox persistence', () => {
     }
   }
 
+  function validSaved(): SavedSandbox {
+    const state = builtState()
+    expect(saveSandbox(state, 'slot-a')).toEqual({ ok: true })
+    return loadSandbox('slot-a')!
+  }
+
+  function expectInvalidMutation(mutate: (saved: SavedSandbox) => void): void {
+    const saved = JSON.parse(JSON.stringify(validSaved())) as SavedSandbox
+    mutate(saved)
+    expect(migrateSandboxPayload(saved)).toBeNull()
+  }
+
   it('migrates the frozen v1 wire fixture sequentially and leaves current payloads unchanged', () => {
     const migrated = migrateSandboxPayload(FROZEN_V1_SANDBOX)
 
@@ -322,7 +336,7 @@ describe('sandbox persistence', () => {
     // The cathedral legally overhangs FLOOR_MAX by its upper storeys — placement.ts
     // exempts `kind === 'cathedral'` from the top-floor bound. A save taken while it
     // stands must therefore re-import, not be rejected by parseUnit's FLOOR_MAX guard.
-    state.units.push({ ...office, id: state.nextId, kind: 'cathedral', floor: FLOOR_MAX, storeys: 2 })
+    state.units.push({ ...office, id: state.nextId, kind: 'cathedral', floor: FLOOR_MAX, width: 30, storeys: 2 })
     state.nextId += 1
     saveSandbox(state)
 
@@ -587,6 +601,121 @@ describe('sandbox persistence', () => {
     expect(window.localStorage.getItem(storageKey)).toBe(originalBytes)
   })
 
+  it('rejects impossible funds, loans, and non-canonical pending loan offers', () => {
+    expectInvalidMutation((saved) => { saved.funds = -0.01 })
+
+    const invalidLoans = [
+      { principal: 0, outstanding: 1 },
+      { principal: -1, outstanding: 1 },
+      { principal: 100_000, outstanding: 0 },
+      { principal: 100_000, outstanding: -1 },
+      { principal: 100_000, outstanding: 100_001 },
+    ]
+    for (const loan of invalidLoans) {
+      expectInvalidMutation((saved) => {
+        saved.loans = [{ id: saved.nextId++, ...loan }]
+      })
+    }
+
+    const invalidPrompts = [
+      { shortfall: 0, suggested: 100_000 },
+      { shortfall: -1, suggested: 100_000 },
+      { shortfall: 100_001, suggested: 100_000 },
+      { shortfall: 1, suggested: 99_999 },
+      { shortfall: 1, suggested: 200_000 },
+    ]
+    for (const prompt of invalidPrompts) {
+      expectInvalidMutation((saved) => { saved.pendingLoanPrompt = prompt })
+    }
+    expectInvalidMutation((saved) => {
+      saved.pendingLoanCommands = [{ type: 'place', kind: 'officeS', floor: 2, x: 20 }]
+    })
+    expectInvalidMutation((saved) => {
+      saved.pendingLoanPrompt = { shortfall: 1, suggested: TUNING.economy.loanIncrement }
+      saved.pendingLoanCommands = [{ type: 'resizeShaft', shaftId: 999_999, bottomFloor: 0, topFloor: 2 }]
+    })
+
+    const valid = validSaved()
+    valid.loans = [{ id: valid.nextId++, principal: 100_000, outstanding: 25_000 }]
+    valid.pendingLoanPrompt = { shortfall: 100_001, suggested: 200_000 }
+    valid.pendingLoanCommands = [{
+      type: 'resizeShaft',
+      shaftId: valid.shafts[0]!.id,
+      bottomFloor: 0,
+      topFloor: 2,
+    }]
+    expect(migrateSandboxPayload(valid)).not.toBeNull()
+  })
+
+  it('enforces every fixed catalog footprint while preserving upgrade footprints', () => {
+    const payloadFor = (kind: ItemKind): SavedSandbox => {
+      const saved = validSaved()
+      const unit = saved.units.find((candidate) => candidate.kind === 'officeS')!
+      const def = ITEM_DEFS[kind]
+      unit.kind = kind
+      unit.width = def.width
+      unit.storeys = def.storeys
+      delete unit.facing
+      if (kind === 'cathedral') {
+        unit.floor = FLOOR_MAX
+        unit.x = 0
+      } else if (kind === 'observationDeck') {
+        saved.mapId = 'niagara-falls'
+        unit.floor = 15
+        unit.x = 171
+        unit.facing = 'right'
+      }
+      return saved
+    }
+
+    for (const [kind, def] of Object.entries(ITEM_DEFS) as Array<[ItemKind, (typeof ITEM_DEFS)[ItemKind]]>) {
+      if (def.perTile) {
+        continue
+      }
+      const valid = payloadFor(kind)
+      expect(migrateSandboxPayload(valid)).not.toBeNull()
+
+      const wrongWidth = payloadFor(kind)
+      wrongWidth.units.find((unit) => unit.kind === kind)!.width = def.width + 1
+      expect(migrateSandboxPayload(wrongWidth)).toBeNull()
+
+      const wrongStoreys = payloadFor(kind)
+      wrongStoreys.units.find((unit) => unit.kind === kind)!.storeys = def.storeys === 1 ? 2 : 1
+      expect(migrateSandboxPayload(wrongStoreys)).toBeNull()
+    }
+
+    const upgradedRestaurant = payloadFor('restaurant')
+    upgradedRestaurant.units.find((unit) => unit.kind === 'restaurant')!.width = ITEM_DEFS.fastfood.width
+    expect(migrateSandboxPayload(upgradedRestaurant)).not.toBeNull()
+
+    for (const preservedWidth of [ITEM_DEFS.restaurant.width, ITEM_DEFS.fastfood.width]) {
+      const upgradedFancy = payloadFor('fancyRestaurant')
+      upgradedFancy.units.find((unit) => unit.kind === 'fancyRestaurant')!.width = preservedWidth
+      expect(migrateSandboxPayload(upgradedFancy)).not.toBeNull()
+    }
+  })
+
+  it('keeps catalog-owned variable widths legal but enforces their storeys and skylobby minimum', () => {
+    for (const kind of ['slab', 'lobby', 'skylobby', 'skybridge'] as const) {
+      const saved = validSaved()
+      const unit = saved.units.find((candidate) => candidate.kind === 'officeS')!
+      unit.kind = kind
+      unit.width = kind === 'skylobby' ? TUNING.grid.skylobbyMinWidth : 7
+      unit.storeys = kind === 'lobby' ? saved.lobbyHeight : ITEM_DEFS[kind].storeys
+      expect(migrateSandboxPayload(saved)).not.toBeNull()
+
+      unit.storeys = unit.storeys === 1 ? 2 : 1
+      expect(migrateSandboxPayload(saved)).toBeNull()
+    }
+
+    expectInvalidMutation((saved) => {
+      const unit = saved.units.find((candidate) => candidate.kind === 'officeS')!
+      unit.kind = 'skylobby'
+      unit.width = TUNING.grid.skylobbyMinWidth - 1
+      unit.storeys = ITEM_DEFS.skylobby.storeys
+    })
+  })
+
   it('rejects inherited object keys as catalog kinds', () => {
     const state = builtState()
     saveSandbox(state, 'slot-a')
@@ -813,6 +942,226 @@ describe('sandbox persistence', () => {
     expect(window.localStorage.getItem(storageKey)).toBe(originalBytes)
   })
 
+  it('rejects dangling or wrong-type entity references across serialized runtime stores', () => {
+    const missingId = 999_999
+    const mutations: Array<(saved: SavedSandbox) => void> = [
+      (saved) => {
+        const walker = person(saved.nextId++)
+        walker.tenantUnitId = missingId
+        saved.people.push(walker)
+      },
+      (saved) => {
+        const walker = person(saved.nextId++)
+        walker.tenantUnitId = saved.shafts[0]!.id
+        saved.people.push(walker)
+      },
+      (saved) => {
+        const walker = person(saved.nextId++)
+        walker.legs = [{ type: 'elevator', fromFloor: 0, fromX: 118, toFloor: 2, toX: 118, shaftId: missingId }]
+        saved.people.push(walker)
+      },
+      (saved) => {
+        const walker = person(saved.nextId++)
+        walker.legs = [{ type: 'walk', fromFloor: 0, fromX: 100, toFloor: 0, toX: 101, shaftId: saved.shafts[0]!.id }]
+        saved.people.push(walker)
+      },
+      (saved) => {
+        saved.runtime.people.overflow = [{
+          tier: 'low', floor: 0, x: 100, toFloor: 2, toX: 100, purpose: 'commuteIn', destUnitId: missingId,
+        }]
+      },
+      (saved) => {
+        saved.runtime.people.plans = [[missingId, { staff: false, dwellMin: null, returnTo: null }]]
+      },
+      (saved) => {
+        saved.runtime.people.dwell = [[missingId, 1]]
+      },
+      (saved) => {
+        saved.runtime.people.queuedMin = [[missingId, 1]]
+      },
+      (saved) => {
+        saved.runtime.schedules.pending = [[500, [{
+          tier: 'low', floor: 0, x: 100, toFloor: 2, toX: 100, purpose: 'lunch', tenantUnitId: missingId, destUnitId: null,
+        }]]]
+      },
+      (saved) => {
+        saved.runtime.parking.stallsByOffice = [[saved.units.find((unit) => unit.kind === 'officeS')!.id, [saved.units.find((unit) => unit.kind === 'restroom')!.id]]]
+      },
+      (saved) => {
+        saved.runtime.trash.loads = [[saved.units.find((unit) => unit.kind === 'officeS')!.id, 1]]
+      },
+      (saved) => {
+        saved.runtime.hotel.pending = [[500, [{ roomId: saved.units.find((unit) => unit.kind === 'officeS')!.id, tier: 'high', direction: 'in' }]]]
+      },
+      (saved) => {
+        saved.vips = [{ target: 2, state: 'resident', satisfaction: 80, unitId: saved.units.find((unit) => unit.kind === 'officeS')!.id, cooldownUntilDay: null, lastReport: [] }]
+      },
+      (saved) => {
+        saved.runtime.vip.arrivals = [[2, 2_000]]
+      },
+      (saved) => {
+        saved.vips = [{ target: 2, state: 'visiting', satisfaction: 100, unitId: null, cooldownUntilDay: null, lastReport: [] }]
+        saved.runtime.vip.visit = {
+          target: 2,
+          scorecard: { score: 100, report: [], amenities: [] },
+          stops: [{ floor: 2, x: 100, unitId: missingId, amenityKind: null, suite: false, final: false }],
+          stopIndex: 0,
+          personId: null,
+          atStop: true,
+          departAbs: 2_000,
+          queuedMinutes: 0,
+          lastLegIndex: 0,
+          suiteId: null,
+          trashSeen: [],
+        }
+      },
+      (saved) => {
+        saved.activeFire = { kind: 'fire', floor: 2, burningUnitIds: [missingId], spreadRemainingMin: 1, responseRemainingMin: 1 }
+      },
+    ]
+
+    for (const mutate of mutations) {
+      expectInvalidMutation(mutate)
+    }
+  })
+
+  it('normalizes a car home floor whose landing was later disabled', () => {
+    const saved = validSaved()
+    const shaft = saved.shafts[0]!
+    shaft.cars[0]!.homeFloor = 2
+    shaft.enabledStops = shaft.enabledStops.filter((floor) => floor !== 2)
+
+    const migrated = migrateSandboxPayload(saved)
+
+    expect(migrated).not.toBeNull()
+    expect(migrated?.shafts[0]?.cars[0]?.homeFloor).toBeNull()
+  })
+
+  it('preserves nullable and historical IDs plus valid in-flight rider references', () => {
+    const saved = validSaved()
+    const rider = person(saved.nextId++)
+    rider.state = 'riding'
+    rider.floor = 0
+    rider.x = saved.shafts[0]!.x
+    rider.tenantUnitId = null
+    rider.destUnitId = null
+    rider.legs = [{
+      type: 'elevator',
+      fromFloor: 0,
+      fromX: saved.shafts[0]!.x,
+      toFloor: 2,
+      toX: saved.shafts[0]!.x,
+      shaftId: saved.shafts[0]!.id,
+    }]
+    saved.people.push(rider)
+    saved.shafts[0]!.cars[0]!.passengerIds = [rider.id]
+    saved.runtime.people.plans = [[rider.id, { staff: false, dwellMin: null, returnTo: null }]]
+    saved.runtime.people.queuedMin = [[rider.id, 2]]
+    saved.runtime.people.overflow = [{
+      tier: 'low', floor: 0, x: 100, toFloor: 0, toX: 101, purpose: 'shopping', tenantUnitId: null, destUnitId: null,
+    }]
+
+    const demolishedRestroom = saved.units.find((unit) => unit.kind === 'restroom')!
+    saved.units = saved.units.filter((unit) => unit.id !== demolishedRestroom.id)
+    saved.runtime.people.overflow[0]!.destUnitId = demolishedRestroom.id
+    saved.runtime.schedules.pending = [[500, [{
+      tier: 'low', floor: 0, x: 100, toFloor: demolishedRestroom.floor, toX: demolishedRestroom.x,
+      purpose: 'lunch', tenantUnitId: null, destUnitId: demolishedRestroom.id,
+    }]]]
+    const demolishedHotelRoomId = saved.nextId++
+    saved.runtime.hotel.pending = [[900, [{ roomId: demolishedHotelRoomId, tier: 'high', direction: 'in' }]]]
+
+    saved.activeRequest = {
+      id: saved.nextId++, description: 'Build a restroom', wantsKind: 'restroom', nearFloor: 2, expiresDay: 4,
+    }
+    // Baselines and trashSeen are historical sets: the referenced entity may
+    // have been demolished after it was observed, so they are not live FKs.
+    saved.runtime.incidents.requestBaseline = [999_998]
+    saved.vips = [{ target: 2, state: 'visiting', satisfaction: 100, unitId: null, cooldownUntilDay: null, lastReport: [] }]
+    const office = saved.units.find((unit) => unit.kind === 'officeS')!
+    saved.runtime.vip.visit = {
+      target: 2,
+      scorecard: { score: 100, report: [], amenities: [] },
+      stops: [{ floor: office.floor, x: office.x, unitId: office.id, amenityKind: null, suite: false, final: false }],
+      stopIndex: 0,
+      personId: null,
+      atStop: true,
+      departAbs: 2_000,
+      queuedMinutes: 0,
+      lastLegIndex: 0,
+      suiteId: null,
+      trashSeen: [999_997],
+    }
+
+    expect(migrateSandboxPayload(saved)).not.toBeNull()
+  })
+
+  it('keeps completed elevator legs loadable after their shaft or landing is removed', () => {
+    const withHistoricalLeg = (saved: SavedSandbox, toFloor: number): void => {
+      const oldShaft = saved.shafts[0]!
+      const walker = person(saved.nextId++)
+      walker.state = 'walking'
+      walker.floor = 2
+      walker.legs = [
+        {
+          type: 'elevator',
+          fromFloor: 0,
+          fromX: oldShaft.x,
+          toFloor,
+          toX: oldShaft.x,
+          shaftId: oldShaft.id,
+        },
+        { type: 'walk', fromFloor: 2, fromX: oldShaft.x, toFloor: 2, toX: 100 },
+      ]
+      walker.legIndex = 1
+      saved.people.push(walker)
+    }
+
+    const afterDemolition = validSaved()
+    withHistoricalLeg(afterDemolition, 2)
+    afterDemolition.shafts = []
+    expect(migrateSandboxPayload(afterDemolition)).not.toBeNull()
+
+    const afterResize = validSaved()
+    withHistoricalLeg(afterResize, 1)
+    expect(afterResize.shafts[0]!.stops).not.toContain(1)
+    expect(migrateSandboxPayload(afterResize)).not.toBeNull()
+  })
+
+  it('keeps in-flight references to a legitimately demolished unit loadable', () => {
+    const state = builtState()
+    const template = state.units.find((unit) => unit.kind === 'officeS')!
+    const restaurant = {
+      ...template,
+      id: state.nextId++,
+      kind: 'restaurant' as const,
+      width: ITEM_DEFS.restaurant.width,
+      storeys: ITEM_DEFS.restaurant.storeys,
+      population: { ...template.population },
+      flags: { ...template.flags },
+    }
+    state.units.push(restaurant)
+    const visitor = person(state.nextId++)
+    visitor.destUnitId = restaurant.id
+    state.people.push(visitor)
+    restorePeopleRuntime(state, {
+      overflow: [],
+      plans: [[visitor.id, { staff: false, dwellMin: null, returnTo: null }]],
+      dwell: [],
+      queuedMin: [],
+    })
+    restoreScheduleRuntime(state, { pending: [[500, [{
+      tier: 'low', floor: template.floor, x: template.x, toFloor: restaurant.floor, toX: restaurant.x,
+      purpose: 'lunch', tenantUnitId: template.id, destUnitId: restaurant.id,
+    }]]] })
+
+    stepEngine(state, [{ type: 'demolishUnit', unitId: restaurant.id }], 0)
+    expect(state.units.some((unit) => unit.id === restaurant.id)).toBe(false)
+    expect(state.people[0]?.destUnitId).toBe(restaurant.id)
+    expect(saveSandbox(state, 'slot-a')).toEqual({ ok: true })
+    expect(loadSandbox('slot-a')).not.toBeNull()
+  })
+
   it('save-at-T continuation matches uninterrupted incident and economic state plus event log', () => {
     const uninterrupted = builtState()
     uninterrupted.speed = 4
@@ -869,32 +1218,53 @@ describe('sandbox persistence', () => {
 
   it('round-trips every consequence-bearing runtime auxiliary store', () => {
     const state = builtState()
+    const template = state.units.find((unit) => unit.kind === 'officeS')!
+    const addUnit = (kind: typeof template.kind, width: number, storeys: 1 | 2 | 3) => {
+      const unit = {
+        ...template,
+        id: state.nextId++,
+        kind,
+        width,
+        storeys,
+        population: { ...template.population },
+        flags: { ...template.flags },
+      }
+      state.units.push(unit)
+      return unit
+    }
+    const stallA = addUnit('parkingSpace', 2, 1)
+    const stallB = addUnit('parkingSpace', 2, 1)
+    const trashRoom = addUnit('trashRoom', 6, 1)
+    const hotelSuite = addUnit('hotelSuite', 10, 1)
+    const restaurant = addUnit('restaurant', 10, 1)
     const activePerson = person(state.nextId)
     state.nextId += 1
     activePerson.vip = true
     activePerson.purpose = 'vipVisit'
     state.people.push(activePerson)
+    state.vips.push({ target: 2, state: 'visiting', satisfaction: 100, unitId: null, cooldownUntilDay: null, lastReport: [] })
+    state.vips.push({ target: 'tower', state: 'pending', satisfaction: 0, unitId: null, cooldownUntilDay: null, lastReport: [] })
     state.activeBombThreat = { kind: 'bombThreat', floor: 2, x: 105, sweepRemainingMin: null, ransom: 10_000 }
     state.activeRequest = { id: state.nextId, description: 'Build a restroom', wantsKind: 'restroom', nearFloor: 2, expiresDay: 5 }
     state.nextId += 1
     restorePersonTickAccumulator(state, 0.0625)
-    restoreScheduleRuntime(state, { pending: [[725, [{ tier: 'med', floor: 2, x: 101, toFloor: 0, toX: 100, purpose: 'lunch', tenantUnitId: 4, destUnitId: 2, dwellMin: 30 }]]] })
+    restoreScheduleRuntime(state, { pending: [[725, [{ tier: 'med', floor: 2, x: 101, toFloor: 0, toX: 100, purpose: 'lunch', tenantUnitId: template.id, destUnitId: restaurant.id, dwellMin: 30 }]]] })
     restorePeopleRuntime(state, {
-      overflow: [{ tier: 'high', floor: 0, x: 100, toFloor: 2, toX: 105, purpose: 'shopping', destUnitId: 4, dwellMin: 15 }],
+      overflow: [{ tier: 'high', floor: 0, x: 100, toFloor: 2, toX: 105, purpose: 'shopping', destUnitId: restaurant.id, dwellMin: 15 }],
       plans: [[activePerson.id, { staff: false, dwellMin: 12, returnTo: { floor: 0, x: 100 } }]],
       dwell: [[activePerson.id, 7.5]],
       queuedMin: [[activePerson.id, 2.25]],
     })
     restoreIncidentRuntime(state, { threatDeadlineAbs: 2200, requestBaseline: [2, 4], evalBonusUntilDay: 5 })
-    restoreParkingRuntime(state, { stallsByOffice: [[4, [2, 3]]] })
-    restoreTrashRuntime(state, { loads: [[4, 6.5], [999_999, 12]] })
-    restoreHotelRuntime(state, { pending: [[900, [{ roomId: 4, tier: 'high', direction: 'in' }]]] })
+    restoreParkingRuntime(state, { stallsByOffice: [[template.id, [stallA.id, stallB.id]]] })
+    restoreTrashRuntime(state, { loads: [[trashRoom.id, 6.5], [999_999, 12]] })
+    restoreHotelRuntime(state, { pending: [[900, [{ roomId: hotelSuite.id, tier: 'high', direction: 'in' }]]] })
     restoreVipRuntime(state, {
       arrivals: [[2, 2040], ['tower', 3480]],
       visit: {
         target: 2,
         scorecard: { score: 95, report: ['Waited'], amenities: ['restaurant'] },
-        stops: [{ floor: 2, x: 100, unitId: 4, amenityKind: 'restaurant', suite: false, final: true }],
+        stops: [{ floor: restaurant.floor, x: restaurant.x, unitId: restaurant.id, amenityKind: 'restaurant', suite: false, final: true }],
         stopIndex: 0,
         personId: activePerson.id,
         atStop: true,
@@ -902,7 +1272,7 @@ describe('sandbox persistence', () => {
         queuedMinutes: 1.5,
         lastLegIndex: 0,
         suiteId: null,
-        trashSeen: [4],
+        trashSeen: [trashRoom.id],
       },
     })
 
@@ -915,7 +1285,7 @@ describe('sandbox persistence', () => {
     expect(snapshotIncidentRuntime(restored)).toEqual(snapshotIncidentRuntime(state))
     expect(snapshotParkingRuntime(restored)).toEqual(snapshotParkingRuntime(state))
     expect(snapshotTrashRuntime(restored)).toEqual(snapshotTrashRuntime(state))
-    expect(snapshotTrashRuntime(restored).loads).toEqual([[4, 6.5]])
+    expect(snapshotTrashRuntime(restored).loads).toEqual([[trashRoom.id, 6.5]])
     expect(snapshotHotelRuntime(restored)).toEqual(snapshotHotelRuntime(state))
     expect(snapshotVipRuntime(restored)).toEqual(snapshotVipRuntime(state))
   })

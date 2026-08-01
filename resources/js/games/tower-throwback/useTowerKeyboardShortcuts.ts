@@ -9,8 +9,6 @@ interface TowerShortcutState {
   hasSelectedTool: boolean
   hasSelection: boolean
   modalOpen: boolean
-  /** The shortcut cheat-sheet overlay is open; lets Esc close it first. */
-  helpOpen: boolean
 }
 
 interface TowerShortcutHandlers {
@@ -26,7 +24,7 @@ interface TowerShortcutHandlers {
 }
 
 export interface TowerShortcutBinding {
-  /** Human-readable key(s), e.g. 'Space' or '1 / 8 / 16'. */
+  /** Human-readable key(s), e.g. 'Space' or '1 / 8 / 6'. */
   keys: string
   label: string
   description: string
@@ -38,7 +36,7 @@ export interface TowerShortcutBinding {
  */
 export const TOWER_SHORTCUT_BINDINGS: readonly TowerShortcutBinding[] = [
   { keys: 'Space', label: 'Pause / resume', description: 'Toggle between paused and the last running speed' },
-  { keys: '1 / 8 / 16', label: 'Game speed', description: 'Set the simulation speed multiplier' },
+  { keys: '1 / 8 / 6', label: 'Game speed', description: 'Set speed to 1×, 8×, or 16×' },
   { keys: 'B', label: 'Build mode', description: 'Toggle the build palette' },
   { keys: 'F', label: 'Financials', description: 'Open or close the financials panel' },
   { keys: 'O', label: 'Cycle overlay', description: 'Step through noise, congestion, and eval overlays' },
@@ -61,7 +59,6 @@ export function shortcutSpeedForKey(key: string): GameSpeed | null {
       return 1
     case '8':
       return 8
-    case '16':
     case '6':
       return 16
     default:
@@ -92,7 +89,13 @@ function normalizedKey(event: KeyboardEvent): string {
 }
 
 function shouldIgnoreShortcut(event: KeyboardEvent, modalOpen: boolean): boolean {
-  return event.ctrlKey || event.metaKey || event.altKey || modalOpen || isEditableShortcutTarget(event.target) || isInteractiveShortcutTarget(event.target)
+  return event.ctrlKey
+    || event.metaKey
+    || event.altKey
+    || modalOpen
+    || document.querySelector('[aria-modal="true"]') !== null
+    || isEditableShortcutTarget(event.target)
+    || isInteractiveShortcutTarget(event.target)
 }
 
 export function useTowerKeyboardShortcuts(state: TowerShortcutState, handlers: TowerShortcutHandlers): void {
@@ -148,11 +151,6 @@ export function useTowerKeyboardShortcuts(state: TowerShortcutState, handlers: T
           currentHandlers.onToggleBuildMode()
           return
         case 'Escape':
-          if (currentState.helpOpen) {
-            event.preventDefault()
-            currentHandlers.onToggleHelp()
-            return
-          }
           if (currentState.hasSelectedTool) {
             event.preventDefault()
             currentHandlers.onCancelTool()

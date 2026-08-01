@@ -64,7 +64,14 @@ describe('toastsFromEvents', () => {
     const movedOutFlavor = vipFlavorFor('tower', vipVisitIdForTarget('tower'))
     const toasts = toastsFromEvents(
       [
-        { type: 'vipResult', target: 3, success: false, score: 62, bonus: 10_000, report: ['Waited 12 min for an elevator'] },
+        {
+          type: 'vipResult',
+          target: 3,
+          success: false,
+          score: 62,
+          bonus: 10_000,
+          report: ['Waited 12 min for an elevator', 'No restaurant near the suite'],
+        },
         { type: 'vipResult', target: 4, success: true, score: 95, bonus: 200_000, report: [] },
         { type: 'vipMovedOut', target: 'tower', report: ['Their home fell below expectations'] },
       ],
@@ -74,6 +81,7 @@ describe('toastsFromEvents', () => {
     expect(toasts[0]).toMatchObject({
       title: `${failFlavor.name} left unimpressed`,
       body: vipReportLine(3, vipVisitIdForTarget(3), 'Waited 12 min for an elevator'),
+      details: [vipReportLine(3, vipVisitIdForTarget(3), 'No restaurant near the suite')],
     })
     expect(toasts[1]).toMatchObject({
       title: `${successFlavor.name} approved the visit`,
@@ -82,6 +90,18 @@ describe('toastsFromEvents', () => {
     expect(toasts[2]).toMatchObject({
       title: `${movedOutFlavor.name} moved out`,
       body: vipReportLine('tower', vipVisitIdForTarget('tower'), 'Their home fell below expectations'),
+    })
+  })
+
+  it('keeps live star-loss copy concise while preserving the rest of the report', () => {
+    const [toast] = toastsFromEvents(
+      [{ type: 'starLost', star: 3, report: ['Population fell below 5,000', 'Needs three restaurants', 'VIP visit failed'] }],
+      CLOCK,
+    )
+
+    expect(toast).toMatchObject({
+      body: 'Population fell below 5,000',
+      details: ['Needs three restaurants', 'VIP visit failed'],
     })
   })
 
@@ -155,13 +175,31 @@ describe('toastsFromEvents', () => {
     expect(toasts[1]?.body).toBe('Floor B3 — 1 unit damaged')
   })
 
-  it('throttles unitVacated to one toast per batch', () => {
+  it('coalesces vacancies with stable location, type, and reason context', () => {
     const events: EngineEvent[] = [
-      { type: 'unitVacated', unitId: 1, reason: 'tooNoisy' },
-      { type: 'unitVacated', unitId: 2, reason: 'noRoute' },
-      { type: 'unitVacated', unitId: 3, reason: 'lowEval' },
+      { type: 'unitVacated', unitId: 1, unitKind: 'officeS', floor: -2, reason: 'tooNoisy' },
+      { type: 'unitVacated', unitId: 2, unitKind: 'apt1br', floor: 8, reason: 'noRoute' },
+      { type: 'unitVacated', unitId: 3, unitKind: 'officeM', floor: 9, reason: 'tooNoisy' },
     ]
-    expect(toastsFromEvents(events, CLOCK)).toHaveLength(1)
+    const toasts = toastsFromEvents(events, CLOCK)
+    expect(toasts).toHaveLength(1)
+    expect(toasts[0]).toMatchObject({
+      title: '3 tenants moved out',
+      body: 'Office (S) on B2 — Too noisy; +2 more',
+      details: [
+        'First loss: Office (S) on B2 — Too noisy (unit #1)',
+        'Reasons: Too noisy ×2 · No route to the lobby ×1',
+      ],
+    })
+  })
+
+  it('identifies a single vacancy without adding history-only noise to the live toast', () => {
+    const [toast] = toastsFromEvents(
+      [{ type: 'unitVacated', unitId: 7, unitKind: 'aptStudio', floor: 12, reason: 'elevatorCrowded' }],
+      CLOCK,
+    )
+    expect(toast).toMatchObject({ title: 'Tenant moved out', body: 'Apartment (Studio) on 12 — Elevator congestion' })
+    expect(toast?.details).toBeUndefined()
   })
 
   it('keeps ids unique across event batches within the same game minute', () => {

@@ -1,7 +1,8 @@
 import currency from 'currency.js'
-import type { ReactElement } from 'react'
+import { type ReactElement, useRef } from 'react'
 
 import type { ItemKind } from '../gameTypes'
+import { useDialogFocus } from './dialogFocus'
 
 interface TowerCompleteProps {
   daysElapsed: number
@@ -13,12 +14,27 @@ interface TowerCompleteProps {
 
 /** Full-screen TOWER celebration; the sim is paused while it is up. */
 export function TowerComplete({ daysElapsed, population, funds, endgameKind, onDismiss }: TowerCompleteProps): ReactElement {
+  const dialogRef = useRef<HTMLElement | null>(null)
+  const keepBuildingButtonRef = useRef<HTMLButtonElement | null>(null)
+  const { onDialogKeyDown } = useDialogFocus({
+    dialogRef,
+    initialFocusRef: keepBuildingButtonRef,
+    onEscape: onDismiss,
+  })
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85" data-testid="tower-complete">
-      <div className="w-[26rem] rounded-2xl border border-amber-400/60 bg-gradient-to-b from-slate-900 to-slate-950 p-8 text-center shadow-2xl">
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tower-complete-title"
+        onKeyDown={onDialogKeyDown}
+        className="w-[26rem] rounded-2xl border border-amber-400/60 bg-gradient-to-b from-slate-900 to-slate-950 p-8 text-center shadow-2xl"
+      >
         <div className="text-6xl leading-none">👑</div>
         <div className="mt-2 text-5xl leading-none">🏙️</div>
-        <h1 className="mt-4 text-4xl font-black tracking-[0.3em] text-amber-300">TOWER</h1>
+        <h1 id="tower-complete-title" className="mt-4 text-4xl font-black tracking-[0.3em] text-amber-300">TOWER</h1>
         <p className="mt-2 text-sm text-white/70">
           {endgameKind === 'observationDeck'
             ? 'The Observation Deck opens above the gorge — Niagara has earned the highest honor.'
@@ -47,6 +63,7 @@ export function TowerComplete({ daysElapsed, population, funds, endgameKind, onD
         </dl>
 
         <button
+          ref={keepBuildingButtonRef}
           type="button"
           data-testid="keep-building"
           onClick={onDismiss}
@@ -54,7 +71,7 @@ export function TowerComplete({ daysElapsed, population, funds, endgameKind, onD
         >
           Keep building
         </button>
-      </div>
+      </section>
     </div>
   )
 }

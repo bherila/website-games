@@ -669,14 +669,23 @@ export function TowerGame(): ReactElement {
     }
   }, [refreshSlots])
 
+  const blockingModalOpen = isBlockingModalOpen({
+    inventoryOpen: showInventory,
+    saveLoadOpen: showSaveLoad,
+    shortcutHelpOpen: showShortcutHelp,
+    towerCardOpen: showTowerCard,
+    loanPromptOpen: (snapshot?.pendingLoanPrompt ?? null) !== null,
+    financialsOpen: showFinancials,
+    toastHistoryOpen: showToastHistory,
+  })
+
   useTowerKeyboardShortcuts(
     {
       speed: snapshot?.speed ?? engineState?.speed ?? 1,
       overlay,
       hasSelectedTool: selectedTool !== null,
       hasSelection: selection !== null || overlaySample !== null,
-      modalOpen: engineState === null || snapshot?.pendingLoanPrompt !== null || showSaveLoad || showTowerCard,
-      helpOpen: showShortcutHelp,
+      modalOpen: engineState === null || blockingModalOpen,
     },
     {
       onSetSpeed: setSpeed,
@@ -696,16 +705,6 @@ export function TowerGame(): ReactElement {
 
   // Reachability fields are cached per selected venue and tower structure.
   const catchmentField = catchmentFieldForSelection(engineState, selection)
-
-  const blockingModalOpen = isBlockingModalOpen({
-    inventoryOpen: showInventory,
-    saveLoadOpen: showSaveLoad,
-    shortcutHelpOpen: showShortcutHelp,
-    towerCardOpen: showTowerCard,
-    loanPromptOpen: (snapshot?.pendingLoanPrompt ?? null) !== null,
-    financialsOpen: showFinancials,
-    toastHistoryOpen: showToastHistory,
-  })
 
   if (!engineState) {
     return (
@@ -909,10 +908,17 @@ export function TowerGame(): ReactElement {
             />
             <TowerIssuesNavigator
               units={engineState.units}
+              shafts={engineState.shafts}
               onSelectUnit={(unitId) => {
                 const unit = engineState.units.find((candidate) => candidate.id === unitId)
                 if (unit) {
                   setSelection({ type: 'unit', unit })
+                }
+              }}
+              onSelectShaft={(shaftId) => {
+                const shaft = engineState.shafts.find((candidate) => candidate.id === shaftId)
+                if (shaft) {
+                  setSelection({ type: 'shaft', shaft })
                 }
               }}
               onViewFloor={goToFloor}

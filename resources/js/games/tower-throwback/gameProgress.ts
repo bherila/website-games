@@ -1,6 +1,6 @@
 import type { LevelSelectProgress } from '../_shared/LevelSelectGrid'
 import { isRecord, parseArray, parseInteger, parseNumber, parseString, safeLocalStorage } from '../_shared/progressParsers'
-import { ITEM_DEFS, itemDef, SHAFT_DEFS } from './engine/catalog'
+import { ITEM_DEFS, itemDef, SHAFT_DEFS, UPGRADE_PATHS } from './engine/catalog'
 import { personTickAccumulatorOf, restorePersonTickAccumulator } from './engine/engine'
 import { createGridLayers, rebuildGrid } from './engine/grid'
 import { type HotelRuntimeSnapshot, restoreHotelRuntime, snapshotHotelRuntime } from './engine/hotel'
@@ -1545,12 +1545,27 @@ function parseShaft(value: unknown): Shaft | null {
     !isStrictlyAscending(enabledStops) ||
     enabledStops.some((stop) => !stops.includes(stop)) ||
     cars.length > SHAFT_DEFS[kind].maxCars ||
-    cars.some((car, index) => car.index !== index || car.y < bottomFloor || car.y > topFloor || car.passengerIds.length > SHAFT_DEFS[kind].carCapacity)
+    cars.some((car, index) => (
+      car.index !== index
+      || car.y < bottomFloor
+      || car.y > topFloor
+      || (car.homeFloor !== null && !stops.includes(car.homeFloor))
+      || car.passengerIds.length > SHAFT_DEFS[kind].carCapacity
+    ))
   ) {
     return null
   }
 
-  return { id, kind, x, bottomFloor, topFloor, stops, enabledStops, cars, program, stats: { avgWaitGameMin, peakWaitGameMin } }
+  // Older/current saves can legitimately retain a home floor after that stop
+  // is disabled. Normalize it like the live command path rather than rejecting
+  // the player's whole tower.
+  const normalizedCars = cars.map((car) => (
+    car.homeFloor !== null && !enabledStops.includes(car.homeFloor)
+      ? { ...car, homeFloor: null }
+      : car
+  ))
+
+  return { id, kind, x, bottomFloor, topFloor, stops, enabledStops, cars: normalizedCars, program, stats: { avgWaitGameMin, peakWaitGameMin } }
 }
 
 function parseVipRecord(value: unknown): VipRecord | null {
@@ -1575,11 +1590,217 @@ function isStrictlyAscending(values: readonly number[]): boolean {
   return values.every((value, index) => index === 0 || value > values[index - 1]!)
 }
 
+/**
+ * Kind-changing upgrades deliberately preserve the source footprint. Walk the
+ * catalog graph backwards so an upgraded restaurant/fancy restaurant can keep
+ * every shape that production placement could have minted.
+ */
+const LEGAL_FIXED_FOOTPRINTS = new Map<ItemKind, Set<string>>()
+
+function legalFixedFootprints(kind: ItemKind, visiting = new Set<ItemKind>()): Set<string> {
+  if (visiting.size === 0) {
+    const cached = LEGAL_FIXED_FOOTPRINTS.get(kind)
+    if (cached) {
+      return cached
+    }
+  }
+  if (visiting.has(kind)) {
+    return new Set()
+  }
+  const nextVisiting = new Set(visiting).add(kind)
+  const def = itemDef(kind)
+  const footprints = new Set<string>([`${def.width}:${def.storeys}`])
+  for (const path of UPGRADE_PATHS) {
+    if (path.toKind !== kind) {
+      continue
+    }
+    for (const sourceKind of path.appliesTo) {
+      for (const footprint of legalFixedFootprints(sourceKind, nextVisiting)) {
+        footprints.add(footprint)
+      }
+    }
+  }
+  if (visiting.size === 0) {
+    LEGAL_FIXED_FOOTPRINTS.set(kind, footprints)
+  }
+  return footprints
+}
+
+function hasLegalUnitFootprint(saved: SavedSandbox, unit: Unit): boolean {
+  const def = itemDef(unit.kind)
+  if (def.perTile) {
+    const storeys = unit.kind === 'lobby' ? saved.lobbyHeight : def.storeys
+    if (unit.storeys !== storeys) {
+      return false
+    }
+    return unit.kind !== 'skylobby' || unit.width >= TUNING.grid.skylobbyMinWidth
+  }
+  return legalFixedFootprints(unit.kind).has(`${unit.width}:${unit.storeys}`)
+}
+
+function hasValidEconomy(saved: SavedSandbox): boolean {
+  if (saved.funds < 0 || saved.loans.some((loan) => (
+    loan.principal <= 0 || loan.outstanding <= 0 || loan.outstanding > loan.principal
+  ))) {
+    return false
+  }
+
+  const prompt = saved.pendingLoanPrompt
+  if (prompt === null) {
+    return saved.pendingLoanCommands.length === 0
+  }
+  const increment = TUNING.economy.loanIncrement
+  return prompt.shortfall > 0
+    && prompt.suggested === Math.ceil(prompt.shortfall / increment) * increment
+}
+
+function hasValidEntityReferences(saved: SavedSandbox): boolean {
+  const unitsById = new Map(saved.units.map((unit) => [unit.id, unit]))
+  const shaftsById = new Map(saved.shafts.map((shaft) => [shaft.id, shaft]))
+  const peopleById = new Map(saved.people.map((person) => [person.id, person]))
+  const liveEntityIds = new Set([
+    ...unitsById.keys(),
+    ...shaftsById.keys(),
+    ...peopleById.keys(),
+    ...saved.loans.map((loan) => loan.id),
+    ...(saved.activeRequest ? [saved.activeRequest.id] : []),
+  ])
+  // Unit demolition intentionally leaves some in-flight destinations and
+  // historical runtime work queued until their normal consumer self-heals.
+  // A missing id below nextId is therefore a legitimate tombstone; an id that
+  // was never minted is corrupt. When the entity is still live, validate its
+  // concrete kind as well.
+  const wasMinted = (id: number): boolean => id > 0 && id < saved.nextId
+  const isTombstone = (id: number): boolean => wasMinted(id) && !liveEntityIds.has(id)
+  const hasUnit = (id: number | null | undefined): boolean => (
+    id === null || id === undefined || unitsById.has(id) || isTombstone(id)
+  )
+  const hasUnitKind = (id: number, predicate: (unit: Unit) => boolean): boolean => {
+    const unit = unitsById.get(id)
+    return unit ? predicate(unit) : isTombstone(id)
+  }
+  const spawnHasUnits = (spawn: PeopleRuntimeSnapshot['overflow'][number]): boolean => (
+    hasUnit(spawn.tenantUnitId) && hasUnit(spawn.destUnitId)
+  )
+
+  for (const person of saved.people) {
+    if (!hasUnit(person.tenantUnitId) || !hasUnit(person.destUnitId)) {
+      return false
+    }
+    for (const [index, leg] of person.legs.entries()) {
+      if (leg.type !== 'elevator') {
+        if (leg.shaftId !== undefined) {
+          return false
+        }
+        continue
+      }
+      if (leg.shaftId === undefined) {
+        return false
+      }
+      // Completed legs are immutable journey history. Their shaft or landing
+      // may have been demolished/resized after the rider moved on; only the
+      // current and future route must still resolve against live topology.
+      if (index < person.legIndex) {
+        continue
+      }
+      const shaft = shaftsById.get(leg.shaftId)
+      if (!shaft
+        || leg.fromX !== shaft.x
+        || leg.toX !== shaft.x
+        || !shaft.stops.includes(leg.fromFloor)
+        || !shaft.stops.includes(leg.toFloor)) {
+        return false
+      }
+    }
+  }
+
+  const peopleRuntime = saved.runtime.people
+  if (peopleRuntime.overflow.some((spawn) => !spawnHasUnits(spawn))
+    || peopleRuntime.plans.some(([personId]) => !peopleById.has(personId))
+    || peopleRuntime.dwell.some(([personId]) => !peopleById.has(personId))
+    || peopleRuntime.queuedMin.some(([personId]) => !peopleById.has(personId))
+    || saved.runtime.schedules.pending.some(([, spawns]) => spawns.some((spawn) => !spawnHasUnits(spawn)))) {
+    return false
+  }
+
+  for (const [officeId, stallIds] of saved.runtime.parking.stallsByOffice) {
+    if (!hasUnitKind(officeId, (unit) => itemDef(unit.kind).category === 'office')
+      || stallIds.some((stallId) => !hasUnitKind(stallId, (unit) => unit.kind === 'parkingSpace'))) {
+      return false
+    }
+  }
+  if (saved.runtime.trash.loads.some(([roomId]) => unitsById.get(roomId)?.kind !== 'trashRoom')
+    || saved.runtime.hotel.pending.some(([, guests]) => guests.some((guest) => {
+      return !hasUnitKind(guest.roomId, (unit) => (
+        unit.kind === 'hotel1p' || unit.kind === 'hotel2p' || unit.kind === 'hotelSuite'
+      ))
+    }))) {
+    return false
+  }
+
+  if (saved.pendingLoanCommands.some((command) => command.type === 'resizeShaft' && !shaftsById.has(command.shaftId))) {
+    return false
+  }
+
+  const vipHomeKind: Record<VipTarget, ItemKind> = {
+    2: 'aptStudio',
+    3: 'apt1br',
+    4: 'apt2br',
+    5: 'apt2br',
+    tower: 'aptPenthouse',
+  }
+  for (const record of saved.vips) {
+    if (record.unitId !== null
+      && (record.state !== 'resident'
+        || !hasUnitKind(record.unitId, (unit) => unit.kind === vipHomeKind[record.target]))) {
+      return false
+    }
+  }
+
+  const vipRuntime = saved.runtime.vip
+  const vipTargets = new Set(saved.vips.map((record) => record.target))
+  if (vipRuntime.arrivals.some(([target]) => !vipTargets.has(target))) {
+    return false
+  }
+  const visit = vipRuntime.visit
+  if (visit) {
+    const person = visit.personId === null ? null : peopleById.get(visit.personId)
+    if (!vipTargets.has(visit.target)
+      || visit.stopIndex >= visit.stops.length
+      || (visit.personId !== null && (person
+        ? (!person.vip || person.purpose !== 'vipVisit')
+        : !isTombstone(visit.personId)))
+      || (visit.suiteId !== null && !hasUnitKind(visit.suiteId, (unit) => unit.kind === 'hotelSuite'))
+      || visit.stops.some((stop) => {
+        if (stop.unitId === null) {
+          return stop.amenityKind !== null || stop.suite
+        }
+        const unit = unitsById.get(stop.unitId)
+        if (!unit) {
+          return !isTombstone(stop.unitId)
+        }
+        return unit.floor !== stop.floor
+          || unit.x !== stop.x
+          || (stop.amenityKind !== null && unit.kind !== stop.amenityKind)
+          || (stop.suite && unit.kind !== 'hotelSuite')
+      })) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function validateSandboxConsistency(saved: SavedSandbox): boolean {
   if (!isKnownMapId(saved.mapId)) {
     return false
   }
   const map = getMap(saved.mapId)
+  if (!hasValidEconomy(saved)
+    || saved.units.some((unit) => !hasLegalUnitFootprint(saved, unit))
+    || !hasValidEntityReferences(saved)) {
+    return false
+  }
   if (saved.units.some((unit) => (
     unit.floor < map.floorRange.min
     || unit.floor > map.floorRange.max
