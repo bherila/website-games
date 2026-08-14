@@ -10,6 +10,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Games | ' . config('app.name', 'Ben Herila'))</title>
     <meta name="color-scheme" content="dark light">
+    {{-- Site ships its own dark theme; tells the Dark Reader extension not to re-filter it. --}}
+    <meta name="darkreader-lock">
     @include('games.pwa-head')
     {{-- Trimmed from the monorepo layout: no admin roles, client companies, or
          user_role — those are finance-app concepts. Games JS only reads
