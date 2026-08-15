@@ -24,12 +24,16 @@ class OAuthLoginTest extends TestCase
     {
         parent::setUp();
 
-        Config::set('services.identity_provider', [
-            'name' => 'bherila',
+        Config::set('bherila-auth.oauth_client', [
+            'provider' => 'bherila',
             'base_url' => 'https://identity.example.test',
             'client_id' => 'games-client',
             'client_secret' => 'games-secret',
             'redirect_uri' => 'http://localhost/oauth/callback',
+            'scope' => 'identity:read',
+            'authorize_path' => '/oauth/authorize',
+            'token_path' => '/oauth/token',
+            'identity_path' => '/api/oauth/user',
         ]);
     }
 
@@ -107,7 +111,7 @@ class OAuthLoginTest extends TestCase
 
     public function test_callback_refuses_to_normalize_provider_whitespace(): void
     {
-        Config::set('services.identity_provider.name', ' bherila ');
+        Config::set('bherila-auth.oauth_client.provider', ' bherila ');
         $this->fakeProvider('provider-subject', 'Account', 'account@example.test');
 
         $this->withSession($this->oauthSession())

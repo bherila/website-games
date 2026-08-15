@@ -25,7 +25,7 @@ class BindOAuthSubjectCommandTest extends TestCase
     {
         parent::setUp();
 
-        Config::set('services.identity_provider.name', 'bherila');
+        Config::set('bherila-auth.oauth_client.provider', 'bherila');
     }
 
     public function test_it_links_an_account_that_has_no_subject_yet(): void
@@ -164,7 +164,7 @@ class BindOAuthSubjectCommandTest extends TestCase
 
     public function test_it_refuses_when_no_provider_is_configured_or_given(): void
     {
-        Config::set('services.identity_provider.name', '');
+        Config::set('bherila-auth.oauth_client.provider', '');
         $user = User::factory()->create();
 
         $this->artisan('oauth:bind-subject', ['user' => $user->getKey(), 'subject' => 'subject-a'])
