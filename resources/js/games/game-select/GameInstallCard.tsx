@@ -29,14 +29,14 @@ export function GameInstallCard(): ReactElement | null {
   }
 
   return (
-    <aside className="mb-8 flex flex-col gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-950 shadow-sm dark:border-blue-900 dark:bg-blue-950 dark:text-blue-50 sm:flex-row sm:items-center sm:justify-between" aria-label="Install BWH Games">
+    <aside className="mb-8 flex flex-col gap-4 rounded-2xl border border-border bg-accent p-5 text-foreground shadow-sm sm:flex-row sm:items-center sm:justify-between" aria-label="Install BWH Games">
       <div className="flex items-start gap-3">
-        <span className="rounded-xl bg-blue-600 p-2 text-white" aria-hidden="true">
+        <span className="rounded-xl bg-primary p-2 text-primary-foreground" aria-hidden="true">
           {isIos ? <Share className="size-5" /> : <Download className="size-5" />}
         </span>
         <div className="flex flex-col gap-1">
           <h2 className="font-bold">Play from your home screen</h2>
-          <p className="text-sm text-blue-800 dark:text-blue-200">
+          <p className="text-sm text-muted-foreground">
             {isIos
               ? 'In Safari, tap Share, then Add to Home Screen.'
               : 'Install BWH Games for quick access and offline play after visiting a game.'}
@@ -45,7 +45,7 @@ export function GameInstallCard(): ReactElement | null {
       </div>
       {installPrompt && (
         <button
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           onClick={() => void promptForInstall()}
           type="button"
         >

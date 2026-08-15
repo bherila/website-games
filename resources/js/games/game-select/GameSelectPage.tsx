@@ -25,8 +25,11 @@ export function GameSelectPage(): ReactElement {
     <Container>
       <div className="mx-auto max-w-5xl py-10">
         <header className="mb-8 flex flex-col gap-2">
-          <MainTitle>Game Select</MainTitle>
-          <p className="text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-4">
+            <img alt="" aria-hidden="true" className="size-14 sm:size-16" src="/mascot.svg" />
+            <MainTitle>Game Select</MainTitle>
+          </div>
+          <p className="text-muted-foreground">
             Pick a game to play. Progress saves automatically, so you can switch games any time and pick up where you left off.
           </p>
         </header>
@@ -51,15 +54,15 @@ function GameCard({ game, summary }: GameCardProps): ReactElement {
 
   return (
     <a
-      className="group flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-6 no-underline shadow-sm transition hover:-translate-y-1 hover:no-underline hover:shadow-lg dark:border-gray-700 dark:bg-gray-900"
+      className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-6 no-underline shadow-sm transition hover:-translate-y-1 hover:border-ring/40 hover:no-underline hover:shadow-lg"
       data-testid={`game-card-${game.slug}`}
       href={game.href}
     >
       <span aria-hidden="true" className="text-5xl">{game.emoji}</span>
-      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">{game.title}</h2>
-      <p className="flex-1 text-sm text-gray-600 dark:text-gray-400">{game.description}</p>
+      <h2 className="text-xl font-bold text-card-foreground">{game.title}</h2>
+      <p className="flex-1 text-sm text-muted-foreground">{game.description}</p>
       {summary && <ProgressSummaryRow summary={summary} />}
-      <span className="flex items-center gap-2 text-sm font-semibold text-blue-600 group-hover:underline dark:text-blue-400">
+      <span className="flex items-center gap-2 text-sm font-semibold text-primary group-hover:underline">
         <Play aria-hidden="true" className="size-4" />
         {started ? 'Continue playing' : 'Play now'}
       </span>
@@ -80,14 +83,14 @@ function ProgressSummaryRow({ summary }: ProgressSummaryRowProps): ReactElement 
 function LevelSummaryRow({ summary }: { summary: GameProgressSummary }): ReactElement {
   if (!summary.started) {
     return (
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+      <span className="text-xs font-medium text-muted-foreground">
         {summary.totalLevels} levels · not played yet
       </span>
     )
   }
 
   return (
-    <span className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+    <span className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
       <span>{summary.levelsCleared} / {summary.totalLevels} levels</span>
       <span className="flex items-center gap-1">
         <Star aria-hidden="true" className="size-3.5 fill-amber-400 text-amber-500" />
@@ -100,16 +103,16 @@ function LevelSummaryRow({ summary }: { summary: GameProgressSummary }): ReactEl
 function ScoreSummaryRow({ summary }: { summary: GameScoreSummary }): ReactElement {
   if (!summary.started) {
     return (
-      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{summary.emptyLabel}</span>
+      <span className="text-xs font-medium text-muted-foreground">{summary.emptyLabel}</span>
     )
   }
 
   return (
-    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
       {summary.stats.map((stat, index) => (
         <span key={stat.label}>
           {index > 0 && <span aria-hidden="true" className="mr-2">·</span>}
-          {stat.label}: <span className="font-bold text-gray-700 tabular-nums dark:text-gray-200">{stat.value}</span>
+          {stat.label}: <span className="font-bold text-foreground tabular-nums">{stat.value}</span>
         </span>
       ))}
     </span>
