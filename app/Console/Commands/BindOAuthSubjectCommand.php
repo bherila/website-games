@@ -3,12 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use BWH\Auth\OAuth\OAuthClient;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Link an account that predates the identity provider to its provider subject.
@@ -36,9 +38,9 @@ use Illuminate\Support\Str;
 #[Description('Link an existing local account to its identity-provider subject.')]
 class BindOAuthSubjectCommand extends Command
 {
-    public function handle(): int
+    public function handle(OAuthClient $oauth): int
     {
-        $provider = $this->resolveProvider();
+        $provider = $this->resolveProvider($oauth);
 
         if (
             $provider === null
@@ -156,7 +158,7 @@ class BindOAuthSubjectCommand extends Command
         return $result['exit'];
     }
 
-    private function resolveProvider(): ?string
+    private function resolveProvider(OAuthClient $oauth): ?string
     {
         $option = $this->option('provider');
 
@@ -164,9 +166,11 @@ class BindOAuthSubjectCommand extends Command
             return $option;
         }
 
-        $configured = config('services.identity_provider.name');
-
-        return is_string($configured) && $configured !== '' ? $configured : null;
+        try {
+            return $oauth->providerName();
+        } catch (HttpExceptionInterface) {
+            return null;
+        }
     }
 
     /**
