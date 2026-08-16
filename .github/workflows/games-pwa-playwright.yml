@@ -49,13 +49,17 @@ jobs:
         run: |
           cp .env.example .env
           {
-            echo "APP_ENV=local"
+            echo "APP_ENV=e2e"
             echo "APP_URL=http://127.0.0.1:8000"
             echo "DB_CONNECTION=sqlite"
             echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite"
             echo "CACHE_STORE=file"
             echo "SESSION_DRIVER=file"
+            echo "E2E_USER_ID=1"
           } >> .env
+          e2e_auth_token="$(openssl rand -hex 32)"
+          echo "E2E_AUTH_TOKEN=${e2e_auth_token}" >> .env
+          echo "E2E_AUTH_TOKEN=${e2e_auth_token}" >> "$GITHUB_ENV"
           rm -f database/database.sqlite
           touch database/database.sqlite
           php -d memory_limit=1G artisan key:generate --no-interaction --force
@@ -86,7 +90,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: games-pwa-playwright-report
           path: |

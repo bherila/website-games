@@ -9,11 +9,51 @@
             bherila.net
         </a>
         <div class="flex items-center gap-4">
-            @guest
-                <a href="{{ route('oauth.redirect') }}" class="font-medium text-primary hover:underline">
-                    Sign in to sync progress
-                </a>
-            @endguest
+            <div id="account-auth-action">
+                @guest
+                    <a href="{{ route('oauth.redirect') }}" class="font-medium text-primary hover:underline">
+                        Sign in to sync progress
+                    </a>
+                @endguest
+            </div>
+            <script>
+              (function () {
+                var root = document.getElementById('account-auth-action');
+                var dataElement = document.getElementById('app-initial-data');
+                if (!root || !dataElement) return;
+
+                var data;
+                try { data = JSON.parse(dataElement.textContent || '{}'); } catch (e) { data = {}; }
+
+                if (data.authenticated) {
+                  var form = document.createElement('form');
+                  form.method = 'POST';
+                  form.action = {!! json_encode(route('logout')) !!};
+
+                  var token = document.createElement('input');
+                  token.type = 'hidden';
+                  token.name = '_token';
+                  token.value = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+                  var button = document.createElement('button');
+                  button.type = 'submit';
+                  button.className = 'font-medium text-primary hover:underline';
+                  button.textContent = 'Sign out';
+
+                  form.append(token, button);
+                  root.append(form);
+                  return;
+                }
+
+                if (root.firstElementChild) return;
+
+                var link = document.createElement('a');
+                link.href = {!! json_encode(route('oauth.redirect')) !!};
+                link.className = 'font-medium text-primary hover:underline';
+                link.textContent = 'Sign in to sync progress';
+                root.append(link);
+              })();
+            </script>
             <button
                 type="button"
                 id="theme-toggle"
