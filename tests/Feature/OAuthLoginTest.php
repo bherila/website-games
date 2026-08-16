@@ -47,6 +47,19 @@ class OAuthLoginTest extends TestCase
             ->assertSee(route('oauth.redirect'));
     }
 
+    public function test_authenticated_home_page_has_an_explicit_sign_out_form(): void
+    {
+        $this->withoutVite();
+        $user = User::factory()->create(['name' => 'Signed In Player']);
+
+        $this->actingAs($user)
+            ->get('/')
+            ->assertOk()
+            ->assertSee('"authenticated":true', false)
+            ->assertSee('Sign out')
+            ->assertSee((string) json_encode(route('logout')), false);
+    }
+
     public function test_sign_in_click_starts_authorization_code_flow_with_pkce(): void
     {
         $response = $this->get('/oauth/redirect');
