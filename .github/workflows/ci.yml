@@ -132,7 +132,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Download frontend build artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: frontend-build
           path: public/build/
@@ -204,7 +204,7 @@ jobs:
         run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Download frontend build artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: frontend-build
           path: public/build/
