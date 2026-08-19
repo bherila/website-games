@@ -4,6 +4,10 @@ use App\Http\Controllers\GamePwaController;
 use App\Http\Controllers\OAuthLoginController;
 use Illuminate\Support\Facades\Route;
 
+if (app()->environment('e2e')) {
+    require __DIR__.'/e2e.php';
+}
+
 Route::get('/login', function () {
     return view('login');
 })->name('login');

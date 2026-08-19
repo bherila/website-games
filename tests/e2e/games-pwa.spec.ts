@@ -45,16 +45,30 @@ test.describe('BWH Games PWA offline reload', () => {
     expect(cachedShells).not.toContain(currentUser?.name)
     expect(cachedShells).not.toContain(currentUser?.email)
 
-    await page.getByRole('button', { name: /Test User|My Account/ }).click()
-    await Promise.all([
-      page.waitForURL('/'),
-      page.getByRole('menuitem', { name: 'Sign out' }).click(),
-    ])
+    await page.goto('/')
+    await page.evaluate(() => {
+      const nativeSubmit = HTMLFormElement.prototype.submit
+      HTMLFormElement.prototype.submit = function (this: HTMLFormElement): void {
+        void caches.keys()
+          .then((keys) => sessionStorage.setItem(
+            'e2e-game-caches-at-logout',
+            JSON.stringify(keys.filter((key) => key.startsWith('bwh-games-'))),
+          ))
+          .finally(() => nativeSubmit.call(this))
+      }
+    })
 
-    const remainingGameCaches = await page.evaluate(async () => (
-      (await caches.keys()).filter((key) => key.startsWith('bwh-games-'))
+    const logoutResponse = page.waitForResponse((response) => (
+      new URL(response.url()).pathname === '/logout'
+      && response.request().method() === 'POST'
     ))
-    expect(remainingGameCaches).toEqual([])
+    await page.getByRole('button', { name: 'Sign out' }).click()
+    expect((await logoutResponse).status()).toBe(302)
+    await expect(page.getByRole('link', { name: 'Sign in to sync progress' })).toBeVisible()
+    const gameCachesAtLogout = await page.evaluate(() => JSON.parse(
+      sessionStorage.getItem('e2e-game-caches-at-logout') ?? 'null',
+    ) as string[] | null)
+    expect(gameCachesAtLogout).toEqual([])
   })
 })
 
@@ -103,11 +117,13 @@ async function waitForCachedShell(page: Page, route: string): Promise<void> {
 }
 
 async function signInLocally(page: Page): Promise<void> {
-  await page.goto('/login')
-  await Promise.all([
-    page.waitForURL('/'),
-    page.getByRole('button', { name: 'Dev Login as UID=1' }).click(),
-  ])
+  const authToken = process.env.E2E_AUTH_TOKEN
+  expect(authToken, 'E2E_AUTH_TOKEN must be configured for signed-in PWA checks').toBeTruthy()
+
+  const response = await page.request.post('/__e2e/login', {
+    headers: { 'X-E2E-Auth-Token': authToken ?? '' },
+  })
+  expect(response.ok()).toBe(true)
 }
 
 async function readGameCacheText(page: Page): Promise<string> {
