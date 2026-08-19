@@ -31,10 +31,7 @@ export function isPwaStaticAsset(url: URL, currentOrigin: string): boolean {
 export function isGameNavigation(request: Request, currentOrigin: string): boolean {
   const url = new URL(request.url)
 
-  // Every page this app serves is a game page — there is no separate '/games'
-  // prefix to distinguish (the whole origin is in scope; see
-  // bherila/2025-website#1803 for the split, and the follow-up that dropped
-  // the '/games' route prefix once no PWA installs existed yet to preserve).
+  // Every page this app serves is a game page — the whole origin is in scope.
   return request.mode === 'navigate' && url.origin === currentOrigin
 }
 

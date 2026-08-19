@@ -9,10 +9,8 @@ const pwaCacheVersion = process.env.GITHUB_SHA
   ?? process.env.VITE_PWA_CACHE_VERSION
   ?? 'local';
 
-// Route prefix: dropped. bherila/2025-website#1803 initially kept `/games/*` (open
-// decision #1) to preserve existing URLs/PWA installs, but no PWA installs existed
-// yet, so the owner had this follow-up drop the prefix — routes are now root-mounted
-// (`/2048`, `/block-blaster`, ...) and the service worker's scope is `/`.
+// Routes are root-mounted (`/2048`, `/block-blaster`, ...), and the service
+// worker's scope is `/`.
 export default defineConfig({
   define: {
     __PWA_CACHE_VERSION__: JSON.stringify(pwaCacheVersion),
@@ -56,8 +54,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'resources/js'),
     },
   },
-  // Some games (e.g. the Explore-in-3D-style decode workers, if reintroduced) may need
-  // ES-module workers; kept for parity with the source repo's worker config.
+  // Some games may need ES-module workers.
   worker: {
     format: 'es',
   },

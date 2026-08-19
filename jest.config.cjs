@@ -1,6 +1,5 @@
 const sourceMaps = process.env.JEST_INLINE_SOURCEMAPS === '1' ? 'inline' : false;
-// Unlike the monorepo this was extracted from, every test here is a games test —
-// there is no JEST_EXCLUDE_GAME_TESTS split to preserve.
+// Every test here is a games test, so there is no separate game-test exclusion.
 const defaultTestPathIgnorePatterns = process.env.JEST_INCLUDE_SLOW_TESTS === '1'
   ? []
   : ['\\.slow\\.test\\.[tj]sx?$'];
