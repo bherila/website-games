@@ -5,13 +5,6 @@ Marble Sort, Math Horde, Parking Pickup, Tower Throwback) served from
 `games.bherila.net`. Laravel 13 + Vite + React 19, with a server-side API for
 authenticated cloud-saves.
 
-This repo was **extracted from a private monorepo** (`bherila/2025-website`) as a
-single fresh commit — see [bherila/2025-website#1803](https://github.com/bherila/2025-website/issues/1803)
-for the rationale (privacy boundary, CI cost, and TypeScript program isolation) and
-the decisions that shaped the split. History was intentionally not carried over: the
-source repo is private and its history references tax/financial data unrelated to
-these games, so starting clean avoids ever leaking any of that.
-
 ## What's here
 
 - `resources/js/games/**` — one Vite entrypoint per game, plus shared `_shared/` and
@@ -22,27 +15,19 @@ these games, so starting clean avoids ever leaking any of that.
   `app/Http/Controllers/Api/{GameDataController,TowerSaveController}.php` — the
   authenticated save API (`/api/games/...`).
 - A handful of generic shared components (`@/lib/utils`, `@/fetchWrapper`,
-  `@/components/{MainTitle,container}`, six `@/components/ui/*` primitives) copied in
-  from the source repo. These are expected to drift from their monorepo originals over
-  time — that's an accepted tradeoff of the split, not a bug.
+  `@/components/{MainTitle,container}`, and six `@/components/ui/*` primitives).
 
 ## Route prefix
 
 Routes are root-mounted — `/`, `/2048`, `/block-blaster`, `/chicks-challenge`,
 `/hover`, `/marble-sort`, `/math-horde`, `/parking-pickup`, `/tower-throwback` — with
-no `/games` prefix. #1803 originally kept `/games/*` (an explicitly open decision) to
-preserve existing URLs and the installed PWA's service-worker scope, but no PWA
-installs existed yet, so a follow-up dropped the prefix while it was still free to
-change. Route *names* still use the `games.` prefix (`games.index`, `games.2048`,
-...) — that's an internal identifier, not a URL, so keeping it avoided pure churn.
-The service worker's scope is now `/` (was `/games`); the API is unaffected — it was
-always under `/api/games/...` and stays there, since it's a namespaced API path, not
-a user-facing route.
+no `/games` prefix. Route *names* use the `games.` prefix (`games.index`,
+`games.2048`, ...), while the service worker and user-facing routes are rooted at `/`.
+The API remains under `/api/games/...` as a namespaced API path.
 
 ## Auth
 
-This app must **not** share the finance app's session cookie or database (see #1803).
-It has its own `users` table and signs in through the identity provider over an
+This app has its own `users` table and signs in through the identity provider over an
 authorization-code flow with PKCE, configured by the `OAUTH_*` keys in `.env`.
 
 Accounts bind to the provider's immutable `sub` claim, stored as
@@ -52,7 +37,7 @@ account when its owner changes theirs, and hand over the previous owner's saved 
 when an address is reused. The provider does not assert `email_verified`, so there is
 nothing that raises a matching address above an unverified claim.
 
-### Linking an account copied from the provider's database
+### Linking an existing account
 
 Rows copied across before OAuth existed carry an address but no subject, so no sign-in
 can reach them: the first login tries to create a second account, collides with the
@@ -99,27 +84,14 @@ GitHub Actions workflows.
 
 ## Deployment
 
-CI targets GitHub-hosted `ubuntu-24.04-arm` runners exclusively (this repo has no
-access to the source repo's self-hosted pool — free hosted ARM runners for a public
-repo was one of the three reasons for the split).
+CI targets GitHub-hosted `ubuntu-24.04-arm` runners. Production is deployed to a
+dedicated application directory and database, with credentials kept in the server
+environment.
 
-Production lives in the same cPanel account as the source repo, in its own directory,
-subdomain, and database:
-
-- Laravel root: `~/games-laravel`, webroot `~/games.bherila.net` (symlinked to
-  `games-laravel/public`)
-- Database: `bherila_games`, a separate MySQL database and user — never shared with
-  the finance app's database (see #1803 for why).
-
-`.github/workflows/ci.yml`'s `deploy` job authenticates with a dedicated SSH key (not
-a password) and expects four repo secrets: `SSH_PRIVATE_KEY` (the deploy key's full
-PEM, header/footer included), `SSH_HOST`, `SSH_USERNAME`, and `SSH_KNOWN_HOSTS`
-(`ssh-keyscan -H` output for the host, so the deploy pins the host key instead of
-disabling verification). It deploys **only** to `~/games-laravel/` on the server —
-never to the finance app's directory.
+The deploy job uses a dedicated SSH key and pinned host keys from repository secrets.
+It deploys only the games application and never includes the server environment file.
 
 ## Privacy
 
-This repo is public (or intended to be). Do not commit real names, account numbers,
-or other identifying information in code, commit messages, or CI config — same rule
-as the source repo, see #1803.
+Keep credentials, account numbers, and other identifying information out of the
+repository, commit messages, and CI configuration.

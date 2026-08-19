@@ -15,9 +15,8 @@ class GameSelectPageTest extends TestCase
 
         $response = $this->get('/');
 
-        // Unlike the monorepo this was extracted from, this standalone app has no
-        // wider site to navigate back to, so the select page uses the bare game
-        // shell layout (no navbar) like every other game page.
+        // The select page uses the bare game shell layout (no navbar), like every
+        // other game page.
         $response->assertOk()
             ->assertSee('game-select-root')
             ->assertDontSee('id="navbar"', false);

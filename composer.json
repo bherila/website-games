@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "bherila/website-games",
     "type": "project",
-    "description": "Standalone Laravel + Vite app serving games.bherila.net, extracted from a private monorepo (bherila/2025-website#1803).",
+    "description": "Standalone Laravel + Vite app serving games.bherila.net.",
     "keywords": ["laravel", "framework", "games"],
     "license": "MIT",
     "require": {

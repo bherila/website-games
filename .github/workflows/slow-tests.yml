@@ -2,9 +2,8 @@ name: Slow Tests
 
 # Nightly sweep of the *.slow.test.* suites, which the normal Jest run excludes
 # (jest.config.cjs pattern, pinned by tests-ts/jestConfig.test.ts so a file like
-# `slowdown.test.ts` is not swept up by it). This repo inherited the exclusion
-# and the `test:slow` script in the monorepo split but not this workflow, so the
-# slow suites were dormant until it was ported here.
+# `slowdown.test.ts` is not swept up by it). The slow suites are kept out of the
+# normal Jest run and exercised by this scheduled workflow.
 on:
   schedule:
     - cron: '17 9 * * *'

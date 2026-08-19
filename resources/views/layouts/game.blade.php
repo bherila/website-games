@@ -13,9 +13,8 @@
     {{-- Site ships its own dark theme; tells the Dark Reader extension not to re-filter it. --}}
     <meta name="darkreader-lock">
     @include('games.pwa-head')
-    {{-- Trimmed from the monorepo layout: no admin roles, client companies, or
-         user_role — those are finance-app concepts. Games JS only reads
-         `authenticated` and `currentUser.id` (see resources/js/games/_shared/gameDataPersistence.ts). --}}
+    {{-- Games JS only reads `authenticated` and `currentUser.id` (see
+         resources/js/games/_shared/gameDataPersistence.ts). --}}
     <script id="app-initial-data" type="application/json">
       {!! json_encode([
         'appName' => config('app.name', 'Games'),

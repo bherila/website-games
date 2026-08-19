@@ -227,10 +227,8 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      # Destination is hard-coded to ~/games-laravel/ — this account also hosts the
-      # separate finance app at ~/bwh-php/ (webroot ~/public_html), and --delete makes
-      # a wrong or empty destination catastrophic. Never point this at ~/, ~/bwh-php,
-      # ~/public_html, or ~/www.
+      # Destination is hard-coded to the games application directory. Because --delete
+      # makes a wrong or empty destination catastrophic, keep this path narrowly scoped.
       #
       # Host key is pinned via SSH_KNOWN_HOSTS (no StrictHostKeyChecking=no) — the
       # deploy key alone only proves who we are, not that the server is who it claims

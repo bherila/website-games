@@ -21,11 +21,8 @@ Route::post('/logout', [OAuthLoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-// Routes are root-mounted (no '/games' prefix). This app has no PWA installs
-// yet to preserve, so the owner had the '/games' prefix dropped in a follow-up
-// to bherila/2025-website#1803 rather than carrying it forward for stability
-// it didn't need. Route *names* keep the 'games.' prefix — that's an internal
-// identifier, not a URL, and changing it would be pure churn.
+// Routes are root-mounted (no '/games' prefix). Route *names* keep the 'games.'
+// prefix as an internal identifier, separate from the user-facing URL.
 Route::get('/sw.js', [GamePwaController::class, 'serviceWorker'])
     ->name('games.service-worker');
 
