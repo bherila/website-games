@@ -21,7 +21,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set Playwright target
         env:
@@ -49,7 +49,7 @@ jobs:
 
       - name: Cache Composer dependencies
         if: env.RUN_LOCAL_APP == 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: parking-pickup-playwright-report
           path: |
