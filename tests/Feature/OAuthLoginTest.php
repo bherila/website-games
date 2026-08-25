@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\OAuthLoginController;
 use App\Models\TowerSaveSlot;
 use App\Models\User;
 use Illuminate\Database\Events\QueryExecuted;
@@ -34,7 +35,68 @@ class OAuthLoginTest extends TestCase
             'authorize_path' => '/oauth/authorize',
             'token_path' => '/oauth/token',
             'identity_path' => '/api/oauth/user',
+            // This application's own config does not restate `oauth_client`, so it inherits
+            // the package's paths. This setUp *does* restate it, and `mergeConfigFrom` is a
+            // shallow merge, so an omitted key here would be blank rather than inherited and
+            // `endSessionUrl()` would abort 503.
+            'end_session_path' => '/oauth/end-session',
         ]);
+    }
+
+    public function test_signing_out_ends_the_session_at_the_provider(): void
+    {
+        $user = User::factory()->create();
+
+        // Ending only the local session leaves the provider still recognising this person,
+        // so the next sign-in returns them with no prompt and the button reads as a no-op.
+        $this->actingAs($user)
+            ->post('/logout')
+            ->assertRedirect(
+                'https://identity.example.test/oauth/end-session?client_id=games-client&post_logout_redirect_uri=http%3A%2F%2Flocalhost',
+            );
+
+        $this->assertGuest();
+    }
+
+    public function test_signing_out_stays_local_when_no_provider_is_configured(): void
+    {
+        Config::set('bherila-auth.oauth_client.client_id', '');
+
+        $user = User::factory()->create();
+
+        // Handing off to a provider that was never configured aborts 503, which would make
+        // signing out fail outright — worse than signing out only locally.
+        $this->actingAs($user)->post('/logout')->assertRedirect('/');
+        $this->assertGuest();
+    }
+
+    public function test_the_home_page_lists_the_applications_the_provider_reported(): void
+    {
+        $this->withoutVite();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession([OAuthLoginController::APPLICATIONS_SESSION_KEY => [
+                ['key' => 'phr', 'name' => 'Health', 'url' => 'https://phr.example.test'],
+            ]])
+            ->get('/')
+            ->assertOk()
+            ->assertSee('https://phr.example.test')
+            ->assertSee('Health');
+    }
+
+    public function test_an_anonymous_visitor_is_told_nothing_about_the_other_applications(): void
+    {
+        $this->withoutVite();
+
+        // Which applications exist is not public: rendering the list to anyone who merely
+        // loads the page would publish it.
+        $this->withSession([OAuthLoginController::APPLICATIONS_SESSION_KEY => [
+            ['key' => 'phr', 'name' => 'Health', 'url' => 'https://phr.example.test'],
+        ]])
+            ->get('/')
+            ->assertOk()
+            ->assertDontSee('https://phr.example.test');
     }
 
     public function test_home_page_has_an_explicit_sign_in_link(): void
