@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "214b0db41d20c02cde3d28bd9fcd8367",
+    "content-hash": "993ac390ef48b2cca3218ddb52c33bd9",
     "packages": [
         {
             "name": "bherila/auth-laravel",
-            "version": "v0.5.2",
+            "version": "v0.8.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/bherila/auth.git",
-                "reference": "8cbae89b5cceb1a9fb000ac4bf75aff41d8dcefd"
+                "url": "https://github.com/bherila/auth-laravel.git",
+                "reference": "69b6f31bfa3fd42abb309538069d29044e838a82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bherila/auth/zipball/8cbae89b5cceb1a9fb000ac4bf75aff41d8dcefd",
-                "reference": "8cbae89b5cceb1a9fb000ac4bf75aff41d8dcefd",
+                "url": "https://api.github.com/repos/bherila/auth-laravel/zipball/69b6f31bfa3fd42abb309538069d29044e838a82",
+                "reference": "69b6f31bfa3fd42abb309538069d29044e838a82",
                 "shasum": ""
             },
             "require": {
@@ -32,11 +32,15 @@
                 "illuminate/support": "^12.0 || ^13.0",
                 "illuminate/validation": "^12.0 || ^13.0",
                 "php": "^8.2",
-                "symfony/uid": "^7.0",
+                "symfony/uid": "^7.0 || ^8.0",
                 "web-auth/webauthn-lib": "^5.2"
             },
             "require-dev": {
+                "laravel/passport": "^13.0",
                 "orchestra/testbench": "^10.0"
+            },
+            "suggest": {
+                "laravel/passport": "Required only when using the optional OAuth authorization-server helpers."
             },
             "type": "library",
             "extra": {
@@ -48,7 +52,7 @@
             },
             "autoload": {
                 "psr-4": {
-                    "BWH\\Auth\\": "php/src/"
+                    "BWH\\Auth\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -56,11 +60,12 @@
                 "MIT"
             ],
             "description": "Shared Laravel authentication services for BWH applications.",
+            "homepage": "https://github.com/bherila/auth-laravel",
             "support": {
-                "issues": "https://github.com/bherila/auth/issues",
-                "source": "https://github.com/bherila/auth/tree/v0.5.2"
+                "issues": "https://github.com/bherila/auth-laravel/issues",
+                "source": "https://github.com/bherila/auth-laravel"
             },
-            "time": "2026-08-15T06:21:58+00:00"
+            "time": "2026-08-25T06:01:50+00:00"
         },
         {
             "name": "brick/math",

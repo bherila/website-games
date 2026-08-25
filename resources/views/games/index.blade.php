@@ -9,6 +9,24 @@
             bherila.net
         </a>
         <div class="flex items-center gap-4">
+            @auth
+                @php($__apps = \App\Http\Controllers\OAuthLoginController::applications(request()))
+                @if ($__apps !== [])
+                    {{-- The sibling applications the identity provider reports for this person
+                         at sign-in. Rendered server-side and only when signed in, so which
+                         applications exist is not published to anonymous visitors and is not
+                         compiled into a bundle anyone can read. A native disclosure, so it
+                         needs no script of its own. --}}
+                    <details class="relative">
+                        <summary class="cursor-pointer list-none text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Apps</summary>
+                        <div class="absolute right-0 z-50 mt-2 min-w-44 rounded-lg border border-border bg-card p-1 shadow-lg">
+                            @foreach ($__apps as $__app)
+                                <a href="{{ $__app['url'] }}" class="block whitespace-nowrap rounded px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground hover:no-underline">{{ $__app['name'] }}</a>
+                            @endforeach
+                        </div>
+                    </details>
+                @endif
+            @endauth
             <div id="account-auth-action">
                 @guest
                     <a href="{{ route('oauth.redirect') }}" class="font-medium text-primary hover:underline">
