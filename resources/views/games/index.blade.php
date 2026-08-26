@@ -10,7 +10,7 @@
         </a>
         <div class="flex items-center gap-4">
             @auth
-                @php($__apps = \App\Http\Controllers\OAuthLoginController::applications(request()))
+                @php($__apps = \BWH\Auth\OAuth\ProviderApplications::forRequest(request()))
                 @if ($__apps !== [])
                     {{-- The sibling applications the identity provider reports for this person
                          at sign-in. Rendered server-side and only when signed in, so which
