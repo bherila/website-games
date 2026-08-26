@@ -1,5 +1,6 @@
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
+import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { createSfxEngine, type SfxEngine } from './audio/sfx'
 import { createEngineState } from './engine/engine'
 import { createRng } from './engine/rng'
@@ -285,13 +286,21 @@ export function HoverGame(): ReactElement {
         onResume={togglePause}
         onPlayAgain={handleStart}
       />
-      {phase === 'attract' || phase === 'gameOver' ? (
-        <a
-          href="/"
-          className="absolute top-4 left-4 z-30 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/80 backdrop-blur-sm hover:bg-white/20"
-        >
-          ← All Games
-        </a>
+      {phase === 'attract' || phase === 'paused' || phase === 'gameOver' ? (
+        <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+          {phase !== 'paused' ? (
+            <a
+              href="/"
+              className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/80 backdrop-blur-sm hover:bg-white/20"
+            >
+              ← All Games
+            </a>
+          ) : null}
+          <FullscreenIconButton
+            className="rounded-lg bg-white/10 text-white/80 backdrop-blur-sm hover:bg-white/20"
+            iconClassName="size-4"
+          />
+        </div>
       ) : null}
     </div>
   )

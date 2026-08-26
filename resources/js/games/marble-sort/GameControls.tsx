@@ -3,6 +3,7 @@ import { type Dispatch, type ReactElement, type ReactNode, type SetStateAction }
 
 import { cn } from '@/lib/utils'
 
+import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import {
   BottomControlButton,
   ColorblindToggle,
@@ -255,6 +256,7 @@ function BottomControls({
           variant="ghost"
           onClick={() => onSoundMutedChange(!soundMuted)}
         />
+        <FullscreenBottomControlButton />
     </GameBottomToolbar>
   )
 }

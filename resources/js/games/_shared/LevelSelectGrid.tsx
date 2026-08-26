@@ -3,6 +3,8 @@ import type { ReactElement } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { FullscreenIconButton } from './FullscreenButton'
+
 export interface LevelSelectProgress {
   unlockedLevel: number
   stars: Record<number, number>
@@ -30,16 +32,22 @@ export function LevelSelectGrid({ emoji, title, levelIds, progress, exitHref, fo
       {/* m-auto (not justify-center on the scroll container) so a grid taller
           than the viewport scrolls from its top instead of clipping it. */}
       <div className="m-auto flex min-h-full w-fit flex-col items-center justify-center gap-4">
-        {exitHref && (
-          <a
-            className="flex min-h-11 items-center gap-1.5 rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-transform active:scale-95 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200"
-            data-testid="level-select-exit"
-            href={exitHref}
-          >
-            <ArrowLeft aria-hidden="true" className="size-3.5" />
-            All Games
-          </a>
-        )}
+        <div className="flex items-center gap-2">
+          {exitHref && (
+            <a
+              className="flex min-h-11 items-center gap-1.5 rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition-transform active:scale-95 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200"
+              data-testid="level-select-exit"
+              href={exitHref}
+            >
+              <ArrowLeft aria-hidden="true" className="size-3.5" />
+              All Games
+            </a>
+          )}
+          <FullscreenIconButton
+            className="rounded-full border border-white/70 bg-white/80 text-slate-700 shadow-sm transition-transform active:scale-95 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200"
+            iconClassName="size-4"
+          />
+        </div>
         <span aria-hidden="true" className="text-4xl">{emoji}</span>
         <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50">{title}</h1>
         <div className="grid grid-cols-5 gap-2 sm:gap-3">

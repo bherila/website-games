@@ -3,6 +3,7 @@ import { type ReactElement, useCallback, useEffect, useRef, useState } from 'rea
 
 import { cn } from '@/lib/utils'
 
+import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import {
   BottomControlButton,
   GAME_TOOLBAR_PADDING_CLASS,
@@ -319,6 +320,7 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
               onClick={toggleMute}
             />
           </span>
+          <FullscreenBottomControlButton />
         </GameBottomToolbar>
 
         {run.status === 'won' && pendingSize === null && (
