@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\OAuthLoginController;
 use App\Models\TowerSaveSlot;
 use App\Models\User;
+use BWH\Auth\OAuth\ProviderApplications;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,7 +76,7 @@ class OAuthLoginTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->withSession([OAuthLoginController::APPLICATIONS_SESSION_KEY => [
+            ->withSession([ProviderApplications::SESSION_KEY => [
                 ['key' => 'phr', 'name' => 'Health', 'url' => 'https://phr.example.test'],
             ]])
             ->get('/')
@@ -91,7 +91,7 @@ class OAuthLoginTest extends TestCase
 
         // Which applications exist is not public: rendering the list to anyone who merely
         // loads the page would publish it.
-        $this->withSession([OAuthLoginController::APPLICATIONS_SESSION_KEY => [
+        $this->withSession([ProviderApplications::SESSION_KEY => [
             ['key' => 'phr', 'name' => 'Health', 'url' => 'https://phr.example.test'],
         ]])
             ->get('/')
