@@ -63,24 +63,3 @@ Non-obvious, verified:
 
 Keep credentials, account numbers, and identifying information out of the repository, commit
 messages, PR/issue text, and CI configuration.
-
-## Codex PR review
-
-GOAL: never mistake a Codex **security-review** quota message for a failed or unavailable
-**code** review.
-
-1. A bot comment reading "You have reached your Codex usage limits for security reviews.
-   Please try again later." is scoped to **security reviews only**. It says nothing about
-   code-review availability. Disregard it when judging whether a code review ran, and never
-   report "no review / out of quota" on the strength of that comment.
-
-2. Checking for a review means checking **all three** endpoints, because findings usually land
-   as review comments rather than issue comments:
-
-   ```bash
-   gh api repos/<owner>/<repo>/issues/<n>/comments   # issue-level comments
-   gh api repos/<owner>/<repo>/pulls/<n>/reviews     # review submissions
-   gh api repos/<owner>/<repo>/pulls/<n>/comments    # INLINE review comments — where findings appear
-   ```
-
-   A 👀 reaction means a review is in progress. Absence of issue comments proves nothing.
