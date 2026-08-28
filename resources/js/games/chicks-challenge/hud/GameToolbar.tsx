@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { FullscreenIconButton } from '../../_shared/FullscreenButton'
 import type { MoveIntent } from '../engine/types'
 import type { BoardOrientationPreference, BoardQuarterTurns } from '../input/orientation'
 import { TouchDpad } from './TouchDpad'
@@ -51,29 +52,35 @@ export function GameToolbar({
         landscape:pt-[max(0.5rem,env(safe-area-inset-top))] landscape:pl-2"
       data-testid="chips-toolbar"
     >
-      <button
-        aria-label={ORIENTATION_ARIA[orientationPreference]}
-        className={cn(
-          'flex h-11 min-w-11 items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3',
-          'text-xs font-bold text-slate-700 shadow-md transition-transform active:scale-95',
-          'dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200',
-        )}
-        data-orientation-preference={orientationPreference}
-        data-testid="orientation-toggle"
-        type="button"
-        onClick={onCycleOrientation}
-      >
-        {/* The icon leans the way the board is actually turned, either direction. */}
-        <RotateCw
-          aria-hidden="true"
+      <div className="flex items-end gap-2 landscape:flex-col landscape:items-center">
+        <button
+          aria-label={ORIENTATION_ARIA[orientationPreference]}
           className={cn(
-            'size-4 transition-transform',
-            quarterTurns === 1 && 'rotate-90',
-            quarterTurns === 3 && '-rotate-90',
+            'flex h-11 min-w-11 items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3',
+            'text-xs font-bold text-slate-700 shadow-md transition-transform active:scale-95',
+            'dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200',
           )}
+          data-orientation-preference={orientationPreference}
+          data-testid="orientation-toggle"
+          type="button"
+          onClick={onCycleOrientation}
+        >
+          {/* The icon leans the way the board is actually turned, either direction. */}
+          <RotateCw
+            aria-hidden="true"
+            className={cn(
+              'size-4 transition-transform',
+              quarterTurns === 1 && 'rotate-90',
+              quarterTurns === 3 && '-rotate-90',
+            )}
+          />
+          {ORIENTATION_LABEL[orientationPreference]}
+        </button>
+        <FullscreenIconButton
+          className="h-11 min-w-11 rounded-full border border-white/70 bg-white/90 text-slate-700 shadow-md transition-transform active:scale-95 dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200"
+          iconClassName="size-4"
         />
-        {ORIENTATION_LABEL[orientationPreference]}
-      </button>
+      </div>
 
       {showDpad && <TouchDpad onIntent={onIntent} />}
     </div>

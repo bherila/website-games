@@ -72,36 +72,64 @@
                 root.append(link);
               })();
             </script>
-            <button
-                type="button"
-                id="theme-toggle"
-                class="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-                <svg data-theme-icon="system" xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
-                <svg data-theme-icon="light" hidden xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
-                <svg data-theme-icon="dark" hidden xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            </button>
+            @php($theme = in_array($cookieTheme = request()->cookie('theme'), ['light', 'dark'], true) ? $cookieTheme : 'system')
+            {{-- Segmented control from real radios: native arrow-key navigation and
+                 checked-state announcements, no hover needed to read the state. --}}
+            <fieldset id="theme-switcher" class="inline-flex items-center rounded-full border border-border bg-muted/40 p-1">
+                <legend class="sr-only">Color theme</legend>
+                <label class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors has-checked:bg-card has-checked:text-foreground has-checked:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
+                    <input type="radio" name="theme" value="system" class="sr-only" @checked($theme === 'system')>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                    <span class="hidden sm:inline">System<span data-system-resolved></span></span>
+                    <span class="sr-only sm:hidden">System</span>
+                </label>
+                <label class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors has-checked:bg-card has-checked:text-foreground has-checked:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
+                    <input type="radio" name="theme" value="light" class="sr-only" @checked($theme === 'light')>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                    <span class="hidden sm:inline">Light</span>
+                    <span class="sr-only sm:hidden">Light</span>
+                </label>
+                <label class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors has-checked:bg-card has-checked:text-foreground has-checked:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring">
+                    <input type="radio" name="theme" value="dark" class="sr-only" @checked($theme === 'dark')>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                    <span class="hidden sm:inline">Dark</span>
+                    <span class="sr-only sm:hidden">Dark</span>
+                </label>
+            </fieldset>
+            <span class="sr-only" role="status" data-theme-announce></span>
             <script>
               (function () {
-                var btn = document.getElementById('theme-toggle');
-                if (!btn || !window.bwhTheme) return;
-                var order = ['system', 'light', 'dark'];
-                var current = window.bwhTheme.read();
-                if (order.indexOf(current) === -1) current = 'system';
-                var render = function () {
-                  btn.setAttribute('aria-label', 'Theme: ' + current + ' (activate to change)');
-                  btn.title = 'Theme: ' + current;
-                  btn.querySelectorAll('[data-theme-icon]').forEach(function (icon) {
-                    icon.hidden = icon.getAttribute('data-theme-icon') !== current;
-                  });
+                var fieldset = document.getElementById('theme-switcher');
+                if (!fieldset || !window.bwhTheme) return;
+                var media = window.matchMedia('(prefers-color-scheme: dark)');
+                var announce = document.querySelector('[data-theme-announce]');
+                var resolved = fieldset.querySelector('[data-system-resolved]');
+                var systemLabel = function () { return media.matches ? 'dark' : 'light'; };
+                var check = function (theme) {
+                  var input = fieldset.querySelector('input[value="' + theme + '"]');
+                  if (input) input.checked = true;
                 };
-                btn.addEventListener('click', function () {
-                  current = order[(order.indexOf(current) + 1) % order.length];
-                  window.bwhTheme.save(current);
-                  window.bwhTheme.apply(current);
-                  render();
+                var renderResolved = function () {
+                  if (resolved) resolved.textContent = ' (' + systemLabel() + ')';
+                };
+                fieldset.addEventListener('change', function (event) {
+                  var theme = event.target.value;
+                  window.bwhTheme.save(theme);
+                  window.bwhTheme.apply(theme);
+                  if (announce) {
+                    announce.textContent = theme === 'system'
+                      ? 'Theme set to system, currently ' + systemLabel()
+                      : 'Theme set to ' + theme;
+                  }
                 });
-                render();
+                media.addEventListener('change', renderResolved);
+                {{-- Cross-tab sync; the layout script already re-applies the page theme. --}}
+                window.addEventListener('storage', function (event) {
+                  if (event.key === 'theme') check(window.bwhTheme.read());
+                });
+                {{-- The cookie can disagree with cached/SSR markup; the client value wins. --}}
+                check(window.bwhTheme.read());
+                renderResolved();
               })();
             </script>
         </div>

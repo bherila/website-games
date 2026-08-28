@@ -6,6 +6,7 @@
  */
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { useGameSounds } from './audio/useGameSounds'
 import { isBlockingModalOpen } from './blockingModals'
 import { encodeChallengeCode, randomSeed } from './challengeCode'
@@ -832,6 +833,7 @@ export function TowerGame(): ReactElement {
               onSetPaletteMode={presentation.setDiagnosticPalette}
               onSetMotion={presentation.setMotion}
             />
+            <FullscreenIconButton className="rounded-md bg-white/10 text-white shadow hover:bg-white/20" iconClassName="size-4" />
             <div className="inline-flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 shadow">
               <button
                 type="button"

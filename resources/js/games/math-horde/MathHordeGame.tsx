@@ -1,6 +1,7 @@
 import { ArrowRight, Grid3x3, Pause, Play, RotateCcw, Star, Trophy, Users, Volume2, VolumeX, X } from 'lucide-react'
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { PortraitGameShell } from '../PortraitGameShell'
 import { createSfxEngine, type SfxName } from './audio/sfx'
@@ -210,15 +211,19 @@ function GameHud({ hud, level, muted, paused, onExit, onPause, onToggleMute }: G
           SECTOR {level} · {hud.score.toLocaleString()}
         </div>
         <div className="pointer-events-auto flex gap-2">
-          <button aria-label={muted ? 'Unmute' : 'Mute'} className="flex size-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onToggleMute}>
+          <button aria-label={muted ? 'Unmute' : 'Mute'} className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onToggleMute}>
             {muted ? <VolumeX aria-hidden="true" className="size-4" /> : <Volume2 aria-hidden="true" className="size-4" />}
           </button>
-          <button aria-label={paused ? 'Resume' : 'Pause'} className="flex size-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onPause}>
+          <button aria-label={paused ? 'Resume' : 'Pause'} className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onPause}>
             {paused ? <Play aria-hidden="true" className="size-4" /> : <Pause aria-hidden="true" className="size-4" />}
           </button>
-          <button aria-label="Level select" className="flex size-9 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onExit}>
+          <button aria-label="Level select" className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onExit}>
             <Grid3x3 aria-hidden="true" className="size-4" />
           </button>
+          <FullscreenIconButton
+            className="size-11 rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95"
+            iconClassName="size-4"
+          />
         </div>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/15">

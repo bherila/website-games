@@ -7,18 +7,18 @@ interface PortraitGameShellProps {
   className?: string
   contentClassName?: string
   /**
-   * Opt-in, default `false` — every other consumer keeps the exact previous
-   * behaviour (`h-screen` plus the hard 4:3 portrait width lock).
+   * Opt-in, default `false` — the default keeps the hard 4:3 portrait width
+   * lock in every orientation.
    *
-   * When `true` the shell instead (a) measures its height with the dynamic
-   * viewport unit so mobile browser chrome can't push the playfield off-screen,
-   * and (b) drops the 4:3 lock in landscape, where letterboxing a portrait
-   * column wastes most of a landscape phone. Portrait framing is unchanged.
+   * When `true` the shell drops the 4:3 lock in landscape, where letterboxing
+   * a portrait column wastes most of a landscape phone. Portrait framing is
+   * unchanged. Both modes size with dynamic viewport units so mobile browser
+   * chrome can't push the playfield off-screen.
    */
   allowLandscape?: boolean
 }
 
-const PORTRAIT_VIEWPORT_MAX_WIDTH = 'min(100vw, calc(100vh * 3 / 4))'
+const PORTRAIT_VIEWPORT_MAX_WIDTH = 'min(100vw, calc(100dvh * 3 / 4))'
 
 export function PortraitGameShell({
   children,
@@ -27,7 +27,7 @@ export function PortraitGameShell({
   allowLandscape = false,
 }: PortraitGameShellProps): ReactElement {
   return (
-    <div className={cn('flex w-full justify-center overflow-hidden', allowLandscape ? 'h-dvh' : 'h-screen', className)}>
+    <div className={cn('flex h-dvh w-full justify-center overflow-hidden', className)}>
       <div
         className={cn(
           'flex h-full min-w-0 flex-col',

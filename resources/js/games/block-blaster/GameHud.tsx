@@ -1,6 +1,7 @@
 import { Circle, Grid3x3, RotateCcw } from 'lucide-react'
 import type { ReactElement } from 'react'
 
+import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import { BottomControlButton, GameBottomToolbar } from '../_shared/GameControlPrimitives'
 
 interface GameHudProps {
@@ -31,6 +32,7 @@ export function GameHud({ ballsRemaining, level, onLevelSelect, onRetry }: GameH
       <GameBottomToolbar>
         <BottomControlButton disabled={false} icon={<RotateCcw />} label="Retry" variant="ghost" onClick={onRetry} />
         <BottomControlButton disabled={false} icon={<Grid3x3 />} label="Level select" variant="ghost" onClick={onLevelSelect} />
+        <FullscreenBottomControlButton />
       </GameBottomToolbar>
     </>
   )

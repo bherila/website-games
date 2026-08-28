@@ -145,7 +145,7 @@ interface GameBottomToolbarProps {
 
 export function GameBottomToolbar({ children }: GameBottomToolbarProps): ReactElement {
   return (
-    <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 flex justify-center sm:bottom-3">
+    <div className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-20 flex justify-center sm:bottom-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div
         aria-label="Game controls"
         className="pointer-events-auto flex items-center gap-1.5 rounded-3xl border border-white/70 bg-white/85 p-1.5 shadow-xl shadow-slate-950/20 backdrop-blur-md sm:gap-2 sm:p-2 dark:border-white/10 dark:bg-slate-950/80"

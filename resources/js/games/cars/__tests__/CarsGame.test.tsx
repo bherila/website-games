@@ -80,7 +80,7 @@ describe('CarsGame', () => {
     expect(screen.getByRole('button', { name: 'Tutorial' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mute audio' })).toBeInTheDocument()
     expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-vip-selection', 'inactive')
-    expect(screen.getByTestId('portrait-game-viewport').getAttribute('style')).toContain('calc(100vh * 3 / 4)')
+    expect(screen.getByTestId('portrait-game-viewport').getAttribute('style')).toContain('calc(100dvh * 3 / 4)')
   })
 
   it('shows hard difficulty indicators on hard authored levels', () => {
