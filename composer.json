@@ -6,8 +6,8 @@
     "keywords": ["laravel", "framework", "games"],
     "license": "MIT",
     "require": {
-        "php": ">=8.3 <8.6",
-        "bherila/auth-laravel": "^0.9",
+        "php": ">=8.4 <8.6",
+        "bherila/auth-laravel": "^0.11",
         "laravel/framework": "^13.8",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0"
