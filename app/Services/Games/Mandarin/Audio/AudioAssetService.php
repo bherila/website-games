@@ -68,12 +68,16 @@ class AudioAssetService
 
         $asset = MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->first();
         if ($asset !== null && $asset->isReady()) {
-            if ($this->delivery->objectExists($asset)) {
+            $state = $this->delivery->objectState($asset);
+            if ($state !== 'absent') {
+                // `unknown` (disk unreachable) keeps the row ready: never regenerate on a transient storage error.
                 $this->rememberSource($course, $source, $recipe->hash);
 
-                return $this->ready($source, $asset);
+                return $state === 'present'
+                    ? $this->ready($source, $asset)
+                    : $this->failed($source, 'storage_unavailable', 'The audio store could not be reached. Try again in a moment.', true);
             }
-            // A ready row without its object is not ready; it needs bounded regeneration.
+            // A ready row whose object is verifiably gone is not ready; it needs bounded regeneration.
             $asset->forceFill(['state' => MandarinAudioAsset::STATE_FAILED, 'error_code' => 'asset_missing', 'error_message' => 'Stored object is missing.', 'disk' => null, 'object_key' => null])->save();
         }
 
@@ -134,7 +138,11 @@ class AudioAssetService
             : ['sourceKind' => $source->source_kind, 'sourceId' => $source->source_id, 'variant' => $source->variant];
 
         return match ($asset->state) {
-            MandarinAudioAsset::STATE_READY => $this->delivery->objectExists($asset) ? $this->ready($ref, $asset) : $this->failed($ref, 'asset_missing', 'Stored object is missing.', true),
+            MandarinAudioAsset::STATE_READY => match ($this->delivery->objectState($asset)) {
+                'present' => $this->ready($ref, $asset),
+                'unknown' => $this->failed($ref, 'storage_unavailable', 'The audio store could not be reached. Try again in a moment.', true),
+                default => $this->failed($ref, 'asset_missing', 'Stored object is missing.', true),
+            },
             MandarinAudioAsset::STATE_FAILED => $this->failed($ref, (string) ($asset->error_code ?? 'provider_unavailable'), (string) ($asset->error_message ?? 'Generation failed.'), $asset->attempts < (int) config('mandarin.audio.max_attempts', 3)),
             default => $this->pending($ref, $asset),
         };
