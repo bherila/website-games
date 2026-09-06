@@ -68,6 +68,9 @@ export function createPreviewRuntime(options: PreviewRuntimeOptions = {}): Manda
     clientInstanceId: store.clientInstanceId(() => randomId('client')),
     sessionId: randomId('session'),
     now,
+    resetState() {
+      gateway.reset()
+    },
     dispose() {
       audio.dispose()
     },

@@ -56,15 +56,17 @@ export function SettingsScreen(): ReactElement {
       <Panel className="flex flex-col gap-3">
         <SectionTitle>Your data</SectionTitle>
         <p className="text-sm">
-          This preview stores progress and settings only in this browser, under keys starting with <code className="rounded bg-[#eef0ec] px-1">{PREVIEW_STORAGE_PREFIX}</code>. Nothing is sent to a server. Preview progress is never imported into a real account.
+          {scenario
+            ? <>This preview stores progress and settings only in this browser, under keys starting with <code className="rounded bg-[#eef0ec] px-1">{PREVIEW_STORAGE_PREFIX}</code>. Nothing is sent to a server. Preview progress is never imported into a real account.</>
+            : <>Settings and a local copy of your progress stay in this browser under keys starting with <code className="rounded bg-[#eef0ec] px-1">mandarin.live.</code>, partitioned by account. Answers are uploaded to your account when you are signed in; the server keeps the authoritative record.</>}
         </p>
         {!confirmReset && (
-          <GameButton variant="danger" onClick={() => setConfirmReset(true)} data-testid="reset-preview">Reset preview progress</GameButton>
+          <GameButton variant="danger" onClick={() => setConfirmReset(true)} data-testid="reset-preview">{scenario ? 'Reset preview progress' : 'Clear local copy on this browser'}</GameButton>
         )}
         {confirmReset && (
           <div role="alertdialog" aria-labelledby="reset-title" aria-describedby="reset-desc" className="flex flex-col gap-2 rounded-xl border border-[#e0bcbc] bg-[#fbf1f1] p-3" data-testid="reset-confirm">
-            <p id="reset-title" className="font-bold">Delete all preview progress on this browser?</p>
-            <p id="reset-desc" className="text-sm">Scenes, answers and settings go back to the start. This cannot be undone.</p>
+            <p id="reset-title" className="font-bold">{scenario ? 'Delete all preview progress on this browser?' : 'Clear the local copy on this browser?'}</p>
+            <p id="reset-desc" className="text-sm">{scenario ? 'Scenes, answers and settings go back to the start. This cannot be undone.' : 'Local settings and cached progress are removed. Progress already saved to your account is not affected.'}</p>
             <div className="flex flex-wrap gap-2">
               <GameButton variant="danger" onClick={() => { game.resetPreview(); setConfirmReset(false) }} data-testid="reset-confirm-button">Yes, reset</GameButton>
               <GameButton variant="secondary" onClick={() => setConfirmReset(false)}>Keep my progress</GameButton>

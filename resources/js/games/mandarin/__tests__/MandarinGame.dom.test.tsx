@@ -180,11 +180,12 @@ describe('MandarinGame five-scene preview', () => {
     runtime.dispose()
   })
 
-  it('resets the preview partition only after confirmation', async () => {
+  it('resets the preview partition and the mock server state only after confirmation', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
     store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.0', onboardingComplete: true, currentNodeId: 's1n1', completedNodeIds: ['s1n1'] })
-    const runtime = createPreviewRuntime({ scenario: findPreviewScenario('fresh'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
+    // The returning scenario seeds completed nodes in the mock gateway too; reset must clear both.
+    const runtime = createPreviewRuntime({ scenario: findPreviewScenario('returning'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
     render(<MandarinGame runtime={runtime} />)
     await screen.findByTestId('home-screen')
     click(screen.getByLabelText('Settings'))
@@ -197,6 +198,9 @@ describe('MandarinGame five-scene preview', () => {
     click(screen.getByTestId('reset-preview'))
     click(screen.getByTestId('reset-confirm-button'))
     await screen.findByTestId('onboarding-screen')
+    click(screen.getByTestId('onboarding-skip'))
+    expect(await screen.findByTestId('teaching-screen')).toHaveAttribute('data-node-id', 's1n1')
+    expect((store.loadProgress() as { completedNodeIds: string[] }).completedNodeIds).toEqual([])
     runtime.dispose()
   })
 })

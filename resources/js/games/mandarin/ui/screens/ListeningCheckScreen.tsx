@@ -7,7 +7,7 @@ import { type ReactElement, useEffect, useMemo, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
-import { assistanceLevel, lastAttempt } from '../../domain/assessment'
+import { assistanceLevel, firstAttempt, lastAttempt } from '../../domain/assessment'
 import type { ChoiceExercise } from '../../domain/courseSchema'
 import { checkpointExposureEvent } from '../../domain/events'
 import { isCheckpointUnlocked, markCheckpointExposed, recordCheckpointResult } from '../../domain/progress'
@@ -26,7 +26,7 @@ export function ListeningCheckScreen(): ReactElement {
   const items = useMemo(() => [...course.checkpointById.values()], [course])
   const [started, setStarted] = useState(false)
   const [index, setIndex] = useState(0)
-  const [results, setResults] = useState<{ fresh: boolean; correct: boolean | null }[]>([])
+  const [results, setResults] = useState<CheckResult[]>([])
   const item = items[index]
   const done = started && index >= items.length
   const freshCount = useMemo(() => items.filter((entry) => !progress.checkpoint.exposedExerciseIds.includes(entry.id)).length, [items, progress.checkpoint.exposedExerciseIds])
@@ -97,13 +97,14 @@ export function ListeningCheckScreen(): ReactElement {
         {done && (
           <div className="flex flex-col gap-2" data-testid="check-complete">
             <p className="font-bold">Finished.</p>
-            <dl className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
               <Stat label="Answered" value={results.length} />
               <Stat label="Correct" value={results.filter((r) => r.correct === true).length} />
-              <Stat label="Correct on first hearing" value={results.filter((r) => r.fresh && r.correct === true).length} />
+              <Stat label="Correct on first hearing" value={results.filter((r) => r.fresh && r.firstUnaidedCorrect).length} />
               <Stat label="Repeat items" value={results.filter((r) => !r.fresh).length} />
+              <Stat label="Not scored (no audio)" value={results.filter((r) => r.unscored).length} />
             </dl>
-            <p className={cn('text-sm', MUTED)}>Only first-time items count as fresh exposure. Repeats are shown separately and are not evidence of new learning.</p>
+            <p className={cn('text-sm', MUTED)}>Only first-time items count as fresh exposure, and only a correct first answer after one normal play counts as first-hearing success. Items answered without completed Mandarin audio are not scored either way.</p>
             <GameButton variant="secondary" size="lg" onClick={() => game.navigate({ name: 'home' })}>Back to journey</GameButton>
           </div>
         )}
@@ -121,7 +122,14 @@ function Stat({ label, value }: { label: string; value: number }): ReactElement 
   )
 }
 
-function CheckpointQuestion({ exercise, onDone }: { exercise: ChoiceExercise; onDone: (result: { fresh: boolean; correct: boolean | null }) => void }): ReactElement {
+interface CheckResult {
+  fresh: boolean
+  correct: boolean | null
+  unscored: boolean
+  firstUnaidedCorrect: boolean
+}
+
+function CheckpointQuestion({ exercise, onDone }: { exercise: ChoiceExercise; onDone: (result: CheckResult) => void }): ReactElement {
   const game = useGame()
   const { state, dispatch } = useAssessment(exercise, 'checkpoint', { sceneId: null, nodeId: null })
   // Captured once: the exposure effect below marks the item as seen immediately.
@@ -147,13 +155,19 @@ function CheckpointQuestion({ exercise, onDone }: { exercise: ChoiceExercise; on
         continueLabel="Next"
         onContinue={() => {
           const attempt = lastAttempt(state)
+          const first = firstAttempt(state)
+          const level = assistanceLevel(state)
+          const unscored = level === 'unscored'
+          // No completed Mandarin audio: the answer is not evidence either way.
+          const correct = unscored ? null : (attempt?.correct ?? null)
           game.updateProgress((progress) => recordCheckpointResult(progress, {
             exerciseId: exercise.id,
-            correct: attempt?.correct ?? null,
-            assistance: assistanceLevel(state),
+            fresh,
+            correct,
+            assistance: level,
             replays: Math.max(0, state.normalPlayCount - 1),
           }))
-          onDone({ fresh, correct: attempt?.correct ?? null })
+          onDone({ fresh, correct, unscored, firstUnaidedCorrect: !unscored && first?.correct === true && first.assistance === 'unaided' })
         }}
       />
     </div>

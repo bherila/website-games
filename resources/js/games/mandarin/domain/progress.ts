@@ -198,19 +198,23 @@ export function completeNode(
   }
 }
 
+/**
+ * `fresh` is captured by the caller when the item is first shown (exposure is
+ * recorded on mount so an abandoned question still counts as seen), so it is
+ * not recomputed here.
+ */
 export function recordCheckpointResult(
   progress: PreviewProgress,
-  result: Omit<CheckpointResult, 'fresh' | 'at'>,
+  result: Omit<CheckpointResult, 'at'>,
   now: () => string = isoNow,
 ): PreviewProgress {
-  const fresh = !progress.checkpoint.exposedExerciseIds.includes(result.exerciseId)
   return {
     ...progress,
     checkpoint: {
-      exposedExerciseIds: fresh
-        ? [...progress.checkpoint.exposedExerciseIds, result.exerciseId]
-        : progress.checkpoint.exposedExerciseIds,
-      results: [...progress.checkpoint.results, { ...result, fresh, at: now() }],
+      exposedExerciseIds: progress.checkpoint.exposedExerciseIds.includes(result.exerciseId)
+        ? progress.checkpoint.exposedExerciseIds
+        : [...progress.checkpoint.exposedExerciseIds, result.exerciseId],
+      results: [...progress.checkpoint.results, { ...result, at: now() }],
     },
     updatedAt: now(),
   }

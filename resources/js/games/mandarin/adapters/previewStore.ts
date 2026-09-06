@@ -47,22 +47,33 @@ function writeJson(storage: StorageLike | null, key: string, value: unknown): vo
   }
 }
 
-export function createLocalPreviewStore(storage: StorageLike | null): PreviewStore {
+/**
+ * Store bound to one key prefix. Live play uses `mandarin.live.<account>.` so
+ * guest, preview and each account keep separate queues and progress, and a
+ * sign-in never relabels queued events.
+ */
+export function createLocalStore(storage: StorageLike | null, prefix: string): PreviewStore {
+  const KEYS = {
+    progress: `${prefix}progress.v1`,
+    settings: `${prefix}settings.v1`,
+    outbox: `${prefix}outbox.v1`,
+    client: `${prefix}client.v1`,
+  }
   return {
-    loadProgress: () => readJson(storage, PREVIEW_KEYS.progress),
-    saveProgress: (progress) => writeJson(storage, PREVIEW_KEYS.progress, progress),
-    loadSettings: () => readJson(storage, PREVIEW_KEYS.settings),
-    saveSettings: (settings) => writeJson(storage, PREVIEW_KEYS.settings, settings),
+    loadProgress: () => readJson(storage, KEYS.progress),
+    saveProgress: (progress) => writeJson(storage, KEYS.progress, progress),
+    loadSettings: () => readJson(storage, KEYS.settings),
+    saveSettings: (settings) => writeJson(storage, KEYS.settings, settings),
     loadOutbox: () => {
-      const value = readJson(storage, PREVIEW_KEYS.outbox)
+      const value = readJson(storage, KEYS.outbox)
       return Array.isArray(value) ? (value as PracticeEvent[]) : []
     },
-    saveOutbox: (events) => writeJson(storage, PREVIEW_KEYS.outbox, events),
+    saveOutbox: (events) => writeJson(storage, KEYS.outbox, events),
     clientInstanceId: (create) => {
-      const existing = readJson(storage, PREVIEW_KEYS.client)
+      const existing = readJson(storage, KEYS.client)
       if (typeof existing === 'string' && existing.length > 0) return existing
       const created = create()
-      writeJson(storage, PREVIEW_KEYS.client, created)
+      writeJson(storage, KEYS.client, created)
       return created
     },
     clearAll: () => {
@@ -71,7 +82,7 @@ export function createLocalPreviewStore(storage: StorageLike | null): PreviewSto
         const keys: string[] = []
         for (let index = 0; index < storage.length; index += 1) {
           const key = storage.key(index)
-          if (key && key.startsWith(PREVIEW_STORAGE_PREFIX)) keys.push(key)
+          if (key && key.startsWith(prefix)) keys.push(key)
         }
         for (const key of keys) storage.removeItem(key)
       } catch {
@@ -79,6 +90,15 @@ export function createLocalPreviewStore(storage: StorageLike | null): PreviewSto
       }
     },
   }
+}
+
+export function livePartitionPrefix(accountPartitionId: string | null): string {
+  const partition = accountPartitionId ? accountPartitionId.replace(/[^A-Za-z0-9_-]/g, '_') : 'guest'
+  return `mandarin.live.${partition}.`
+}
+
+export function createLocalPreviewStore(storage: StorageLike | null): PreviewStore {
+  return createLocalStore(storage, PREVIEW_STORAGE_PREFIX)
 }
 
 export function createMemoryPreviewStore(): PreviewStore {

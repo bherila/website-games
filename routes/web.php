@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Mandarin\MandarinMediaController;
 use App\Http\Controllers\GamePwaController;
 use App\Http\Controllers\OAuthLoginController;
 use Illuminate\Support\Facades\Route;
@@ -59,8 +60,19 @@ Route::get('/tower-throwback', function () {
 })->name('games.tower-throwback');
 
 Route::get('/mandarin', function () {
-    return view('games.mandarin');
+    return view('games.mandarin', ['runtime' => config('mandarin.runtime', 'live')]);
 })->name('games.mandarin');
+
+// Mock-backed preview with the scenario selector. Never available in production.
+Route::get('/mandarin/preview', function () {
+    abort_if(app()->environment('production'), 404);
+
+    return view('games.mandarin', ['runtime' => 'preview']);
+})->name('games.mandarin.preview');
+
+Route::get('/media/games/mandarin/{asset}/{hash}.{extension}', [MandarinMediaController::class, 'show'])
+    ->whereNumber('asset')->where(['hash' => '[a-f0-9]{64}', 'extension' => '(mp3|m4a|wav)'])
+    ->name('games.mandarin.media');
 
 Route::get('/2048', function () {
     return view('games.2048');

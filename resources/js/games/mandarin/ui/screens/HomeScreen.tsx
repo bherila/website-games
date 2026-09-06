@@ -8,6 +8,7 @@ import { useGame } from '../GameContext'
 import { JourneyMap } from '../JourneyMap'
 import { PreviewBanner } from '../PreviewBanner'
 import { Chip, Eyebrow, GameButton, MUTED, Panel, SectionTitle } from '../primitives'
+import { useRuntime } from '../RuntimeContext'
 import { saveStateLabel } from '../SaveStatusChip'
 
 export function HomeScreen(): ReactElement {
@@ -19,7 +20,9 @@ export function HomeScreen(): ReactElement {
   const allDone = course.nodes.every((node) => progress.completedNodeIds.includes(node.id))
   const due = projection?.dueTargetIds.length ?? 0
   const checkpointOpen = isCheckpointUnlocked(progress, course)
-  const account = saveStateLabel(game.saveState)
+  const { scenario } = useRuntime()
+  const mock = scenario !== null
+  const account = saveStateLabel(game.saveState, mock)
 
   function openCurrent(): void {
     if (!currentNode) return
@@ -36,7 +39,7 @@ export function HomeScreen(): ReactElement {
             <SectionTitle>{allDone ? 'You reached the reunion.' : `Scene ${currentScene.order}: ${currentScene.title}`}</SectionTitle>
             <p className={cn('text-sm', MUTED)}>{allDone ? 'Every scene is complete. Review, practice, or take the listening check.' : `Next: ${currentNode?.title ?? ''}. ${currentScene.objective}`}</p>
           </div>
-          <Chip tone={account.tone}>{bootstrap.account.signedIn ? 'Mock account' : 'Preview'}</Chip>
+          <Chip tone={account.tone}>{mock ? (bootstrap.account.signedIn ? 'Mock account' : 'Preview') : bootstrap.account.signedIn ? 'Signed in' : 'Guest'}</Chip>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <GameButton variant="primary" size="lg" onClick={openCurrent} disabled={allDone && !currentNode} data-testid="continue-button">
@@ -56,6 +59,11 @@ export function HomeScreen(): ReactElement {
             Listening Check{checkpointOpen ? '' : ' (locked)'}
           </GameButton>
         </div>
+        {!mock && !bootstrap.account.signedIn && (
+          <p className={cn('text-sm', MUTED)} data-testid="guest-notice">
+            You can play as a guest. <a className="font-semibold underline decoration-dotted underline-offset-2" href="/login">Sign in</a> to save progress across devices and to generate audio for lines nobody has heard yet.
+          </p>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className={cn('text-xs', MUTED)}>{account.label}</p>
           <GameButton variant="quiet" onClick={() => game.navigate({ name: 'settings' })}>

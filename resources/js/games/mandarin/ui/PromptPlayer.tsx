@@ -76,7 +76,13 @@ export function PromptPlayer({ source, slowSource = null, onPlayback, playLabel 
     onPlayback?.(variant, outcome)
   }
 
-  const showRetry = info.retryable
+  const slowInfo = describeResolution(slowStatus)
+  // Normal and slow resolve independently; offer one Retry that covers whichever failed.
+  const retryRefs: AudioSourceRef[] = [
+    ...(info.retryable ? [source] : []),
+    ...(slowSource && slowInfo.retryable ? [slowSource] : []),
+  ]
+  const showRetry = retryRefs.length > 0
   const busy = speaking
 
   return (
@@ -108,11 +114,14 @@ export function PromptPlayer({ source, slowSource = null, onPlayback, playLabel 
           </GameButton>
         )}
         {showRetry && (
-          <GameButton variant="secondary" size={size} onClick={() => audio.retry(source)} data-testid="retry-audio">
-            Retry audio
+          <GameButton variant="secondary" size={size} onClick={() => { for (const ref of retryRefs) audio.retry(ref) }} data-testid="retry-audio">
+            {retryRefs.length === 1 && !info.retryable ? 'Retry slower audio' : 'Retry audio'}
           </GameButton>
         )}
       </div>
+      {!info.label && slowInfo.tone === 'failed' && slowInfo.label && (
+        <p role="status" data-testid="audio-status" className="text-xs leading-snug text-[#8a3232] sm:text-sm">Slower audio: {slowInfo.label}</p>
+      )}
       {info.label && (
         <p
           role="status"

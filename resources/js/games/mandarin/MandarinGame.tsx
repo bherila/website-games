@@ -78,6 +78,8 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
   const [reloadKey, setReloadKey] = useState(0)
   const prefersReduced = useReducedMotionPreference()
   const outboxRef = useRef<PracticeEvent[]>(store.loadOutbox())
+  // Bumped on reset so acknowledgments from before the reset are ignored.
+  const resetGenerationRef = useRef(0)
 
   // Bootstrap through the gateway (mock or live) — never touches WebGL.
   useEffect(() => {
@@ -139,7 +141,9 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     store.saveOutbox(outboxRef.current)
     const canSave = loaded?.bootstrap.capabilities.canSaveToAccount === true
     if (canSave) setSaveState('saving')
+    const generation = resetGenerationRef.current
     void gateway.appendEvents(events).then((result) => {
+      if (generation !== resetGenerationRef.current) return
       const acknowledged = new Set(result.acknowledgments.filter((ack) => ack.status !== 'rejected').map((ack) => ack.clientEventId))
       outboxRef.current = outboxRef.current.filter((event) => !acknowledged.has(event.clientEventId))
       store.saveOutbox(outboxRef.current)
@@ -148,6 +152,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
       else if (canSave) setSaveState('saved')
       else setSaveState(runtime.scenario?.saveState ?? 'local_preview')
     }).catch(() => {
+      if (generation !== resetGenerationRef.current) return
       // Events stay in the outbox; the preview never retries automatically.
       setSaveState('offline')
     })
@@ -164,12 +169,15 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
 
   const resetPreview = useCallback(() => {
     audio.stop()
+    resetGenerationRef.current += 1
     store.clearAll()
+    runtime.resetState?.()
     outboxRef.current = []
+    setSaveState(runtime.scenario?.saveState ?? 'local_preview')
     setSettings({ ...DEFAULT_SETTINGS })
     setRoute({ name: 'onboarding' })
     setReloadKey((key) => key + 1)
-  }, [audio, store])
+  }, [audio, runtime, store])
 
   const navigate = useCallback((next: Route) => {
     setRoute(next)

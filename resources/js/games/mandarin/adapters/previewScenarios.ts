@@ -100,6 +100,6 @@ export function resolvePreviewScenarioFromSearch(search: string): PreviewScenari
   return findPreviewScenario(new URLSearchParams(search).get('scenario'))
 }
 
-export function previewScenarioHref(id: PreviewScenarioId, pathname = '/mandarin'): string {
+export function previewScenarioHref(id: PreviewScenarioId, pathname = typeof window === 'undefined' ? '/mandarin/preview' : window.location.pathname): string {
   return id === DEFAULT_SCENARIO_ID ? pathname : `${pathname}?scenario=${id}`
 }

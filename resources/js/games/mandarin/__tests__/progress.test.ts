@@ -6,8 +6,10 @@ import {
   isNodeUnlocked,
   isSceneUnlocked,
   learnerVisibleVocabulary,
+  markCheckpointExposed,
   markNodeIntroduced,
   parseStoredProgress,
+  recordCheckpointResult,
   sceneStatus,
   summarizeScene,
 } from '../domain/progress'
@@ -57,6 +59,16 @@ describe('preview progress', () => {
     const vocabulary = learnerVisibleVocabulary(progress, course)
     expect(vocabulary.targetIds).toHaveLength(30)
     for (const id of vocabulary.targetIds) expect(course.reservedUtteranceIds.has(id)).toBe(false)
+  })
+
+  it('keeps the caller-captured freshness of a checkpoint result even after early exposure', () => {
+    let progress = createInitialProgress(course, now)
+    progress = markCheckpointExposed(progress, 'cp01', now)
+    progress = recordCheckpointResult(progress, { exerciseId: 'cp01', fresh: true, correct: null, assistance: 'unscored', replays: 0 }, now)
+    expect(progress.checkpoint.results[0]).toMatchObject({ fresh: true, correct: null, assistance: 'unscored' })
+    progress = recordCheckpointResult(progress, { exerciseId: 'cp01', fresh: false, correct: true, assistance: 'unaided', replays: 1 }, now)
+    expect(progress.checkpoint.results[1]?.fresh).toBe(false)
+    expect(progress.checkpoint.exposedExerciseIds).toEqual(['cp01'])
   })
 
   it('rejects stored progress from another course or version', () => {
