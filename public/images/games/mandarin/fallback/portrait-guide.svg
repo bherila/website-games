@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="t"><title id="t">Guide portrait fallback</title>
+<path d="M200 1024 V820 Q200 640 420 600 L512 640 L604 600 Q824 640 824 820 V1024 Z" fill="#5d8a70"/>
+<path d="M430 604 L512 700 L594 604 L560 590 H464 Z" fill="#f5efe3"/>
+<rect x="452" y="520" width="120" height="110" rx="40" fill="#e3b892"/>
+<ellipse cx="512" cy="430" rx="150" ry="170" fill="#ebc39c"/>
+<path d="M362 420 Q380 250 512 250 Q644 250 662 420 Q640 330 512 330 Q384 330 362 420 Z" fill="#2f3a44"/>
+<g fill="#2f3a44"><ellipse cx="462" cy="440" rx="12" ry="14"/><ellipse cx="562" cy="440" rx="12" ry="14"/></g>
+<path d="M480 520 Q512 540 544 520" stroke="#a8765a" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>

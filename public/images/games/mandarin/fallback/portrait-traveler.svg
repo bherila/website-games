@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="t"><title id="t">Traveler Xiaolin portrait fallback</title>
+<path d="M200 1024 V820 Q200 640 420 600 L512 640 L604 600 Q824 640 824 820 V1024 Z" fill="#5b6f8a"/>
+<path d="M300 640 Q290 820 330 1024 H380 Q350 820 360 640 Z" fill="#3f5169"/>
+<path d="M430 604 L512 700 L594 604 L560 590 H464 Z" fill="#f5efe3"/>
+<rect x="452" y="520" width="120" height="110" rx="40" fill="#e9bd97"/>
+<ellipse cx="512" cy="430" rx="150" ry="170" fill="#f0c9a3"/>
+<path d="M362 400 Q372 240 512 240 Q652 240 662 400 Q600 300 512 310 Q424 300 362 400 Z" fill="#3a2f2a"/>
+<path d="M362 400 Q340 460 372 520 Q362 460 380 420 Z" fill="#3a2f2a"/>
+<g fill="#2f3a44"><ellipse cx="462" cy="440" rx="12" ry="14"/><ellipse cx="562" cy="440" rx="12" ry="14"/></g>
+<path d="M484 522 Q512 536 540 522" stroke="#a8765a" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>

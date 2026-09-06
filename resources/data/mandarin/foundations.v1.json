@@ -1,0 +1,4230 @@
+{
+  "schemaVersion": 1,
+  "courseId": "mandarin-foundations",
+  "contentVersion": "1.0.0",
+  "title": "Mandarin Quest: Find Your Friend",
+  "locale": {
+    "spokenLanguage": "cmn",
+    "writtenLocale": "zh-Hans",
+    "uiLocale": "en",
+    "pinyinConvention": "Conventional lexical third-tone spelling; contextual 一/不 tone changes are shown. Pinyin is assistance, not a phonetic trace."
+  },
+  "provenance": {
+    "kind": "original_ai_draft",
+    "createdAt": "2026-09-06",
+    "nativeReviewed": false,
+    "audioAuditioned": false,
+    "notes": "Original alpha teaching material; structural validation is not linguistic or acoustic validation."
+  },
+  "roles": [
+    {
+      "id": "guide",
+      "name": "Guide",
+      "portraitSlotId": "portrait-guide"
+    },
+    {
+      "id": "traveler",
+      "name": "Xiaolin",
+      "portraitSlotId": "portrait-traveler"
+    },
+    {
+      "id": "friend",
+      "name": "Friend",
+      "portraitSlotId": "portrait-friend"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s1",
+      "order": 1,
+      "title": "At the gate",
+      "setting": "gate",
+      "objective": "Introduce yourself and ask who someone is.",
+      "setup": "A traveler arrives and meets a guide.",
+      "nodeIds": [
+        "s1n1",
+        "s1n2"
+      ],
+      "dialogueUtteranceIds": [
+        "01a",
+        "01b",
+        "01c",
+        "01d",
+        "01e",
+        "01f"
+      ],
+      "artSlotId": "scene-gate-poster",
+      "grammarNote": {
+        "title": "Identity and possession",
+        "body": "Use 是 between a person and an identity. 我的朋友 means my friend; changing 我 to 你 changes whose friend is meant."
+      },
+      "unlockAfterSceneId": null
+    },
+    {
+      "id": "s2",
+      "order": 2,
+      "title": "Looking for a friend",
+      "setting": "street",
+      "objective": "Ask about a person and their location.",
+      "setup": "The traveler asks for help on a village street.",
+      "nodeIds": [
+        "s2n1",
+        "s2n2"
+      ],
+      "dialogueUtteranceIds": [
+        "02a",
+        "02b",
+        "02c",
+        "02d",
+        "02e",
+        "02f"
+      ],
+      "artSlotId": "scene-street-poster",
+      "grammarNote": {
+        "title": "Location and questions",
+        "body": "在这里 means be here. 吗 turns a statement into a yes/no question; 哪里 asks where. 不知道 means do not know."
+      },
+      "unlockAfterSceneId": "s1"
+    },
+    {
+      "id": "s3",
+      "order": 3,
+      "title": "At the bridge",
+      "setting": "bridge",
+      "objective": "Understand going, staying, and waiting.",
+      "setup": "The journey reaches a small stone bridge.",
+      "nodeIds": [
+        "s3n1",
+        "s3n2"
+      ],
+      "dialogueUtteranceIds": [
+        "03a",
+        "03b",
+        "03c",
+        "03d",
+        "03e",
+        "03f"
+      ],
+      "artSlotId": "scene-bridge-poster",
+      "grammarNote": {
+        "title": "Instructions and plans",
+        "body": "去找他 means go look for him. 别走 tells someone not to leave. 我在这里等你 identifies who waits, where, and for whom."
+      },
+      "unlockAfterSceneId": "s2"
+    },
+    {
+      "id": "s4",
+      "order": 4,
+      "title": "A clearer message",
+      "setting": "roadside",
+      "objective": "Notice misunderstanding and ask for repetition.",
+      "setup": "The guide and traveler clarify a message.",
+      "nodeIds": [
+        "s4n1",
+        "s4n2"
+      ],
+      "dialogueUtteranceIds": [
+        "04a",
+        "04b",
+        "04c",
+        "04d",
+        "04e",
+        "04f"
+      ],
+      "artSlotId": "scene-roadside-poster",
+      "grammarNote": {
+        "title": "Understanding and repair",
+        "body": "听懂 combines hearing with the result of understanding. 没听懂 says that understanding did not happen. 请再说一遍 asks for another repetition."
+      },
+      "unlockAfterSceneId": "s3"
+    },
+    {
+      "id": "s5",
+      "order": 5,
+      "title": "The reunion",
+      "setting": "reunion",
+      "objective": "Recognize an arrival and make a group suggestion.",
+      "setup": "The journey brings the characters together again.",
+      "nodeIds": [
+        "s5n1",
+        "s5n2"
+      ],
+      "dialogueUtteranceIds": [
+        "05a",
+        "05b",
+        "05c",
+        "05d",
+        "05e",
+        "05f"
+      ],
+      "artSlotId": "scene-reunion-poster",
+      "grammarNote": {
+        "title": "Arrival and suggestions",
+        "body": "他来了 announces an arrival here; 了 is not a general past-tense suffix. 我们一起走吧 proposes going together."
+      },
+      "unlockAfterSceneId": "s4"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "s1n1",
+      "sceneId": "s1",
+      "order": 1,
+      "title": "First exchange",
+      "introducedTargetIds": [
+        "hello",
+        "i",
+        "you",
+        "be"
+      ],
+      "introducedSupportIds": [
+        "name-xiaolin"
+      ],
+      "teachingUtteranceIds": [
+        "01a",
+        "01b",
+        "01d",
+        "v01"
+      ],
+      "exerciseIds": [
+        "e001",
+        "e002",
+        "e003",
+        "e004",
+        "e005"
+      ],
+      "constructionIds": [],
+      "prerequisites": []
+    },
+    {
+      "id": "s1n2",
+      "sceneId": "s1",
+      "order": 2,
+      "title": "Use it in context",
+      "introducedTargetIds": [
+        "who",
+        "he",
+        "my-friend"
+      ],
+      "introducedSupportIds": [
+        "possessive-de",
+        "friend"
+      ],
+      "teachingUtteranceIds": [
+        "01c",
+        "01e",
+        "01f",
+        "v02"
+      ],
+      "exerciseIds": [
+        "e006",
+        "e007",
+        "e008",
+        "e009",
+        "e010"
+      ],
+      "constructionIds": [
+        "g01"
+      ],
+      "prerequisites": [
+        "s1n1"
+      ]
+    },
+    {
+      "id": "s2n1",
+      "sceneId": "s2",
+      "order": 3,
+      "title": "First exchange",
+      "introducedTargetIds": [
+        "find",
+        "here",
+        "at",
+        "question-ma"
+      ],
+      "introducedSupportIds": [],
+      "teachingUtteranceIds": [
+        "02a",
+        "02b",
+        "02c",
+        "v03"
+      ],
+      "exerciseIds": [
+        "e011",
+        "e012",
+        "e013",
+        "e014",
+        "e015"
+      ],
+      "constructionIds": [],
+      "prerequisites": [
+        "s1n2"
+      ]
+    },
+    {
+      "id": "s2n2",
+      "sceneId": "s2",
+      "order": 4,
+      "title": "Use it in context",
+      "introducedTargetIds": [
+        "not-present",
+        "where",
+        "dont-know"
+      ],
+      "introducedSupportIds": [
+        "not-bu",
+        "know"
+      ],
+      "teachingUtteranceIds": [
+        "02d",
+        "02e",
+        "02f",
+        "v04"
+      ],
+      "exerciseIds": [
+        "e016",
+        "e017",
+        "e018",
+        "e019",
+        "e020"
+      ],
+      "constructionIds": [
+        "g02"
+      ],
+      "prerequisites": [
+        "s2n1"
+      ]
+    },
+    {
+      "id": "s3n1",
+      "sceneId": "s3",
+      "order": 5,
+      "title": "First exchange",
+      "introducedTargetIds": [
+        "go",
+        "dont-leave",
+        "why"
+      ],
+      "introducedSupportIds": [
+        "leave",
+        "dont-bie"
+      ],
+      "teachingUtteranceIds": [
+        "03a",
+        "03b",
+        "03c",
+        "03d",
+        "v05"
+      ],
+      "exerciseIds": [
+        "e021",
+        "e022",
+        "e023",
+        "e024",
+        "e025"
+      ],
+      "constructionIds": [],
+      "prerequisites": [
+        "s2n2"
+      ]
+    },
+    {
+      "id": "s3n2",
+      "sceneId": "s3",
+      "order": 6,
+      "title": "Use it in context",
+      "introducedTargetIds": [
+        "wait-moment",
+        "okay",
+        "wait-you"
+      ],
+      "introducedSupportIds": [
+        "wait",
+        "brief-action"
+      ],
+      "teachingUtteranceIds": [
+        "03e",
+        "03f",
+        "v06"
+      ],
+      "exerciseIds": [
+        "e026",
+        "e027",
+        "e028",
+        "e029",
+        "e030"
+      ],
+      "constructionIds": [
+        "g03"
+      ],
+      "prerequisites": [
+        "s3n1"
+      ]
+    },
+    {
+      "id": "s4n1",
+      "sceneId": "s4",
+      "order": 7,
+      "title": "First exchange",
+      "introducedTargetIds": [
+        "understand",
+        "not-understand",
+        "say"
+      ],
+      "introducedSupportIds": [
+        "negative-mei",
+        "particle-le",
+        "listen",
+        "comprehend"
+      ],
+      "teachingUtteranceIds": [
+        "04a",
+        "04b",
+        "04c",
+        "v07"
+      ],
+      "exerciseIds": [
+        "e031",
+        "e032",
+        "e033",
+        "e034",
+        "e035"
+      ],
+      "constructionIds": [],
+      "prerequisites": [
+        "s3n2"
+      ]
+    },
+    {
+      "id": "s4n2",
+      "sceneId": "s4",
+      "order": 8,
+      "title": "Use it in context",
+      "introducedTargetIds": [
+        "repeat",
+        "now"
+      ],
+      "introducedSupportIds": [
+        "please",
+        "again",
+        "one-time"
+      ],
+      "teachingUtteranceIds": [
+        "04d",
+        "04e",
+        "04f",
+        "v08"
+      ],
+      "exerciseIds": [
+        "e036",
+        "e037",
+        "e038",
+        "e039",
+        "e040"
+      ],
+      "constructionIds": [
+        "g04"
+      ],
+      "prerequisites": [
+        "s4n1"
+      ]
+    },
+    {
+      "id": "s5n1",
+      "sceneId": "s5",
+      "order": 9,
+      "title": "First exchange",
+      "introducedTargetIds": [
+        "arrived",
+        "see"
+      ],
+      "introducedSupportIds": [
+        "come"
+      ],
+      "teachingUtteranceIds": [
+        "05a",
+        "05b",
+        "05c",
+        "05d",
+        "v09"
+      ],
+      "exerciseIds": [
+        "e041",
+        "e042",
+        "e043",
+        "e044",
+        "e045"
+      ],
+      "constructionIds": [],
+      "prerequisites": [
+        "s4n2"
+      ]
+    },
+    {
+      "id": "s5n2",
+      "sceneId": "s5",
+      "order": 10,
+      "title": "Use it in context",
+      "introducedTargetIds": [
+        "we",
+        "together",
+        "lets-go"
+      ],
+      "introducedSupportIds": [
+        "suggestion-ba"
+      ],
+      "teachingUtteranceIds": [
+        "05e",
+        "05f",
+        "v10"
+      ],
+      "exerciseIds": [
+        "e046",
+        "e047",
+        "e048",
+        "e049",
+        "e050"
+      ],
+      "constructionIds": [
+        "g05"
+      ],
+      "prerequisites": [
+        "s5n1"
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "id": "hello",
+      "zh": "你好",
+      "pinyin": "Nǐ hǎo.",
+      "en": "Hello.",
+      "introducedInNode": "s1n1",
+      "speechText": "你好",
+      "notes": []
+    },
+    {
+      "id": "i",
+      "zh": "我",
+      "pinyin": "wǒ",
+      "en": "I / me",
+      "introducedInNode": "s1n1",
+      "speechText": "我",
+      "notes": []
+    },
+    {
+      "id": "you",
+      "zh": "你",
+      "pinyin": "nǐ",
+      "en": "you",
+      "introducedInNode": "s1n1",
+      "speechText": "你",
+      "notes": []
+    },
+    {
+      "id": "be",
+      "zh": "是",
+      "pinyin": "shì",
+      "en": "be / am / is / are, in identity statements",
+      "introducedInNode": "s1n1",
+      "speechText": "是",
+      "notes": []
+    },
+    {
+      "id": "who",
+      "zh": "谁",
+      "pinyin": "shéi",
+      "en": "who",
+      "introducedInNode": "s1n2",
+      "speechText": "谁",
+      "notes": []
+    },
+    {
+      "id": "he",
+      "zh": "他",
+      "pinyin": "tā",
+      "en": "he / him (same pronunciation as 她, she/her)",
+      "introducedInNode": "s1n2",
+      "speechText": "他",
+      "notes": [
+        "Never use 他 versus 她 as an audio-only distinction without independent context."
+      ]
+    },
+    {
+      "id": "my-friend",
+      "zh": "我的朋友",
+      "pinyin": "wǒ de péngyou",
+      "en": "my friend",
+      "introducedInNode": "s1n2",
+      "speechText": "我的朋友",
+      "notes": []
+    },
+    {
+      "id": "find",
+      "zh": "找",
+      "pinyin": "zhǎo",
+      "en": "look for",
+      "introducedInNode": "s2n1",
+      "speechText": "找",
+      "notes": []
+    },
+    {
+      "id": "here",
+      "zh": "这里",
+      "pinyin": "zhèlǐ",
+      "en": "here",
+      "introducedInNode": "s2n1",
+      "speechText": "这里",
+      "notes": []
+    },
+    {
+      "id": "at",
+      "zh": "在",
+      "pinyin": "zài",
+      "en": "be at / in a location, in these examples",
+      "introducedInNode": "s2n1",
+      "speechText": "在",
+      "notes": []
+    },
+    {
+      "id": "question-ma",
+      "zh": "吗",
+      "pinyin": "ma",
+      "en": "yes/no question particle",
+      "introducedInNode": "s2n1",
+      "speechText": "吗",
+      "notes": [
+        "Practice in whole sentences as well as this glossary entry. A neutral-tone particle is not a stand-alone content word."
+      ]
+    },
+    {
+      "id": "not-present",
+      "zh": "不在",
+      "pinyin": "bú zài",
+      "en": "not present / not at the stated place",
+      "introducedInNode": "s2n2",
+      "speechText": "不在",
+      "notes": [
+        "不 is pronounced bú before the fourth-tone 在 here; this is not a different negation word."
+      ]
+    },
+    {
+      "id": "where",
+      "zh": "哪里",
+      "pinyin": "nǎlǐ",
+      "en": "where",
+      "introducedInNode": "s2n2",
+      "speechText": "哪里",
+      "notes": []
+    },
+    {
+      "id": "dont-know",
+      "zh": "不知道",
+      "pinyin": "bù zhīdào",
+      "en": "do not know",
+      "introducedInNode": "s2n2",
+      "speechText": "不知道",
+      "notes": []
+    },
+    {
+      "id": "go",
+      "zh": "去",
+      "pinyin": "qù",
+      "en": "go (to a place or to do something)",
+      "introducedInNode": "s3n1",
+      "speechText": "去",
+      "notes": []
+    },
+    {
+      "id": "dont-leave",
+      "zh": "别走",
+      "pinyin": "bié zǒu",
+      "en": "do not go / do not leave",
+      "introducedInNode": "s3n1",
+      "speechText": "别走",
+      "notes": []
+    },
+    {
+      "id": "why",
+      "zh": "为什么",
+      "pinyin": "wèishénme",
+      "en": "why",
+      "introducedInNode": "s3n1",
+      "speechText": "为什么",
+      "notes": []
+    },
+    {
+      "id": "wait-moment",
+      "zh": "等一下",
+      "pinyin": "děng yíxià",
+      "en": "wait a moment",
+      "introducedInNode": "s3n2",
+      "speechText": "等一下",
+      "notes": []
+    },
+    {
+      "id": "okay",
+      "zh": "好",
+      "pinyin": "hǎo",
+      "en": "okay / all right, in these replies",
+      "introducedInNode": "s3n2",
+      "speechText": "好",
+      "notes": []
+    },
+    {
+      "id": "wait-you",
+      "zh": "等你",
+      "pinyin": "děng nǐ",
+      "en": "wait for you",
+      "introducedInNode": "s3n2",
+      "speechText": "等你",
+      "notes": []
+    },
+    {
+      "id": "understand",
+      "zh": "听懂",
+      "pinyin": "tīngdǒng",
+      "en": "understand what is heard",
+      "introducedInNode": "s4n1",
+      "speechText": "听懂",
+      "notes": []
+    },
+    {
+      "id": "not-understand",
+      "zh": "没听懂",
+      "pinyin": "méi tīngdǒng",
+      "en": "did not understand what was heard",
+      "introducedInNode": "s4n1",
+      "speechText": "没听懂",
+      "notes": []
+    },
+    {
+      "id": "say",
+      "zh": "说",
+      "pinyin": "shuō",
+      "en": "say / speak",
+      "introducedInNode": "s4n1",
+      "speechText": "说",
+      "notes": []
+    },
+    {
+      "id": "repeat",
+      "zh": "请再说一遍",
+      "pinyin": "qǐng zài shuō yí biàn",
+      "en": "please say it again",
+      "introducedInNode": "s4n2",
+      "speechText": "请再说一遍",
+      "notes": []
+    },
+    {
+      "id": "now",
+      "zh": "现在",
+      "pinyin": "xiànzài",
+      "en": "now",
+      "introducedInNode": "s4n2",
+      "speechText": "现在",
+      "notes": []
+    },
+    {
+      "id": "arrived",
+      "zh": "来了",
+      "pinyin": "lái le",
+      "en": "has come / has arrived, in this scene",
+      "introducedInNode": "s5n1",
+      "speechText": "来了",
+      "notes": [
+        "This example presents an arrival/new situation. Do not teach 了 as a general past-tense suffix."
+      ]
+    },
+    {
+      "id": "see",
+      "zh": "看见",
+      "pinyin": "kànjiàn",
+      "en": "see / catch sight of",
+      "introducedInNode": "s5n1",
+      "speechText": "看见",
+      "notes": []
+    },
+    {
+      "id": "we",
+      "zh": "我们",
+      "pinyin": "wǒmen",
+      "en": "we / us",
+      "introducedInNode": "s5n2",
+      "speechText": "我们",
+      "notes": []
+    },
+    {
+      "id": "together",
+      "zh": "一起",
+      "pinyin": "yìqǐ",
+      "en": "together",
+      "introducedInNode": "s5n2",
+      "speechText": "一起",
+      "notes": []
+    },
+    {
+      "id": "lets-go",
+      "zh": "走吧",
+      "pinyin": "zǒu ba",
+      "en": "let us go, in this scene",
+      "introducedInNode": "s5n2",
+      "speechText": "走吧",
+      "notes": []
+    }
+  ],
+  "supportGlossary": [
+    {
+      "id": "name-xiaolin",
+      "zh": "小林",
+      "pinyin": "Xiǎolín",
+      "en": "Xiaolin, a character name",
+      "introducedInNode": "s1n1"
+    },
+    {
+      "id": "possessive-de",
+      "zh": "的",
+      "pinyin": "de",
+      "en": "links a possessor to the following noun here",
+      "introducedInNode": "s1n2"
+    },
+    {
+      "id": "friend",
+      "zh": "朋友",
+      "pinyin": "péngyou",
+      "en": "friend",
+      "introducedInNode": "s1n2"
+    },
+    {
+      "id": "not-bu",
+      "zh": "不",
+      "pinyin": "bù",
+      "en": "negation used in these location/knowledge statements",
+      "introducedInNode": "s2n2"
+    },
+    {
+      "id": "know",
+      "zh": "知道",
+      "pinyin": "zhīdào",
+      "en": "know",
+      "introducedInNode": "s2n2"
+    },
+    {
+      "id": "leave",
+      "zh": "走",
+      "pinyin": "zǒu",
+      "en": "go / leave, in these scenes",
+      "introducedInNode": "s3n1"
+    },
+    {
+      "id": "dont-bie",
+      "zh": "别",
+      "pinyin": "bié",
+      "en": "do not, used before an action",
+      "introducedInNode": "s3n1"
+    },
+    {
+      "id": "wait",
+      "zh": "等",
+      "pinyin": "děng",
+      "en": "wait / wait for",
+      "introducedInNode": "s3n2"
+    },
+    {
+      "id": "brief-action",
+      "zh": "一下",
+      "pinyin": "yíxià",
+      "en": "briefly / for a moment in this example",
+      "introducedInNode": "s3n2"
+    },
+    {
+      "id": "negative-mei",
+      "zh": "没",
+      "pinyin": "méi",
+      "en": "negates the completed/successful event in these examples",
+      "introducedInNode": "s4n1"
+    },
+    {
+      "id": "particle-le",
+      "zh": "了",
+      "pinyin": "le",
+      "en": "particle used for completed events or a changed situation, depending on the sentence",
+      "introducedInNode": "s4n1"
+    },
+    {
+      "id": "listen",
+      "zh": "听",
+      "pinyin": "tīng",
+      "en": "listen / hear",
+      "introducedInNode": "s4n1"
+    },
+    {
+      "id": "comprehend",
+      "zh": "懂",
+      "pinyin": "dǒng",
+      "en": "understand",
+      "introducedInNode": "s4n1"
+    },
+    {
+      "id": "please",
+      "zh": "请",
+      "pinyin": "qǐng",
+      "en": "please",
+      "introducedInNode": "s4n2"
+    },
+    {
+      "id": "again",
+      "zh": "再",
+      "pinyin": "zài",
+      "en": "again",
+      "introducedInNode": "s4n2"
+    },
+    {
+      "id": "one-time",
+      "zh": "一遍",
+      "pinyin": "yí biàn",
+      "en": "once / one more complete repetition here",
+      "introducedInNode": "s4n2"
+    },
+    {
+      "id": "come",
+      "zh": "来",
+      "pinyin": "lái",
+      "en": "come",
+      "introducedInNode": "s5n1"
+    },
+    {
+      "id": "suggestion-ba",
+      "zh": "吧",
+      "pinyin": "ba",
+      "en": "softens a suggestion here",
+      "introducedInNode": "s5n2"
+    }
+  ],
+  "utterances": [
+    {
+      "id": "01a",
+      "roleId": "guide",
+      "zh": "你好。",
+      "pinyin": "Nǐ hǎo.",
+      "en": "Hello.",
+      "speechText": "你好。",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "hello"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "01b",
+      "roleId": "traveler",
+      "zh": "你好。",
+      "pinyin": "Nǐ hǎo.",
+      "en": "Hello.",
+      "speechText": "你好。",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "hello"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "01c",
+      "roleId": "guide",
+      "zh": "你是谁？",
+      "pinyin": "Nǐ shì shéi?",
+      "en": "Who are you?",
+      "speechText": "你是谁？",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "you",
+        "be",
+        "who"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "01d",
+      "roleId": "traveler",
+      "zh": "我是小林。",
+      "pinyin": "Wǒ shì Xiǎolín.",
+      "en": "I am Xiaolin.",
+      "speechText": "我是小林。",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "i",
+        "be"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "01e",
+      "roleId": "guide",
+      "zh": "他是谁？",
+      "pinyin": "Tā shì shéi?",
+      "en": "Who is he?",
+      "speechText": "他是谁？",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "he",
+        "be",
+        "who"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "01f",
+      "roleId": "traveler",
+      "zh": "他是我的朋友。",
+      "pinyin": "Tā shì wǒ de péngyou.",
+      "en": "He is my friend.",
+      "speechText": "他是我的朋友。",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "he",
+        "be",
+        "my-friend"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "02a",
+      "roleId": "guide",
+      "zh": "你找谁？",
+      "pinyin": "Nǐ zhǎo shéi?",
+      "en": "Who are you looking for?",
+      "speechText": "你找谁？",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "you",
+        "find",
+        "who"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "02b",
+      "roleId": "traveler",
+      "zh": "我找他。",
+      "pinyin": "Wǒ zhǎo tā.",
+      "en": "I am looking for him.",
+      "speechText": "我找他。",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "i",
+        "find",
+        "he"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "02c",
+      "roleId": "traveler",
+      "zh": "他在这里吗？",
+      "pinyin": "Tā zài zhèlǐ ma?",
+      "en": "Is he here?",
+      "speechText": "他在这里吗？",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "he",
+        "at",
+        "here",
+        "question-ma"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "02d",
+      "roleId": "guide",
+      "zh": "不在。",
+      "pinyin": "Bú zài.",
+      "en": "No, he is not here.",
+      "speechText": "不在。",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "not-present"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "02e",
+      "roleId": "traveler",
+      "zh": "他在哪里？",
+      "pinyin": "Tā zài nǎlǐ?",
+      "en": "Where is he?",
+      "speechText": "他在哪里？",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "he",
+        "at",
+        "where"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "02f",
+      "roleId": "guide",
+      "zh": "我不知道。",
+      "pinyin": "Wǒ bù zhīdào.",
+      "en": "I do not know.",
+      "speechText": "我不知道。",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "i",
+        "dont-know"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "03a",
+      "roleId": "guide",
+      "zh": "你去哪里？",
+      "pinyin": "Nǐ qù nǎlǐ?",
+      "en": "Where are you going?",
+      "speechText": "你去哪里？",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "you",
+        "go",
+        "where"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "03b",
+      "roleId": "traveler",
+      "zh": "我去找他。",
+      "pinyin": "Wǒ qù zhǎo tā.",
+      "en": "I am going to look for him.",
+      "speechText": "我去找他。",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "i",
+        "go",
+        "find",
+        "he"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "03c",
+      "roleId": "guide",
+      "zh": "别走。",
+      "pinyin": "Bié zǒu.",
+      "en": "Do not go.",
+      "speechText": "别走。",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "dont-leave"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "03d",
+      "roleId": "traveler",
+      "zh": "为什么？",
+      "pinyin": "Wèishénme?",
+      "en": "Why?",
+      "speechText": "为什么？",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "why"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "03e",
+      "roleId": "guide",
+      "zh": "等一下。",
+      "pinyin": "Děng yíxià.",
+      "en": "Wait a moment.",
+      "speechText": "等一下。",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "wait-moment"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "03f",
+      "roleId": "traveler",
+      "zh": "好，我在这里等你。",
+      "pinyin": "Hǎo, wǒ zài zhèlǐ děng nǐ.",
+      "en": "Okay, I will wait for you here.",
+      "speechText": "好，我在这里等你。",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "okay",
+        "i",
+        "at",
+        "here",
+        "wait-you"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "04a",
+      "roleId": "guide",
+      "zh": "你听懂了吗？",
+      "pinyin": "Nǐ tīngdǒng le ma?",
+      "en": "Did you understand?",
+      "speechText": "你听懂了吗？",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "you",
+        "understand",
+        "question-ma"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "04b",
+      "roleId": "traveler",
+      "zh": "我没听懂。",
+      "pinyin": "Wǒ méi tīngdǒng.",
+      "en": "I did not understand.",
+      "speechText": "我没听懂。",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "i",
+        "not-understand"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "04c",
+      "roleId": "guide",
+      "zh": "我说，别走。",
+      "pinyin": "Wǒ shuō, bié zǒu.",
+      "en": "I said, do not go.",
+      "speechText": "我说，别走。",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "i",
+        "say",
+        "dont-leave"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "04d",
+      "roleId": "traveler",
+      "zh": "请再说一遍。",
+      "pinyin": "Qǐng zài shuō yí biàn.",
+      "en": "Please say it again.",
+      "speechText": "请再说一遍。",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "repeat"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "04e",
+      "roleId": "guide",
+      "zh": "在这里等我。",
+      "pinyin": "Zài zhèlǐ děng wǒ.",
+      "en": "Wait for me here.",
+      "speechText": "在这里等我。",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "at",
+        "here",
+        "i",
+        "wait-you"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "04f",
+      "roleId": "traveler",
+      "zh": "现在我听懂了。",
+      "pinyin": "Xiànzài wǒ tīngdǒng le.",
+      "en": "Now I understand.",
+      "speechText": "现在我听懂了。",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "now",
+        "i",
+        "understand"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "05a",
+      "roleId": "guide",
+      "zh": "他来了。",
+      "pinyin": "Tā lái le.",
+      "en": "He has arrived.",
+      "speechText": "他来了。",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "he",
+        "arrived"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "05b",
+      "roleId": "traveler",
+      "zh": "在哪里？",
+      "pinyin": "Zài nǎlǐ?",
+      "en": "Where?",
+      "speechText": "在哪里？",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "at",
+        "where"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "05c",
+      "roleId": "guide",
+      "zh": "在这里。",
+      "pinyin": "Zài zhèlǐ.",
+      "en": "Here.",
+      "speechText": "在这里。",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "at",
+        "here"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "05d",
+      "roleId": "traveler",
+      "zh": "我看见他了。",
+      "pinyin": "Wǒ kànjiàn tā le.",
+      "en": "I have spotted him.",
+      "speechText": "我看见他了。",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "i",
+        "see",
+        "he"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "05e",
+      "roleId": "guide",
+      "zh": "我们一起走吧。",
+      "pinyin": "Wǒmen yìqǐ zǒu ba.",
+      "en": "Let us go together.",
+      "speechText": "我们一起走吧。",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "we",
+        "together",
+        "lets-go"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "05f",
+      "roleId": "traveler",
+      "zh": "好，我们走吧。",
+      "pinyin": "Hǎo, wǒmen zǒu ba.",
+      "en": "Okay, let us go.",
+      "speechText": "好，我们走吧。",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "okay",
+        "we",
+        "lets-go"
+      ],
+      "usage": "dialogue",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v01",
+      "roleId": "guide",
+      "zh": "你是小林。",
+      "pinyin": "Nǐ shì Xiǎolín.",
+      "en": "You are Xiaolin.",
+      "speechText": "你是小林。",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "you",
+        "be"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v02",
+      "roleId": "traveler",
+      "zh": "我是你的朋友。",
+      "pinyin": "Wǒ shì nǐ de péngyou.",
+      "en": "I am your friend.",
+      "speechText": "我是你的朋友。",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "requiresTargetIds": [
+        "i",
+        "be",
+        "you",
+        "my-friend"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v03",
+      "roleId": "guide",
+      "zh": "他在这里。",
+      "pinyin": "Tā zài zhèlǐ.",
+      "en": "He is here.",
+      "speechText": "他在这里。",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "he",
+        "at",
+        "here"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v04",
+      "roleId": "traveler",
+      "zh": "你在哪里？",
+      "pinyin": "Nǐ zài nǎlǐ?",
+      "en": "Where are you?",
+      "speechText": "你在哪里？",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "requiresTargetIds": [
+        "you",
+        "at",
+        "where"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v05",
+      "roleId": "guide",
+      "zh": "他去哪里？",
+      "pinyin": "Tā qù nǎlǐ?",
+      "en": "Where is he going?",
+      "speechText": "他去哪里？",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "he",
+        "go",
+        "where"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v06",
+      "roleId": "traveler",
+      "zh": "我在这里等他。",
+      "pinyin": "Wǒ zài zhèlǐ děng tā.",
+      "en": "I will wait for him here.",
+      "speechText": "我在这里等他。",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "requiresTargetIds": [
+        "i",
+        "at",
+        "here",
+        "wait-you",
+        "he"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v07",
+      "roleId": "guide",
+      "zh": "他没听懂。",
+      "pinyin": "Tā méi tīngdǒng.",
+      "en": "He did not understand.",
+      "speechText": "他没听懂。",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "he",
+        "not-understand"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v08",
+      "roleId": "traveler",
+      "zh": "现在请再说一遍。",
+      "pinyin": "Xiànzài qǐng zài shuō yí biàn.",
+      "en": "Now please say it again.",
+      "speechText": "现在请再说一遍。",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "requiresTargetIds": [
+        "now",
+        "repeat"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v09",
+      "roleId": "guide",
+      "zh": "我看见你了。",
+      "pinyin": "Wǒ kànjiàn nǐ le.",
+      "en": "I have spotted you.",
+      "speechText": "我看见你了。",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "i",
+        "see",
+        "you"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "v10",
+      "roleId": "traveler",
+      "zh": "我们一起等他吧。",
+      "pinyin": "Wǒmen yìqǐ děng tā ba.",
+      "en": "Let us wait for him together.",
+      "speechText": "我们一起等他吧。",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "requiresTargetIds": [
+        "we",
+        "together",
+        "wait-you",
+        "he",
+        "lets-go"
+      ],
+      "usage": "training_variant",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T01",
+      "roleId": "traveler",
+      "zh": "我是他的朋友。",
+      "pinyin": "Wǒ shì tā de péngyou.",
+      "en": "I am his friend.",
+      "speechText": "我是他的朋友。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "i",
+        "be",
+        "he",
+        "my-friend"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T02",
+      "roleId": "guide",
+      "zh": "他是你的朋友吗？",
+      "pinyin": "Tā shì nǐ de péngyou ma?",
+      "en": "Is he your friend?",
+      "speechText": "他是你的朋友吗？",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "he",
+        "be",
+        "you",
+        "my-friend",
+        "question-ma"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T03",
+      "roleId": "traveler",
+      "zh": "他不在这里。",
+      "pinyin": "Tā bú zài zhèlǐ.",
+      "en": "He is not here.",
+      "speechText": "他不在这里。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "he",
+        "not-present",
+        "here"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T04",
+      "roleId": "guide",
+      "zh": "我知道他在哪里。",
+      "pinyin": "Wǒ zhīdào tā zài nǎlǐ.",
+      "en": "I know where he is.",
+      "speechText": "我知道他在哪里。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "i",
+        "dont-know",
+        "he",
+        "at",
+        "where"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T05",
+      "roleId": "traveler",
+      "zh": "别在这里等我。",
+      "pinyin": "Bié zài zhèlǐ děng wǒ.",
+      "en": "Do not wait for me here.",
+      "speechText": "别在这里等我。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "dont-leave",
+        "at",
+        "here",
+        "wait-you",
+        "i"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T06",
+      "roleId": "guide",
+      "zh": "我们一起去找他。",
+      "pinyin": "Wǒmen yìqǐ qù zhǎo tā.",
+      "en": "We are going to look for him together.",
+      "speechText": "我们一起去找他。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "we",
+        "together",
+        "go",
+        "find",
+        "he"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T07",
+      "roleId": "traveler",
+      "zh": "请等一下。",
+      "pinyin": "Qǐng děng yíxià.",
+      "en": "Please wait a moment.",
+      "speechText": "请等一下。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "wait-moment",
+        "repeat"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T08",
+      "roleId": "guide",
+      "zh": "我没看见他。",
+      "pinyin": "Wǒ méi kànjiàn tā.",
+      "en": "I did not see him.",
+      "speechText": "我没看见他。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "i",
+        "not-understand",
+        "see",
+        "he"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T09",
+      "roleId": "traveler",
+      "zh": "他听懂了，我没听懂。",
+      "pinyin": "Tā tīngdǒng le, wǒ méi tīngdǒng.",
+      "en": "He understood; I did not.",
+      "speechText": "他听懂了，我没听懂。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "he",
+        "understand",
+        "i",
+        "not-understand"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    },
+    {
+      "id": "T10",
+      "roleId": "guide",
+      "zh": "他来了，我们走吧。",
+      "pinyin": "Tā lái le, wǒmen zǒu ba.",
+      "en": "He is here; let us go.",
+      "speechText": "他来了，我们走吧。",
+      "nodeId": null,
+      "sceneId": null,
+      "requiresTargetIds": [
+        "he",
+        "arrived",
+        "we",
+        "lets-go"
+      ],
+      "usage": "checkpoint_reserved",
+      "audioVariants": [
+        "normal",
+        "slow"
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "id": "e001",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "primaryTargetId": "hello",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "01a",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does this person say?",
+      "options": [
+        {
+          "id": "e001-o1",
+          "label": "Hello."
+        },
+        {
+          "id": "e001-o2",
+          "label": "Goodbye."
+        },
+        {
+          "id": "e001-o3",
+          "label": "Thank you."
+        }
+      ],
+      "correctOptionId": "e001-o1",
+      "explanation": "你好 is a greeting.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e002",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "primaryTargetId": "i",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "i",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who does this word refer to?",
+      "options": [
+        {
+          "id": "e002-o1",
+          "label": "The listener: you."
+        },
+        {
+          "id": "e002-o2",
+          "label": "A group: we or us."
+        },
+        {
+          "id": "e002-o3",
+          "label": "The speaker: I or me."
+        }
+      ],
+      "correctOptionId": "e002-o3",
+      "explanation": "我 refers to the person speaking.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e003",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "primaryTargetId": "you",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "you",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who does this word refer to?",
+      "options": [
+        {
+          "id": "e003-o1",
+          "label": "A third person."
+        },
+        {
+          "id": "e003-o2",
+          "label": "The listener: you."
+        },
+        {
+          "id": "e003-o3",
+          "label": "The speaker: I or me."
+        }
+      ],
+      "correctOptionId": "e003-o2",
+      "explanation": "你 addresses the listener.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e004",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "primaryTargetId": "be",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "01d",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is the speaker doing?",
+      "options": [
+        {
+          "id": "e004-o1",
+          "label": "Introducing themself."
+        },
+        {
+          "id": "e004-o2",
+          "label": "Asking your name."
+        },
+        {
+          "id": "e004-o3",
+          "label": "Asking where someone is."
+        }
+      ],
+      "correctOptionId": "e004-o1",
+      "explanation": "我是… means I am…; Xiaolin is a name, not a word to memorize.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e005",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n1",
+      "sceneId": "s1",
+      "primaryTargetId": "you",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v01",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who is being identified as Xiaolin?",
+      "options": [
+        {
+          "id": "e005-o1",
+          "label": "The speaker."
+        },
+        {
+          "id": "e005-o2",
+          "label": "The whole group."
+        },
+        {
+          "id": "e005-o3",
+          "label": "The listener."
+        }
+      ],
+      "correctOptionId": "e005-o3",
+      "explanation": "你是… means you are…; listen for 你 rather than 我.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e006",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "primaryTargetId": "who",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "01c",
+          "variant": "normal"
+        }
+      ],
+      "question": "What information is requested?",
+      "options": [
+        {
+          "id": "e006-o1",
+          "label": "Your destination."
+        },
+        {
+          "id": "e006-o2",
+          "label": "Your identity."
+        },
+        {
+          "id": "e006-o3",
+          "label": "Your location."
+        }
+      ],
+      "correctOptionId": "e006-o2",
+      "explanation": "你是谁 asks who you are.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e007",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "primaryTargetId": "he",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "01e",
+          "variant": "normal"
+        }
+      ],
+      "question": "Whose identity is requested?",
+      "options": [
+        {
+          "id": "e007-o1",
+          "label": "A third person's."
+        },
+        {
+          "id": "e007-o2",
+          "label": "The speaker's."
+        },
+        {
+          "id": "e007-o3",
+          "label": "The listener's."
+        }
+      ],
+      "correctOptionId": "e007-o1",
+      "explanation": "他 refers to a third person in this scene, not to I or you. Its sound alone does not distinguish 他 from 她.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e008",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "primaryTargetId": "my-friend",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "01f",
+          "variant": "normal"
+        }
+      ],
+      "question": "How is that person related to the speaker?",
+      "options": [
+        {
+          "id": "e008-o1",
+          "label": "He is the listener's friend."
+        },
+        {
+          "id": "e008-o2",
+          "label": "He is the speaker."
+        },
+        {
+          "id": "e008-o3",
+          "label": "He is the speaker's friend."
+        }
+      ],
+      "correctOptionId": "e008-o3",
+      "explanation": "我的朋友 means my friend.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e009",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "primaryTargetId": "my-friend",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v02",
+          "variant": "normal"
+        }
+      ],
+      "question": "Whose friend does the speaker say they are?",
+      "options": [
+        {
+          "id": "e009-o1",
+          "label": "Everyone's friend."
+        },
+        {
+          "id": "e009-o2",
+          "label": "The listener's friend."
+        },
+        {
+          "id": "e009-o3",
+          "label": "A third person's friend."
+        }
+      ],
+      "correctOptionId": "e009-o2",
+      "explanation": "你的朋友 means your friend; the possessor has changed from 我 to 你.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e010",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "primaryTargetId": "who",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "who",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does this question word ask about?",
+      "options": [
+        {
+          "id": "e010-o1",
+          "label": "A person's identity."
+        },
+        {
+          "id": "e010-o2",
+          "label": "A place."
+        },
+        {
+          "id": "e010-o3",
+          "label": "A reason."
+        }
+      ],
+      "correctOptionId": "e010-o1",
+      "explanation": "谁 asks who.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e011",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "primaryTargetId": "find",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "02a",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is the question about?",
+      "options": [
+        {
+          "id": "e011-o1",
+          "label": "Who you are."
+        },
+        {
+          "id": "e011-o2",
+          "label": "Where you live."
+        },
+        {
+          "id": "e011-o3",
+          "label": "Who you are looking for."
+        }
+      ],
+      "correctOptionId": "e011-o3",
+      "explanation": "找 means look for; 谁 asks who.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e012",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "primaryTargetId": "find",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "02b",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is the speaker doing?",
+      "options": [
+        {
+          "id": "e012-o1",
+          "label": "Asking your name."
+        },
+        {
+          "id": "e012-o2",
+          "label": "Looking for a third person."
+        },
+        {
+          "id": "e012-o3",
+          "label": "Introducing themself."
+        }
+      ],
+      "correctOptionId": "e012-o2",
+      "explanation": "我找他 means I am looking for him.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e013",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "primaryTargetId": "question-ma",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "02c",
+          "variant": "normal"
+        }
+      ],
+      "question": "Is this a statement or a question?",
+      "options": [
+        {
+          "id": "e013-o1",
+          "label": "A question about whether he is here."
+        },
+        {
+          "id": "e013-o2",
+          "label": "A statement that he is here."
+        },
+        {
+          "id": "e013-o3",
+          "label": "An instruction to stay here."
+        }
+      ],
+      "correctOptionId": "e013-o1",
+      "explanation": "吗 turns this location statement into a yes/no question.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e014",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "primaryTargetId": "at",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v03",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does the speaker state?",
+      "options": [
+        {
+          "id": "e014-o1",
+          "label": "He is not here."
+        },
+        {
+          "id": "e014-o2",
+          "label": "You are here."
+        },
+        {
+          "id": "e014-o3",
+          "label": "He is here."
+        }
+      ],
+      "correctOptionId": "e014-o3",
+      "explanation": "他在这里 states his location. There is no 吗 at the end.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e015",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n1",
+      "sceneId": "s2",
+      "primaryTargetId": "here",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "here",
+          "variant": "normal"
+        }
+      ],
+      "question": "Which location does this word indicate?",
+      "options": [
+        {
+          "id": "e015-o1",
+          "label": "Everywhere."
+        },
+        {
+          "id": "e015-o2",
+          "label": "Here."
+        },
+        {
+          "id": "e015-o3",
+          "label": "There."
+        }
+      ],
+      "correctOptionId": "e015-o2",
+      "explanation": "这里 means here.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e016",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "primaryTargetId": "not-present",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "02d",
+          "variant": "normal"
+        }
+      ],
+      "question": "The question was whether the friend is here. What is the answer?",
+      "options": [
+        {
+          "id": "e016-o1",
+          "label": "No, the friend is not here."
+        },
+        {
+          "id": "e016-o2",
+          "label": "Yes, the friend is here."
+        },
+        {
+          "id": "e016-o3",
+          "label": "The speaker is introducing the friend."
+        }
+      ],
+      "correctOptionId": "e016-o1",
+      "explanation": "不在 answers that someone is not present at the place being discussed.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e017",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "primaryTargetId": "where",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "02e",
+          "variant": "normal"
+        }
+      ],
+      "question": "What information is requested?",
+      "options": [
+        {
+          "id": "e017-o1",
+          "label": "His identity."
+        },
+        {
+          "id": "e017-o2",
+          "label": "His reason."
+        },
+        {
+          "id": "e017-o3",
+          "label": "His location."
+        }
+      ],
+      "correctOptionId": "e017-o3",
+      "explanation": "他在哪里 asks where he is.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e018",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "primaryTargetId": "dont-know",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "02f",
+          "variant": "normal"
+        }
+      ],
+      "question": "Does the speaker know?",
+      "options": [
+        {
+          "id": "e018-o1",
+          "label": "The speaker asks whether you know."
+        },
+        {
+          "id": "e018-o2",
+          "label": "No, the speaker does not know."
+        },
+        {
+          "id": "e018-o3",
+          "label": "Yes, the speaker knows."
+        }
+      ],
+      "correctOptionId": "e018-o2",
+      "explanation": "不知道 means do not know.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e019",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "primaryTargetId": "where",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v04",
+          "variant": "normal"
+        }
+      ],
+      "question": "Whose location is requested?",
+      "options": [
+        {
+          "id": "e019-o1",
+          "label": "The listener's."
+        },
+        {
+          "id": "e019-o2",
+          "label": "A third person's."
+        },
+        {
+          "id": "e019-o3",
+          "label": "The speaker's."
+        }
+      ],
+      "correctOptionId": "e019-o1",
+      "explanation": "你在哪里 asks where you are.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e020",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "primaryTargetId": "where",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "where",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does this question word ask about?",
+      "options": [
+        {
+          "id": "e020-o1",
+          "label": "A person's identity."
+        },
+        {
+          "id": "e020-o2",
+          "label": "A reason."
+        },
+        {
+          "id": "e020-o3",
+          "label": "A place."
+        }
+      ],
+      "correctOptionId": "e020-o3",
+      "explanation": "哪里 means where.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e021",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "primaryTargetId": "go",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03a",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is being asked?",
+      "options": [
+        {
+          "id": "e021-o1",
+          "label": "Who you are looking for."
+        },
+        {
+          "id": "e021-o2",
+          "label": "Where you are going."
+        },
+        {
+          "id": "e021-o3",
+          "label": "Where you are now."
+        }
+      ],
+      "correctOptionId": "e021-o2",
+      "explanation": "去 adds going to the question: 你去哪里?",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e022",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "primaryTargetId": "go",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03b",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does the speaker intend to do?",
+      "options": [
+        {
+          "id": "e022-o1",
+          "label": "Go look for him."
+        },
+        {
+          "id": "e022-o2",
+          "label": "Stay and wait for you."
+        },
+        {
+          "id": "e022-o3",
+          "label": "Introduce a friend."
+        }
+      ],
+      "correctOptionId": "e022-o1",
+      "explanation": "去找他 means go look for him.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e023",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "primaryTargetId": "dont-leave",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03c",
+          "variant": "normal"
+        }
+      ],
+      "question": "What should you do in response?",
+      "options": [
+        {
+          "id": "e023-o1",
+          "label": "Leave now."
+        },
+        {
+          "id": "e023-o2",
+          "label": "Introduce yourself."
+        },
+        {
+          "id": "e023-o3",
+          "label": "Stay instead of leaving."
+        }
+      ],
+      "correctOptionId": "e023-o3",
+      "explanation": "别走 is an instruction not to go or leave.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e024",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "primaryTargetId": "why",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03d",
+          "variant": "normal"
+        }
+      ],
+      "question": "What information is requested?",
+      "options": [
+        {
+          "id": "e024-o1",
+          "label": "An identity."
+        },
+        {
+          "id": "e024-o2",
+          "label": "A reason."
+        },
+        {
+          "id": "e024-o3",
+          "label": "A location."
+        }
+      ],
+      "correctOptionId": "e024-o2",
+      "explanation": "为什么 asks why.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e025",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n1",
+      "sceneId": "s3",
+      "primaryTargetId": "go",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v05",
+          "variant": "normal"
+        }
+      ],
+      "question": "Whose destination is requested?",
+      "options": [
+        {
+          "id": "e025-o1",
+          "label": "A third person's."
+        },
+        {
+          "id": "e025-o2",
+          "label": "The listener's."
+        },
+        {
+          "id": "e025-o3",
+          "label": "The whole group's."
+        }
+      ],
+      "correctOptionId": "e025-o1",
+      "explanation": "他去哪里 asks where he is going.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e026",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "primaryTargetId": "wait-moment",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03e",
+          "variant": "normal"
+        }
+      ],
+      "question": "What should you do?",
+      "options": [
+        {
+          "id": "e026-o1",
+          "label": "Leave immediately."
+        },
+        {
+          "id": "e026-o2",
+          "label": "Introduce yourself."
+        },
+        {
+          "id": "e026-o3",
+          "label": "Wait briefly."
+        }
+      ],
+      "correctOptionId": "e026-o3",
+      "explanation": "等一下 asks you to wait a moment.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e027",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "primaryTargetId": "wait-you",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03f",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who will wait for whom?",
+      "options": [
+        {
+          "id": "e027-o1",
+          "label": "The speaker will look for someone else."
+        },
+        {
+          "id": "e027-o2",
+          "label": "The speaker will wait for the listener."
+        },
+        {
+          "id": "e027-o3",
+          "label": "The listener will wait for the speaker."
+        }
+      ],
+      "correctOptionId": "e027-o2",
+      "explanation": "我…等你 means I will wait for you.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e028",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "primaryTargetId": "here",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "03f",
+          "variant": "normal"
+        }
+      ],
+      "question": "Where will the speaker wait?",
+      "options": [
+        {
+          "id": "e028-o1",
+          "label": "Here."
+        },
+        {
+          "id": "e028-o2",
+          "label": "At an unspecified different place."
+        },
+        {
+          "id": "e028-o3",
+          "label": "No location is mentioned."
+        }
+      ],
+      "correctOptionId": "e028-o1",
+      "explanation": "在这里 explicitly identifies here as the waiting place.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e029",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "primaryTargetId": "wait-you",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v06",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who is the speaker waiting for?",
+      "options": [
+        {
+          "id": "e029-o1",
+          "label": "The listener."
+        },
+        {
+          "id": "e029-o2",
+          "label": "The speaker themself."
+        },
+        {
+          "id": "e029-o3",
+          "label": "A third person."
+        }
+      ],
+      "correctOptionId": "e029-o3",
+      "explanation": "等他 changes the person being waited for; compare 等你.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e030",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "primaryTargetId": "okay",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "okay",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does this reply mean here?",
+      "options": [
+        {
+          "id": "e030-o1",
+          "label": "Why?"
+        },
+        {
+          "id": "e030-o2",
+          "label": "Okay / all right."
+        },
+        {
+          "id": "e030-o3",
+          "label": "I do not know."
+        }
+      ],
+      "correctOptionId": "e030-o2",
+      "explanation": "好 can signal agreement in a reply.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e031",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "primaryTargetId": "understand",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "04a",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is being asked?",
+      "options": [
+        {
+          "id": "e031-o1",
+          "label": "Whether you understood."
+        },
+        {
+          "id": "e031-o2",
+          "label": "Whether you are leaving."
+        },
+        {
+          "id": "e031-o3",
+          "label": "Who you are."
+        }
+      ],
+      "correctOptionId": "e031-o1",
+      "explanation": "听懂 means to understand what was heard.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e032",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "primaryTargetId": "not-understand",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "04b",
+          "variant": "normal"
+        }
+      ],
+      "question": "What problem does the speaker report?",
+      "options": [
+        {
+          "id": "e032-o1",
+          "label": "They refuse to wait."
+        },
+        {
+          "id": "e032-o2",
+          "label": "They cannot find a friend."
+        },
+        {
+          "id": "e032-o3",
+          "label": "They did not understand."
+        }
+      ],
+      "correctOptionId": "e032-o3",
+      "explanation": "没听懂 reports unsuccessful understanding, not refusal.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e033",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "primaryTargetId": "say",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "04c",
+          "variant": "normal"
+        }
+      ],
+      "question": "What instruction is the speaker repeating?",
+      "options": [
+        {
+          "id": "e033-o1",
+          "label": "Tell me your name."
+        },
+        {
+          "id": "e033-o2",
+          "label": "Do not go."
+        },
+        {
+          "id": "e033-o3",
+          "label": "Come here."
+        }
+      ],
+      "correctOptionId": "e033-o2",
+      "explanation": "我说 introduces what was said; 别走 is the repeated instruction.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e034",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "primaryTargetId": "not-understand",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v07",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who did not understand?",
+      "options": [
+        {
+          "id": "e034-o1",
+          "label": "A third person."
+        },
+        {
+          "id": "e034-o2",
+          "label": "The speaker."
+        },
+        {
+          "id": "e034-o3",
+          "label": "The listener."
+        }
+      ],
+      "correctOptionId": "e034-o1",
+      "explanation": "他没听懂 refers to a third person rather than 我, the speaker.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e035",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n1",
+      "sceneId": "s4",
+      "primaryTargetId": "understand",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "understand",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does this chunk express?",
+      "options": [
+        {
+          "id": "e035-o1",
+          "label": "Looking for a person."
+        },
+        {
+          "id": "e035-o2",
+          "label": "Waiting for a person."
+        },
+        {
+          "id": "e035-o3",
+          "label": "Understanding what is heard."
+        }
+      ],
+      "correctOptionId": "e035-o3",
+      "explanation": "懂 gives the result of understanding to 听.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e036",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "primaryTargetId": "repeat",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "04d",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does the speaker request?",
+      "options": [
+        {
+          "id": "e036-o1",
+          "label": "Wait for someone."
+        },
+        {
+          "id": "e036-o2",
+          "label": "Say it again."
+        },
+        {
+          "id": "e036-o3",
+          "label": "Leave now."
+        }
+      ],
+      "correctOptionId": "e036-o2",
+      "explanation": "请再说一遍 is a request to repeat what was said.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e037",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "primaryTargetId": "wait-you",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "04e",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who should wait for whom?",
+      "options": [
+        {
+          "id": "e037-o1",
+          "label": "The listener should wait for the speaker."
+        },
+        {
+          "id": "e037-o2",
+          "label": "The speaker should wait for the listener."
+        },
+        {
+          "id": "e037-o3",
+          "label": "Both should go find a friend."
+        }
+      ],
+      "correctOptionId": "e037-o1",
+      "explanation": "等我 means wait for me. The listener is being given the instruction.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e038",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "primaryTargetId": "now",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "04f",
+          "variant": "normal"
+        }
+      ],
+      "question": "What has changed?",
+      "options": [
+        {
+          "id": "e038-o1",
+          "label": "The speaker no longer knows where to go."
+        },
+        {
+          "id": "e038-o2",
+          "label": "The listener has arrived."
+        },
+        {
+          "id": "e038-o3",
+          "label": "The speaker now understands."
+        }
+      ],
+      "correctOptionId": "e038-o3",
+      "explanation": "现在 means now, and 听懂了 signals the new understanding here.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e039",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "primaryTargetId": "repeat",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v08",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is requested now?",
+      "options": [
+        {
+          "id": "e039-o1",
+          "label": "A departure."
+        },
+        {
+          "id": "e039-o2",
+          "label": "A repetition."
+        },
+        {
+          "id": "e039-o3",
+          "label": "An introduction."
+        }
+      ],
+      "correctOptionId": "e039-o2",
+      "explanation": "现在 changes the time reference; 请再说一遍 still requests repetition.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e040",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "primaryTargetId": "now",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "now",
+          "variant": "normal"
+        }
+      ],
+      "question": "What time does this word indicate?",
+      "options": [
+        {
+          "id": "e040-o1",
+          "label": "Now."
+        },
+        {
+          "id": "e040-o2",
+          "label": "Yesterday."
+        },
+        {
+          "id": "e040-o3",
+          "label": "Tomorrow."
+        }
+      ],
+      "correctOptionId": "e040-o1",
+      "explanation": "现在 means now.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e041",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "primaryTargetId": "arrived",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "05a",
+          "variant": "normal"
+        }
+      ],
+      "question": "What has happened?",
+      "options": [
+        {
+          "id": "e041-o1",
+          "label": "He has left."
+        },
+        {
+          "id": "e041-o2",
+          "label": "He is still being searched for."
+        },
+        {
+          "id": "e041-o3",
+          "label": "He has arrived."
+        }
+      ],
+      "correctOptionId": "e041-o3",
+      "explanation": "他来了 announces his arrival in this scene.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e042",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "primaryTargetId": "where",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "05b",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is the speaker asking for?",
+      "options": [
+        {
+          "id": "e042-o1",
+          "label": "A reason."
+        },
+        {
+          "id": "e042-o2",
+          "label": "A location."
+        },
+        {
+          "id": "e042-o3",
+          "label": "A name."
+        }
+      ],
+      "correctOptionId": "e042-o2",
+      "explanation": "在哪里 asks where; the subject is supplied by the conversation.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e043",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "primaryTargetId": "here",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "05c",
+          "variant": "normal"
+        }
+      ],
+      "question": "What location is indicated?",
+      "options": [
+        {
+          "id": "e043-o1",
+          "label": "Here."
+        },
+        {
+          "id": "e043-o2",
+          "label": "Somewhere else."
+        },
+        {
+          "id": "e043-o3",
+          "label": "No location is given."
+        }
+      ],
+      "correctOptionId": "e043-o1",
+      "explanation": "在这里 indicates here.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e044",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "primaryTargetId": "see",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "05d",
+          "variant": "normal"
+        }
+      ],
+      "question": "Did the speaker see the friend?",
+      "options": [
+        {
+          "id": "e044-o1",
+          "label": "No, the speaker did not see him."
+        },
+        {
+          "id": "e044-o2",
+          "label": "The speaker asks if you saw him."
+        },
+        {
+          "id": "e044-o3",
+          "label": "Yes, the speaker spotted him."
+        }
+      ],
+      "correctOptionId": "e044-o3",
+      "explanation": "我看见他了 reports seeing him.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e045",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n1",
+      "sceneId": "s5",
+      "primaryTargetId": "see",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v09",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who has the speaker spotted?",
+      "options": [
+        {
+          "id": "e045-o1",
+          "label": "The whole group."
+        },
+        {
+          "id": "e045-o2",
+          "label": "The listener."
+        },
+        {
+          "id": "e045-o3",
+          "label": "A third person."
+        }
+      ],
+      "correctOptionId": "e045-o2",
+      "explanation": "看见你 means see you; compare 看见他.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e046",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "primaryTargetId": "together",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "05e",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is proposed?",
+      "options": [
+        {
+          "id": "e046-o1",
+          "label": "Go together."
+        },
+        {
+          "id": "e046-o2",
+          "label": "Wait separately."
+        },
+        {
+          "id": "e046-o3",
+          "label": "Look for a name."
+        }
+      ],
+      "correctOptionId": "e046-o1",
+      "explanation": "一起 means together; 走吧 proposes going.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e047",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "primaryTargetId": "lets-go",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "05f",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is the reply proposing?",
+      "options": [
+        {
+          "id": "e047-o1",
+          "label": "Let us wait."
+        },
+        {
+          "id": "e047-o2",
+          "label": "Let us introduce ourselves."
+        },
+        {
+          "id": "e047-o3",
+          "label": "Let us go."
+        }
+      ],
+      "correctOptionId": "e047-o3",
+      "explanation": "我们走吧 proposes that the group go.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e048",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "primaryTargetId": "together",
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "v10",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is the group invited to do together?",
+      "options": [
+        {
+          "id": "e048-o1",
+          "label": "Ask his name."
+        },
+        {
+          "id": "e048-o2",
+          "label": "Wait for him."
+        },
+        {
+          "id": "e048-o3",
+          "label": "Leave without him."
+        }
+      ],
+      "correctOptionId": "e048-o2",
+      "explanation": "一起等他 means wait for him together; do not answer from the scene ending alone.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e049",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "primaryTargetId": "we",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "we",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who does this pronoun refer to?",
+      "options": [
+        {
+          "id": "e049-o1",
+          "label": "A group including the speaker."
+        },
+        {
+          "id": "e049-o2",
+          "label": "Only the listener."
+        },
+        {
+          "id": "e049-o3",
+          "label": "Only a third person."
+        }
+      ],
+      "correctOptionId": "e049-o1",
+      "explanation": "我们 means we or us.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "e050",
+      "kind": "audio_choice",
+      "phase": "training",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "primaryTargetId": "together",
+      "promptAudio": [
+        {
+          "sourceKind": "target",
+          "sourceId": "together",
+          "variant": "normal"
+        }
+      ],
+      "question": "What does this word mean?",
+      "options": [
+        {
+          "id": "e050-o1",
+          "label": "Separately."
+        },
+        {
+          "id": "e050-o2",
+          "label": "Briefly."
+        },
+        {
+          "id": "e050-o3",
+          "label": "Together."
+        }
+      ],
+      "correctOptionId": "e050-o3",
+      "explanation": "一起 means together.",
+      "allowSlow": true,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    }
+  ],
+  "constructionExercises": [
+    {
+      "id": "g01",
+      "kind": "chunk_order",
+      "phase": "practice",
+      "nodeId": "s1n2",
+      "sceneId": "s1",
+      "primaryTargetId": null,
+      "sourceUtteranceId": "01f",
+      "question": "Build this sentence: He is my friend.",
+      "tiles": [
+        {
+          "id": "g01-c1",
+          "zh": "他"
+        },
+        {
+          "id": "g01-c2",
+          "zh": "是"
+        },
+        {
+          "id": "g01-c3",
+          "zh": "我的朋友"
+        }
+      ],
+      "correctTileIds": [
+        "g01-c1",
+        "g01-c2",
+        "g01-c3"
+      ],
+      "displayAnswer": "他是我的朋友。",
+      "explanation": "Start with the person, then 是, then the identity."
+    },
+    {
+      "id": "g02",
+      "kind": "chunk_order",
+      "phase": "practice",
+      "nodeId": "s2n2",
+      "sceneId": "s2",
+      "primaryTargetId": null,
+      "sourceUtteranceId": "02c",
+      "question": "Build this sentence: Is he here?",
+      "tiles": [
+        {
+          "id": "g02-c1",
+          "zh": "他"
+        },
+        {
+          "id": "g02-c2",
+          "zh": "在"
+        },
+        {
+          "id": "g02-c3",
+          "zh": "这里"
+        },
+        {
+          "id": "g02-c4",
+          "zh": "吗"
+        }
+      ],
+      "correctTileIds": [
+        "g02-c1",
+        "g02-c2",
+        "g02-c3",
+        "g02-c4"
+      ],
+      "displayAnswer": "他在这里吗？",
+      "explanation": "The yes/no question particle 吗 comes at the end."
+    },
+    {
+      "id": "g03",
+      "kind": "chunk_order",
+      "phase": "practice",
+      "nodeId": "s3n2",
+      "sceneId": "s3",
+      "primaryTargetId": null,
+      "sourceUtteranceId": "03f",
+      "question": "Build this sentence: Okay, I will wait for you here.",
+      "tiles": [
+        {
+          "id": "g03-c1",
+          "zh": "好"
+        },
+        {
+          "id": "g03-c2",
+          "zh": "我"
+        },
+        {
+          "id": "g03-c3",
+          "zh": "在这里"
+        },
+        {
+          "id": "g03-c4",
+          "zh": "等你"
+        }
+      ],
+      "correctTileIds": [
+        "g03-c1",
+        "g03-c2",
+        "g03-c3",
+        "g03-c4"
+      ],
+      "displayAnswer": "好，我在这里等你。",
+      "explanation": "In this sentence the location comes before the waiting action."
+    },
+    {
+      "id": "g04",
+      "kind": "chunk_order",
+      "phase": "practice",
+      "nodeId": "s4n2",
+      "sceneId": "s4",
+      "primaryTargetId": null,
+      "sourceUtteranceId": "04d",
+      "question": "Build this sentence: Please say it again.",
+      "tiles": [
+        {
+          "id": "g04-c1",
+          "zh": "请"
+        },
+        {
+          "id": "g04-c2",
+          "zh": "再"
+        },
+        {
+          "id": "g04-c3",
+          "zh": "说"
+        },
+        {
+          "id": "g04-c4",
+          "zh": "一遍"
+        }
+      ],
+      "correctTileIds": [
+        "g04-c1",
+        "g04-c2",
+        "g04-c3",
+        "g04-c4"
+      ],
+      "displayAnswer": "请再说一遍。",
+      "explanation": "请 makes the request polite; 再 and 一遍 frame the repetition."
+    },
+    {
+      "id": "g05",
+      "kind": "chunk_order",
+      "phase": "practice",
+      "nodeId": "s5n2",
+      "sceneId": "s5",
+      "primaryTargetId": null,
+      "sourceUtteranceId": "05e",
+      "question": "Build this sentence: Let us go together.",
+      "tiles": [
+        {
+          "id": "g05-c1",
+          "zh": "我们"
+        },
+        {
+          "id": "g05-c2",
+          "zh": "一起"
+        },
+        {
+          "id": "g05-c3",
+          "zh": "走吧"
+        }
+      ],
+      "correctTileIds": [
+        "g05-c1",
+        "g05-c2",
+        "g05-c3"
+      ],
+      "displayAnswer": "我们一起走吧。",
+      "explanation": "我们 names the group; 一起 says together; 走吧 proposes going."
+    }
+  ],
+  "checkpointExercises": [
+    {
+      "id": "cp01",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T01",
+          "variant": "normal"
+        }
+      ],
+      "question": "Whose friend is the speaker?",
+      "options": [
+        {
+          "id": "cp01-o1",
+          "label": "Everyone's friend."
+        },
+        {
+          "id": "cp01-o2",
+          "label": "A third person's friend."
+        },
+        {
+          "id": "cp01-o3",
+          "label": "The listener's friend."
+        }
+      ],
+      "correctOptionId": "cp01-o2",
+      "explanation": "他的朋友 means his friend; 我 identifies the speaker as that friend.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp02",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T02",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is being asked?",
+      "options": [
+        {
+          "id": "cp02-o1",
+          "label": "Whether he is your friend."
+        },
+        {
+          "id": "cp02-o2",
+          "label": "Whether he is here."
+        },
+        {
+          "id": "cp02-o3",
+          "label": "Whether you know his name."
+        }
+      ],
+      "correctOptionId": "cp02-o1",
+      "explanation": "他是你的朋友吗 asks about his relationship to you.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp03",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T03",
+          "variant": "normal"
+        }
+      ],
+      "question": "Is he here?",
+      "options": [
+        {
+          "id": "cp03-o1",
+          "label": "Yes."
+        },
+        {
+          "id": "cp03-o2",
+          "label": "The speaker is asking, not saying."
+        },
+        {
+          "id": "cp03-o3",
+          "label": "No."
+        }
+      ],
+      "correctOptionId": "cp03-o3",
+      "explanation": "不在这里 means not here.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp04",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T04",
+          "variant": "normal"
+        }
+      ],
+      "question": "Does the speaker know his location?",
+      "options": [
+        {
+          "id": "cp04-o1",
+          "label": "The speaker is asking you."
+        },
+        {
+          "id": "cp04-o2",
+          "label": "Yes."
+        },
+        {
+          "id": "cp04-o3",
+          "label": "No."
+        }
+      ],
+      "correctOptionId": "cp04-o2",
+      "explanation": "知道 is positive here: I know. Compare 不知道.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp05",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T05",
+          "variant": "normal"
+        }
+      ],
+      "question": "What are you told not to do?",
+      "options": [
+        {
+          "id": "cp05-o1",
+          "label": "Wait here for the speaker."
+        },
+        {
+          "id": "cp05-o2",
+          "label": "Leave this place."
+        },
+        {
+          "id": "cp05-o3",
+          "label": "Look for a third person."
+        }
+      ],
+      "correctOptionId": "cp05-o1",
+      "explanation": "别 negates the instruction 在这里等我: wait here for me.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp06",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T06",
+          "variant": "normal"
+        }
+      ],
+      "question": "What will the group do?",
+      "options": [
+        {
+          "id": "cp06-o1",
+          "label": "Wait here for you."
+        },
+        {
+          "id": "cp06-o2",
+          "label": "Introduce themselves separately."
+        },
+        {
+          "id": "cp06-o3",
+          "label": "Go look for him together."
+        }
+      ],
+      "correctOptionId": "cp06-o3",
+      "explanation": "我们一起去找他 combines we, together, go, and look for him.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp07",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T07",
+          "variant": "normal"
+        }
+      ],
+      "question": "What should you do?",
+      "options": [
+        {
+          "id": "cp07-o1",
+          "label": "Go now."
+        },
+        {
+          "id": "cp07-o2",
+          "label": "Wait a moment."
+        },
+        {
+          "id": "cp07-o3",
+          "label": "Say it again."
+        }
+      ],
+      "correctOptionId": "cp07-o2",
+      "explanation": "请 makes the familiar 等一下 request polite.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp08",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T08",
+          "variant": "normal"
+        }
+      ],
+      "question": "Did the speaker see him?",
+      "options": [
+        {
+          "id": "cp08-o1",
+          "label": "No."
+        },
+        {
+          "id": "cp08-o2",
+          "label": "Yes."
+        },
+        {
+          "id": "cp08-o3",
+          "label": "The speaker asks whether you saw him."
+        }
+      ],
+      "correctOptionId": "cp08-o1",
+      "explanation": "没看见 negates seeing him; it is not the positive 看见…了.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp09",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T09",
+          "variant": "normal"
+        }
+      ],
+      "question": "Who understood?",
+      "options": [
+        {
+          "id": "cp09-o1",
+          "label": "The speaker did, but he did not."
+        },
+        {
+          "id": "cp09-o2",
+          "label": "Both understood."
+        },
+        {
+          "id": "cp09-o3",
+          "label": "He did, but the speaker did not."
+        }
+      ],
+      "correctOptionId": "cp09-o3",
+      "explanation": "The first clause is positive 听懂了; the second is negative 没听懂.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    },
+    {
+      "id": "cp10",
+      "kind": "audio_choice",
+      "phase": "checkpoint",
+      "nodeId": null,
+      "sceneId": null,
+      "primaryTargetId": null,
+      "promptAudio": [
+        {
+          "sourceKind": "utterance",
+          "sourceId": "T10",
+          "variant": "normal"
+        }
+      ],
+      "question": "What is proposed after his arrival?",
+      "options": [
+        {
+          "id": "cp10-o1",
+          "label": "Ask who he is."
+        },
+        {
+          "id": "cp10-o2",
+          "label": "Leave together as a group."
+        },
+        {
+          "id": "cp10-o3",
+          "label": "Keep waiting alone."
+        }
+      ],
+      "correctOptionId": "cp10-o2",
+      "explanation": "他来了 announces arrival, then 我们走吧 proposes leaving.",
+      "allowSlow": false,
+      "allowTextHelp": true,
+      "shuffleOptions": true
+    }
+  ],
+  "checkpointPolicy": {
+    "unlockAfterNodeId": "s5n2",
+    "normalSpeedOnFirstPresentation": true,
+    "firstExposureOnlyForFreshScore": true,
+    "recordReplayAndHelp": true,
+    "feedbackAfterSubmission": true,
+    "updateComponentSchedules": false,
+    "voiceTransferClaim": false
+  },
+  "teachingPolicy": {
+    "teachBeforeScoring": true,
+    "onePrimaryTargetPerReview": true,
+    "hideTextDuringAudioAssessment": true,
+    "sceneCompletionIsNotMastery": true,
+    "maximumNewPrimaryTargetsPerNode": 4
+  },
+  "audioPolicy": {
+    "roleMapping": "One verified Mandarin narrator may read all roles in the AWS-only alpha. Do not claim independent voices.",
+    "variants": [
+      "normal",
+      "slow"
+    ],
+    "generation": "server_lazy_curated_only",
+    "noAudioIsNotWrongAnswer": true
+  },
+  "sfx": [
+    {
+      "id": "ui-tap",
+      "recipe": "soft-wood-tap-v1",
+      "purpose": "A quiet tactile confirmation on button press.",
+      "maxDurationMs": 100
+    },
+    {
+      "id": "answer-correct",
+      "recipe": "two-note-soft-chime-v1",
+      "purpose": "Positive feedback after the spoken prompt ends.",
+      "maxDurationMs": 350
+    },
+    {
+      "id": "answer-help",
+      "recipe": "soft-neutral-pluck-v1",
+      "purpose": "Gentle neutral feedback; no harsh failure alarm.",
+      "maxDurationMs": 200
+    },
+    {
+      "id": "scene-complete",
+      "recipe": "three-note-resolve-v1",
+      "purpose": "Brief completion cue after all speech stops.",
+      "maxDurationMs": 800
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { loadProgress as loadChicksProgress } from '../chicks-challenge/gameProg
 import { TOTAL_LEVELS as CHICKS_TOTAL_LEVELS } from '../chicks-challenge/gameTypes'
 import { loadProgress as loadHoverProgress } from '../hover/gameProgress'
 import { TOTAL_LEVELS as HOVER_TOTAL_LEVELS } from '../hover/maps/maps'
+import { summarizeMandarinPreview } from '../mandarin/previewSummary'
 import { loadProgress as loadMarbleSortProgress } from '../marble-sort/gameProgress'
 import { TOTAL_LEVELS as MARBLE_SORT_TOTAL_LEVELS } from '../marble-sort/levels'
 import { loadProgress as loadMathHordeProgress } from '../math-horde/gameProgress'
@@ -147,6 +148,26 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     description: 'Swipe to slide and merge numbered tiles into 2048 — with undo, four board sizes, and no level to finish.',
     href: '/2048',
     loadSummary: () => summarizeTwenty48(),
+  },
+  {
+    kind: 'score',
+    slug: 'mandarin',
+    title: 'Mandarin Quest',
+    emoji: '🏮',
+    description: 'Find your friend across five scenes by listening to short Mandarin lines — a preview with local-only progress.',
+    href: '/mandarin',
+    loadSummary: () => {
+      const summary = summarizeMandarinPreview()
+      return {
+        kind: 'score',
+        started: summary.started,
+        emptyLabel: 'Preview · progress stays in this browser',
+        stats: [
+          { label: 'Scenes', value: `${summary.scenesCompleted}/${summary.totalScenes}` },
+          { label: 'Lessons', value: `${summary.nodesCompleted}/${summary.totalNodes}` },
+        ],
+      }
+    },
   },
 ]
 

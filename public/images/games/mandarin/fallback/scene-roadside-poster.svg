@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" width="1536" height="1024" role="img" aria-labelledby="t"><title id="t">Roadside shelter fallback poster</title>
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9eef1"/><stop offset="1" stop-color="#f5efe3"/></linearGradient></defs>
+<rect width="1536" height="1024" fill="url(#sky)"/>
+<g opacity="0.55" fill="#b7c3cc"><path d="M0 540 Q400 420 800 520 T1536 470 V700 H0Z"/></g>
+<rect y="660" width="1536" height="364" fill="#9fb694"/>
+<path d="M0 860 Q768 780 1536 860 V940 Q768 860 0 940 Z" fill="#d8cdb6"/>
+<g><path d="M480 470 H1056 L1116 560 H420 Z" fill="#3f5169"/><path d="M500 490 H1036 L1080 550 H456 Z" fill="#5b6f8a"/></g>
+<g fill="#7f6b58"><rect x="500" y="560" width="22" height="240"/><rect x="1014" y="560" width="22" height="240"/><rect x="640" y="560" width="14" height="240"/><rect x="882" y="560" width="14" height="240"/></g>
+<rect x="560" y="700" width="416" height="26" fill="#a68a6b"/>
+<g fill="#7f6b58"><rect x="580" y="726" width="16" height="70"/><rect x="940" y="726" width="16" height="70"/></g>
+<g fill="#5d8a70"><ellipse cx="240" cy="660" rx="140" ry="100"/><ellipse cx="1320" cy="650" rx="150" ry="110"/><ellipse cx="160" cy="760" rx="90" ry="50" fill="#7fa58f"/><ellipse cx="1400" cy="770" rx="100" ry="55" fill="#7fa58f"/></g>
+<g fill="#7f6b58"><rect x="232" y="660" width="16" height="90"/><rect x="1312" y="650" width="16" height="100"/></g>
+<circle cx="1140" cy="620" r="18" fill="#d9a441"/><rect x="1136" y="638" width="8" height="160" fill="#7f6b58"/>
+</svg>

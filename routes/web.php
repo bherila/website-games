@@ -58,6 +58,10 @@ Route::get('/tower-throwback', function () {
     return view('games.tower-throwback');
 })->name('games.tower-throwback');
 
+Route::get('/mandarin', function () {
+    return view('games.mandarin');
+})->name('games.mandarin');
+
 Route::get('/2048', function () {
     return view('games.2048');
 })->name('games.2048');
