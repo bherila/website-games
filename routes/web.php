@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Mandarin\MandarinMediaController;
 use App\Http\Controllers\GamePwaController;
+use App\Http\Controllers\MandarinQaController;
 use App\Http\Controllers\OAuthLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,12 @@ Route::get('/mandarin/preview', function () {
 
     return view('games.mandarin', ['runtime' => 'preview']);
 })->name('games.mandarin.preview');
+
+// Signed-in audition sheet for the whole course. Development/staging tool: the
+// controller 404s in production unless MANDARIN_QA_ENABLED is set.
+Route::get('/mandarin/qa', MandarinQaController::class)
+    ->middleware(['web', 'auth'])
+    ->name('games.mandarin.qa');
 
 Route::get('/media/games/mandarin/{asset}/{hash}.{extension}', [MandarinMediaController::class, 'show'])
     ->whereNumber('asset')->where(['hash' => '[a-f0-9]{64}', 'extension' => '(mp3|m4a|wav)'])
