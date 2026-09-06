@@ -17,6 +17,9 @@ class FakeSpeechSynthesizer implements SpeechSynthesizer
 
     public ?Closure $behaviour = null;
 
+    /** Mutable so tests can simulate a configuration change after a clip was queued. */
+    public string $voice = 'Narrator';
+
     public function __construct(private readonly bool $distinctVoices = false) {}
 
     public function id(): string
@@ -26,7 +29,7 @@ class FakeSpeechSynthesizer implements SpeechSynthesizer
 
     public function recipe(SpeechRequest $request): array
     {
-        return ['provider' => 'fake', 'engine' => 'test', 'voice' => 'Narrator', 'language' => 'cmn-CN', 'rate' => $request->variant === 'slow' ? 85 : 100, 'format' => 'mp3', 'sampleRate' => 24000, 'template' => 'fake-v1'];
+        return ['provider' => 'fake', 'engine' => 'test', 'voice' => $this->voice, 'language' => 'cmn-CN', 'rate' => $request->variant === 'slow' ? 85 : 100, 'format' => 'mp3', 'sampleRate' => 24000, 'template' => 'fake-v1'];
     }
 
     public function synthesize(SpeechRequest $request): SynthesizedAudio

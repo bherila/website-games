@@ -192,6 +192,48 @@ class AudioResolveApiTest extends MandarinTestCase
         $this->assertSame(0, MandarinAudioAsset::query()->where('state', 'ready')->count());
     }
 
+    public function test_budget_exhaustion_defers_without_spending_attempts(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        config()->set('mandarin.audio.max_attempts', 2);
+        config()->set('mandarin.speech.daily_character_budget', 1);
+        $user = User::factory()->create();
+        $service = $this->app->make(AudioAssetService::class);
+        $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
+        for ($i = 0; $i < 3; $i++) {
+            $service->generate($id);
+            $asset = MandarinAudioAsset::query()->findOrFail($id);
+            $this->assertSame('failed', $asset->state);
+            $this->assertSame('budget_exhausted', $asset->error_code);
+            $this->assertSame(0, $asset->attempts, 'a deferred clip must not consume provider attempts');
+            $this->resolve($user, [self::HELLO])->assertStatus(202)->assertJsonPath('results.0.state', 'queued');
+        }
+        $this->assertCount(0, $this->speech->requests);
+        config()->set('mandarin.speech.daily_character_budget', 5000);
+        $this->app->make(AudioAssetService::class)->generate($id);
+        $this->assertSame('ready', MandarinAudioAsset::query()->findOrFail($id)->state);
+    }
+
+    public function test_generation_refuses_when_provider_configuration_drifted_from_the_queued_recipe(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        $user = User::factory()->create();
+        $service = $this->app->make(AudioAssetService::class);
+        $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
+        $this->speech->voice = 'Different';
+        $service->generate($id);
+        $asset = MandarinAudioAsset::query()->findOrFail($id);
+        $this->assertSame('failed', $asset->state);
+        $this->assertSame('unsupported_voice', $asset->error_code);
+        $this->assertStringContainsString('voice', (string) $asset->error_message);
+        $this->assertCount(0, $this->speech->requests, 'no synthesis under a mismatched recipe');
+        // The current configuration resolves to a new identity; the stale row stays failed and non-retryable.
+        $this->resolve($user, [self::HELLO])->assertStatus(202);
+        $this->assertSame(2, MandarinAudioAsset::query()->count());
+        $this->resolve($user, [self::HELLO]);
+        $this->assertSame('failed', MandarinAudioAsset::query()->findOrFail($id)->state);
+    }
+
     public function test_expired_lease_is_recovered_only_by_the_explicit_command_and_a_missing_object_invalidates_ready(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
@@ -215,6 +257,29 @@ class AudioResolveApiTest extends MandarinTestCase
         $this->getJson("/api/games/mandarin/audio/requests/{$id}")->assertJsonPath('state', 'failed')->assertJsonPath('code', 'asset_missing');
         $this->get("/media/games/mandarin/{$id}/{$asset->content_hash}.mp3")->assertNotFound();
         $this->resolve($user, [self::HELLO])->assertStatus(202)->assertJsonPath('results.0.state', 'queued');
+    }
+
+    public function test_public_disk_url_is_used_when_configured_otherwise_a_temporary_url(): void
+    {
+        config()->set('filesystems.disks.s3.url', 'https://games-assets.example.test');
+        Storage::fake('s3', ['url' => 'https://games-assets.example.test']);
+        config()->set('mandarin.media_disk', 's3');
+        $user = User::factory()->create();
+        $service = $this->app->make(AudioAssetService::class);
+        $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
+        $service->generate($id);
+        $asset = MandarinAudioAsset::query()->findOrFail($id);
+        $this->assertSame('s3', $asset->disk);
+        $ready = $this->getJson("/api/games/mandarin/audio/requests/{$id}")->assertJsonPath('state', 'ready');
+        $this->assertSame('https://games-assets.example.test/'.$asset->object_key, $ready->json('url'));
+        $this->assertNull($ready->json('expiresAt'));
+        $this->assertStringContainsString(substr((string) $asset->content_hash, 0, 12), (string) $asset->object_key);
+
+        config()->set('filesystems.disks.s3.url', null);
+        Storage::disk('s3')->buildTemporaryUrlsUsing(fn (string $path, \DateTimeInterface $expiration): string => 'https://signed.example.test/'.$path.'?exp='.$expiration->getTimestamp());
+        $signed = $this->getJson("/api/games/mandarin/audio/requests/{$id}")->assertJsonPath('state', 'ready');
+        $this->assertStringStartsWith('https://signed.example.test/', (string) $signed->json('url'));
+        $this->assertNotNull($signed->json('expiresAt'));
     }
 
     public function test_warm_command_uses_the_same_resolver(): void

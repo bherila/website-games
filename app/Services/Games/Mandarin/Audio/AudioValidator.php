@@ -3,6 +3,7 @@
 namespace App\Services\Games\Mandarin\Audio;
 
 use App\Services\Games\Mandarin\Speech\ProcessRunner;
+use Illuminate\Support\Str;
 
 /**
  * Validates provider output before it can be published as ready: non-empty,
@@ -32,12 +33,17 @@ class AudioValidator
         $durationMs = null;
         $method = 'basic';
         if ($problems === []) {
-            $durationMs = $this->probeDuration($bytes, $contentType);
-            if ($durationMs !== null) {
+            $probe = $this->probeDuration($bytes, $contentType);
+            if ($probe['status'] === 'ok') {
                 $method = 'ffprobe';
+                $durationMs = $probe['durationMs'];
                 if ($durationMs < $minDurationMs || $durationMs > $maxDurationMs) {
                     $problems[] = "duration {$durationMs}ms outside [{$minDurationMs}, {$maxDurationMs}]";
                 }
+            } elseif ($probe['status'] === 'failed') {
+                // ffprobe ran and could not decode it: plausible magic bytes are not playable audio.
+                $method = 'ffprobe';
+                $problems[] = 'ffprobe could not decode the audio: '.$probe['detail'];
             } elseif ($contentType === 'audio/wav') {
                 $method = 'wav-header';
                 $durationMs = $this->wavDuration($bytes);
@@ -59,14 +65,20 @@ class AudioValidator
         };
     }
 
-    private function probeDuration(string $bytes, string $contentType): ?int
+    /**
+     * `unavailable` means the tool could not run (not installed); `failed` means it ran
+     * and rejected the bytes. Only the former falls back to container checks.
+     *
+     * @return array{status: 'ok'|'failed'|'unavailable', durationMs: int, detail: string}
+     */
+    private function probeDuration(string $bytes, string $contentType): array
     {
         if ($this->ffprobe === null || $this->ffprobe === '') {
-            return null;
+            return ['status' => 'unavailable', 'durationMs' => 0, 'detail' => 'ffprobe not configured'];
         }
         $file = tempnam(sys_get_temp_dir(), 'mandarin-probe-');
         if ($file === false) {
-            return null;
+            return ['status' => 'unavailable', 'durationMs' => 0, 'detail' => 'no temp file'];
         }
         $path = $file.match ($contentType) {
             'audio/mpeg' => '.mp3',
@@ -77,12 +89,19 @@ class AudioValidator
         try {
             file_put_contents($path, $bytes);
             $result = $this->runner->run([$this->ffprobe, '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', $path], 30);
+            $stderr = trim($result->stderr);
+            if ($result->exitCode === 127 || $result->exitCode === 124 || str_contains($stderr, 'No such file or directory') && str_contains($stderr, $this->ffprobe) || str_contains($stderr, 'not found')) {
+                return ['status' => 'unavailable', 'durationMs' => 0, 'detail' => $stderr === '' ? 'ffprobe unavailable' : $stderr];
+            }
             if (! $result->ok()) {
-                return null;
+                return ['status' => 'failed', 'durationMs' => 0, 'detail' => $stderr === '' ? 'exit '.$result->exitCode : Str::limit($stderr, 200)];
             }
             $seconds = (float) trim($result->stdout);
+            if ($seconds <= 0) {
+                return ['status' => 'failed', 'durationMs' => 0, 'detail' => 'no decodable duration'];
+            }
 
-            return $seconds > 0 ? (int) round($seconds * 1000) : null;
+            return ['status' => 'ok', 'durationMs' => (int) round($seconds * 1000), 'detail' => ''];
         } finally {
             @unlink($path);
         }

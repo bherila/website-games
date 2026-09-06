@@ -27,12 +27,25 @@ class AudioDeliveryService
                 'expiresAt' => null,
             ];
         }
+        // A disk with a public base URL (e.g. an R2 bucket behind a custom domain) serves the
+        // original curriculum bytes directly: content-hashed keys, no expiry, CDN-cacheable.
+        if ($disk instanceof FilesystemAdapter && $this->hasPublicUrl($asset)) {
+            return ['url' => $disk->url((string) $asset->object_key), 'expiresAt' => null];
+        }
         $expires = now()->addMinutes(self::URL_TTL_MINUTES);
 
         return [
             'url' => $disk instanceof FilesystemAdapter ? $disk->temporaryUrl((string) $asset->object_key, $expires) : '',
             'expiresAt' => $expires->toIso8601String(),
         ];
+    }
+
+    /** True when the asset's disk is configured with a public `url` base. */
+    public function hasPublicUrl(MandarinAudioAsset $asset): bool
+    {
+        $url = config("filesystems.disks.{$asset->disk}.url");
+
+        return is_string($url) && $url !== '' && ! $this->isLocalDriver($asset);
     }
 
     /** True when the recorded object is actually present on its recorded disk. */

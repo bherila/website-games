@@ -8,6 +8,7 @@ use App\Models\Mandarin\MandarinAudioSource;
 use App\Services\Games\Mandarin\Course\CourseIndex;
 use App\Services\Games\Mandarin\Sfx\SfxRenderer;
 use App\Services\Games\Mandarin\Speech\SpeechProviderException;
+use App\Services\Games\Mandarin\Speech\SpeechProviderFactory;
 use App\Services\Games\Mandarin\Speech\SpeechRequest;
 use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Database\QueryException;
@@ -30,6 +31,7 @@ class AudioAssetService
         private readonly AudioValidator $validator,
         private readonly AudioDeliveryService $delivery,
         private readonly GenerationBudget $budget,
+        private readonly SpeechProviderFactory $providers,
     ) {}
 
     /**
@@ -174,12 +176,23 @@ class AudioAssetService
                 $metadata = ['renderer' => SfxRenderer::RECIPE_VERSION];
             } else {
                 $text = (string) ($recipe['text'] ?? '');
-                if (! $this->budget->reserve(mb_strlen($text))) {
-                    $this->fail($asset, $token, 'budget_exhausted', 'The daily speech generation budget is used up.');
+                $request = new SpeechRequest($text, (string) ($recipe['variant'] ?? 'normal'), (string) ($recipe['role'] ?? 'narrator'));
+                // Synthesize with the provider the recipe was hashed for, and refuse if its
+                // configuration has drifted: the object must match its cache identity.
+                $synthesizer = $this->synthesizerFor((string) ($recipe['provider'] ?? ''));
+                $drift = $this->recipeDrift($recipe, $synthesizer->recipe($request));
+                if ($drift !== null) {
+                    $this->fail($asset, $token, 'unsupported_voice', "Provider configuration no longer matches this clip's recipe ({$drift}); resolve again to queue it under the current recipe.");
 
                     return;
                 }
-                $audio = $this->speech->synthesize(new SpeechRequest($text, (string) ($recipe['variant'] ?? 'normal'), (string) ($recipe['role'] ?? 'narrator')));
+                if (! $this->budget->reserve(mb_strlen($text))) {
+                    // Deferred, not attempted: do not spend one of the bounded provider attempts.
+                    $this->fail($asset, $token, 'budget_exhausted', 'The daily speech generation budget is used up. Try again tomorrow.', true, false);
+
+                    return;
+                }
+                $audio = $synthesizer->synthesize($request);
                 $bytes = $audio->bytes;
                 $contentType = $audio->contentType;
                 $extension = $audio->extension;
@@ -389,7 +402,7 @@ class AudioAssetService
         ], ['recipe_hash' => $recipeHash]);
     }
 
-    private function fail(MandarinAudioAsset $asset, string $token, string $code, string $message, bool $retryable = false): void
+    private function fail(MandarinAudioAsset $asset, string $token, string $code, string $message, bool $retryable = false, bool $consumeAttempt = true): void
     {
         MandarinAudioAsset::query()->whereKey($asset->id)->where('lease_token', $token)->update([
             'state' => MandarinAudioAsset::STATE_FAILED,
@@ -399,7 +412,34 @@ class AudioAssetService
             'lease_expires_at' => null,
             'provider_metadata' => json_encode(['retryable' => $retryable]),
             'updated_at' => now(),
-        ]);
+        ] + ($consumeAttempt ? [] : ['attempts' => DB::raw('CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END')]));
+    }
+
+    /** The bound synthesizer when it produced this recipe; otherwise the provider the recipe names. */
+    private function synthesizerFor(string $provider): SpeechSynthesizer
+    {
+        return $this->speech->id() === $provider ? $this->speech : $this->providers->make($provider);
+    }
+
+    /**
+     * Compares the stored provider settings with what the provider would use now.
+     * Returns a description of the first difference, or null when they match.
+     *
+     * @param  array<string, mixed>  $stored
+     * @param  array<string, scalar|null>  $current
+     */
+    private function recipeDrift(array $stored, array $current): ?string
+    {
+        foreach ($current as $key => $value) {
+            if (! array_key_exists($key, $stored)) {
+                continue;
+            }
+            if ((string) $stored[$key] !== (string) $value) {
+                return "{$key}: stored ".json_encode($stored[$key]).', now '.json_encode($value);
+            }
+        }
+
+        return null;
     }
 
     /**
