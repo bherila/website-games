@@ -63,6 +63,15 @@ class AudioAssetService
         try {
             $recipe = $this->recipeFor($course, $source);
         } catch (SpeechProviderException $exception) {
+            if ($exception->errorCode === 'provider_unconfigured') {
+                // No provider bound: a previously recorded mapping (an imported manifest, an
+                // earlier generation) can still serve a cache hit. Nothing here can generate.
+                $recorded = $this->recordedResolution($course, $source);
+                if ($recorded !== null) {
+                    return $recorded;
+                }
+            }
+
             return $this->unavailable($source, $exception->errorCode, $exception->getMessage());
         }
 
@@ -396,6 +405,38 @@ class AudioAssetService
     private function dispatch(int $assetId): void
     {
         GenerateMandarinAudioJob::dispatch($assetId)->afterCommit();
+    }
+
+    /**
+     * The ready asset a `mandarin_audio_sources` row maps this source to, if
+     * any; null when there is no mapping or the mapped row is not ready. Read
+     * only: never claims, enqueues, demotes or re-points anything.
+     *
+     * @param  array{sourceKind: string, sourceId: string, variant: string}  $source
+     * @return array<string, mixed>|null
+     */
+    private function recordedResolution(CourseIndex $course, array $source): ?array
+    {
+        $mapping = MandarinAudioSource::query()
+            ->where('course_id', $course->courseId())
+            ->where('content_version', $course->contentVersion())
+            ->where('source_kind', $source['sourceKind'])
+            ->where('source_id', $source['sourceId'])
+            ->where('variant', $source['variant'])
+            ->first();
+        if ($mapping === null) {
+            return null;
+        }
+        $asset = MandarinAudioAsset::query()->where('recipe_hash', (string) $mapping->recipe_hash)->first();
+        if ($asset === null || ! $asset->isReady()) {
+            return null;
+        }
+
+        return match ($this->delivery->objectState($asset)) {
+            'present' => $this->ready($source, $asset),
+            'unknown' => $this->failed($source, 'storage_unavailable', 'The audio store could not be reached. Try again in a moment.', true),
+            default => null,
+        };
     }
 
     /** @param array{sourceKind: string, sourceId: string, variant: string} $source */

@@ -46,7 +46,9 @@ never be switched to mocks from the URL.
 - `Speech/` — `SpeechSynthesizer` interface; `NullSpeechSynthesizer`,
   `MacOsSpeechSynthesizer` (`say` + `afconvert`, zh_CN voice discovery, stable per-role
   voices), `PollyCliSpeechSynthesizer` (`aws polly synthesize-speech`, Zhiyu/neural/cmn-CN,
-  SSML prosody for the slow variant). Subprocesses always get argument arrays.
+  SSML prosody for the slow variant) and `PollySdkSpeechSynthesizer` (the same service and
+  the same recipe through `aws/aws-sdk-php`, for hosts without the AWS CLI). Subprocesses
+  always get argument arrays.
 - `Sfx/SfxRenderer` — the four UI cues as real PCM WAV from versioned recipes.
 - `Audio/` — `AudioRecipe` (identity = provider settings + normalized text + template
   version; never the source id, role or user), `AudioAssetService` (claim by unique
@@ -54,7 +56,9 @@ never be switched to mocks from the URL.
   retry, expired-lease recovery), `AudioValidator` (container magic + ffprobe duration),
   `AudioDeliveryService` (local media route with Range; temporary URLs for S3-style
   disks), `GenerationBudget` (daily characters, reserved atomically per attempt),
-  `AudioMigrationService` (verified disk-to-disk moves behind `mandarin:audio:migrate`).
+  `AudioMigrationService` (verified disk-to-disk moves behind `mandarin:audio:migrate`),
+  `AudioManifestService` (portable export/import of the asset and source rows behind
+  `mandarin:audio:export` / `mandarin:audio:import`).
 - `Progress/` — `PracticeEventService` (append-only, idempotent, server-graded),
   `ProgressProjector` (unlocks + graded review log for the client scheduler).
 
@@ -75,6 +79,9 @@ php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --
 php -d memory_limit=1G artisan mandarin:audio:recover --dry-run  # then --execute
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --dry-run
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute [--limit=100] [--delete-source]
+php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json [--disk=s3] [--all]
+php -d memory_limit=1G artisan mandarin:audio:import storage/app/private/mandarin-audio.json --dry-run
+php -d memory_limit=1G artisan mandarin:audio:import storage/app/private/mandarin-audio.json --verify-objects --execute
 php -d memory_limit=1G artisan queue:work --queue=mandarin-audio
 ```
 
@@ -88,6 +95,60 @@ missing or whose bytes no longer hash to `content_hash` is reported and left exa
 it was — it is never marked ready on the target — and the run continues. An unknown `--to`
 disk exits 1 without touching anything, and the command is idempotent, resumable and
 `--limit`-able, so a large migration can run in bounded batches.
+
+## Ship audio to production without a provider
+
+Production is meant to serve a fully generated course with `MANDARIN_SPEECH_PROVIDER=null`
+and `MANDARIN_GENERATION_ENABLED=false`: no AWS credentials, no speech bill, no queue
+worker needed for playback. Copying the objects into the bucket is only half of that. A
+cache hit needs two rows as well — a `mandarin_audio_assets` row (recipe hash → disk, key,
+content hash, type, size, duration) and a `mandarin_audio_sources` row mapping the course
+source to that recipe hash. `mandarin:audio:export` / `mandarin:audio:import` move them.
+
+The checked-in manifest `resources/data/mandarin/audio-manifest.json` is the current
+corpus: every utterance and target of `mandarin-foundations@1.0.0` in both variants plus
+the four cues, generated with Polly (Zhiyu, neural) and stored on the `s3` disk under the
+content-addressed keys the bucket already holds. Regenerate it when the course or the voice
+changes:
+
+```bash
+# Locally, with a provider bound (polly-cli or polly-sdk) and generation enabled:
+php -d memory_limit=1G artisan mandarin:audio:warm --node=<each node> --variant=both --execute --sfx
+php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute        # objects land on the bucket disk
+php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json --disk=s3
+
+# In production (the objects are already in the bucket; the disk needs read access to verify):
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute
+php -d memory_limit=1G artisan mandarin:audio:doctor
+```
+
+With no provider bound, `resolve` answers from the recorded source mapping: a mapped, ready
+asset whose object is present is `ready` for guests and signed-in learners alike; anything
+else is `unavailable / provider_unconfigured`, and nothing is claimed, enqueued, demoted or
+re-pointed. With a provider bound, the provider's recipe identity governs as before, so
+binding `polly-cli` or `polly-sdk` in production is a no-op for this corpus (same hashes)
+and only matters once generation is enabled for new lines.
+
+The export leaves out ready assets that no course source maps to (a line regenerated with a
+different voice leaves its old object orphaned); `--all` includes them. The manifest is
+inert JSON: recipes, content-addressed keys, hashes, sizes and counts. It carries no
+credentials, no URLs, no absolute paths and no audio bytes, and a `schemaVersion` plus a
+sha256 over the canonical asset list so a truncated or edited file is refused.
+
+Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
+
+- A ready row whose `content_hash` differs from the manifest's is **never** downgraded — it
+  is reported as a conflict and left exactly as it is, so a stale manifest cannot un-publish
+  newer audio.
+- A row that is not ready (queued, failed, lease-expired) is refreshed to ready from the
+  manifest's disk, key and metadata; an unseen recipe hash is inserted as ready.
+- `--verify-objects` checks each object on its disk (presence and recorded size) before the
+  row is marked ready, and skips the ones that do not check out.
+- `--dry-run` writes nothing and prints insert/refresh/unchanged/conflict/missing counts with
+  a few example recipe hashes. A second `--execute` is a no-op.
+- An unconfigured disk, a course revision that was never imported here, an object key that is
+  not a relative storage key, or a digest mismatch all exit 1 before anything is written.
 
 ## Audio QA page
 
@@ -109,13 +170,13 @@ needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=t
 | Variable | Default | Meaning |
 |---|---|---|
 | `MANDARIN_RUNTIME` | `live` | `live` or `preview` for `/mandarin` |
-| `MANDARIN_SPEECH_PROVIDER` | `null` | `null`, `macos`, `polly-cli` |
+| `MANDARIN_SPEECH_PROVIDER` | `null` | `null`, `macos`, `polly-cli` (AWS CLI), `polly-sdk` (`aws/aws-sdk-php`); both Polly adapters share one recipe identity, so a cache generated with either is a hit for the other |
 | `MANDARIN_GENERATION_ENABLED` | `false` | Off until explicitly enabled; cache hits and SFX still work |
 | `MANDARIN_MEDIA_DISK` | `local` | Disk for **new** audio objects (`mandarin:audio:migrate` moves existing ones) |
 | `AWS_URL` | unset | Public base URL of the media bucket (e.g. `https://games-assets.bherila.net`); when set, ready clips are served from it directly instead of presigned URLs |
 | `MANDARIN_QA_ENABLED` | `false` | Serve `/mandarin/qa` in production as well as elsewhere |
 | `MANDARIN_DAILY_CHARACTER_BUDGET` | `20000` | Characters per day across all attempts |
-| `MANDARIN_POLLY_PROFILE`, `MANDARIN_POLLY_REGION` | unset, `us-east-1` | AWS CLI profile / region; no keys in `.env` |
+| `MANDARIN_POLLY_PROFILE`, `MANDARIN_POLLY_REGION` | unset, `us-east-1` | Profile / region for both Polly adapters (the CLI's chain or the SDK's default credential chain); no keys in `.env` |
 | `MANDARIN_MACOS_VOICE_GUIDE` etc. | unset | Optional explicit role → voice overrides |
 | `MANDARIN_AUDIO_QUEUE` | `mandarin-audio` | Queue name for generation jobs |
 

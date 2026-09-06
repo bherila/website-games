@@ -20,6 +20,18 @@ class SpeechProviderFactory
                 (int) ($config['macos']['slow_rate'] ?? 125),
                 array_filter((array) ($config['macos']['voices'] ?? []), 'is_string'),
             ),
+            'polly-sdk' => new PollySdkSpeechSynthesizer(
+                isset($config['polly']['profile']) && $config['polly']['profile'] !== '' ? (string) $config['polly']['profile'] : null,
+                (string) ($config['polly']['region'] ?? 'us-east-1'),
+                (string) ($config['polly']['engine'] ?? 'neural'),
+                (string) ($config['polly']['voice'] ?? 'Zhiyu'),
+                (string) ($config['polly']['language'] ?? 'cmn-CN'),
+                (string) ($config['polly']['output'] ?? 'mp3'),
+                (int) ($config['polly']['sample_rate'] ?? 24000),
+                (string) ($config['polly']['slow_rate'] ?? '85%'),
+            ),
+            // Both Polly adapters answer to the recipe provider id 'polly': the CLI is
+            // the default resolution so an existing deployment keeps its behaviour.
             'polly-cli', 'polly' => new PollyCliSpeechSynthesizer(
                 $this->runner,
                 (string) ($config['polly']['cli'] ?? 'aws'),

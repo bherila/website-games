@@ -35,7 +35,7 @@ return [
     'qa_enabled' => (bool) env('MANDARIN_QA_ENABLED', false),
 
     'speech' => [
-        /* null | macos | polly-cli */
+        /* null | macos | polly-cli | polly-sdk */
         'provider' => env('MANDARIN_SPEECH_PROVIDER', 'null'),
         /* Paid / external generation is off until explicitly enabled. */
         'generation_enabled' => (bool) env('MANDARIN_GENERATION_ENABLED', false),
