@@ -17,7 +17,7 @@
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for gate",
       "outputPath": "public/images/games/mandarin/scene-gate-poster.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "scene-street-poster",
@@ -33,7 +33,7 @@
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for street",
       "outputPath": "public/images/games/mandarin/scene-street-poster.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "scene-bridge-poster",
@@ -49,7 +49,7 @@
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for bridge",
       "outputPath": "public/images/games/mandarin/scene-bridge-poster.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "scene-roadside-poster",
@@ -65,7 +65,7 @@
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for roadside",
       "outputPath": "public/images/games/mandarin/scene-roadside-poster.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "scene-reunion-poster",
@@ -81,7 +81,7 @@
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for reunion",
       "outputPath": "public/images/games/mandarin/scene-reunion-poster.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "portrait-guide",
@@ -97,7 +97,7 @@
       "safeArea": "Face and shoulders within central 70%; keep silhouette away from image edges.",
       "fallback": "authored SVG portrait for guide",
       "outputPath": "public/images/games/mandarin/portrait-guide.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "portrait-traveler",
@@ -113,7 +113,7 @@
       "safeArea": "Face and shoulders within central 70%; keep silhouette away from image edges.",
       "fallback": "authored SVG portrait for traveler",
       "outputPath": "public/images/games/mandarin/portrait-traveler.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "portrait-friend",
@@ -129,7 +129,7 @@
       "safeArea": "Face and shoulders within central 70%; keep silhouette away from image edges.",
       "fallback": "authored SVG portrait for friend",
       "outputPath": "public/images/games/mandarin/portrait-friend.webp",
-      "status": "not_generated"
+      "status": "generated"
     },
     {
       "id": "material-paper",

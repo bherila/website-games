@@ -3,8 +3,8 @@
  * `resources/data/mandarin/visual-assets.v1.json`.
  *
  * Every slot is bound to a real, committed SVG fallback under
- * `public/images/games/mandarin/fallback/`. When Codex generates the final
- * WebP images it only needs to set `src` (and `status`) here; every screen
+ * `public/images/games/mandarin/fallback/`. Generated WebP bindings follow
+ * the manifest's status; every screen
  * reads the registry through `SlotImage`, never a path.
  */
 import manifest from '../../../../data/mandarin/visual-assets.v1.json'
@@ -42,6 +42,7 @@ interface ManifestAsset {
   dimensions: { width: number; height: number }
   alpha: boolean
   outputPath: string
+  status: 'not_generated' | 'generated'
 }
 
 const manifestById = new Map((manifest.assets as ManifestAsset[]).map((asset) => [asset.id, asset]))
@@ -50,12 +51,14 @@ function slot(id: VisualSlotId, alt: string, anchor: VisualSlot['anchor'], usage
   const asset = manifestById.get(id)
   if (!asset) throw new Error(`visual-assets.v1.json has no slot ${id}`)
   const fallbackSrc = `${FALLBACK_DIR}/${id}.svg`
+  const generatedPath = asset.outputPath.replace(/^public/, '')
+  const generated = asset.status === 'generated'
   return {
     id,
     kind: asset.kind,
-    src: fallbackSrc,
+    src: generated ? generatedPath : fallbackSrc,
     fallbackSrc,
-    status: 'fallback',
+    status: generated ? 'generated' : 'fallback',
     width: asset.dimensions.width,
     height: asset.dimensions.height,
     hasAlpha: asset.alpha,
@@ -63,7 +66,7 @@ function slot(id: VisualSlotId, alt: string, anchor: VisualSlot['anchor'], usage
     anchor,
     alt,
     usage,
-    generatedPath: asset.outputPath.replace(/^public/, ''),
+    generatedPath,
   }
 }
 
