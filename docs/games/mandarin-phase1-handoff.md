@@ -1,5 +1,8 @@
 # Mandarin Quest: Find Your Friend — phase 1 handoff
 
+> Superseded in part by `docs/games/mandarin-phase2-live.md` (live runtime, real speech,
+> server-side grading). This document remains the record of the UI pass and its invariants.
+
 **Branch:** `mandarin-phase1-ux` (off `main` at `8184e15`)
 **Implementation head:** `61b0267` — "Add Mandarin Quest preview UX skeleton with mock adapters"
 (this document and the screenshots land in the following commit on the same branch).
