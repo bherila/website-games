@@ -79,7 +79,7 @@ php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --
 php -d memory_limit=1G artisan mandarin:audio:recover --dry-run  # then --execute
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --dry-run
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute [--limit=100] [--delete-source]
-php -d memory_limit=1G artisan mandarin:audio:export storage/app/private/mandarin-audio.json [--disk=s3]
+php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json [--disk=s3] [--all]
 php -d memory_limit=1G artisan mandarin:audio:import storage/app/private/mandarin-audio.json --dry-run
 php -d memory_limit=1G artisan mandarin:audio:import storage/app/private/mandarin-audio.json --verify-objects --execute
 php -d memory_limit=1G artisan queue:work --queue=mandarin-audio
@@ -105,24 +105,36 @@ cache hit needs two rows as well — a `mandarin_audio_assets` row (recipe hash 
 content hash, type, size, duration) and a `mandarin_audio_sources` row mapping the course
 source to that recipe hash. `mandarin:audio:export` / `mandarin:audio:import` move them.
 
+The checked-in manifest `resources/data/mandarin/audio-manifest.json` is the current
+corpus: every utterance and target of `mandarin-foundations@1.0.0` in both variants plus
+the four cues, generated with Polly (Zhiyu, neural) and stored on the `s3` disk under the
+content-addressed keys the bucket already holds. Regenerate it when the course or the voice
+changes:
+
 ```bash
 # Locally, with a provider bound (polly-cli or polly-sdk) and generation enabled:
 php -d memory_limit=1G artisan mandarin:audio:warm --node=<each node> --variant=both --execute --sfx
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute        # objects land on the bucket disk
-php -d memory_limit=1G artisan mandarin:audio:export mandarin-audio.json --disk=s3
+php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json --disk=s3
 
-# Copy mandarin-audio.json to production (the objects are already in the bucket), then:
-php -d memory_limit=1G artisan mandarin:audio:import mandarin-audio.json --dry-run
-php -d memory_limit=1G artisan mandarin:audio:import mandarin-audio.json --verify-objects --execute
+# In production (the objects are already in the bucket; the disk needs read access to verify):
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute
 php -d memory_limit=1G artisan mandarin:audio:doctor
 ```
 
-`resolve` now returns `ready` for guests and signed-in learners alike with no provider
-configured and generation off.
+With no provider bound, `resolve` answers from the recorded source mapping: a mapped, ready
+asset whose object is present is `ready` for guests and signed-in learners alike; anything
+else is `unavailable / provider_unconfigured`, and nothing is claimed, enqueued, demoted or
+re-pointed. With a provider bound, the provider's recipe identity governs as before, so
+binding `polly-cli` or `polly-sdk` in production is a no-op for this corpus (same hashes)
+and only matters once generation is enabled for new lines.
 
-The manifest is inert JSON: recipes, content-addressed keys, hashes, sizes and counts. It
-carries no credentials, no URLs, no absolute paths and no audio bytes, and a `schemaVersion`
-plus a sha256 over the canonical asset list so a truncated or edited file is refused.
+The export leaves out ready assets that no course source maps to (a line regenerated with a
+different voice leaves its old object orphaned); `--all` includes them. The manifest is
+inert JSON: recipes, content-addressed keys, hashes, sizes and counts. It carries no
+credentials, no URLs, no absolute paths and no audio bytes, and a `schemaVersion` plus a
+sha256 over the canonical asset list so a truncated or edited file is refused.
 
 Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
 

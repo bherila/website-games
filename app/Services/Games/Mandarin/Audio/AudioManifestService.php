@@ -45,13 +45,23 @@ class AudioManifestService
     // ── export ───────────────────────────────────────────────────────────────
 
     /**
-     * Every ready asset (optionally only those on one disk) plus the course
-     * source mappings that point at them.
+     * Every ready asset (optionally only those on one disk) that a course
+     * source mapping points at, plus those mappings. An asset no mapping
+     * references can never be a cache hit on the importing side, so it is
+     * left out unless `$includeUnreferenced` asks for the whole cache.
      *
      * @return Manifest
      */
-    public function export(?string $disk = null): array
+    public function export(?string $disk = null, bool $includeUnreferenced = false): array
     {
+        /** @var array<string, true> $referenced */
+        $referenced = [];
+        if (! $includeUnreferenced) {
+            foreach (MandarinAudioSource::query()->distinct()->pluck('recipe_hash') as $hash) {
+                $referenced[(string) $hash] = true;
+            }
+        }
+
         $query = MandarinAudioAsset::query()
             ->where('state', MandarinAudioAsset::STATE_READY)
             ->whereNotNull('disk')
@@ -68,6 +78,9 @@ class AudioManifestService
         $wanted = [];
         foreach ($query->get() as $asset) {
             $hash = (string) $asset->recipe_hash;
+            if (! $includeUnreferenced && ! isset($referenced[$hash])) {
+                continue;
+            }
             $wanted[$hash] = true;
             $assets[] = [
                 'recipe_hash' => $hash,

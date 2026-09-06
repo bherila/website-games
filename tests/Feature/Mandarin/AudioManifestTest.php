@@ -8,6 +8,8 @@ use App\Models\Mandarin\MandarinAudioSource;
 use App\Models\User;
 use App\Services\Games\Mandarin\Audio\AudioAssetService;
 use App\Services\Games\Mandarin\Audio\AudioManifestService;
+use App\Services\Games\Mandarin\Speech\NullSpeechSynthesizer;
+use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 
@@ -129,6 +131,64 @@ class AudioManifestTest extends MandarinTestCase
         $this->artisan("mandarin:audio:export {$this->path} --disk=nowhere")
             ->assertExitCode(1)
             ->expectsOutputToContain('Unknown disk "nowhere"');
+    }
+
+    public function test_export_leaves_out_assets_no_source_maps_to_unless_asked(): void
+    {
+        $current = $this->ready(self::HELLO);
+        // The same line generated earlier by another voice: still ready, still on disk, but
+        // no course source points at it any more, so it can never be a hit after import.
+        $orphan = MandarinAudioAsset::query()->create([
+            'recipe_hash' => str_repeat('c', 64), 'provider' => 'macos', 'kind' => 'speech',
+            'state' => MandarinAudioAsset::STATE_READY, 'recipe' => '{"provider":"macos"}', 'text_length' => 3,
+            'disk' => 'local', 'object_key' => 'games/mandarin/audio/cc/orphan.m4a', 'content_hash' => str_repeat('d', 64),
+            'content_type' => 'audio/mp4', 'bytes' => 10, 'ready_at' => now(),
+        ]);
+
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful()
+            ->expectsOutputToContain('Wrote 1 ready asset(s) and 1 source mapping(s)');
+        $this->assertSame([(string) $current->recipe_hash], array_column($this->manifest()['assets'], 'recipe_hash'));
+
+        $this->artisan("mandarin:audio:export {$this->path} --all")->assertSuccessful()
+            ->expectsOutputToContain('Wrote 2 ready asset(s) and 1 source mapping(s)');
+        $hashes = array_column($this->manifest()['assets'], 'recipe_hash');
+        $this->assertContains((string) $orphan->recipe_hash, $hashes);
+        $this->assertContains((string) $current->recipe_hash, $hashes);
+    }
+
+    public function test_an_imported_cache_serves_guests_with_no_provider_bound_at_all(): void
+    {
+        $normal = $this->ready(self::HELLO);
+        $this->ready(self::HELLO_SLOW);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+        $this->wipeRows();
+        $this->artisan("mandarin:audio:import {$this->path} --execute")->assertSuccessful();
+
+        // Production shape: MANDARIN_SPEECH_PROVIDER=null, generation off, no worker.
+        $this->app->instance(SpeechSynthesizer::class, new NullSpeechSynthesizer);
+        config()->set('mandarin.speech.generation_enabled', false);
+
+        $unmapped = ['sourceKind' => 'utterance', 'sourceId' => '01b', 'variant' => 'normal'];
+        $response = $this->withHeaders(['Accept' => 'application/json'])
+            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO, self::HELLO_SLOW, $unmapped]])
+            ->assertOk()
+            ->assertJsonPath('results.0.state', 'ready')
+            ->assertJsonPath('results.1.state', 'ready')
+            ->assertJsonPath('results.2.state', 'unavailable')
+            ->assertJsonPath('results.2.code', 'provider_unconfigured');
+        $this->assertSame((string) $normal->content_hash, $response->json('results.0.contentHash'));
+        $this->assertSame(2, MandarinAudioAsset::query()->count(), 'nothing is claimed without a provider');
+        $this->assertSame(2, MandarinAudioSource::query()->count(), 'nothing is re-pointed without a provider');
+        $this->get((string) $response->json('results.0.url'))->assertOk();
+
+        // A mapped row whose object is gone is not served and not touched: no provider could regenerate it.
+        Storage::disk('local')->delete((string) $normal->object_key);
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO]])
+            ->assertOk()
+            ->assertJsonPath('results.0.state', 'unavailable')
+            ->assertJsonPath('results.0.code', 'provider_unconfigured');
+        $this->assertSame('ready', MandarinAudioAsset::query()->where('recipe_hash', (string) $normal->recipe_hash)->firstOrFail()->state);
     }
 
     public function test_dry_run_changes_nothing_then_execute_recreates_the_cache_for_guests(): void

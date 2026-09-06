@@ -19,7 +19,7 @@ use Throwable;
  */
 class AudioExportCommand extends Command
 {
-    protected $signature = 'mandarin:audio:export {path : Where to write the manifest JSON} {--disk= : Only export assets stored on this disk}';
+    protected $signature = 'mandarin:audio:export {path : Where to write the manifest JSON} {--disk= : Only export assets stored on this disk} {--all : Include ready assets no course source maps to (orphans of an earlier provider)}';
 
     protected $description = 'Export ready Mandarin audio assets and their course source mappings as a JSON manifest.';
 
@@ -41,7 +41,7 @@ class AudioExportCommand extends Command
             return self::FAILURE;
         }
 
-        $manifest = $manifests->export($disk === '' ? null : $disk);
+        $manifest = $manifests->export($disk === '' ? null : $disk, (bool) $this->option('all'));
         $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         try {
             File::ensureDirectoryExists(dirname($path));
