@@ -5,6 +5,7 @@ namespace App\Services\Games\Mandarin\Audio;
 use App\Models\Mandarin\MandarinAudioAsset;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -51,13 +52,25 @@ class AudioDeliveryService
     /** True when the recorded object is actually present on its recorded disk. */
     public function objectExists(MandarinAudioAsset $asset): bool
     {
+        return $this->objectState($asset) === 'present';
+    }
+
+    /**
+     * `present` / `absent` are verified answers; `unknown` means the disk could not be
+     * queried (missing credentials, network) and must not be treated as absent, or a
+     * transient storage error would demote ready rows and trigger paid regeneration.
+     */
+    public function objectState(MandarinAudioAsset $asset): string
+    {
         if ($asset->disk === null || $asset->object_key === null) {
-            return false;
+            return 'absent';
         }
         try {
-            return $this->disk($asset)->exists($asset->object_key);
-        } catch (\Throwable) {
-            return false;
+            return $this->disk($asset)->exists($asset->object_key) ? 'present' : 'absent';
+        } catch (\Throwable $exception) {
+            Log::warning('mandarin audio: could not check object', ['asset' => $asset->id, 'disk' => $asset->disk, 'error' => $exception->getMessage()]);
+
+            return 'unknown';
         }
     }
 

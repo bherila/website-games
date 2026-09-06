@@ -282,6 +282,27 @@ class AudioResolveApiTest extends MandarinTestCase
         $this->assertNotNull($signed->json('expiresAt'));
     }
 
+    public function test_unreachable_storage_never_demotes_a_ready_row_or_regenerates(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        $user = User::factory()->create();
+        $service = $this->app->make(AudioAssetService::class);
+        $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
+        $service->generate($id);
+        $this->assertSame('ready', MandarinAudioAsset::query()->findOrFail($id)->state);
+        // Point the row at a disk that cannot be queried at all.
+        MandarinAudioAsset::query()->whereKey($id)->update(['disk' => 'does-not-exist']);
+        $this->resolve($user, [self::HELLO])->assertOk()
+            ->assertJsonPath('results.0.state', 'failed')
+            ->assertJsonPath('results.0.code', 'storage_unavailable')
+            ->assertJsonPath('results.0.retryable', true);
+        $this->getJson("/api/games/mandarin/audio/requests/{$id}")->assertJsonPath('code', 'storage_unavailable');
+        $row = MandarinAudioAsset::query()->findOrFail($id);
+        $this->assertSame('ready', $row->state, 'a transient storage error must not demote the row');
+        $this->assertSame(1, MandarinAudioAsset::query()->count());
+        Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 1);
+    }
+
     public function test_warm_command_uses_the_same_resolver(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
