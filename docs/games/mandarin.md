@@ -128,7 +128,15 @@ asset whose object is present is `ready` for guests and signed-in learners alike
 else is `unavailable / provider_unconfigured`, and nothing is claimed, enqueued, demoted or
 re-pointed. With a provider bound, the provider's recipe identity governs as before, so
 binding `polly-cli` or `polly-sdk` in production is a no-op for this corpus (same hashes)
-and only matters once generation is enabled for new lines.
+and only matters once generation is enabled for new lines. Resolve still asks the disk
+whether each ready object exists; on a bucket the app has no read key for, set
+`MANDARIN_AUDIO_VERIFY_OBJECTS=false` so rows from a verified manifest are served from the
+public URL directly (the media domain answers 404 for a missing object either way).
+
+Timestamp columns in the Mandarin migrations are `dateTime`, not `timestamp`: MySQL and
+MariaDB refuse a NOT NULL `timestamp` without a default under `NO_ZERO_DATE`, and give the
+first such column an implicit `ON UPDATE CURRENT_TIMESTAMP` (migration `000004` repairs
+`imported_at` on hosts that ran the original create).
 
 The export leaves out ready assets that no course source maps to (a line regenerated with a
 different voice leaves its old object orphaned); `--all` includes them. The manifest is
@@ -174,6 +182,7 @@ needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=t
 | `MANDARIN_GENERATION_ENABLED` | `false` | Off until explicitly enabled; cache hits and SFX still work |
 | `MANDARIN_MEDIA_DISK` | `local` | Disk for **new** audio objects (`mandarin:audio:migrate` moves existing ones) |
 | `AWS_URL` | unset | Public base URL of the media bucket (e.g. `https://games-assets.bherila.net`); when set, ready clips are served from it directly instead of presigned URLs |
+| `MANDARIN_AUDIO_VERIFY_OBJECTS` | `true` | Check a ready row's object exists before serving it. `false` trusts ready rows on a disk with a public `url` (an imported, verified corpus on a bucket the app holds no read key for); local disks are always checked |
 | `MANDARIN_QA_ENABLED` | `false` | Serve `/mandarin/qa` in production as well as elsewhere |
 | `MANDARIN_DAILY_CHARACTER_BUDGET` | `20000` | Characters per day across all attempts |
 | `MANDARIN_POLLY_PROFILE`, `MANDARIN_POLLY_REGION` | unset, `us-east-1` | Profile / region for both Polly adapters (the CLI's chain or the SDK's default credential chain); no keys in `.env` |

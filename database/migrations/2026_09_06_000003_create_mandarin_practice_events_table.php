@@ -33,8 +33,10 @@ return new class extends Migration
             $table->boolean('schedule_eligible')->default(false);
             $table->string('payload_hash', 64);
             $table->text('payload');
-            $table->timestamp('client_occurred_at')->nullable();
-            $table->timestamp('accepted_at');
+            // dateTime, not timestamp: a NOT NULL TIMESTAMP without a default is refused by
+            // MySQL/MariaDB under NO_ZERO_DATE ("Invalid default value"); the code always sets both.
+            $table->dateTime('client_occurred_at')->nullable();
+            $table->dateTime('accepted_at');
 
             $table->unique(['user_id', 'client_event_id']);
             $table->unique(['user_id', 'sequence']);

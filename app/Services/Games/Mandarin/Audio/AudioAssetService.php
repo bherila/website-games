@@ -77,7 +77,7 @@ class AudioAssetService
 
         $asset = MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->first();
         if ($asset !== null && $asset->isReady()) {
-            $state = $this->delivery->objectState($asset);
+            $state = $this->objectState($asset);
             if ($state !== 'absent') {
                 // `unknown` (disk unreachable) keeps the row ready: never regenerate on a transient storage error.
                 $this->rememberSource($course, $source, $recipe->hash);
@@ -147,7 +147,7 @@ class AudioAssetService
             : ['sourceKind' => $source->source_kind, 'sourceId' => $source->source_id, 'variant' => $source->variant];
 
         return match ($asset->state) {
-            MandarinAudioAsset::STATE_READY => match ($this->delivery->objectState($asset)) {
+            MandarinAudioAsset::STATE_READY => match ($this->objectState($asset)) {
                 'present' => $this->ready($ref, $asset),
                 'unknown' => $this->failed($ref, 'storage_unavailable', 'The audio store could not be reached. Try again in a moment.', true),
                 default => $this->failed($ref, 'asset_missing', 'Stored object is missing.', true),
@@ -432,11 +432,26 @@ class AudioAssetService
             return null;
         }
 
-        return match ($this->delivery->objectState($asset)) {
+        return match ($this->objectState($asset)) {
             'present' => $this->ready($source, $asset),
             'unknown' => $this->failed($source, 'storage_unavailable', 'The audio store could not be reached. Try again in a moment.', true),
             default => null,
         };
+    }
+
+    /**
+     * `present | absent | unknown` for a ready row. With `mandarin.audio.verify_objects`
+     * off, a row on a disk that serves public URLs is trusted without a storage call
+     * (the app may hold no read key for the bucket); local disks are always checked
+     * because the media route has to read the bytes.
+     */
+    private function objectState(MandarinAudioAsset $asset): string
+    {
+        if (! (bool) config('mandarin.audio.verify_objects', true) && $this->delivery->hasPublicUrl($asset)) {
+            return 'present';
+        }
+
+        return $this->delivery->objectState($asset);
     }
 
     /** @param array{sourceKind: string, sourceId: string, variant: string} $source */

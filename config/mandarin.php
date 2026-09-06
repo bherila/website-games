@@ -82,6 +82,12 @@ return [
         'min_duration_ms' => 150,
         'max_duration_ms' => 20000,
         'max_bytes' => 2_000_000,
+        /*
+         * Check that a ready row's object still exists before serving it. Set to false to
+         * trust ready rows on a disk that has a public `url` (an imported, HEAD-verified
+         * corpus on a bucket the app holds no read key for); local disks are always checked.
+         */
+        'verify_objects' => (bool) env('MANDARIN_AUDIO_VERIFY_OBJECTS', true),
     ],
 
     'events' => [
