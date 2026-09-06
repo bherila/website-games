@@ -112,6 +112,7 @@ needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=t
 | `MANDARIN_SPEECH_PROVIDER` | `null` | `null`, `macos`, `polly-cli` |
 | `MANDARIN_GENERATION_ENABLED` | `false` | Off until explicitly enabled; cache hits and SFX still work |
 | `MANDARIN_MEDIA_DISK` | `local` | Disk for **new** audio objects (`mandarin:audio:migrate` moves existing ones) |
+| `AWS_URL` | unset | Public base URL of the media bucket (e.g. `https://games-assets.bherila.net`); when set, ready clips are served from it directly instead of presigned URLs |
 | `MANDARIN_QA_ENABLED` | `false` | Serve `/mandarin/qa` in production as well as elsewhere |
 | `MANDARIN_DAILY_CHARACTER_BUDGET` | `20000` | Characters per day across all attempts |
 | `MANDARIN_POLLY_PROFILE`, `MANDARIN_POLLY_REGION` | unset, `us-east-1` | AWS CLI profile / region; no keys in `.env` |
