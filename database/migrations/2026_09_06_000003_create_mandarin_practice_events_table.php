@@ -40,7 +40,8 @@ return new class extends Migration
 
             $table->unique(['user_id', 'client_event_id']);
             $table->unique(['user_id', 'sequence']);
-            $table->index(['user_id', 'target_id', 'schedule_eligible']);
+            // Named explicitly: the generated name is 66 characters, over MySQL/MariaDB's 64 limit.
+            $table->index(['user_id', 'target_id', 'schedule_eligible'], 'mandarin_events_user_target_eligible_index');
         });
     }
 
