@@ -12,7 +12,7 @@ Status in one line each, as the brief asks:
 | GUI complete | Yes — the phase-1 UI is unchanged apart from the five Codex P2 fixes below |
 | Live speech verified | Yes, locally on macOS with the `say` provider: 16 real speech clips + 4 procedural cues generated, stored, served and played in Chromium and WebKit |
 | Persistence verified | Yes, locally: signed-in answers are graded and stored server-side; progress endpoint reflects them; local copy is account-partitioned |
-| Polly verified | Reachable: `describe-voices` for `cmn-CN` in `us-east-1` returns Zhiyu (neural + standard) through the `careowner` profile. **No paid synthesis was run.** |
+| Polly verified | Yes (authorized smoke run, 2026-09-06): node `s1n1`, both variants, 16 sources → 14 assets (two text dedupes), all ready, 36 billed characters (≈ $0.0006), mp3 24 kHz validated by ffprobe, played in Chromium and WebKit through the live spec with generation disabled (cache hits only). IAM simulation: `polly:SynthesizeSpeech` allowed for the profile's user |
 | S3 verified | No. Local disk only; `mandarin:audio:migrate` not implemented |
 | Final artwork generated | No. All nine slots still use the phase-1 SVG fallbacks (no image tool in this session) |
 | Native-reviewed | No, and the imported revision records `nativeReviewed=false`, `audioAuditioned=false` |
@@ -97,7 +97,8 @@ provider probe OK with Tingting/Eddy/Flo assigned to narrator/traveler/friend, s
 queue OK, ffprobe OK.
 
 Screenshots: `docs/games/mandarin-screenshots/live-teaching-ready-audio-{chromium-desktop,webkit-mobile-375}.png`
-(no preview banner, Play controls in the `ready` state).
+(macOS provider) and `live-teaching-polly-chromium-desktop.png` (Polly provider, cache hits
+only); no preview banner, Play controls in the `ready` state.
 
 ## Codex P2 findings on #41, fixed forward here
 
@@ -112,10 +113,9 @@ Screenshots: `docs/games/mandarin-screenshots/live-teaching-ready-audio-{chromiu
 
 ## Mocked, deferred, or blocked
 
-- **Polly synthesis** is coded and probe-tested but not exercised: it needs an explicit
-  paid smoke test (`MANDARIN_SPEECH_PROVIDER=polly-cli MANDARIN_POLLY_PROFILE=<profile>`
-  then `mandarin:audio:warm --node=s1n1 --variant=normal --execute`). The `default` AWS
-  profile's session is expired (`aws login`); `careowner` works for `describe-voices`.
+- **Polly beyond scene 1** is not generated. Full-course cost at the neural rate is about
+  $0.011 for both variants (688 characters); the daily character budget caps runaway
+  retries. Zhiyu reads every role, so `hasDistinctMandarinVoices` is false with Polly.
 - **`aws/aws-sdk-php`** was not added; the CLI adapter avoids the new dependency. A
   `PollyClient` adapter is a drop-in behind the same interface.
 - **S3**: no bucket configured, no integration test, no migrate command.
