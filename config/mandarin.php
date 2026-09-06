@@ -27,6 +27,13 @@ return [
     'media_disk' => env('MANDARIN_MEDIA_DISK', 'local'),
     'media_prefix' => env('MANDARIN_MEDIA_PREFIX', 'games/mandarin/audio'),
 
+    /*
+     * The signed-in audio QA page at /mandarin/qa. It lists the whole course
+     * with its generated audio, so it is a development/staging tool: 404 in
+     * production unless an operator turns it on deliberately.
+     */
+    'qa_enabled' => (bool) env('MANDARIN_QA_ENABLED', false),
+
     'speech' => [
         /* null | macos | polly-cli */
         'provider' => env('MANDARIN_SPEECH_PROVIDER', 'null'),

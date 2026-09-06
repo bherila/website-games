@@ -53,7 +53,8 @@ never be switched to mocks from the URL.
   recipe hash, lease-fenced generation, validation, content-hashed storage, bounded
   retry, expired-lease recovery), `AudioValidator` (container magic + ffprobe duration),
   `AudioDeliveryService` (local media route with Range; temporary URLs for S3-style
-  disks), `GenerationBudget` (daily characters, reserved atomically per attempt).
+  disks), `GenerationBudget` (daily characters, reserved atomically per attempt),
+  `AudioMigrationService` (verified disk-to-disk moves behind `mandarin:audio:migrate`).
 - `Progress/` — `PracticeEventService` (append-only, idempotent, server-graded),
   `ProgressProjector` (unlocks + graded review log for the client scheduler).
 
@@ -72,11 +73,36 @@ php -d memory_limit=1G artisan mandarin:audio:doctor             # course / prov
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --dry-run
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --execute --sfx
 php -d memory_limit=1G artisan mandarin:audio:recover --dry-run  # then --execute
+php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --dry-run
+php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute [--limit=100] [--delete-source]
 php -d memory_limit=1G artisan queue:work --queue=mandarin-audio
 ```
 
-`mandarin:audio:migrate --to=s3` is not implemented yet; existing rows keep their disk and
-stay readable while that disk is configured.
+`mandarin:audio:migrate` moves already-generated objects onto another configured disk
+(`local` → `s3` when a single host grows a second one). Nothing is regenerated and no
+provider is called: keys are content-addressed, so a move is a copy, a read-back from the
+target verified against `content_hash`, and then a conditional `UPDATE … WHERE id = ? AND
+disk = <old> AND content_hash = <hash>` that changes only `disk`. The source object is kept
+unless `--delete-source`, and then only after a verified move. A row whose source object is
+missing or whose bytes no longer hash to `content_hash` is reported and left exactly where
+it was — it is never marked ready on the target — and the run continues. An unknown `--to`
+disk exits 1 without touching anything, and the command is idempotent, resumable and
+`--limit`-able, so a large migration can run in bounded batches.
+
+## Audio QA page
+
+`GET /mandarin/qa` (`games.mandarin.qa`, signed in) is a server-rendered audition sheet for
+the published revision: every utterance grouped by scene with its role, every target, each
+with Chinese, pinyin, English, usage, a "reserved for the listening check" tag on the ten
+checkpoint lines, and — per `normal`/`slow` variant — either a plain `<audio controls>`
+element for a ready object (with the asset's provider, voice and duration) or the honest
+state (`queued`, `generating`, `failed: <code>`, `unavailable: <code>`). The header shows
+the bound provider id, ready/pending/failed/unavailable counts and the revision's
+`native_reviewed` / `audio_auditioned` flags as they actually are.
+
+It resolves read-only, so opening it can never call a provider, enqueue a job or spend
+budget; use `mandarin:audio:warm` to fill the cache. It carries `Cache-Control: no-store`,
+needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=true`.
 
 ## Configuration (`config/mandarin.php`, `.env.example`)
 
@@ -85,7 +111,8 @@ stay readable while that disk is configured.
 | `MANDARIN_RUNTIME` | `live` | `live` or `preview` for `/mandarin` |
 | `MANDARIN_SPEECH_PROVIDER` | `null` | `null`, `macos`, `polly-cli` |
 | `MANDARIN_GENERATION_ENABLED` | `false` | Off until explicitly enabled; cache hits and SFX still work |
-| `MANDARIN_MEDIA_DISK` | `local` | Disk for **new** audio objects |
+| `MANDARIN_MEDIA_DISK` | `local` | Disk for **new** audio objects (`mandarin:audio:migrate` moves existing ones) |
+| `MANDARIN_QA_ENABLED` | `false` | Serve `/mandarin/qa` in production as well as elsewhere |
 | `MANDARIN_DAILY_CHARACTER_BUDGET` | `20000` | Characters per day across all attempts |
 | `MANDARIN_POLLY_PROFILE`, `MANDARIN_POLLY_REGION` | unset, `us-east-1` | AWS CLI profile / region; no keys in `.env` |
 | `MANDARIN_MACOS_VOICE_GUIDE` etc. | unset | Optional explicit role → voice overrides |
