@@ -23,7 +23,9 @@ return new class extends Migration
             $table->boolean('native_reviewed')->default(false);
             $table->boolean('audio_auditioned')->default(false);
             $table->longText('payload');
-            $table->timestamp('imported_at');
+            // dateTime, not timestamp: MySQL/MariaDB give the first TIMESTAMP column an implicit
+            // ON UPDATE CURRENT_TIMESTAMP, which would rewrite the import time on every update.
+            $table->dateTime('imported_at');
             $table->timestamps();
 
             $table->unique(['course_id', 'content_version']);

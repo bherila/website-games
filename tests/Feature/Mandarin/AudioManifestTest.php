@@ -191,6 +191,42 @@ class AudioManifestTest extends MandarinTestCase
         $this->assertSame('ready', MandarinAudioAsset::query()->where('recipe_hash', (string) $normal->recipe_hash)->firstOrFail()->state);
     }
 
+    public function test_ready_rows_on_a_public_url_disk_can_be_trusted_without_a_storage_call(): void
+    {
+        $normal = $this->ready(self::HELLO);
+        MandarinAudioAsset::query()->whereKey($normal->id)->update(['disk' => 's3']);
+        Storage::disk('s3')->put((string) $normal->object_key, (string) Storage::disk('local')->get((string) $normal->object_key));
+        // The fake keeps a local driver; present the disk as a bucket with a public base URL.
+        config()->set('filesystems.disks.s3.driver', 's3');
+        config()->set('filesystems.disks.s3.url', 'https://media.example.test');
+        $this->app->instance(SpeechSynthesizer::class, new NullSpeechSynthesizer);
+        config()->set('mandarin.speech.generation_enabled', false);
+        Storage::disk('s3')->delete((string) $normal->object_key);
+
+        // Default: the object is checked and found absent, so the line is honestly unavailable.
+        config()->set('mandarin.audio.verify_objects', true);
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO]])
+            ->assertOk()->assertJsonPath('results.0.state', 'unavailable');
+
+        // Trusting: a ready row on a public-URL disk is served from its recorded key, storage untouched.
+        config()->set('mandarin.audio.verify_objects', false);
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO]])
+            ->assertOk()
+            ->assertJsonPath('results.0.state', 'ready')
+            ->assertJsonPath('results.0.contentHash', (string) $normal->content_hash);
+        $this->assertFalse(Storage::disk('s3')->exists((string) $normal->object_key), 'served without the object being consulted');
+        $this->assertSame('ready', MandarinAudioAsset::query()->findOrFail($normal->id)->state);
+
+        // Never for a local disk: the media route has to read the bytes.
+        MandarinAudioAsset::query()->whereKey($normal->id)->update(['disk' => 'local']);
+        Storage::disk('local')->delete((string) $normal->object_key);
+        $this->withHeaders(['Accept' => 'application/json'])
+            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO]])
+            ->assertOk()->assertJsonPath('results.0.state', 'unavailable');
+    }
+
     public function test_dry_run_changes_nothing_then_execute_recreates_the_cache_for_guests(): void
     {
         $normal = $this->ready(self::HELLO);
