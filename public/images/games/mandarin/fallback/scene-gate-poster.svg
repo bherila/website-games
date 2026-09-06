@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" width="1536" height="1024" role="img" aria-labelledby="t"><title id="t">Village gate fallback poster</title>
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9eef1"/><stop offset="1" stop-color="#f5efe3"/></linearGradient>
+<linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9c9b3"/><stop offset="1" stop-color="#8fae97"/></linearGradient></defs>
+<rect width="1536" height="1024" fill="url(#sky)"/>
+<g opacity="0.55" fill="#b7c3cc"><path d="M0 560 Q180 420 360 520 T760 500 T1180 520 T1536 470 V700 H0Z"/></g>
+<g opacity="0.7" fill="#9fb0bb"><path d="M0 640 Q240 520 480 610 T980 600 T1536 580 V760 H0Z"/></g>
+<rect y="700" width="1536" height="324" fill="url(#ground)"/>
+<path d="M300 1024 L560 720 H980 L1240 1024 Z" fill="#d8cdb6"/>
+<path d="M420 1024 L620 740 H920 L1120 1024 Z" fill="#e4dac4"/>
+<g fill="#6a5a4b"><rect x="520" y="430" width="34" height="300"/><rect x="982" y="430" width="34" height="300"/><rect x="640" y="430" width="24" height="300"/><rect x="872" y="430" width="24" height="300"/></g>
+<rect x="470" y="410" width="596" height="34" fill="#5c4d40"/>
+<path d="M440 410 Q768 300 1096 410 L1060 380 Q768 290 476 380 Z" fill="#3f5169"/>
+<path d="M480 380 Q768 310 1056 380 L1030 356 Q768 298 506 356 Z" fill="#5b6f8a"/>
+<rect x="580" y="470" width="376" height="26" fill="#7f6b58"/>
+<g fill="#d9a441"><circle cx="560" cy="530" r="16"/><circle cx="976" cy="530" r="16"/></g>
+<g fill="#5d8a70"><ellipse cx="220" cy="700" rx="120" ry="90"/><ellipse cx="1330" cy="690" rx="140" ry="100"/><ellipse cx="120" cy="740" rx="90" ry="60" fill="#7fa58f"/><ellipse cx="1440" cy="750" rx="90" ry="60" fill="#7fa58f"/></g>
+<g fill="#7f6b58"><rect x="212" y="700" width="16" height="80"/><rect x="1322" y="690" width="16" height="90"/></g>
+</svg>

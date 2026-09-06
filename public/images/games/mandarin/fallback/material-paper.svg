@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="t"><title id="t">Subtle paper texture fallback</title>
+<defs><filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="11" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 0.96  0 0 0 0 0.94  0 0 0 0 0.89  0 0 0 0.06 0"/></filter></defs>
+<rect width="1024" height="1024" fill="#f5efe3"/>
+<rect width="1024" height="1024" filter="url(#grain)"/>
+</svg>

@@ -31,5 +31,15 @@ export default defineConfig({
         viewport: { width: 375, height: 812 },
       },
     },
+    {
+      // Mobile WebKit is only exercised for Mandarin Quest (its brief calls for iOS Safari
+      // coverage); scoping by testMatch keeps the other games' suites on Chromium only.
+      name: 'webkit-mobile-375',
+      testMatch: /mandarin\..*\.spec\.ts$/,
+      use: {
+        ...devices['iPhone 13'],
+        viewport: { width: 375, height: 812 },
+      },
+    },
   ],
 })

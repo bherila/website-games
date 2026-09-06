@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" width="1536" height="1024" role="img" aria-labelledby="t"><title id="t">Stone bridge fallback poster</title>
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6ecef"/><stop offset="1" stop-color="#f5efe3"/></linearGradient>
+<linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fa9bf"/><stop offset="1" stop-color="#5b6f8a"/></linearGradient></defs>
+<rect width="1536" height="1024" fill="url(#sky)"/>
+<g opacity="0.6" fill="#b7c3cc"><path d="M0 520 Q300 400 600 500 T1200 480 T1536 440 V640 H0Z"/></g>
+<rect y="600" width="1536" height="424" fill="#9fb694"/>
+<path d="M0 700 Q400 660 768 700 T1536 690 V1024 H0Z" fill="url(#water)"/>
+<g stroke="#dfe6ea" stroke-width="3" opacity="0.5" fill="none"><path d="M200 800 q60 -10 120 0 t120 0"/><path d="M900 860 q60 -10 120 0 t120 0"/><path d="M500 920 q60 -10 120 0 t120 0"/></g>
+<path d="M300 720 Q768 430 1236 720 V780 Q768 520 300 780 Z" fill="#8a8f95"/>
+<path d="M330 760 Q768 490 1206 760 V800 Q768 560 330 800 Z" fill="#a6aaae"/>
+<path d="M330 700 Q768 560 1206 700 L1236 720 Q768 590 300 720 Z" fill="#c6c1b4"/>
+<rect x="300" y="690" width="936" height="18" fill="#dcd6c8"/>
+<g fill="#6a6f75"><rect x="300" y="640" width="24" height="70"/><rect x="1212" y="640" width="24" height="70"/><rect x="756" y="600" width="24" height="100"/></g>
+<g fill="#5d8a70"><ellipse cx="180" cy="640" rx="130" ry="80"/><ellipse cx="1360" cy="630" rx="140" ry="90"/></g>
+<g fill="#7f6b58"><rect x="172" y="640" width="16" height="70"/><rect x="1352" y="630" width="16" height="80"/></g>
+</svg>
