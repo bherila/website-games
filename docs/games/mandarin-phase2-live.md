@@ -14,7 +14,7 @@ Status in one line each, as the brief asks:
 | Persistence verified | Yes, locally: signed-in answers are graded and stored server-side; progress endpoint reflects them; local copy is account-partitioned |
 | Polly verified | Yes (authorized smoke run, 2026-09-06): node `s1n1`, both variants, 16 sources → 14 assets (two text dedupes), all ready, 36 billed characters (≈ $0.0006), mp3 24 kHz validated by ffprobe, played in Chromium and WebKit through the live spec with generation disabled (cache hits only). IAM simulation: `polly:SynthesizeSpeech` allowed for the profile's user |
 | S3 verified | No. Local disk only; `mandarin:audio:migrate` not implemented |
-| Final artwork generated | No. All nine slots still use the phase-1 SVG fallbacks (no image tool in this session) |
+| Final artwork generated | Yes, by Codex CLI's built-in image generation from the manifest prompts: five 1536×1024 posters and three 1024×1024 alpha portraits in `public/images/games/mandarin/`, bound via the manifest `status`; hashes and sizes in `resources/data/mandarin/visual-assets.implementation.json`. The optional paper texture stays unbound. SVG fallbacks remain for load errors |
 | Native-reviewed | No, and the imported revision records `nativeReviewed=false`, `audioAuditioned=false` |
 
 ## What changed
@@ -119,7 +119,7 @@ only); no preview banner, Play controls in the `ready` state.
 - **`aws/aws-sdk-php`** was not added; the CLI adapter avoids the new dependency. A
   `PollyClient` adapter is a drop-in behind the same interface.
 - **S3**: no bucket configured, no integration test, no migrate command.
-- **Artwork**: unchanged SVG fallbacks.
+- **Artwork**: generated; the image model id was not exposed by the tool, so provenance records the tool name only. Review the eight images yourself before a public release.
 - **Guest import** of local progress into an account is not implemented (deliberate
   action per the contract; nothing auto-imports).
 - **`mandarin.env.example`** referenced by the brief was not in the kickoff folder;

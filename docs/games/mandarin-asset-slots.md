@@ -20,7 +20,7 @@ breaks a screen.
 
 ## Slots
 
-All nine IDs below exist in the registry and have a working fallback. Dimensions and
+All nine IDs below exist in the registry and have a working fallback. Eight are bound to generated WebP art (manifest `status: generated`); `material-paper` stays on its fallback. Dimensions and
 alpha come from the manifest. "Anchor" is how the UI crops when the box is narrower than
 the image.
 
@@ -54,21 +54,32 @@ The diorama camera is a gentle elevated three-quarter view with a quiet lower-ce
 area, matching the manifest's poster brief, so a generated poster and the live diorama
 read as the same place.
 
-## How Codex swaps in generated art
+## How generated art is bound
+
+The registry reads each manifest entry's `status`: `generated` binds `src` to the
+`outputPath` (with `status: 'generated'`), anything else keeps the SVG fallback. The
+implementation manifest `resources/data/mandarin/visual-assets.implementation.json`
+records the actual path, dimensions, alpha, byte size and sha256 of every generated file.
+
+To regenerate or replace an asset:
 
 1. Generate to the manifest's `outputPath` (`public/images/games/mandarin/<id>.webp`) at
    the listed size; portraits keep alpha.
-2. In `visualRegistry.ts`, change the `slot()` helper (or the individual entry) so
-   `src` points at the generated path and `status` is `'generated'`. Leave `fallbackSrc`
-   pointing at the SVG.
-3. Update the manifest entry's `status` and write the implementation manifest the
-   shared contract asks for (actual paths, dimensions, alpha, provenance, hashes).
+2. Set the manifest entry's `status` to `generated` (the registry follows it) and refresh
+   the implementation manifest entry (path, dimensions, alpha, size, sha256, tool).
+3. Leave `fallbackSrc` and the SVG in place; `SlotImage` falls back to it on load error.
 4. Re-run `pnpm run test` and the Mandarin Playwright suite; screenshots in
    `test-results/mandarin/` show every slot in context.
 
 Do not rename IDs, and do not bake text, UI, or answer clues into any image.
 
-## Fallback style
+## Generated style and fallback style
+
+The generated set was produced from the manifest prompts with the gate poster and guide
+portrait as style references for the rest, so all eight read as one place. Posters contain
+no people or text; portraits are original fictional adults on transparent backgrounds.
+
+### Fallback SVGs
 
 The SVGs use the same palette as the diorama (`PALETTE` in
 `resources/js/games/mandarin/scene/sceneConfigs.ts`): warm ivory, muted jade, slate blue,
