@@ -41,6 +41,8 @@ export interface AssessmentState {
   /** The option that was actually submitted for the current feedback panel. */
   submittedOptionId: string | null
   helpRevealed: readonly HelpKind[]
+  /** Feedback has shown the correct answer; any later attempt is assisted. */
+  answerDisclosed: boolean
   normalPlayCount: number
   slowPlayCount: number
   completedPlayCount: number
@@ -75,6 +77,7 @@ export function createAssessment(
     selectedOptionId: null,
     submittedOptionId: null,
     helpRevealed: [],
+    answerDisclosed: false,
     normalPlayCount: 0,
     slowPlayCount: 0,
     completedPlayCount: 0,
@@ -88,7 +91,7 @@ export function createAssessment(
 /** Assistance the learner has had so far in this opportunity. */
 export function assistanceLevel(state: AssessmentState): AssistanceLevel {
   if (state.completedPlayCount === 0) return 'unscored'
-  if (state.helpRevealed.length > 0) return 'text'
+  if (state.helpRevealed.length > 0 || state.answerDisclosed) return 'text'
   if (state.slowPlayCount > 0) return 'slow'
   if (state.normalPlayCount > 1) return 'replay'
   return 'unaided'
@@ -129,7 +132,7 @@ export function lastAttempt(state: AssessmentState): AssessmentAttempt | null {
 }
 
 export function helpUsed(state: AssessmentState): boolean {
-  return state.helpRevealed.length > 0 || state.slowPlayCount > 0 || state.normalPlayCount > 1
+  return state.helpRevealed.length > 0 || state.answerDisclosed || state.slowPlayCount > 0 || state.normalPlayCount > 1
 }
 
 export function reduceAssessment(
@@ -166,6 +169,7 @@ export function reduceAssessment(
       return {
         ...state,
         phase: 'feedback',
+        answerDisclosed: true,
         submittedOptionId: state.selectedOptionId,
         attempts: [...state.attempts, {
           action: 'answer',
@@ -181,6 +185,7 @@ export function reduceAssessment(
       return {
         ...state,
         phase: 'feedback',
+        answerDisclosed: true,
         submittedOptionId: null,
         attempts: [...state.attempts, {
           action: 'dont_know',

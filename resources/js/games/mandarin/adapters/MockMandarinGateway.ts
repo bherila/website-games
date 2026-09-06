@@ -69,6 +69,16 @@ export class MockMandarinGateway implements MandarinGateway<Course> {
     this.completedNodeIds = new Set(options.seedCompletedNodeIds ?? [])
   }
 
+  /** Preview reset: forget everything this mock accumulated, including seeded progress. */
+  reset(): void {
+    this.events.clear()
+    this.sequence = 0
+    this.completedNodeIds.clear()
+    this.checkpointExposed.clear()
+    this.pendingRequests.clear()
+    this.resolveAttempts.clear()
+  }
+
   async bootstrap(): Promise<Bootstrap<Course>> {
     return {
       runtime: 'preview',

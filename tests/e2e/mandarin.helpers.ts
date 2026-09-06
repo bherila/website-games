@@ -15,20 +15,26 @@ export async function capture(page: Page, testInfo: TestInfo, name: string): Pro
 
 /** Opens the preview in a given scenario with a clean partition and optional stored settings/progress. */
 export async function openPreview(page: Page, scenario: string | null, options: { settings?: Record<string, unknown>; progress?: Record<string, unknown> } = {}): Promise<void> {
-  const url = scenario ? `/mandarin?scenario=${scenario}` : '/mandarin'
+  const url = scenario ? `/mandarin/preview?scenario=${scenario}` : '/mandarin/preview'
   await page.goto(url)
   // Wait for the app's own initial write before seeding, otherwise the async
-  // bootstrap of the first load can overwrite the seeded partition.
+  // bootstrap of the first load can overwrite the seeded partition. The write
+  // happens in an effect after first paint, so re-seed until it sticks.
   await expect(page.getByTestId('preview-banner').first()).toBeVisible()
-  await page.evaluate(({ settings, progress }) => {
-    for (const key of Object.keys(window.localStorage)) {
-      if (key.startsWith('mandarin.preview.')) window.localStorage.removeItem(key)
-    }
-    window.localStorage.setItem('mandarin.preview.settings.v1', JSON.stringify({ twoDMode: false, lowMotion: true, ...settings }))
-    if (progress) {
-      window.localStorage.setItem('mandarin.preview.progress.v1', JSON.stringify({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.0', ...progress }))
-    }
-  }, { settings: options.settings ?? {}, progress: options.progress ?? null })
+  const seed = { settings: options.settings ?? {}, progress: options.progress ?? null }
+  await expect(async () => {
+    const stable = await page.evaluate(async ({ settings, progress }) => {
+      const progressJson = progress ? JSON.stringify({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.0', ...progress }) : null
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith('mandarin.preview.')) window.localStorage.removeItem(key)
+      }
+      window.localStorage.setItem('mandarin.preview.settings.v1', JSON.stringify({ twoDMode: false, lowMotion: true, ...settings }))
+      if (progressJson) window.localStorage.setItem('mandarin.preview.progress.v1', progressJson)
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      return window.localStorage.getItem('mandarin.preview.progress.v1') === progressJson
+    }, seed)
+    expect(stable).toBe(true)
+  }).toPass({ timeout: 10_000 })
   await page.goto(url)
   await expect(page.getByTestId('preview-banner').first()).toBeVisible()
 }

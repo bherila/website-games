@@ -73,6 +73,21 @@ describe('assessment reducer', () => {
     expect(outcome.firstAttempt?.correct).toBe(false)
   })
 
+  it('treats a retry after feedback as assisted even without hints, because the answer was disclosed', () => {
+    const wrong = exercise.options.find((option) => option.id !== exercise.correctOptionId)!.id
+    let state = createAssessment(exercise, 'opp', 'lesson')
+    state = reduceAssessment(state, { type: 'playback', variant: 'normal', outcome: 'completed' }, exercise.correctOptionId)
+    state = reduceAssessment(state, { type: 'select', optionId: wrong }, exercise.correctOptionId)
+    state = reduceAssessment(state, { type: 'submit' }, exercise.correctOptionId)
+    expect(state.attempts[0]?.assistance).toBe('unaided')
+    state = reduceAssessment(state, { type: 'retry' }, exercise.correctOptionId)
+    expect(assistanceLevel(state)).toBe('text')
+    state = reduceAssessment(state, { type: 'select', optionId: exercise.correctOptionId }, exercise.correctOptionId)
+    state = reduceAssessment(state, { type: 'submit' }, exercise.correctOptionId)
+    expect(state.attempts[1]).toMatchObject({ correct: true, isRetry: true, assistance: 'text' })
+    expect(summarizeOpportunity(state).helpUsed).toBe(true)
+  })
+
   it('distinguishes dont_know and skip from a wrong answer', () => {
     const base = createAssessment(exercise, 'opp', 'lesson')
     const dontKnow = reduceAssessment(base, { type: 'dontKnow' }, exercise.correctOptionId)

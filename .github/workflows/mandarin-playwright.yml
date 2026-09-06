@@ -76,6 +76,8 @@ jobs:
           } >> .env
           touch database/database.sqlite
           php -d memory_limit=1G artisan key:generate --no-interaction
+          php -d memory_limit=1G artisan migrate --force --no-interaction
+          php -d memory_limit=1G artisan mandarin:course:import
 
       - name: Start local Laravel server
         if: env.RUN_LOCAL_APP == 'true'

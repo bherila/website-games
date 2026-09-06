@@ -49,13 +49,4 @@ class MandarinGamePageTest extends TestCase
     {
         $this->assertSame(url('/mandarin'), route('games.mandarin'));
     }
-
-    /** The preview shell must not ship any live API; the shared game-data routes stay untouched. */
-    public function test_no_mandarin_api_routes_exist_in_this_phase(): void
-    {
-        $this->withoutVite();
-
-        $this->get('/api/games/mandarin/bootstrap')->assertNotFound();
-        $this->postJson('/api/games/mandarin/events', [])->assertNotFound();
-    }
 }

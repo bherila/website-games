@@ -4,7 +4,7 @@
 @section('viewport-content', 'width=device-width, initial-scale=1, viewport-fit=cover')
 
 @section('content')
-  <div id="mandarin-game-root"></div>
+  <div id="mandarin-game-root" data-runtime="{{ in_array($runtime ?? 'live', ['preview', 'live'], true) ? $runtime : 'live' }}"></div>
 @endsection
 
 @push('scripts')

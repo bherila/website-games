@@ -15,7 +15,7 @@
         "test:e2e:parking-pickup-visual": "playwright test tests/e2e/parking-pickup.visual.spec.ts",
         "test:e2e:chicks-challenge": "playwright test tests/e2e/chicks-challenge.spec.ts",
         "test:e2e:games-pwa": "playwright test tests/e2e/games-pwa.spec.ts --project=chromium-desktop",
-        "test:e2e:mandarin": "playwright test tests/e2e/mandarin.journey.spec.ts tests/e2e/mandarin.visual.spec.ts --project=chromium-desktop --project=webkit-mobile-375",
+        "test:e2e:mandarin": "playwright test tests/e2e/mandarin.journey.spec.ts tests/e2e/mandarin.visual.spec.ts tests/e2e/mandarin.live.spec.ts --project=chromium-desktop --project=webkit-mobile-375",
         "type-check": "tsc --noEmit --jsx react-jsx",
         "type-check:e2e": "tsc --noEmit -p tsconfig.playwright.json",
         "lint": "eslint . --cache",
@@ -71,6 +71,7 @@
         "react-dom": "^19.2.8",
         "tailwind-merge": "^3.6.0",
         "three": "^0.185.1",
+        "ts-fsrs": "5.4.2",
         "zod": "^4.4.3"
     }
 }

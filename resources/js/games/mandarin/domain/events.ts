@@ -50,7 +50,8 @@ export function responseEvent(
     source,
     responseAction: attempt?.action ?? null,
     selectedOptionId: attempt?.optionId ?? null,
-    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning'),
+    // A retry after feedback has seen the correct answer: that is text help, never an unaided listen.
+    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || state.answerDisclosed,
     pinyinHelpUsed: state.helpRevealed.includes('pinyin'),
     audioEvidence: audioEvidence(state),
   }
@@ -66,7 +67,8 @@ export function helpRevealedEvent(context: EventContext, state: AssessmentState,
       exerciseId: state.exerciseId,
       opportunityId: state.opportunityId,
     }),
-    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning'),
+    // A retry after feedback has seen the correct answer: that is text help, never an unaided listen.
+    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || state.answerDisclosed,
     pinyinHelpUsed: state.helpRevealed.includes('pinyin'),
     audioEvidence: audioEvidence(state),
   }

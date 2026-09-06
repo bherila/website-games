@@ -20,5 +20,7 @@ export interface MandarinRuntime {
   clientInstanceId: string
   sessionId: string
   now: () => Date
+  /** Preview only: clears mock server state alongside the local partition. */
+  resetState?: () => void
   dispose(): void
 }

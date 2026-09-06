@@ -115,6 +115,8 @@ test.describe('Mandarin Quest preview journey', () => {
       if (item.scenario === 'retryableError') {
         await player.getByTestId('retry-audio').click()
         await expect(player.getByTestId('audio-status')).toContainText(/Retry succeeded|Preview voice|Simulated/)
+        await expect(player.getByTestId('slow-button')).toBeEnabled()
+        await expect(player.getByTestId('retry-audio')).toHaveCount(0)
       }
       if (item.scenario === 'queuedAudio') {
         await expect(player.getByTestId('audio-status')).toContainText(/Still preparing/, { timeout: 30_000 })
