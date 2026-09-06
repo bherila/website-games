@@ -8,12 +8,12 @@ describe('visual asset slots', () => {
     expect(VISUAL_SLOT_IDS).toHaveLength(9)
   })
 
-  it('binds every slot to the fallback path (file presence is asserted by MandarinGamePageTest)', () => {
+  it('binds eight generated assets while retaining SVG fallbacks and optional paper', () => {
     for (const id of VISUAL_SLOT_IDS) {
       const slot = VISUAL_REGISTRY[id]
       expect(slot.fallbackSrc).toBe(`/images/games/mandarin/fallback/${id}.svg`)
-      expect(slot.src).toBe(slot.fallbackSrc)
-      expect(slot.status).toBe('fallback')
+      expect(slot.src).toBe(id === 'material-paper' ? slot.fallbackSrc : `/images/games/mandarin/${id}.webp`)
+      expect(slot.status).toBe(id === 'material-paper' ? 'fallback' : 'generated')
       expect(slot.generatedPath).toBe(`/images/games/mandarin/${id}.webp`)
     }
   })

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "promptSource": "resources/data/mandarin/visual-assets.v1.json",
+  "generationNotes": "Built-in image generation; model not exposed. Manifest prompts and safe areas supplied, with the gate poster and guide portrait used as style references. PNG masters are not committed. ImageMagick removes painted near-white portrait checkerboards and adds transparent margins; cwebp encodes WebP with lossless alpha.",
+  "assets": [
+    {
+      "id": "scene-gate-poster",
+      "path": "public/images/games/mandarin/scene-gate-poster.webp",
+      "width": 1536,
+      "height": 1024,
+      "hasAlpha": false,
+      "byteSize": 255512,
+      "sha256": "8dccfe2a55b42cbbb4457d0a0143adbe2541668ad5bd1c0f8a01f439c9395857",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "scene-street-poster",
+      "path": "public/images/games/mandarin/scene-street-poster.webp",
+      "width": 1536,
+      "height": 1024,
+      "hasAlpha": false,
+      "byteSize": 273010,
+      "sha256": "6a342af40002ee9ba53aa6c9b4035e9f023869551bef458ceea0eadcfe8883d5",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "scene-bridge-poster",
+      "path": "public/images/games/mandarin/scene-bridge-poster.webp",
+      "width": 1536,
+      "height": 1024,
+      "hasAlpha": false,
+      "byteSize": 238790,
+      "sha256": "dec2437873beab26c8cedc4b89dfc5069ce828c6ba8126fb70b0bf6cddd2c44e",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "scene-roadside-poster",
+      "path": "public/images/games/mandarin/scene-roadside-poster.webp",
+      "width": 1536,
+      "height": 1024,
+      "hasAlpha": false,
+      "byteSize": 264526,
+      "sha256": "a891c481782801c82e87ad36293953f44091a550b940e04b7491c265afb6cf2f",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "scene-reunion-poster",
+      "path": "public/images/games/mandarin/scene-reunion-poster.webp",
+      "width": 1536,
+      "height": 1024,
+      "hasAlpha": false,
+      "byteSize": 248752,
+      "sha256": "9ce6bfa326d5bd2b5d97c2b75a0edd9d44781f4905c7272be1cbf69f615ba2f7",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "portrait-guide",
+      "path": "public/images/games/mandarin/portrait-guide.webp",
+      "width": 1024,
+      "height": 1024,
+      "hasAlpha": true,
+      "byteSize": 75922,
+      "sha256": "52f345cb667a2a7f563bc54ae36118b478d22c066b2f0b7928418af61a680c98",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "portrait-traveler",
+      "path": "public/images/games/mandarin/portrait-traveler.webp",
+      "width": 1024,
+      "height": 1024,
+      "hasAlpha": true,
+      "byteSize": 75526,
+      "sha256": "172bd1e86ee104a208ebb68462836315f6a6790d83538538daf954b32377f099",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    },
+    {
+      "id": "portrait-friend",
+      "path": "public/images/games/mandarin/portrait-friend.webp",
+      "width": 1024,
+      "height": 1024,
+      "hasAlpha": true,
+      "byteSize": 80654,
+      "sha256": "4d3ebee9afebfd31dbfae77a3a017ec8cbcbb281fcfc6364f234c9a57da5aff7",
+      "generationTool": "image_gen.imagegen",
+      "generationModel": null,
+      "status": "generated"
+    }
+  ]
+}
