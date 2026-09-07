@@ -180,7 +180,9 @@ export function ConstructionExercise({ course, exercise, showPinyin, onResolved,
         <div role="status" data-testid="construction-feedback" className={cn('rounded-xl border p-3', result === 'correct' ? 'border-[#bfd8c9] bg-[#e4efe8]' : 'border-[#ead7a4] bg-[#fbf3df]')}>
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-bold">{result === 'correct' ? 'That’s the sentence.' : 'Not quite.'}</p>
-            {assisted && <Chip tone="amber" data-testid="construction-assistance">With help</Chip>}
+            {/* Labels the outcome, so it belongs on the solve. Next to "Not
+                quite" it would read as if help had been used to get it wrong. */}
+            {result === 'correct' && assisted && <Chip tone="amber" data-testid="construction-assistance">With help</Chip>}
           </div>
           {hint && (
             <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="construction-hint">

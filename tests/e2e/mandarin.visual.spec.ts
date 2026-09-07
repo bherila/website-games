@@ -79,6 +79,48 @@ test.describe('Mandarin Quest visual harness', () => {
     await capture(page, testInfo, 'listening-check-intro')
   })
 
+  test('captures the collapsed scenery, its expansion, and a construction diagnosis', async ({ page }, testInfo) => {
+    // s1n2 is the first node with a construction exercise.
+    await openPreview(page, null, { progress: { ...ONBOARDED, completedNodeIds: ['s1n1'], introducedNodeIds: ['s1n1'], currentNodeId: 's1n2' } })
+    await page.getByTestId('continue-button').click()
+
+    // The teaching stage shows the line that is playing.
+    await expect(page.getByTestId('teaching-screen')).toBeVisible()
+    await page.waitForTimeout(1200)
+    await page.getByTestId('dialogue-line').first().getByTestId('play-button').click()
+    await expect(page.getByTestId('dialogue-stage')).toBeVisible()
+    await capture(page, testInfo, 'teaching-dialogue-stage')
+
+    // Questions collapse the scenery so the whole question fits.
+    await page.getByTestId('start-questions').click()
+    await expect(page.getByTestId('listening-question')).toBeVisible()
+    await capture(page, testInfo, 'question-scenery-collapsed')
+    // The strip is a phone control: from `lg` the diorama is a side column and
+    // never competed with the question for height in the first place.
+    const narrow = (page.viewportSize()?.width ?? 0) < 1024
+    if (narrow) {
+      await page.getByTestId('scenery-toggle').click()
+      await capture(page, testInfo, 'question-scenery-expanded')
+      await page.getByTestId('scenery-toggle').click()
+    } else {
+      await expect(page.getByTestId('scenery-toggle')).toBeHidden()
+    }
+
+    // A wrong construction attempt: marked tray, a hint about the actual error.
+    for (let i = 0; i < 8 && (await page.getByTestId('construction').count()) === 0; i += 1) {
+      await page.getByTestId('dont-know').click()
+      await page.getByTestId('continue').click()
+    }
+    const construction = page.getByTestId('construction')
+    await expect(construction).toBeVisible()
+    const wrong = await construction.locator('[data-tile-id]').evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('data-tile-id')!).reverse())
+    for (const id of wrong) await construction.locator(`[data-tile-id="${id}"]`).click()
+    await construction.getByTestId('construction-check').click()
+    await expect(construction.getByTestId('construction-hint')).toBeVisible()
+    await capture(page, testInfo, 'construction-diagnosis')
+  })
+
   test('captures settings and the 2D fallback', async ({ page }, testInfo) => {
     await openPreview(page, null, { progress: ONBOARDED })
     await page.getByLabel('Settings').click()

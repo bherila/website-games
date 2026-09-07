@@ -24,6 +24,19 @@ never be switched to mocks from the URL.
 - **Audio → meaning, not reading.** Question text and pinyin stay hidden until the learner
   answers or asks for help. Help is allowed and recorded on the same opportunity. A retry
   after feedback has seen the answer and is therefore assisted, never unaided.
+- **Every route to help is accounted for.** The header's Words button reaches the English
+  meaning of every introduced word, so during an unanswered lesson or review question it
+  confirms first and records `meaning` help on that opportunity; strict checkpoint items
+  disable it until the item is answered. A question publishes itself through
+  `registerAssessment` so the shell cannot hand out help behind its back.
+- **Scenery yields to the task.** The diorama is decorative. On phones it collapses to a
+  slim strip on lesson, review and checkpoint so the whole question fits, and the strip
+  carries the scene number only — a node title or objective can disclose what an
+  unanswered question is asking. From `lg` it is a side column and never competes.
+- **Construction feedback names the mistake.** A wrong arrangement is marked per position
+  and hinted from the target order (`domain/construction.ts`). Derived text only ever
+  describes the sentence the learner heard; general grammar stays in the authored
+  `explanation`, because one `correctTileIds` sequence is not evidence about Mandarin.
 - **Honest audio states.** A source is `unavailable | queued | generating | ready | failed`
   plus the non-live `preview` state. Any answer without completed real audio is unscored.
 - **One speech channel.** Navigation cancels speech, a new play interrupts the old one,
@@ -37,6 +50,21 @@ never be switched to mocks from the URL.
   check after the last node.
 - **Partitioned local state.** Preview data lives under `mandarin.preview.*`, live data
   under `mandarin.live.<account>.`; a sign-in never relabels queued events.
+
+## Construction tile audio
+
+`domain/constructionTiles.ts` maps each tile to its pinyin, gloss and the curated source a
+tap plays. The mapping is written out rather than matched on Chinese strings at runtime,
+which would attach a wrong recording silently instead of failing.
+
+15 of the 18 tiles reach an existing recording. 在这里 uses utterance `05c` — an ordinary
+dialogue line, not a reserved checkpoint sentence. Note its Polly recipe text is `在这里。`
+*with* the full stop, so it is a sentence-final rendering being reused for a mid-sentence
+chunk; it is intelligible but the contour is not ideal, and a mid-sentence recipe is the
+clean fix in the next content pass. The three g04 support chunks (请, 再, 一遍) have no
+audio source at all, because `AudioSourceRef` admits only utterances and targets. The UI
+says so rather than showing a control that does nothing. See
+`docs/games/mandarin-support-audio-handoff.md`.
 
 ## Backend layout (`app/Services/Games/Mandarin/`)
 
