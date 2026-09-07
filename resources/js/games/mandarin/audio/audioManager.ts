@@ -240,6 +240,7 @@ export function createAudioManager(deps: AudioManagerDeps): AudioManager {
   const speechTextFor = (ref: AudioSourceRef): string | null => {
     if (ref.sourceKind === 'utterance') return deps.course.utteranceById.get(ref.sourceId)?.speechText ?? null
     if (ref.sourceKind === 'target') return deps.course.targetById.get(ref.sourceId)?.speechText ?? null
+    if (ref.sourceKind === 'support') return deps.course.supportById.get(ref.sourceId)?.zh ?? null
     return null
   }
 

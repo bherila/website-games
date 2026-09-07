@@ -57,14 +57,16 @@ never be switched to mocks from the URL.
 tap plays. The mapping is written out rather than matched on Chinese strings at runtime,
 which would attach a wrong recording silently instead of failing.
 
-15 of the 18 tiles reach an existing recording. 在这里 uses utterance `05c` — an ordinary
+All 18 tiles have an allowlisted recording source. The three supporting chunks in `g04`
+(请, 再, 一遍) use the `support` source kind, which resolves text from the versioned
+`supportGlossary` without adding those words to the 30 scheduled mastery targets.
+
+在这里 uses utterance `05c` — an ordinary
 dialogue line, not a reserved checkpoint sentence. Note its Polly recipe text is `在这里。`
 *with* the full stop, so it is a sentence-final rendering being reused for a mid-sentence
 chunk; it is intelligible but the contour is not ideal, and a mid-sentence recipe is the
-clean fix in the next content pass. The three g04 support chunks (请, 再, 一遍) have no
-audio source at all, because `AudioSourceRef` admits only utterances and targets. The UI
-says so rather than showing a control that does nothing. See
-`docs/games/mandarin-support-audio-handoff.md`.
+remaining audio-content follow-up. See `docs/games/mandarin-support-audio-handoff.md` for
+the source-kind decision and release evidence.
 
 ## Full screen and the address bar
 
@@ -143,6 +145,7 @@ php -d memory_limit=1G artisan mandarin:validate                 # validate + co
 php -d memory_limit=1G artisan mandarin:audio:doctor             # course / provider / storage / queue / ffprobe / budget / counts
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --dry-run
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --execute --sfx
+php -d memory_limit=1G artisan mandarin:audio:warm --node=s4n2 --variant=both --support --dry-run
 php -d memory_limit=1G artisan mandarin:audio:recover --dry-run  # then --execute
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --dry-run
 php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute [--limit=100] [--delete-source]
@@ -163,6 +166,11 @@ it was — it is never marked ready on the target — and the run continues. An 
 disk exits 1 without touching anything, and the command is idempotent, resumable and
 `--limit`-able, so a large migration can run in bounded batches.
 
+`mandarin:audio:warm --dry-run` computes each provider recipe without synthesizing it and
+reports `ready`, `missing`, and whether the exact revision mapping exists. Supporting
+glossary entries are included only with `--support`, so an ordinary full-course warm does
+not unexpectedly expand from the scored corpus to all 18 context entries.
+
 ## Ship audio to production without a provider
 
 Production is meant to serve a fully generated course with `MANDARIN_SPEECH_PROVIDER=null`
@@ -173,10 +181,10 @@ content hash, type, size, duration) and a `mandarin_audio_sources` row mapping t
 source to that recipe hash. `mandarin:audio:export` / `mandarin:audio:import` move them.
 
 The checked-in manifest `resources/data/mandarin/audio-manifest.json` is the current
-corpus: every utterance and target of `mandarin-foundations@1.0.0` in both variants plus
-the four cues, generated with Polly (Zhiyu, neural) and stored on the `s3` disk under the
-content-addressed keys the bucket already holds. Regenerate it when the course or the voice
-changes:
+corpus: every utterance and target of `mandarin-foundations@1.0.1` in both variants, the
+normal and slow support sources for 请, 再 and 一遍, and the four cues. Its 168 assets and
+170 revision mappings were generated with Polly (Zhiyu, neural) and stored on the `s3`
+disk under content-addressed keys. Regenerate it when the course or the voice changes:
 
 ```bash
 # Locally, with a provider bound (polly-cli or polly-sdk) and generation enabled:

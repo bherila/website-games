@@ -19,7 +19,7 @@ class ResolveAudioRequest extends FormRequest
             'courseId' => ['required', 'string', 'max:64'],
             'contentVersion' => ['required', 'string', 'max:32'],
             'sources' => ['required', 'array', 'min:1', 'max:16'],
-            'sources.*.sourceKind' => ['required', Rule::in(['utterance', 'target', 'sfx'])],
+            'sources.*.sourceKind' => ['required', Rule::in(['utterance', 'target', 'support', 'sfx'])],
             'sources.*.sourceId' => ['required', 'string', 'max:64', 'regex:/^[A-Za-z0-9_-]+$/'],
             'sources.*.variant' => ['required', Rule::in(['normal', 'slow', 'default'])],
         ];

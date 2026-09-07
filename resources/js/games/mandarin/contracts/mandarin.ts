@@ -5,7 +5,7 @@
  */
 export type CourseIdentity = { courseId: string; contentVersion: string };
 export type AudioSourceRef =
-  | { sourceKind: 'utterance' | 'target'; sourceId: string; variant: 'normal' | 'slow' }
+  | { sourceKind: 'utterance' | 'target' | 'support'; sourceId: string; variant: 'normal' | 'slow' }
   | { sourceKind: 'sfx'; sourceId: string; variant: 'default' };
 export type AudioErrorCode =
   | 'not_available_in_preview' | 'generation_disabled' | 'sign_in_required'

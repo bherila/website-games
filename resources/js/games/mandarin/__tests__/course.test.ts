@@ -8,7 +8,7 @@ const rawCourse = (): Record<string, unknown> => JSON.parse(JSON.stringify(cours
 describe('canonical course data', () => {
   it('parses the shipped JSON with the expected shape', () => {
     const course = loadCourse()
-    expect(course.identity).toEqual({ courseId: 'mandarin-foundations', contentVersion: '1.0.0' })
+    expect(course.identity).toEqual({ courseId: 'mandarin-foundations', contentVersion: '1.0.1' })
     expect(course.scenes.map((scene) => scene.id)).toEqual(['s1', 's2', 's3', 's4', 's5'])
     expect(course.scenes.map((scene) => scene.setting)).toEqual(['gate', 'street', 'bridge', 'roadside', 'reunion'])
     expect(course.nodes).toHaveLength(10)
@@ -69,9 +69,11 @@ describe('canonical course data', () => {
     const course = loadCourse()
     expect(course.sourceText({ sourceKind: 'utterance', sourceId: '01a' })?.zh).toBe('你好。')
     expect(course.sourceText({ sourceKind: 'target', sourceId: 'hello' })?.en).toBe('Hello.')
+    expect(course.sourceText({ sourceKind: 'support', sourceId: 'please' })).toMatchObject({ zh: '请', pinyin: 'qǐng', roleId: null })
     expect(course.nextNodeId('s1n2')).toBe('s2n1')
     expect(course.nextNodeId('s5n2')).toBeNull()
     expect(course.sceneForNode('s3n1').id).toBe('s3')
     expect(sourceKey({ sourceKind: 'utterance', sourceId: '01a', variant: 'slow' })).toBe('utterance:01a:slow')
+    expect(sourceKey({ sourceKind: 'support', sourceId: 'please', variant: 'normal' })).toBe('support:please:normal')
   })
 })

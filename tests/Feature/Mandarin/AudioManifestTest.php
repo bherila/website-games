@@ -15,11 +15,13 @@ use Illuminate\Support\Facades\Storage;
 
 class AudioManifestTest extends MandarinTestCase
 {
-    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.0'];
+    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.1'];
 
     private const HELLO = ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal'];
 
     private const HELLO_SLOW = ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'slow'];
+
+    private const PLEASE = ['sourceKind' => 'support', 'sourceId' => 'please', 'variant' => 'normal'];
 
     private string $path;
 
@@ -83,7 +85,7 @@ class AudioManifestTest extends MandarinTestCase
 
         $this->artisan("mandarin:audio:export {$this->path}")
             ->assertSuccessful()
-            ->expectsOutputToContain('mandarin-foundations@1.0.0')
+            ->expectsOutputToContain('mandarin-foundations@1.0.1')
             ->expectsOutputToContain('Wrote 2 ready asset(s) and 2 source mapping(s)');
 
         $raw = (string) file_get_contents($this->path);
@@ -94,7 +96,7 @@ class AudioManifestTest extends MandarinTestCase
         $manifest = $this->manifest();
         $this->assertSame(1, $manifest['schemaVersion']);
         $this->assertNotSame('', $manifest['exportedAt']);
-        $this->assertSame([['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.0']], $manifest['courses']);
+        $this->assertSame([['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.1']], $manifest['courses']);
         $this->assertSame(['assets' => 2, 'sources' => 2], $manifest['counts']);
         $this->assertSame(AudioManifestService::assetsHash($manifest['assets']), $manifest['assetsHash']);
 
@@ -115,7 +117,7 @@ class AudioManifestTest extends MandarinTestCase
         $this->assertSame('你好。', $entry['recipe']['text']);
         $this->assertSame(true, $entry['provider_metadata']['fake']);
 
-        $this->assertContains(['course_id' => 'mandarin-foundations', 'content_version' => '1.0.0', 'source_kind' => 'utterance', 'source_id' => '01a', 'variant' => 'slow', 'recipe_hash' => (string) $slow->recipe_hash], $manifest['sources']);
+        $this->assertContains(['course_id' => 'mandarin-foundations', 'content_version' => '1.0.1', 'source_kind' => 'utterance', 'source_id' => '01a', 'variant' => 'slow', 'recipe_hash' => (string) $slow->recipe_hash], $manifest['sources']);
     }
 
     public function test_export_can_be_limited_to_one_disk_and_refuses_an_unknown_one(): void
@@ -160,6 +162,7 @@ class AudioManifestTest extends MandarinTestCase
     {
         $normal = $this->ready(self::HELLO);
         $this->ready(self::HELLO_SLOW);
+        $this->ready(self::PLEASE);
         $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
         $this->wipeRows();
         $this->artisan("mandarin:audio:import {$this->path} --execute")->assertSuccessful();
@@ -170,15 +173,17 @@ class AudioManifestTest extends MandarinTestCase
 
         $unmapped = ['sourceKind' => 'utterance', 'sourceId' => '01b', 'variant' => 'normal'];
         $response = $this->withHeaders(['Accept' => 'application/json'])
-            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO, self::HELLO_SLOW, $unmapped]])
+            ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [self::HELLO, self::HELLO_SLOW, self::PLEASE, $unmapped]])
             ->assertOk()
             ->assertJsonPath('results.0.state', 'ready')
             ->assertJsonPath('results.1.state', 'ready')
-            ->assertJsonPath('results.2.state', 'unavailable')
-            ->assertJsonPath('results.2.code', 'provider_unconfigured');
+            ->assertJsonPath('results.2.state', 'ready')
+            ->assertJsonPath('results.2.source.sourceKind', 'support')
+            ->assertJsonPath('results.3.state', 'unavailable')
+            ->assertJsonPath('results.3.code', 'provider_unconfigured');
         $this->assertSame((string) $normal->content_hash, $response->json('results.0.contentHash'));
-        $this->assertSame(2, MandarinAudioAsset::query()->count(), 'nothing is claimed without a provider');
-        $this->assertSame(2, MandarinAudioSource::query()->count(), 'nothing is re-pointed without a provider');
+        $this->assertSame(3, MandarinAudioAsset::query()->count(), 'nothing is claimed without a provider');
+        $this->assertSame(3, MandarinAudioSource::query()->count(), 'nothing is re-pointed without a provider');
         $this->get((string) $response->json('results.0.url'))->assertOk();
 
         // A mapped row whose object is gone is not served and not touched: no provider could regenerate it.
@@ -408,6 +413,23 @@ class AudioManifestTest extends MandarinTestCase
             ->assertExitCode(1)
             ->expectsOutputToContain('No imported course revision for: mandarin-foundations@9.9.9');
         $this->assertSame(0, MandarinAudioAsset::query()->count());
+    }
+
+    public function test_a_source_outside_the_imported_course_revision_is_refused(): void
+    {
+        $this->ready(self::HELLO);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+        $this->wipeRows();
+        $manifest = $this->manifest();
+        $manifest['sources'][0]['source_kind'] = 'support';
+        $manifest['sources'][0]['source_id'] = 'missing';
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --execute")
+            ->assertExitCode(1)
+            ->expectsOutputToContain('outside their course revision');
+        $this->assertSame(0, MandarinAudioAsset::query()->count());
+        $this->assertSame(0, MandarinAudioSource::query()->count());
     }
 
     public function test_a_corrupt_or_unreadable_manifest_is_refused(): void

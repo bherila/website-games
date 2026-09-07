@@ -323,11 +323,11 @@ class AudioAssetService
     }
 
     /**
-     * Sources a node needs (teaching utterances, targets, exercise prompts), for warming.
+     * Sources a node needs (teaching utterances, targets, exercise prompts, and optionally supports), for warming.
      *
      * @return list<array{sourceKind: string, sourceId: string, variant: string}>
      */
-    public function sourcesForNode(CourseIndex $course, string $nodeId, string $variant): array
+    public function sourcesForNode(CourseIndex $course, string $nodeId, string $variant, bool $includeSupport = false): array
     {
         $node = $course->nodes[$nodeId] ?? null;
         if ($node === null) {
@@ -340,6 +340,11 @@ class AudioAssetService
         foreach ($node['introducedTargetIds'] as $id) {
             $sources[] = ['sourceKind' => 'target', 'sourceId' => $id, 'variant' => $variant];
         }
+        if ($includeSupport) {
+            foreach ($node['introducedSupportIds'] as $id) {
+                $sources[] = ['sourceKind' => 'support', 'sourceId' => $id, 'variant' => $variant];
+            }
+        }
         foreach ($node['exerciseIds'] as $exerciseId) {
             foreach ($course->exercises[$exerciseId]['promptAudio'] ?? [] as $ref) {
                 $sources[] = ['sourceKind' => $ref['sourceKind'], 'sourceId' => $ref['sourceId'], 'variant' => $variant];
@@ -351,6 +356,46 @@ class AudioAssetService
         }
 
         return array_values($unique);
+    }
+
+    /**
+     * Read-only recipe and mapping status for a warm dry run. This computes the
+     * provider recipe but never synthesizes, stores, enqueues, or writes a source row.
+     *
+     * @param  array{sourceKind: string, sourceId: string, variant: string}  $source
+     * @return array{state: 'ready'|'missing'|'unavailable', recipeHash: string|null, mapped: bool, code: string|null}
+     */
+    public function inspectOne(CourseIndex $course, array $source): array
+    {
+        if (! $course->hasSource($source['sourceKind'], $source['sourceId'], $source['variant'])) {
+            return ['state' => 'unavailable', 'recipeHash' => null, 'mapped' => false, 'code' => 'unknown_source'];
+        }
+        try {
+            $recipe = $this->recipeFor($course, $source);
+        } catch (SpeechProviderException $exception) {
+            return ['state' => 'unavailable', 'recipeHash' => null, 'mapped' => false, 'code' => $exception->errorCode];
+        }
+
+        $asset = MandarinAudioAsset::query()
+            ->where('recipe_hash', $recipe->hash)
+            ->where('state', MandarinAudioAsset::STATE_READY)
+            ->first();
+        $mapped = MandarinAudioSource::query()
+            ->where('course_id', $course->courseId())
+            ->where('content_version', $course->contentVersion())
+            ->where('source_kind', $source['sourceKind'])
+            ->where('source_id', $source['sourceId'])
+            ->where('variant', $source['variant'])
+            ->where('recipe_hash', $recipe->hash)
+            ->exists();
+
+        [$state, $code] = match ($asset === null ? 'absent' : $this->objectState($asset)) {
+            'present' => ['ready', null],
+            'unknown' => ['unavailable', 'storage_unavailable'],
+            default => ['missing', $asset === null ? null : 'asset_missing'],
+        };
+
+        return ['state' => $state, 'recipeHash' => $recipe->hash, 'mapped' => $mapped, 'code' => $code];
     }
 
     // ── internals ────────────────────────────────────────────────────────────

@@ -52,6 +52,12 @@ class AudioImportCommand extends Command
 
             return self::FAILURE;
         }
+        $invalidSources = $manifests->invalidSources($manifest);
+        if ($invalidSources !== []) {
+            $this->error('The manifest references source(s) outside their course revision: '.implode(', ', $invalidSources).'.');
+
+            return self::FAILURE;
+        }
 
         $execute = (bool) $this->option('execute');
         $this->line(sprintf(

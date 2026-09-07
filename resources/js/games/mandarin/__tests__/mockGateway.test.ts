@@ -99,9 +99,11 @@ describe('MockMandarinGateway audio', () => {
   it('rejects unknown sources, foreign course revisions, and oversized batches', async () => {
     const g = gateway('fresh')
     expect(await resolve(g, { sourceKind: 'utterance', sourceId: 'nope', variant: 'normal' })).toMatchObject({ state: 'failed', code: 'unknown_source', retryable: false })
+    expect(await resolve(g, { sourceKind: 'support', sourceId: 'nope', variant: 'normal' })).toMatchObject({ state: 'failed', code: 'unknown_source', retryable: false })
     await expect(g.resolveAudio({ courseId: 'x', contentVersion: '1', sources: [] })).rejects.toThrow(/Unknown course revision/)
     await expect(g.resolveAudio({ ...course.identity, sources: Array.from({ length: 17 }, () => utterance) })).rejects.toThrow(/at most 16/)
     expect(await resolve(g, { sourceKind: 'sfx', sourceId: 'ui-tap', variant: 'default' })).toMatchObject({ state: 'preview', delivery: 'simulated' })
+    expect(await resolve(g, { sourceKind: 'support', sourceId: 'please', variant: 'normal' })).toMatchObject({ state: 'preview', delivery: 'simulated' })
   })
 })
 

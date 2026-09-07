@@ -4,6 +4,7 @@ import { type ReactElement, useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 import { summarizeOpportunity } from '../../domain/assessment'
+import { tileMeta } from '../../domain/constructionTiles'
 import type { ChoiceExercise } from '../../domain/courseSchema'
 import { constructionEvent, nodeCompleteEvent, sceneCompleteEvent } from '../../domain/events'
 import { completeNode, recordConstruction, recordOpportunity } from '../../domain/progress'
@@ -39,11 +40,19 @@ export function LessonScreen({ nodeId }: { nodeId: string }): ReactElement {
 
   useEffect(() => {
     if (!node) return
-    audio.ensure(node.exerciseIds.flatMap((id) => {
+    const choiceRefs = node.exerciseIds.flatMap((id) => {
       const exercise = course.exerciseById.get(id)
       const ref = exercise?.promptAudio[0]
       return ref ? [{ ...ref }, { ...ref, variant: 'slow' as const }] : []
-    }))
+    })
+    const constructionRefs = node.constructionIds.flatMap((id) => {
+      const construction = course.constructionById.get(id)
+      return construction?.tiles.flatMap((tile) => {
+        const ref = tileMeta(tile.id)?.audio
+        return ref ? [{ ...ref }] : []
+      }) ?? []
+    })
+    audio.ensure([...choiceRefs, ...constructionRefs])
   }, [audio, course, node])
 
   if (!node) return <Panel>Unknown node.</Panel>

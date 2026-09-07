@@ -105,6 +105,10 @@ export function buildCourseIndex(course: Course): CourseIndex {
         const target = targetById.get(ref.sourceId)
         return target ? { zh: target.zh, pinyin: target.pinyin, en: target.en, roleId: null } : null
       }
+      if (ref.sourceKind === 'support') {
+        const support = supportById.get(ref.sourceId)
+        return support ? { zh: support.zh, pinyin: support.pinyin, en: support.en, roleId: null } : null
+      }
       return null
     },
     nextNodeId(nodeId) {

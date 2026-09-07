@@ -4,7 +4,7 @@ import { responseEvent } from '../domain/events'
 
 const EXERCISE = { id: 'e001', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], shuffleOptions: false }
 const CONTEXT = {
-  identity: { courseId: 'c', contentVersion: '1.0.0' },
+  identity: { courseId: 'c', contentVersion: '1.0.1' },
   clientInstanceId: 'inst',
   sessionId: 'sess',
   now: () => '2026-01-01T00:00:00.000Z',

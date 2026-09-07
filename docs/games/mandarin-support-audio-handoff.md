@@ -1,8 +1,15 @@
-# Handoff: make support-glossary words audible
+# Support-glossary audio decision and implementation record
 
 **For:** Codex · **Blocks:** three silent tiles in construction exercise `g04`
 **Approved by:** GPT Pro review of 2026-09-07, decision Q4 — *"Make support words audible;
 keep them outside the primary targets."*
+
+**Implemented for course revision `1.0.1`:** `support` is now an allowlisted source kind,
+the three `g04` chunks use it, and the checked-in corpus contains all six normal/slow
+recipes and all 170 mappings for the revision. The first dry run reused 162 ready assets
+and identified exactly six missing recipes before Polly was called. The final cache-only
+check returned `ready` for all six with `MANDARIN_SPEECH_PROVIDER=null` and
+`MANDARIN_GENERATION_ENABLED=false`.
 
 ## The problem
 
@@ -35,7 +42,7 @@ the controls work.
 is that an item may have a pronunciation, a glossary entry and a teaching role without
 having its own scheduled mastery card.
 
-## What to build
+## Implementation scope
 
 A narrow `support` source kind, carried consistently through:
 
@@ -71,7 +78,7 @@ mappings for a newly imported revision. In a cache-only deployment with generati
 disabled, importing the revision without writing its mappings leaves previously generated
 audio unreachable.
 
-Also worth folding in while you are here: `在这里` (tile `g03-c3`) reuses utterance `05c`,
+Remaining follow-up: `在这里` (tile `g03-c3`) reuses utterance `05c`,
 whose Polly recipe text is `在这里。` — a sentence-final rendering being played for a
 mid-sentence chunk. A mid-sentence recipe for that chunk would be the clean fix.
 
@@ -81,7 +88,7 @@ Demonstrate, separately from "implemented":
 
 - unchanged recipes reused across the version bump (no needless regeneration),
 - the new revision's source mappings present,
-- playback working with `MANDARIN_AUDIO_GENERATION_ENABLED=false` (cache hits only),
+- playback working with `MANDARIN_GENERATION_ENABLED=false` (cache hits only),
 - a dry run reporting the actual missing recipes **before** any paid call.
 
 Do not merge or deploy production.

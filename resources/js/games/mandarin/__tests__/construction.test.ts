@@ -98,6 +98,10 @@ describe('curated tile metadata', () => {
       if (!meta.audio) continue
       if (meta.audio.sourceKind === 'target') {
         expect(course.targetById.get(meta.audio.sourceId)).toBeDefined()
+      } else if (meta.audio.sourceKind === 'support') {
+        const support = course.supportById.get(meta.audio.sourceId)
+        expect(support).toBeDefined()
+        expect(support!.zh).toBe(exercises.flatMap((e) => e.tiles).find((tile) => tile.id === tileId)!.zh)
       } else {
         const utterance = course.utteranceById.get(meta.audio.sourceId)
         expect(utterance).toBeDefined()
@@ -110,8 +114,11 @@ describe('curated tile metadata', () => {
     }
   })
 
-  it('records the three support chunks that still have no recording', () => {
+  it('gives every construction tile a curated recording source', () => {
     const silent = Object.entries(CONSTRUCTION_TILES).filter(([, meta]) => meta.audio === null).map(([id]) => id)
-    expect(silent).toEqual(['g04-c1', 'g04-c2', 'g04-c4'])
+    expect(silent).toEqual([])
+    expect(CONSTRUCTION_TILES['g04-c1']?.audio).toEqual({ sourceKind: 'support', sourceId: 'please', variant: 'normal' })
+    expect(CONSTRUCTION_TILES['g04-c2']?.audio).toEqual({ sourceKind: 'support', sourceId: 'again', variant: 'normal' })
+    expect(CONSTRUCTION_TILES['g04-c4']?.audio).toEqual({ sourceKind: 'support', sourceId: 'one-time', variant: 'normal' })
   })
 })

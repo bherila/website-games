@@ -33,6 +33,8 @@ class MandarinQaPageTest extends MandarinTestCase
             ->assertSee('Guide')
             // Targets are listed as well as utterances.
             ->assertSee('Targets')
+            ->assertSee('Supporting glossary')
+            ->assertSee('Context words that can be heard and practised but never become scheduled mastery cards.')
             // Provider id from the bound synthesizer, and honest provenance.
             ->assertSee('fake')
             ->assertSee('Not native-reviewed')
@@ -65,7 +67,7 @@ class MandarinQaPageTest extends MandarinTestCase
         $requestId = (int) $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',
-                'contentVersion' => '1.0.0',
+                'contentVersion' => '1.0.1',
                 'sources' => [['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal']],
             ])->assertStatus(202)->json('results.0.requestId');
         $this->app->make(AudioAssetService::class)->generate($requestId);

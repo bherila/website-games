@@ -136,6 +136,30 @@ class MandarinQaController extends Controller
             ];
         }
 
+        /** @var list<QaItem> $supports */
+        $supports = [];
+        foreach ($course->supports as $support) {
+            $id = (string) $support['id'];
+            $supports[] = [
+                'kind' => 'support',
+                'id' => $id,
+                'zh' => (string) $support['zh'],
+                'pinyin' => (string) $support['pinyin'],
+                'en' => (string) $support['en'],
+                'usage' => 'support',
+                'role' => 'Narrator',
+                'reserved' => false,
+                'cells' => $this->cells($course, $assets, $rows, 'support', $id),
+            ];
+        }
+        if ($supports !== []) {
+            $groups[] = [
+                'title' => 'Supporting glossary',
+                'note' => 'Context words that can be heard and practised but never become scheduled mastery cards.',
+                'items' => $supports,
+            ];
+        }
+
         return $groups;
     }
 

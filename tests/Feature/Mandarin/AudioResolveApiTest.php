@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AudioResolveApiTest extends MandarinTestCase
 {
-    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.0'];
+    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.1'];
 
     private const HELLO = ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal'];
 
@@ -64,6 +64,24 @@ class AudioResolveApiTest extends MandarinTestCase
         $this->resolve($user, array_fill(0, 17, self::HELLO))->assertStatus(422);
         $this->resolve($user, [['sourceKind' => 'text', 'sourceId' => 'x', 'variant' => 'normal']])->assertStatus(422);
         $this->actingAs($user)->postJson('/api/games/mandarin/audio/resolve', ['courseId' => 'mandarin-foundations', 'contentVersion' => '9.9.9', 'sources' => [self::HELLO]])->assertStatus(422);
+    }
+
+    public function test_support_audio_uses_the_versioned_glossary_text(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        $user = User::factory()->create();
+        $support = ['sourceKind' => 'support', 'sourceId' => 'please', 'variant' => 'normal'];
+        $requestId = (int) $this->resolve($user, [$support])->assertStatus(202)
+            ->assertJsonPath('results.0.source', $support)
+            ->json('results.0.requestId');
+
+        $this->app->make(AudioAssetService::class)->generate($requestId);
+
+        $this->assertSame('请', $this->speech->requests[0]->text);
+        $this->assertSame('narrator', $this->speech->requests[0]->role);
+        $this->resolve(null, [$support])->assertOk()->assertJsonPath('results.0.state', 'ready');
+        $this->resolve($user, [['sourceKind' => 'support', 'sourceId' => 'missing', 'variant' => 'normal']])
+            ->assertOk()->assertJsonPath('results.0.code', 'unknown_source');
     }
 
     public function test_miss_is_claimed_once_then_generated_stored_and_served(): void
@@ -306,12 +324,42 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_warm_command_uses_the_same_resolver(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --dry-run')->assertSuccessful()->expectsOutputToContain('source(s)');
+        $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --dry-run')
+            ->assertSuccessful()
+            ->expectsOutputToContain('source(s)')
+            ->expectsOutputToContain('missing');
+        $this->artisan('mandarin:audio:warm --node=s4n2 --variant=both --support --dry-run')
+            ->assertSuccessful()
+            ->expectsOutputToContain('support:please:normal')
+            ->expectsOutputToContain('support:again:slow')
+            ->expectsOutputToContain('support:one-time:slow');
         $this->assertSame(0, MandarinAudioAsset::query()->count());
         Bus::assertNothingDispatched();
         $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --execute --sfx')->assertSuccessful();
         $this->assertGreaterThan(8, MandarinAudioAsset::query()->count());
         $this->assertSame(4, MandarinAudioAsset::query()->where('kind', 'sfx')->count());
+    }
+
+    public function test_warm_dry_run_reports_a_ready_row_with_a_missing_object_as_missing(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        $user = User::factory()->create();
+        $service = $this->app->make(AudioAssetService::class);
+        $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
+        $service->generate($id);
+        $asset = MandarinAudioAsset::query()->findOrFail($id);
+
+        $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --dry-run')
+            ->assertSuccessful()
+            ->expectsOutputToContain('utterance:01a:normal ready');
+
+        Storage::disk((string) $asset->disk)->delete((string) $asset->object_key);
+
+        $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --dry-run')
+            ->assertSuccessful()
+            ->expectsOutputToContain('utterance:01a:normal missing')
+            ->expectsOutputToContain('asset_missing');
+        $this->assertSame(MandarinAudioAsset::STATE_READY, $asset->fresh()->state, 'dry-run must remain read-only');
     }
 
     public function test_doctor_runs_and_reports(): void
