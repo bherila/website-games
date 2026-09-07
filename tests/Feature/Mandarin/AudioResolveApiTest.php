@@ -340,6 +340,28 @@ class AudioResolveApiTest extends MandarinTestCase
         $this->assertSame(4, MandarinAudioAsset::query()->where('kind', 'sfx')->count());
     }
 
+    public function test_warm_dry_run_reports_a_ready_row_with_a_missing_object_as_missing(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        $user = User::factory()->create();
+        $service = $this->app->make(AudioAssetService::class);
+        $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
+        $service->generate($id);
+        $asset = MandarinAudioAsset::query()->findOrFail($id);
+
+        $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --dry-run')
+            ->assertSuccessful()
+            ->expectsOutputToContain('utterance:01a:normal ready');
+
+        Storage::disk((string) $asset->disk)->delete((string) $asset->object_key);
+
+        $this->artisan('mandarin:audio:warm --node=s1n1 --variant=normal --dry-run')
+            ->assertSuccessful()
+            ->expectsOutputToContain('utterance:01a:normal missing')
+            ->expectsOutputToContain('asset_missing');
+        $this->assertSame(MandarinAudioAsset::STATE_READY, $asset->fresh()->state, 'dry-run must remain read-only');
+    }
+
     public function test_doctor_runs_and_reports(): void
     {
         $this->artisan('mandarin:audio:doctor')->expectsOutputToContain('provider');

@@ -49,7 +49,7 @@ class AudioWarmCommand extends Command
                 $mapping = $inspection['mapped'] ? 'mapped' : 'mapping-missing';
                 $detail = $inspection['recipeHash'] === null
                     ? (string) $inspection['code']
-                    : substr($inspection['recipeHash'], 0, 12).' '.$mapping;
+                    : substr($inspection['recipeHash'], 0, 12).' '.$mapping.($inspection['code'] === null ? '' : ' '.$inspection['code']);
                 $this->line(" - {$source['sourceKind']}:{$source['sourceId']}:{$source['variant']} {$inspection['state']} {$detail}");
             }
             foreach ($tally as $state => $count) {

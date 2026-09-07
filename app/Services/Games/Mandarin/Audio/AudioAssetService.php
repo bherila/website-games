@@ -376,10 +376,10 @@ class AudioAssetService
             return ['state' => 'unavailable', 'recipeHash' => null, 'mapped' => false, 'code' => $exception->errorCode];
         }
 
-        $ready = MandarinAudioAsset::query()
+        $asset = MandarinAudioAsset::query()
             ->where('recipe_hash', $recipe->hash)
             ->where('state', MandarinAudioAsset::STATE_READY)
-            ->exists();
+            ->first();
         $mapped = MandarinAudioSource::query()
             ->where('course_id', $course->courseId())
             ->where('content_version', $course->contentVersion())
@@ -389,7 +389,13 @@ class AudioAssetService
             ->where('recipe_hash', $recipe->hash)
             ->exists();
 
-        return ['state' => $ready ? 'ready' : 'missing', 'recipeHash' => $recipe->hash, 'mapped' => $mapped, 'code' => null];
+        [$state, $code] = match ($asset === null ? 'absent' : $this->objectState($asset)) {
+            'present' => ['ready', null],
+            'unknown' => ['unavailable', 'storage_unavailable'],
+            default => ['missing', $asset === null ? null : 'asset_missing'],
+        };
+
+        return ['state' => $state, 'recipeHash' => $recipe->hash, 'mapped' => $mapped, 'code' => $code];
     }
 
     // ── internals ────────────────────────────────────────────────────────────
