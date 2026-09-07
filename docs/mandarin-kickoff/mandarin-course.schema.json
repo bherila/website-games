@@ -1,0 +1,807 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "courseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contentVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "object",
+      "properties": {
+        "spokenLanguage": {
+          "type": "string"
+        },
+        "writtenLocale": {
+          "type": "string"
+        },
+        "uiLocale": {
+          "type": "string"
+        },
+        "pinyinConvention": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "spokenLanguage",
+        "writtenLocale",
+        "uiLocale",
+        "pinyinConvention"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "original_ai_draft"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "nativeReviewed": {
+          "type": "boolean"
+        },
+        "audioAuditioned": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "createdAt",
+        "nativeReviewed",
+        "audioAuditioned",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "portraitSlotId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "portraitSlotId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scene"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/target"
+      }
+    },
+    "supportGlossary": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/support"
+      }
+    },
+    "utterances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/utterance"
+      }
+    },
+    "exercises": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/choice"
+      }
+    },
+    "constructionExercises": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/construction"
+      }
+    },
+    "checkpointExercises": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/choice"
+      }
+    },
+    "checkpointPolicy": {
+      "type": "object",
+      "properties": {
+        "unlockAfterNodeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "normalSpeedOnFirstPresentation": {
+          "type": "boolean"
+        },
+        "firstExposureOnlyForFreshScore": {
+          "type": "boolean"
+        },
+        "recordReplayAndHelp": {
+          "type": "boolean"
+        },
+        "feedbackAfterSubmission": {
+          "type": "boolean"
+        },
+        "updateComponentSchedules": {
+          "type": "boolean"
+        },
+        "voiceTransferClaim": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "unlockAfterNodeId",
+        "normalSpeedOnFirstPresentation",
+        "firstExposureOnlyForFreshScore",
+        "recordReplayAndHelp",
+        "feedbackAfterSubmission",
+        "updateComponentSchedules",
+        "voiceTransferClaim"
+      ],
+      "additionalProperties": false
+    },
+    "teachingPolicy": {
+      "type": "object",
+      "properties": {
+        "teachBeforeScoring": {
+          "type": "boolean"
+        },
+        "onePrimaryTargetPerReview": {
+          "type": "boolean"
+        },
+        "hideTextDuringAudioAssessment": {
+          "type": "boolean"
+        },
+        "sceneCompletionIsNotMastery": {
+          "type": "boolean"
+        },
+        "maximumNewPrimaryTargetsPerNode": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "teachBeforeScoring",
+        "onePrimaryTargetPerReview",
+        "hideTextDuringAudioAssessment",
+        "sceneCompletionIsNotMastery",
+        "maximumNewPrimaryTargetsPerNode"
+      ],
+      "additionalProperties": false
+    },
+    "audioPolicy": {
+      "type": "object",
+      "properties": {
+        "roleMapping": {
+          "type": "string"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "normal",
+              "slow"
+            ]
+          }
+        },
+        "generation": {
+          "const": "server_lazy_curated_only"
+        },
+        "noAudioIsNotWrongAnswer": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "roleMapping",
+        "variants",
+        "generation",
+        "noAudioIsNotWrongAnswer"
+      ],
+      "additionalProperties": false
+    },
+    "sfx": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recipe": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "maxDurationMs": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "recipe",
+          "purpose",
+          "maxDurationMs"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "courseId",
+    "contentVersion",
+    "title",
+    "locale",
+    "provenance",
+    "roles",
+    "scenes",
+    "nodes",
+    "targets",
+    "supportGlossary",
+    "utterances",
+    "exercises",
+    "constructionExercises",
+    "checkpointExercises",
+    "checkpointPolicy",
+    "teachingPolicy",
+    "audioPolicy",
+    "sfx"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:mandarin-quest:course:1",
+  "title": "Mandarin Quest authored course v1",
+  "$defs": {
+    "audioRef": {
+      "type": "object",
+      "properties": {
+        "sourceKind": {
+          "enum": [
+            "utterance",
+            "target"
+          ]
+        },
+        "sourceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "variant": {
+          "enum": [
+            "normal",
+            "slow"
+          ]
+        }
+      },
+      "required": [
+        "sourceKind",
+        "sourceId",
+        "variant"
+      ],
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "choice": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "audio_choice"
+        },
+        "phase": {
+          "enum": [
+            "training",
+            "checkpoint"
+          ]
+        },
+        "nodeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sceneId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primaryTargetId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "promptAudio": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/audioRef"
+          }
+        },
+        "question": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/option"
+          }
+        },
+        "correctOptionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "explanation": {
+          "type": "string"
+        },
+        "allowSlow": {
+          "type": "boolean"
+        },
+        "allowTextHelp": {
+          "type": "boolean"
+        },
+        "shuffleOptions": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "phase",
+        "nodeId",
+        "sceneId",
+        "primaryTargetId",
+        "promptAudio",
+        "question",
+        "options",
+        "correctOptionId",
+        "explanation",
+        "allowSlow",
+        "allowTextHelp",
+        "shuffleOptions"
+      ],
+      "additionalProperties": false
+    },
+    "construction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "chunk_order"
+        },
+        "phase": {
+          "const": "practice"
+        },
+        "nodeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sceneId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primaryTargetId": {
+          "type": "null"
+        },
+        "sourceUtteranceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "question": {
+          "type": "string"
+        },
+        "tiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "zh": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "zh"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "correctTileIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "displayAnswer": {
+          "type": "string"
+        },
+        "explanation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "phase",
+        "nodeId",
+        "sceneId",
+        "primaryTargetId",
+        "sourceUtteranceId",
+        "question",
+        "tiles",
+        "correctTileIds",
+        "displayAnswer",
+        "explanation"
+      ],
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "zh": {
+          "type": "string"
+        },
+        "pinyin": {
+          "type": "string"
+        },
+        "en": {
+          "type": "string"
+        },
+        "introducedInNode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "speechText": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "zh",
+        "pinyin",
+        "en",
+        "introducedInNode",
+        "speechText",
+        "notes"
+      ],
+      "additionalProperties": false
+    },
+    "support": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "zh": {
+          "type": "string"
+        },
+        "pinyin": {
+          "type": "string"
+        },
+        "en": {
+          "type": "string"
+        },
+        "introducedInNode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "zh",
+        "pinyin",
+        "en",
+        "introducedInNode"
+      ],
+      "additionalProperties": false
+    },
+    "utterance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "zh": {
+          "type": "string"
+        },
+        "pinyin": {
+          "type": "string"
+        },
+        "en": {
+          "type": "string"
+        },
+        "speechText": {
+          "type": "string"
+        },
+        "nodeId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sceneId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requiresTargetIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "usage": {
+          "enum": [
+            "dialogue",
+            "training_variant",
+            "checkpoint_reserved"
+          ]
+        },
+        "audioVariants": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "normal",
+              "slow"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "roleId",
+        "zh",
+        "pinyin",
+        "en",
+        "speechText",
+        "nodeId",
+        "sceneId",
+        "requiresTargetIds",
+        "usage",
+        "audioVariants"
+      ],
+      "additionalProperties": false
+    },
+    "node": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sceneId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "introducedTargetIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "introducedSupportIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "teachingUtteranceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "exerciseIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "constructionIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "id",
+        "sceneId",
+        "order",
+        "title",
+        "introducedTargetIds",
+        "introducedSupportIds",
+        "teachingUtteranceIds",
+        "exerciseIds",
+        "constructionIds",
+        "prerequisites"
+      ],
+      "additionalProperties": false
+    },
+    "scene": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "setting": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objective": {
+          "type": "string"
+        },
+        "setup": {
+          "type": "string"
+        },
+        "nodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "dialogueUtteranceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "artSlotId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grammarNote": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "body"
+          ],
+          "additionalProperties": false
+        },
+        "unlockAfterSceneId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "order",
+        "title",
+        "setting",
+        "objective",
+        "setup",
+        "nodeIds",
+        "dialogueUtteranceIds",
+        "artSlotId",
+        "grammarNote",
+        "unlockAfterSceneId"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

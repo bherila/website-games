@@ -4,11 +4,12 @@
  * sits on the right at a readable width — no stretched phone column.
  */
 import { Map as MapIcon, Settings as SettingsIcon } from 'lucide-react'
-import type { ReactElement, ReactNode } from 'react'
+import { type ReactElement, type ReactNode, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
 import { DioramaCanvas } from '../scene/DioramaCanvas'
+import { ConfirmDialog } from './ConfirmDialog'
 import { useGame } from './GameContext'
 import { GameButton } from './primitives'
 import { SaveStatusChip } from './SaveStatusChip'
@@ -23,6 +24,28 @@ interface GameShellProps {
 export function GameShell({ children, scenery = true, title }: GameShellProps): ReactElement {
   const game = useGame()
   const inLesson = game.route.name !== 'home' && game.route.name !== 'settings' && game.route.name !== 'onboarding'
+  const [confirmGlossary, setConfirmGlossary] = useState(false)
+
+  // The glossary carries the English meaning of every introduced word. Reaching
+  // it while a question is unanswered is help, and has to be accounted for the
+  // same way the in-question Help control is.
+  const active = game.activeAssessment
+  const glossaryLocked = active !== null && active.strict && active.unanswered
+  const glossaryCostsHelp = active !== null && !active.strict && active.unanswered
+
+  function toggleGlossary(): void {
+    if (game.overlay === 'glossary') {
+      game.setOverlay(null)
+      return
+    }
+    if (glossaryLocked) return
+    if (glossaryCostsHelp) {
+      setConfirmGlossary(true)
+      return
+    }
+    game.setOverlay('glossary')
+  }
+
   return (
     <div
       className="mandarin-root flex h-dvh w-full flex-col bg-[#f5efe3] text-[#2f3a44] antialiased"
@@ -50,9 +73,19 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
             </GameButton>
           )}
           {inLesson && (
-            <GameButton variant="quiet" className="min-h-11" onClick={() => game.setOverlay(game.overlay === 'glossary' ? null : 'glossary')} aria-pressed={game.overlay === 'glossary'}>
+            <GameButton
+              variant="quiet"
+              className="min-h-11"
+              onClick={toggleGlossary}
+              disabled={glossaryLocked}
+              aria-pressed={game.overlay === 'glossary'}
+              title={glossaryLocked ? 'Words is unavailable until you answer this check item.' : glossaryCostsHelp ? 'Opening Words counts as help on this question.' : undefined}
+              data-testid="glossary-button"
+              data-glossary-help={glossaryLocked ? 'locked' : glossaryCostsHelp ? 'costs-help' : 'free'}
+            >
               <span className="text-base" aria-hidden="true">词</span>
               <span className="hidden sm:inline">Words</span>
+              {glossaryCostsHelp && <span className="sr-only">(counts as help on this question)</span>}
             </GameButton>
           )}
           <GameButton variant="quiet" className="min-h-11" onClick={() => game.navigate({ name: 'settings' })} aria-label="Settings">
@@ -81,6 +114,21 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
           </div>
         </main>
       </div>
+      {confirmGlossary && (
+        <ConfirmDialog
+          testId="glossary-help-confirm"
+          title="Opening Words counts as help"
+          body="The word list shows the English meaning of everything you have learned, so this question will be recorded as answered with help. You can still answer it either way."
+          confirmLabel="Open Words"
+          cancelLabel="Keep listening"
+          onConfirm={() => {
+            active?.revealMeaning()
+            setConfirmGlossary(false)
+            game.setOverlay('glossary')
+          }}
+          onCancel={() => setConfirmGlossary(false)}
+        />
+      )}
     </div>
   )
 }
