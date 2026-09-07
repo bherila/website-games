@@ -66,6 +66,27 @@ audio source at all, because `AudioSourceRef` admits only utterances and targets
 says so rather than showing a control that does nothing. See
 `docs/games/mandarin-support-audio-handoff.md`.
 
+## Full screen and the address bar
+
+Three different things, chosen by capability rather than by user agent:
+
+| Situation | What the player gets |
+| --- | --- |
+| Element Fullscreen API present (Android, desktop) | A toggle in the header, plus one in Settings |
+| Installed PWA (`display-mode: standalone`) | Nothing — already chrome-less |
+| No API, not installed (iPhone Safari) | Settings explains Add to Home Screen |
+
+The logic is the shared `_shared/useFullscreen`, which seven other games already use;
+Mandarin renders its own button because it has its own palette rather than the site theme
+tokens. **Safari on iPhone implements no Element Fullscreen API, so no web page can hide
+the iOS address bar** — installing the PWA is the only route, which is why Settings carries
+the instruction and why `/mandarin` is in the manifest's `shortcuts` (a game missing from
+that list has no first-class path into an installed window).
+
+`webkit-mobile-375` reports no fullscreen API, matching real iPhone Safari, so
+`settings-fullscreen-webkit-mobile-375.png` shows the install advice and the desktop
+capture shows the toggle. The two are committed side by side for exactly that contrast.
+
 ## Backend layout (`app/Services/Games/Mandarin/`)
 
 - `Course/` — `CourseValidator` (mirrors the TS validator), `CourseImporter` (immutable
