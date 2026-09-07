@@ -81,7 +81,10 @@ export function ConstructionExercise({ course, exercise, showPinyin, onResolved,
     setResult(next.solved ? 'correct' : 'incorrect')
     audio.playSfx(next.solved ? 'answer-correct' : 'answer-help')
     if (advanced || next.solved) {
-      onResolved({ solved: next.solved, orderedTileIds: placed, attempts: nextAttempts, assisted: revealed || nextHelp > 0 })
+      // The help state *before* this check: the hint `nextHelp` unlocks is only
+      // rendered as feedback on this attempt, so charging the attempt for it
+      // would record an unaided first arrangement as text-assisted.
+      onResolved({ solved: next.solved, orderedTileIds: placed, attempts: nextAttempts, assisted })
     }
   }
 

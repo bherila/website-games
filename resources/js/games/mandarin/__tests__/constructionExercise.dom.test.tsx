@@ -125,6 +125,24 @@ describe('ConstructionExercise diagnosis', () => {
     runtime.dispose()
   })
 
+  it('records the first wrong arrangement as unaided, since its hint follows it', () => {
+    const { runtime, resolved } = setup()
+    placeTiles(swapped)
+    click(screen.getByTestId('construction-check'))
+    // The hint is feedback *on* this attempt. The arrangement being reported
+    // was built before it existed, so charging it for the hint would file every
+    // first try as text-assisted.
+    expect(screen.getByTestId('construction-hint')).toBeInTheDocument()
+    expect(resolved).toEqual([{ solved: false, assisted: false, attempts: 1 }])
+
+    // The next arrangement was built with that hint on screen: assisted.
+    click(screen.getByText('Reset'))
+    placeTiles([correct[3]!, correct[0]!, correct[1]!, correct[2]!])
+    click(screen.getByTestId('construction-check'))
+    expect(resolved.at(-1)).toMatchObject({ solved: false, assisted: true, attempts: 2 })
+    runtime.dispose()
+  })
+
   it('reports an unaided solve as unaided', () => {
     const { runtime, resolved } = setup()
     placeTiles(correct)
