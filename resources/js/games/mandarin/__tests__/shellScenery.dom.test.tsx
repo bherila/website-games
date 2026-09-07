@@ -72,6 +72,27 @@ describe('scenery height by route', () => {
     runtime.dispose()
   })
 
+  it('collapses again on the next question, not only on the next screen', async () => {
+    const runtime = startRuntime()
+    render(<MandarinGame runtime={runtime} />)
+    click(within(await screen.findByTestId('home-screen')).getByTestId('continue-button'))
+    click(within(await screen.findByTestId('teaching-screen')).getByTestId('start-questions'))
+    await screen.findByTestId('listening-question')
+
+    click(screen.getByTestId('scenery-toggle'))
+    expect(dioramaTakesPhoneHeight()).toBe(true)
+
+    // These screens advance from one item to the next without changing route,
+    // so keying the open flag on the route alone left the 38dvh panel crowding
+    // every later question in the session.
+    click(screen.getByTestId('dont-know'))
+    click(await screen.findByTestId('continue'))
+    await screen.findByTestId('listening-question')
+    expect(dioramaTakesPhoneHeight()).toBe(false)
+    expect(screen.getByTestId('scenery-toggle')).toHaveTextContent('Show scene')
+    runtime.dispose()
+  })
+
   it('shows nothing in the strip that could answer the open question', async () => {
     const runtime = startRuntime()
     render(<MandarinGame runtime={runtime} />)

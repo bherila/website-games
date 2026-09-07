@@ -44,10 +44,11 @@ export function useAssessment(exercise: ChoiceExercise, mode: AssessmentMode, lo
   // handing out the meaning outside the assessment's accounting entirely.
   const registerAssessment = game.registerAssessment
   useEffect(() => registerAssessment({
+    opportunityId: state.opportunityId,
     strict: mode === 'checkpoint',
     unanswered: state.phase === 'listening',
     revealMeaning: () => dispatch({ type: 'reveal', kind: 'meaning' }),
-  }), [registerAssessment, mode, state.phase, dispatch])
+  }), [registerAssessment, mode, state.opportunityId, state.phase, dispatch])
 
   return { state, dispatch }
 }

@@ -27,6 +27,8 @@ export type Overlay = 'map' | 'glossary' | null
  * exactly the `meaning` help the question already knows how to record.
  */
 export interface ActiveAssessment {
+  /** Identifies the question itself, so the shell can tell one item from the next. */
+  opportunityId: string
   /** Checkpoint items refuse the shortcut outright while the item is unanswered. */
   strict: boolean
   /** True while the learner can still answer; help after that changes no record. */

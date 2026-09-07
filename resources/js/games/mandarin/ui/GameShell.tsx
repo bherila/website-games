@@ -45,11 +45,14 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
   // Scored screens start collapsed on phones every time they are entered:
   // expanding is a deliberate look, not a preference that reinstates the
   // cramped layout on the next question. The open flag is stored against the
-  // route it was set on, so a new screen is collapsed on its first render
-  // rather than one frame later.
+  // exact stage it was set on — the route *and* the open question, because
+  // these screens advance from one item to the next without changing route —
+  // so the next question is collapsed on its first render rather than one
+  // frame later, or never.
   const scored = game.route.name === 'lesson' || game.route.name === 'review' || game.route.name === 'checkpoint'
-  const [expandedOn, setExpandedOn] = useState<Route | null>(null)
-  const sceneryOpen = expandedOn === game.route
+  const stage = game.activeAssessment?.opportunityId ?? null
+  const [expandedOn, setExpandedOn] = useState<{ route: Route; stage: string | null } | null>(null)
+  const sceneryOpen = expandedOn !== null && expandedOn.route === game.route && expandedOn.stage === stage
   const collapsed = scenery && scored && !sceneryOpen
 
   // The glossary carries the English meaning of every introduced word. Reaching
@@ -152,7 +155,7 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
                 <GameButton
                   variant="quiet"
                   className="min-h-11 px-2 text-[13px]"
-                  onClick={() => setExpandedOn(sceneryOpen ? null : game.route)}
+                  onClick={() => setExpandedOn(sceneryOpen ? null : { route: game.route, stage })}
                   aria-expanded={sceneryOpen}
                   data-testid="scenery-toggle"
                 >
