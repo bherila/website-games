@@ -50,8 +50,11 @@ export function responseEvent(
     source,
     responseAction: attempt?.action ?? null,
     selectedOptionId: attempt?.optionId ?? null,
-    // A retry after feedback has seen the correct answer: that is text help, never an unaided listen.
-    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || state.answerDisclosed,
+    // A retry after feedback has seen the correct answer: that is text help, never
+    // an unaided listen. Read that from the attempt, not from `state.answerDisclosed`
+    // — submitting sets that flag itself, so the post-action state reports every
+    // first answer as assisted and the scheduler never sees an unaided success.
+    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || attempt?.isRetry === true,
     pinyinHelpUsed: state.helpRevealed.includes('pinyin'),
     audioEvidence: audioEvidence(state),
   }
