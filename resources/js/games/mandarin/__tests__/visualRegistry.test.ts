@@ -12,7 +12,10 @@ describe('visual asset slots', () => {
     for (const id of VISUAL_SLOT_IDS) {
       const slot = VISUAL_REGISTRY[id]
       expect(slot.fallbackSrc).toBe(`/images/games/mandarin/fallback/${id}.svg`)
-      expect(slot.src).toBe(id === 'material-paper' ? slot.fallbackSrc : `/images/games/mandarin/${id}.webp`)
+      let expectedSrc = `/images/games/mandarin/${id}.webp`
+      if (id === 'scene-gate-poster') expectedSrc = '/images/games/mandarin/scene-gate-poster.webp?v=7ac8fb73f4c6'
+      if (id === 'material-paper') expectedSrc = slot.fallbackSrc
+      expect(slot.src).toBe(expectedSrc)
       expect(slot.status).toBe(id === 'material-paper' ? 'fallback' : 'generated')
       expect(slot.generatedPath).toBe(`/images/games/mandarin/${id}.webp`)
     }

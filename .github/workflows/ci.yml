@@ -251,8 +251,14 @@ jobs:
             composer.lock \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/games-laravel/
 
-      - name: Run artisan migrate, config clear/cache on server
+      - name: Migrate and activate checked-in content on server
         run: |
           ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes \
             ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
-            "cd ~/games-laravel && /opt/cpanel/ea-php85/root/usr/bin/php artisan migrate --force && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:clear && /opt/cpanel/ea-php85/root/usr/bin/php artisan config:cache"
+            "cd ~/games-laravel && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan migrate --force && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan config:clear && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan config:cache && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:course:import && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects"
