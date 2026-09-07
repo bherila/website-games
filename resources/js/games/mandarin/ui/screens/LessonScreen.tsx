@@ -95,9 +95,9 @@ export function LessonScreen({ nodeId }: { nodeId: string }): ReactElement {
               course={course}
               exercise={construction}
               showPinyin={game.settings.pinyinAssist === 'always'}
-              onResolved={({ solved, orderedTileIds }) => {
+              onResolved={({ solved, orderedTileIds, assisted }) => {
                 game.updateProgress((progress) => recordConstruction(progress, construction.id, solved))
-                game.appendEvents([constructionEvent(game.eventContext, 'lesson', { sceneId: scene.id, nodeId, exerciseId: construction.id }, orderedTileIds)])
+                game.appendEvents([constructionEvent(game.eventContext, 'lesson', { sceneId: scene.id, nodeId, exerciseId: construction.id }, orderedTileIds, assisted)])
               }}
               onContinue={advance}
             />

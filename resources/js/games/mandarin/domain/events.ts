@@ -82,11 +82,16 @@ export function constructionEvent(
   mode: PracticeEvent['mode'],
   location: { sceneId: string; nodeId: string; exerciseId: string },
   orderedTileIds: string[],
+  /** True once a derived hint or the revealed order has been shown. */
+  assisted = false,
 ): PracticeEvent {
   return {
     ...base(context, { kind: 'response', mode, ...location, opportunityId: null }),
     responseAction: 'answer',
     orderedTileIds,
+    // Construction is excluded from listening scheduling either way, but the
+    // record should still say whether the learner built this unaided.
+    textHelpUsed: assisted,
   }
 }
 
