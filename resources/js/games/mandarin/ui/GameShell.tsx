@@ -9,11 +9,12 @@
  * and answering it. The scenery is decorative (see DioramaCanvas), so on the
  * scored screens it yields to the task and the learner can call it back.
  */
-import { ChevronDown, ChevronUp, Map as MapIcon, Settings as SettingsIcon } from 'lucide-react'
+import { ChevronDown, ChevronUp, Map as MapIcon, Maximize, Minimize, Settings as SettingsIcon } from 'lucide-react'
 import { type ReactElement, type ReactNode, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { useFullscreen } from '../../_shared/useFullscreen'
 import { DioramaCanvas } from '../scene/DioramaCanvas'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DialogueStage } from './DialogueStage'
@@ -41,6 +42,10 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
   const game = useGame()
   const inLesson = game.route.name !== 'home' && game.route.name !== 'settings' && game.route.name !== 'onboarding'
   const [confirmGlossary, setConfirmGlossary] = useState(false)
+  // Absent on iPhone Safari (no Element Fullscreen API) and inside the installed
+  // PWA (already chrome-less). Settings explains the Add to Home Screen route
+  // for the first case, which is the only way to lose the iOS address bar.
+  const fullscreen = useFullscreen()
 
   // Scored screens start collapsed on phones every time they are entered:
   // expanding is a deliberate look, not a preference that reinstates the
@@ -115,6 +120,20 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
               <span className="text-base" aria-hidden="true">词</span>
               <span className="hidden sm:inline">Words</span>
               {glossaryCostsHelp && <span className="sr-only">(counts as help on this question)</span>}
+            </GameButton>
+          )}
+          {fullscreen.available && (
+            <GameButton
+              variant="quiet"
+              className="min-h-11 px-2"
+              onClick={fullscreen.toggle}
+              aria-pressed={fullscreen.active}
+              aria-label={fullscreen.active ? 'Exit full screen' : 'Full screen'}
+              data-testid="fullscreen-toggle"
+            >
+              {fullscreen.active
+                ? <Minimize aria-hidden="true" className="size-5" />
+                : <Maximize aria-hidden="true" className="size-5" />}
             </GameButton>
           )}
           <GameButton variant="quiet" className="min-h-11" onClick={() => game.navigate({ name: 'settings' })} aria-label="Settings">
