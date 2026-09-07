@@ -244,6 +244,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     activeAssessment,
     beat,
     setting: sceneForRoute.setting,
+    sceneId: sceneForRoute.id,
     posterSlotId: sceneForRoute.artSlotId,
     reducedMotion: settings.lowMotion || prefersReduced,
     eventContext,

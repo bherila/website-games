@@ -49,6 +49,8 @@ export interface GameApi {
   beat: DioramaBeat
   /** Diorama setting for the current route. */
   setting: SceneSetting
+  /** Scene the current route belongs to. */
+  sceneId: string
   posterSlotId: string
   reducedMotion: boolean
   eventContext: EventContext

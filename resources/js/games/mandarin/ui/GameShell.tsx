@@ -1,18 +1,33 @@
 /**
- * Responsive frame: diorama + DOM panel. Phone: diorama on top (bounded
- * height), scrolling panel below. Desktop: diorama fills the left, the panel
- * sits on the right at a readable width — no stretched phone column.
+ * Responsive frame: diorama + DOM panel. Desktop: diorama fills the left, the
+ * panel sits on the right at a readable width — no stretched phone column.
+ *
+ * Phone: the diorama is bounded on narrative screens and collapses to a slim
+ * strip while a question is open. It used to take min(38dvh,300px) on every
+ * route, which pushed the later answer options and the Check button below the
+ * fold on a 390×844 viewport — the learner scrolled between hearing a prompt
+ * and answering it. The scenery is decorative (see DioramaCanvas), so on the
+ * scored screens it yields to the task and the learner can call it back.
  */
-import { Map as MapIcon, Settings as SettingsIcon } from 'lucide-react'
-import { type ReactElement, type ReactNode, useState } from 'react'
+import { ChevronDown, ChevronUp, Map as MapIcon, Settings as SettingsIcon } from 'lucide-react'
+import { type ReactElement, type ReactNode, useEffect, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
 import { DioramaCanvas } from '../scene/DioramaCanvas'
 import { ConfirmDialog } from './ConfirmDialog'
-import { useGame } from './GameContext'
+import { type GameApi, useGame } from './GameContext'
 import { GameButton } from './primitives'
 import { SaveStatusChip } from './SaveStatusChip'
+
+/** Where the learner is, with nothing in it that could answer the open question. */
+function stripLabel(game: GameApi): string {
+  switch (game.route.name) {
+    case 'review': return 'Review'
+    case 'checkpoint': return 'Listening check'
+    default: return `Scene ${game.course.sceneById.get(game.sceneId)?.order ?? 1} of ${game.course.scenes.length}`
+  }
+}
 
 interface GameShellProps {
   children: ReactNode
@@ -25,6 +40,14 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
   const game = useGame()
   const inLesson = game.route.name !== 'home' && game.route.name !== 'settings' && game.route.name !== 'onboarding'
   const [confirmGlossary, setConfirmGlossary] = useState(false)
+
+  // Scored screens start collapsed on phones every time they are entered:
+  // expanding is a deliberate look, not a preference that reinstates the
+  // cramped layout on the next question.
+  const scored = game.route.name === 'lesson' || game.route.name === 'review' || game.route.name === 'checkpoint'
+  const [sceneryOpen, setSceneryOpen] = useState(false)
+  useEffect(() => setSceneryOpen(false), [game.route])
+  const collapsed = scenery && scored && !sceneryOpen
 
   // The glossary carries the English meaning of every introduced word. Reaching
   // it while a question is unanswered is help, and has to be accounted for the
@@ -95,14 +118,38 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
       </header>
       <div className={cn('flex min-h-0 flex-1 flex-col', scenery && 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(400px,480px)]')}>
         {scenery && (
-          <DioramaCanvas
-            setting={game.setting}
-            beat={game.beat}
-            posterSlotId={game.posterSlotId}
-            mode={game.settings.twoDMode ? '2d' : '3d'}
-            reducedMotion={game.reducedMotion}
-            className="h-[min(38dvh,300px)] w-full shrink-0 lg:h-auto lg:min-h-0"
-          />
+          <>
+            <DioramaCanvas
+              setting={game.setting}
+              beat={game.beat}
+              posterSlotId={game.posterSlotId}
+              mode={game.settings.twoDMode ? '2d' : '3d'}
+              reducedMotion={game.reducedMotion}
+              // Collapsed is a phone state only: from `lg` the diorama is a side
+              // column and costs the question no vertical space at all.
+              className={cn(
+                'w-full shrink-0 lg:h-auto lg:min-h-0',
+                collapsed ? 'hidden lg:block' : 'h-[min(38dvh,300px)]',
+              )}
+            />
+            {scored && (
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#e6dfcf] bg-[#f5efe3] px-3 py-1.5 lg:hidden">
+                {/* Neutral by construction: a scene summary or node title can
+                    disclose what an unanswered question is asking. */}
+                <p className="text-xs font-semibold text-[#6d7a86]">{stripLabel(game)}</p>
+                <GameButton
+                  variant="quiet"
+                  className="min-h-11 px-2 text-[13px]"
+                  onClick={() => setSceneryOpen((open) => !open)}
+                  aria-expanded={sceneryOpen}
+                  data-testid="scenery-toggle"
+                >
+                  {sceneryOpen ? <ChevronUp aria-hidden="true" className="size-4" /> : <ChevronDown aria-hidden="true" className="size-4" />}
+                  {sceneryOpen ? 'Hide scene' : 'Show scene'}
+                </GameButton>
+              </div>
+            )}
+          </>
         )}
         <main
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4 lg:border-l lg:border-[#e6dfcf]"

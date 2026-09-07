@@ -2,7 +2,7 @@
 import { createAssessment, reduceAssessment } from '../domain/assessment'
 import { responseEvent } from '../domain/events'
 
-const EXERCISE = { id: 'e001', options: [{ id: 'a' }, { id: 'b' }], shuffleOptions: false }
+const EXERCISE = { id: 'e001', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], shuffleOptions: false }
 const CONTEXT = {
   identity: { courseId: 'c', contentVersion: '1.0.0' },
   clientInstanceId: 'inst',
