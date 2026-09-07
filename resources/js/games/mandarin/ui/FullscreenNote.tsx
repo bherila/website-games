@@ -67,7 +67,11 @@ export function FullscreenNote(): ReactElement {
               ? <>Safari on iPhone will not let a web page hide the address bar. To play without it, tap{' '}<Share aria-hidden="true" className="inline size-4 align-text-bottom" /> <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</>
               : <>This browser will not let a web page hide the address bar. To play without it, install Mandarin Quest to your home screen from the browser menu.</>}
           </p>
-          <p className={cn('text-sm', MUTED)}>Mandarin Quest then opens in its own window with no browser bars, and your progress and settings carry over.</p>
+          {/* iOS gives an installed web app its own cookie and storage jar,
+              separate from Safari's. Nothing carries across, so promising that
+              it does would send a player looking for progress that is not
+              there. Signed-in progress does come back — from the server. */}
+          <p className={cn('text-sm', MUTED)}>Mandarin Quest then opens in its own window with no browser bars. It keeps its own separate storage, so you will need to sign in again there; progress saved to your account comes back when you do.</p>
         </>
       )}
     </div>

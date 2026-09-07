@@ -23,16 +23,45 @@ export function isVersionedGameAudio(url: URL, currentOrigin: string): boolean {
   return url.origin === currentOrigin && url.pathname.startsWith('/audio/games/')
 }
 
+/**
+ * Mandarin Quest speech, served from `/media/games/mandarin/{asset}/{hash}.{ext}`
+ * rather than the static `/audio/games/` tree. The 64-hex hash is the content
+ * digest, so a URL that resolves once resolves to those exact bytes forever and
+ * is safe to serve cache-first with no revalidation.
+ */
+export function isMandarinMediaAudio(url: URL, currentOrigin: string): boolean {
+  return url.origin === currentOrigin
+    && /^\/media\/games\/mandarin\/\d+\/[a-f0-9]{64}\.(mp3|m4a|wav)$/.test(url.pathname)
+}
+
 export function isPwaStaticAsset(url: URL, currentOrigin: string): boolean {
   return url.origin === currentOrigin
     && (url.pathname.startsWith('/pwa/') || url.pathname === '/manifest.webmanifest')
 }
 
+/**
+ * Sign-in navigations, which must always reach the network.
+ *
+ * `/oauth/redirect` answers with a cross-origin 302 to the identity provider and
+ * `/oauth/callback` exchanges the code and establishes the session — neither has
+ * a meaningful cached form. Left to the network-first shell handler they race a
+ * 3s timeout and, on a slow connection, fall back to a cached page: the callback
+ * never runs, no session is created, and the player lands on a games page that
+ * looks signed in only because the account id is still in local storage.
+ */
+export function isAuthNavigation(url: URL, currentOrigin: string): boolean {
+  return url.origin === currentOrigin
+    && (url.pathname === '/login' || url.pathname === '/logout' || url.pathname.startsWith('/oauth/'))
+}
+
 export function isGameNavigation(request: Request, currentOrigin: string): boolean {
   const url = new URL(request.url)
 
-  // Every page this app serves is a game page — the whole origin is in scope.
-  return request.mode === 'navigate' && url.origin === currentOrigin
+  // Every page this app serves is a game page — the whole origin is in scope,
+  // minus the sign-in routes, which are never answered from cache.
+  return request.mode === 'navigate'
+    && url.origin === currentOrigin
+    && !isAuthNavigation(url, currentOrigin)
 }
 
 export function sanitizeGameShellHtml(html: string): string | null {
