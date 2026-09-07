@@ -5,6 +5,7 @@ import {
   gameCacheNames,
   isGameNavigation,
   isHashedBuildAsset,
+  isMandarinMediaAudio,
   isPwaStaticAsset,
   isVersionedGameAudio,
   sanitizeGameShellHtml,
@@ -66,6 +67,15 @@ worker.addEventListener('fetch', (event: FetchEvent) => {
 
   if (isVersionedGameAudio(url, worker.location.origin)) {
     event.respondWith(staleWhileRevalidate(request, cacheNames.audio))
+
+    return
+  }
+
+  // Content-hashed, so there is nothing to revalidate: a line the learner has
+  // heard once stays playable with no connection. Without this Mandarin Quest
+  // had no offline story at all — every prompt is audio.
+  if (isMandarinMediaAudio(url, worker.location.origin)) {
+    event.respondWith(cacheFirst(request, cacheNames.audio))
 
     return
   }
@@ -210,7 +220,7 @@ async function cacheSanitizedGameShell(request: Request, response: Response): Pr
 async function cacheGameAssets(urls: readonly string[]): Promise<void> {
   await Promise.all(urls.map(async (candidate) => {
     const url = new URL(candidate, worker.location.origin)
-    if (isVersionedGameAudio(url, worker.location.origin)) {
+    if (isVersionedGameAudio(url, worker.location.origin) || isMandarinMediaAudio(url, worker.location.origin)) {
       await fetchAndCache(url, cacheNames.audio)
     } else if (isHashedBuildAsset(url, worker.location.origin) || isPwaStaticAsset(url, worker.location.origin)) {
       await fetchAndCache(url, cacheNames.assets)

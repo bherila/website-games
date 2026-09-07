@@ -1,8 +1,10 @@
 import {
   GAME_CACHE_PREFIX,
   gameCacheNames,
+  isAuthNavigation,
   isGameNavigation,
   isHashedBuildAsset,
+  isMandarinMediaAudio,
   isPwaStaticAsset,
   isVersionedGameAudio,
   sanitizeGameShellHtml,
@@ -75,5 +77,30 @@ describe('games service worker policy', () => {
   it('refuses to cache HTML without valid initial-data JSON', () => {
     expect(sanitizeGameShellHtml('<main>Missing shell metadata</main>')).toBeNull()
     expect(sanitizeGameShellHtml('<script id="app-initial-data">{invalid}</script>')).toBeNull()
+  })
+})
+
+describe('mandarin media and sign-in routes', () => {
+  const origin = 'https://games.bherila.net'
+  const media = `/media/games/mandarin/12/HASH.mp3`.replace('HASH', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+
+  it('treats content-hashed mandarin speech as cacheable audio', () => {
+    expect(isMandarinMediaAudio(new URL(media, origin), origin)).toBe(true)
+    // Not the manifest route, not another origin, not an unhashed path.
+    expect(isMandarinMediaAudio(new URL('/media/games/mandarin/12/short.mp3', origin), origin)).toBe(false)
+    expect(isMandarinMediaAudio(new URL(media, 'https://elsewhere.test'), origin)).toBe(false)
+  })
+
+  it('never answers a sign-in navigation from cache', () => {
+    // `/oauth/callback` establishes the session; served from the shell cache on
+    // a slow connection it would silently never run.
+    for (const path of ['/login', '/logout', '/oauth/redirect', '/oauth/callback']) {
+      expect(isAuthNavigation(new URL(path, origin), origin)).toBe(true)
+      const request = { url: new URL(path, origin).toString(), mode: 'navigate' } as Request
+      expect(isGameNavigation(request, origin)).toBe(false)
+    }
+
+    const game = { url: new URL('/mandarin', origin).toString(), mode: 'navigate' } as Request
+    expect(isGameNavigation(game, origin)).toBe(true)
   })
 })
