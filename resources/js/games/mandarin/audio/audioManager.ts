@@ -46,6 +46,8 @@ export interface AudioManager {
   play(ref: AudioSourceRef): Promise<PlaybackOutcome>
   stop(): void
   isSpeaking(): boolean
+  /** The source currently being spoken, or null. Cleared on stop and on failure. */
+  speakingSource(): AudioSourceRef | null
   playSfx(sfxId: string): void
   /** Call from a user gesture to unlock Web Audio before the first cue. */
   unlock(): void
@@ -86,6 +88,9 @@ export function createAudioManager(deps: AudioManagerDeps): AudioManager {
   let disposed = false
   let version = 0
   let voice: SpeechSynthesisVoice | null = deps.deviceVoicesDisabled ? null : findMandarinVoice(deps.speechSynthesis)
+  // What `play` last handed to the channel, so callers can follow the audio
+  // rather than guess from an animation beat.
+  let speaking: AudioSourceRef | null = null
   const stopWatchingVoices = deps.deviceVoicesDisabled
     ? () => {}
     : watchVoices(deps.speechSynthesis, () => {
@@ -266,27 +271,43 @@ export function createAudioManager(deps: AudioManagerDeps): AudioManager {
       if (!resolution || (resolution.state !== 'ready' && resolution.state !== 'preview')) {
         return 'unavailable'
       }
-      if (resolution.state === 'ready') {
-        return deps.channel.play({ kind: 'ready', url: resolution.url, volume: settings.speechVolume })
+      const text = resolution.state === 'ready' ? null : speechTextFor(ref)
+      if (resolution.state === 'preview' && text === null) return 'unavailable'
+      // A new play supersedes the previous one, so the source flips before the
+      // await: a rapid second tap must not leave the first line on screen.
+      speaking = ref
+      notify()
+      const finish = (outcome: PlaybackOutcome): PlaybackOutcome => {
+        if (speaking === ref) {
+          speaking = null
+          notify()
+        }
+        return outcome
       }
-      const text = speechTextFor(ref)
-      if (text === null) return 'unavailable'
-      if (status.effectiveDelivery === 'device_voice' && voice) {
-        return deps.channel.play({
-          kind: 'device_voice',
-          text,
-          voice,
-          rate: ref.variant === 'slow' ? SLOW_RATE : 1,
-          volume: settings.speechVolume,
+      if (resolution.state === 'ready') {
+        return deps.channel.play({ kind: 'ready', url: resolution.url, volume: settings.speechVolume }).then(finish, (error: unknown) => {
+          finish('failed')
+          throw error
         })
       }
-      return deps.channel.play({ kind: 'simulated', text })
+      const play = status.effectiveDelivery === 'device_voice' && voice
+        ? deps.channel.play({ kind: 'device_voice', text: text!, voice, rate: ref.variant === 'slow' ? SLOW_RATE : 1, volume: settings.speechVolume })
+        : deps.channel.play({ kind: 'simulated', text: text! })
+      return play.then(finish, (error: unknown) => {
+        finish('failed')
+        throw error
+      })
     },
     stop() {
+      speaking = null
       deps.channel.stop()
+      notify()
     },
     isSpeaking() {
       return deps.channel.isPlaying()
+    },
+    speakingSource() {
+      return deps.channel.isPlaying() ? speaking : null
     },
     playSfx(sfxId) {
       // Cues never mask speech.

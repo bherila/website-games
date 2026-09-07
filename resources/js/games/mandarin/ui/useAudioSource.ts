@@ -31,6 +31,13 @@ export function useSpeaking(): boolean {
   return audio.isSpeaking()
 }
 
+/** The source being spoken right now, so a view can follow the audio itself. */
+export function useSpeakingSource(): AudioSourceRef | null {
+  const { audio } = useRuntime()
+  useAudioVersion()
+  return audio.speakingSource()
+}
+
 export function usePlay(): (ref: AudioSourceRef) => Promise<PlaybackOutcome> {
   const { audio } = useRuntime()
   return useCallback((ref: AudioSourceRef) => audio.play(ref), [audio])

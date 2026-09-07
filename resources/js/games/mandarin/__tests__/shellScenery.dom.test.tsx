@@ -24,9 +24,9 @@ function startRuntime(): ReturnType<typeof createPreviewRuntime> {
   return createPreviewRuntime({ scenario: findPreviewScenario('fresh'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0 })
 }
 
-/** The phone-height class the diorama carries only when it is taking real space. */
+/** The scenery frame carries the phone height only while it takes real space. */
 function dioramaTakesPhoneHeight(): boolean {
-  return screen.getByTestId('diorama').className.includes('h-[min(38dvh,300px)]')
+  return screen.getByTestId('diorama').parentElement!.className.includes('h-[min(38dvh,300px)]')
 }
 
 describe('scenery height by route', () => {

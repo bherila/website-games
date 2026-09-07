@@ -10,13 +10,14 @@
  * scored screens it yields to the task and the learner can call it back.
  */
 import { ChevronDown, ChevronUp, Map as MapIcon, Settings as SettingsIcon } from 'lucide-react'
-import { type ReactElement, type ReactNode, useEffect, useState } from 'react'
+import { type ReactElement, type ReactNode, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
 import { DioramaCanvas } from '../scene/DioramaCanvas'
 import { ConfirmDialog } from './ConfirmDialog'
-import { type GameApi, useGame } from './GameContext'
+import { DialogueStage } from './DialogueStage'
+import { type GameApi, type Route, useGame } from './GameContext'
 import { GameButton } from './primitives'
 import { SaveStatusChip } from './SaveStatusChip'
 
@@ -43,10 +44,12 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
 
   // Scored screens start collapsed on phones every time they are entered:
   // expanding is a deliberate look, not a preference that reinstates the
-  // cramped layout on the next question.
+  // cramped layout on the next question. The open flag is stored against the
+  // route it was set on, so a new screen is collapsed on its first render
+  // rather than one frame later.
   const scored = game.route.name === 'lesson' || game.route.name === 'review' || game.route.name === 'checkpoint'
-  const [sceneryOpen, setSceneryOpen] = useState(false)
-  useEffect(() => setSceneryOpen(false), [game.route])
+  const [expandedOn, setExpandedOn] = useState<Route | null>(null)
+  const sceneryOpen = expandedOn === game.route
   const collapsed = scenery && scored && !sceneryOpen
 
   // The glossary carries the English meaning of every introduced word. Reaching
@@ -119,19 +122,28 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
       <div className={cn('flex min-h-0 flex-1 flex-col', scenery && 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(400px,480px)]')}>
         {scenery && (
           <>
-            <DioramaCanvas
-              setting={game.setting}
-              beat={game.beat}
-              posterSlotId={game.posterSlotId}
-              mode={game.settings.twoDMode ? '2d' : '3d'}
-              reducedMotion={game.reducedMotion}
-              // Collapsed is a phone state only: from `lg` the diorama is a side
-              // column and costs the question no vertical space at all.
+            {/* Collapsed is a phone state only: from `lg` the diorama is a side
+                column and costs the question no vertical space at all. */}
+            <div
               className={cn(
-                'w-full shrink-0 lg:h-auto lg:min-h-0',
+                'relative w-full shrink-0 lg:h-auto lg:min-h-0',
                 collapsed ? 'hidden lg:block' : 'h-[min(38dvh,300px)]',
               )}
-            />
+            >
+              <DioramaCanvas
+                setting={game.setting}
+                beat={game.beat}
+                posterSlotId={game.posterSlotId}
+                mode={game.settings.twoDMode ? '2d' : '3d'}
+                reducedMotion={game.reducedMotion}
+                className="absolute inset-0 h-full w-full"
+              />
+              {/* A sibling of the canvas, never a child: the canvas and its
+                  poster are aria-hidden decoration, and an ancestor of theirs
+                  would hide this too. Teaching only, so expanding the scene
+                  during a question can never surface the last line spoken. */}
+              {game.route.name === 'teaching' && <DialogueStage course={game.course} />}
+            </div>
             {scored && (
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#e6dfcf] bg-[#f5efe3] px-3 py-1.5 lg:hidden">
                 {/* Neutral by construction: a scene summary or node title can
@@ -140,7 +152,7 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
                 <GameButton
                   variant="quiet"
                   className="min-h-11 px-2 text-[13px]"
-                  onClick={() => setSceneryOpen((open) => !open)}
+                  onClick={() => setExpandedOn(sceneryOpen ? null : game.route)}
                   aria-expanded={sceneryOpen}
                   data-testid="scenery-toggle"
                 >

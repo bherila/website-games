@@ -22,7 +22,7 @@ function click(element: HTMLElement): void {
 }
 
 function setup() {
-  const runtime = createPreviewRuntime({ scenario: null, store: createMemoryPreviewStore(), speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0, channelDeps: { simulatedDurationMs: () => 1 } })
+  const runtime = createPreviewRuntime({ store: createMemoryPreviewStore(), speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0, channelDeps: { simulatedDurationMs: () => 1 } })
   const resolved: { solved: boolean; assisted: boolean; attempts: number }[] = []
   render(
     <RuntimeProvider runtime={runtime}>
@@ -39,8 +39,9 @@ function setup() {
 }
 
 function placeTiles(order: readonly string[]): void {
-  const tray = screen.getByTestId('construction-tiles')
-  for (const id of order) click(within(tray).getByTestId ? tray.querySelector(`[data-tile-id="${id}"]`) as HTMLElement : tray)
+  for (const id of order) {
+    click(screen.getByTestId('construction-tiles').querySelector(`[data-tile-id="${id}"]`) as HTMLElement)
+  }
 }
 
 function marks(): (string | null)[] {
