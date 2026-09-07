@@ -9,15 +9,20 @@ use RuntimeException;
 
 class ImportCourseCommand extends Command
 {
-    protected $signature = 'mandarin:course:import {path? : Course JSON file (defaults to config mandarin.course.source)} {--activate : Make this exact revision the published course}';
+    protected $signature = 'mandarin:course:import {path? : Course JSON file (defaults to config mandarin.course.source)} {--stage : Import a new revision without publishing it} {--activate : Make this exact revision the published course}';
 
     protected $description = 'Import a Mandarin course JSON file as an immutable published revision (idempotent).';
 
     public function handle(CourseImporter $importer): int
     {
+        if ($this->option('stage') && $this->option('activate')) {
+            $this->error('Pass either --stage or --activate, not both.');
+
+            return self::FAILURE;
+        }
         $path = (string) ($this->argument('path') ?? config('mandarin.course.source'));
         try {
-            $result = $importer->importFile($path);
+            $result = $importer->importFile($path, ! $this->option('stage'));
         } catch (CourseImportException $exception) {
             $this->error('Validation failed:');
             foreach ($exception->problems as $problem) {

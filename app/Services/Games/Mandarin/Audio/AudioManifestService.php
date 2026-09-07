@@ -354,6 +354,17 @@ class AudioManifestService
         foreach ($manifest['assets'] as $asset) {
             $hash = $asset['recipe_hash'];
             $existing = $existingAssets[$hash] ?? null;
+
+            if ($verifyObjects) {
+                $problem = $this->objectProblem($asset);
+                if ($problem !== null) {
+                    $missing++;
+                    $problems[] = ['recipeHash' => $hash, 'reason' => $problem];
+
+                    continue;
+                }
+            }
+
             if ($existing !== null) {
                 $present[$hash] = true;
             }
@@ -369,16 +380,6 @@ class AudioManifestService
                 $problems[] = ['recipeHash' => $hash, 'reason' => 'already ready here with a different content hash; left untouched'];
 
                 continue;
-            }
-
-            if ($verifyObjects) {
-                $problem = $this->objectProblem($asset);
-                if ($problem !== null) {
-                    $missing++;
-                    $problems[] = ['recipeHash' => $hash, 'reason' => $problem];
-
-                    continue;
-                }
             }
 
             if ($existing === null) {

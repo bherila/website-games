@@ -357,12 +357,17 @@ class AudioManifestTest extends MandarinTestCase
         $present = $this->ready(self::HELLO);
         $absent = $this->ready(self::HELLO_SLOW);
         $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
-        $this->wipeRows();
         Storage::disk('local')->delete((string) $absent->object_key);
 
+        // Verification must not trust a matching ready database row when its object is gone.
         $this->artisan("mandarin:audio:import {$this->path} --verify-objects --dry-run --strict")
             ->assertFailed()
             ->expectsOutputToContain('Strict import failed because the manifest was not imported completely.');
+        $this->assertSame(2, MandarinAudioAsset::query()->count());
+
+        $this->wipeRows();
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --dry-run --strict")
+            ->assertFailed();
         $this->assertSame(0, MandarinAudioAsset::query()->count());
 
         $this->artisan("mandarin:audio:import {$this->path} --verify-objects --execute")

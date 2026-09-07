@@ -18,7 +18,7 @@ class CourseImporter
     /**
      * @return array{status: 'imported'|'unchanged', revision: MandarinCourseRevision, problems: list<string>}
      */
-    public function importFile(string $path): array
+    public function importFile(string $path, bool $publish = true): array
     {
         if (! is_file($path)) {
             throw new InvalidArgumentException("Course file not found: {$path}");
@@ -33,14 +33,14 @@ class CourseImporter
             throw new InvalidArgumentException('Course file must decode to an object');
         }
 
-        return $this->import($decoded);
+        return $this->import($decoded, $publish);
     }
 
     /**
      * @param  array<string, mixed>  $course
      * @return array{status: 'imported'|'unchanged', revision: MandarinCourseRevision, problems: list<string>}
      */
-    public function import(array $course): array
+    public function import(array $course, bool $publish = true): array
     {
         $problems = $this->validator->validate($course);
         if ($problems !== []) {
@@ -51,7 +51,7 @@ class CourseImporter
         $version = (string) $course['contentVersion'];
         $provenance = is_array($course['provenance']) ? $course['provenance'] : [];
 
-        return DB::transaction(function () use ($course, $hash, $courseId, $version, $provenance): array {
+        return DB::transaction(function () use ($course, $hash, $courseId, $version, $provenance, $publish): array {
             $existing = MandarinCourseRevision::query()
                 ->where('course_id', $courseId)
                 ->where('content_version', $version)
@@ -67,7 +67,7 @@ class CourseImporter
                 'course_id' => $courseId,
                 'content_version' => $version,
                 'content_hash' => $hash,
-                'status' => 'published',
+                'status' => $publish ? 'published' : 'staged',
                 'native_reviewed' => (bool) ($provenance['nativeReviewed'] ?? false),
                 'audio_auditioned' => (bool) ($provenance['audioAuditioned'] ?? false),
                 'payload' => CourseValidator::canonicalJson($course),

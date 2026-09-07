@@ -141,6 +141,7 @@ and `POST /api/games/mandarin/events` (signed in). Media: `GET|HEAD
 
 ```bash
 php -d memory_limit=1G artisan mandarin:course:import            # idempotent; default path from config
+php -d memory_limit=1G artisan mandarin:course:import --stage    # import without switching live play yet
 php -d memory_limit=1G artisan mandarin:course:import --activate # also select this exact revision for live play and rollback
 php -d memory_limit=1G artisan mandarin:validate                 # validate + compare with the imported revision
 php -d memory_limit=1G artisan mandarin:audio:doctor             # course / provider / storage / queue / ffprobe / budget / counts
@@ -194,8 +195,10 @@ php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute        #
 php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json --disk=s3
 
 # In production (the objects are already in the bucket; the disk needs read access to verify):
+php -d memory_limit=1G artisan mandarin:course:import --stage
 php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict
 php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute --strict
+php -d memory_limit=1G artisan mandarin:course:import --activate
 php -d memory_limit=1G artisan mandarin:audio:doctor
 ```
 
