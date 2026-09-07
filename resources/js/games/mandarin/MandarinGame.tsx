@@ -8,6 +8,7 @@ import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } 
 import type { Bootstrap, PracticeEvent, ProgressProjection, SaveState } from './contracts/mandarin'
 import type { Course } from './domain/courseSchema'
 import type { EventContext } from './domain/events'
+import { drainOutbox } from './domain/outbox'
 import { createInitialProgress, parseStoredProgress, type PreviewProgress } from './domain/progress'
 import { DEFAULT_SETTINGS, type MandarinSettings, parseSettings } from './domain/settings'
 import type { MandarinRuntime } from './runtime/MandarinRuntime'
@@ -81,6 +82,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
   const outboxRef = useRef<PracticeEvent[]>(store.loadOutbox())
   // Bumped on reset so acknowledgments from before the reset are ignored.
   const resetGenerationRef = useRef(0)
+  const drainingRef = useRef(false)
 
   // Bootstrap through the gateway (mock or live) — never touches WebGL.
   useEffect(() => {
@@ -136,28 +138,56 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     setSettings((current) => ({ ...current, ...patch }))
   }, [])
 
+  // Sends the whole outbox, not just the newest events, so a backlog left by an
+  // offline session drains on the next successful upload. Replay is safe: the
+  // server keys on (user, clientEventId) and answers an identical re-upload
+  // `already_present`, which is not a rejection and so clears the entry here.
+  const flushOutbox = useCallback((): void => {
+    if (drainingRef.current || outboxRef.current.length === 0) return
+    drainingRef.current = true
+    const canSave = loaded?.bootstrap.capabilities.canSaveToAccount === true
+    if (canSave) setSaveState('saving')
+    const generation = resetGenerationRef.current
+    const idle = runtime.scenario?.saveState ?? 'local_preview'
+    void drainOutbox({
+      read: () => outboxRef.current,
+      write: (events) => {
+        outboxRef.current = events
+        store.saveOutbox(events)
+      },
+      send: (events) => gateway.appendEvents(events),
+      isCurrent: () => generation === resetGenerationRef.current,
+    }).then((outcome) => {
+      if (generation !== resetGenerationRef.current) return
+      if (outcome === 'sign_in_required') setSaveState('sign_in_required')
+      else if (outcome === 'offline') setSaveState('offline')
+      else setSaveState(canSave ? 'saved' : idle)
+    }).finally(() => {
+      drainingRef.current = false
+    })
+  }, [gateway, loaded?.bootstrap.capabilities.canSaveToAccount, runtime.scenario?.saveState, store])
+
   const appendEvents = useCallback((events: PracticeEvent[]) => {
     if (events.length === 0) return
     outboxRef.current = [...outboxRef.current, ...events]
     store.saveOutbox(outboxRef.current)
-    const canSave = loaded?.bootstrap.capabilities.canSaveToAccount === true
-    if (canSave) setSaveState('saving')
-    const generation = resetGenerationRef.current
-    void gateway.appendEvents(events).then((result) => {
-      if (generation !== resetGenerationRef.current) return
-      const acknowledged = new Set(result.acknowledgments.filter((ack) => ack.status !== 'rejected').map((ack) => ack.clientEventId))
-      outboxRef.current = outboxRef.current.filter((event) => !acknowledged.has(event.clientEventId))
-      store.saveOutbox(outboxRef.current)
-      const rejected = result.acknowledgments.find((ack) => ack.status === 'rejected')
-      if (rejected?.reasonCode === 'sign_in_required') setSaveState('sign_in_required')
-      else if (canSave) setSaveState('saved')
-      else setSaveState(runtime.scenario?.saveState ?? 'local_preview')
-    }).catch(() => {
-      if (generation !== resetGenerationRef.current) return
-      // Events stay in the outbox; the preview never retries automatically.
-      setSaveState('offline')
-    })
-  }, [gateway, loaded?.bootstrap.capabilities.canSaveToAccount, runtime.scenario?.saveState, store])
+    flushOutbox()
+  }, [flushOutbox, store])
+
+  // Two things restart a stalled outbox: finishing a load (the events stranded
+  // by a previous offline session are still there) and the connection coming
+  // back mid-session. Without either, a session played offline was kept
+  // perfectly and then never sent.
+  useEffect(() => {
+    if (loaded) flushOutbox()
+  }, [loaded, flushOutbox])
+
+  useEffect(() => {
+    const onOnline = (): void => flushOutbox()
+    window.addEventListener('online', onOnline)
+
+    return () => window.removeEventListener('online', onOnline)
+  }, [flushOutbox])
 
   const refreshProjection = useCallback(async () => {
     try {
