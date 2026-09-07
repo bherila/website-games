@@ -18,7 +18,7 @@ use InvalidArgumentException;
  */
 class AudioImportCommand extends Command
 {
-    protected $signature = 'mandarin:audio:import {path : Manifest written by mandarin:audio:export} {--dry-run} {--execute} {--verify-objects : Check every object on its disk before marking the row ready}';
+    protected $signature = 'mandarin:audio:import {path : Manifest written by mandarin:audio:export} {--dry-run} {--execute} {--verify-objects : Check every object on its disk before marking the row ready} {--strict : Fail when any asset or source mapping is skipped}';
 
     protected $description = 'Import a Mandarin audio manifest: recreate ready asset rows and their course source mappings.';
 
@@ -94,6 +94,12 @@ class AudioImportCommand extends Command
         }
         if (! $execute) {
             $this->line('Nothing was written (--dry-run).');
+        }
+
+        if ($this->option('strict') && ($result['conflicts'] > 0 || $result['missing'] > 0 || $result['sourcesSkipped'] > 0)) {
+            $this->error('Strict import failed because the manifest was not imported completely.');
+
+            return self::FAILURE;
         }
 
         return self::SUCCESS;

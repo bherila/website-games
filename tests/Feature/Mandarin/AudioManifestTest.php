@@ -360,6 +360,11 @@ class AudioManifestTest extends MandarinTestCase
         $this->wipeRows();
         Storage::disk('local')->delete((string) $absent->object_key);
 
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --dry-run --strict")
+            ->assertFailed()
+            ->expectsOutputToContain('Strict import failed because the manifest was not imported completely.');
+        $this->assertSame(0, MandarinAudioAsset::query()->count());
+
         $this->artisan("mandarin:audio:import {$this->path} --verify-objects --execute")
             ->assertSuccessful()
             ->expectsOutputToContain('object is missing on local')

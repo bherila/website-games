@@ -141,6 +141,7 @@ and `POST /api/games/mandarin/events` (signed in). Media: `GET|HEAD
 
 ```bash
 php -d memory_limit=1G artisan mandarin:course:import            # idempotent; default path from config
+php -d memory_limit=1G artisan mandarin:course:import --activate # also select this exact revision for live play and rollback
 php -d memory_limit=1G artisan mandarin:validate                 # validate + compare with the imported revision
 php -d memory_limit=1G artisan mandarin:audio:doctor             # course / provider / storage / queue / ffprobe / budget / counts
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --dry-run
@@ -193,8 +194,8 @@ php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute        #
 php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json --disk=s3
 
 # In production (the objects are already in the bucket; the disk needs read access to verify):
-php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run
-php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute --strict
 php -d memory_limit=1G artisan mandarin:audio:doctor
 ```
 
@@ -230,6 +231,8 @@ Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
   row is marked ready, and skips the ones that do not check out.
 - `--dry-run` writes nothing and prints insert/refresh/unchanged/conflict/missing counts with
   a few example recipe hashes. A second `--execute` is a no-op.
+- `--strict` exits unsuccessfully when any asset or source mapping is skipped, so deployment
+  cannot report success with an incomplete cache.
 - An unconfigured disk, a course revision that was never imported here, an object key that is
   not a relative storage key, or a digest mismatch all exit 1 before anything is written.
 

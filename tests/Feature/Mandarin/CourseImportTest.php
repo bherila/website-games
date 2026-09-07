@@ -77,4 +77,22 @@ class CourseImportTest extends MandarinTestCase
         $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Unchanged');
         $this->artisan('mandarin:validate')->assertSuccessful()->expectsOutputToContain('Matches the imported revision');
     }
+
+    public function test_command_can_reactivate_an_already_imported_revision(): void
+    {
+        $older = $this->courseJson();
+        $older['contentVersion'] = '1.0.0';
+        $path = storage_path('framework/testing/mandarin-foundations-1.0.0.json');
+        file_put_contents($path, json_encode($older, JSON_THROW_ON_ERROR));
+
+        $this->artisan("mandarin:course:import {$path}")->assertSuccessful();
+        $this->artisan('mandarin:course:import')->assertSuccessful();
+        $this->assertSame('1.0.1', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
+
+        $this->artisan("mandarin:course:import {$path} --activate")
+            ->assertSuccessful()
+            ->expectsOutputToContain('Activated mandarin-foundations@1.0.0.');
+        $this->assertSame('1.0.0', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
+        $this->assertSame('superseded', MandarinCourseRevision::query()->where('content_version', '1.0.1')->value('status'));
+    }
 }

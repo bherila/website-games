@@ -259,6 +259,6 @@ jobs:
               /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan migrate --force && \
               /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan config:clear && \
               /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan config:cache && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:course:import && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects"
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:course:import --activate && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict && \
+              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict"

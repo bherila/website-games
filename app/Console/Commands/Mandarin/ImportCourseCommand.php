@@ -9,7 +9,7 @@ use RuntimeException;
 
 class ImportCourseCommand extends Command
 {
-    protected $signature = 'mandarin:course:import {path? : Course JSON file (defaults to config mandarin.course.source)}';
+    protected $signature = 'mandarin:course:import {path? : Course JSON file (defaults to config mandarin.course.source)} {--activate : Make this exact revision the published course}';
 
     protected $description = 'Import a Mandarin course JSON file as an immutable published revision (idempotent).';
 
@@ -49,6 +49,14 @@ class ImportCourseCommand extends Command
             $revision->native_reviewed ? 'true' : 'false',
             $revision->audio_auditioned ? 'true' : 'false',
         ));
+        if ($this->option('activate')) {
+            $changed = $importer->activate($revision);
+            $this->info(sprintf(
+                $changed ? 'Activated %s@%s.' : 'Already active: %s@%s.',
+                $revision->course_id,
+                $revision->content_version,
+            ));
+        }
 
         return self::SUCCESS;
     }

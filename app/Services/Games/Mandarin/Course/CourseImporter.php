@@ -77,4 +77,27 @@ class CourseImporter
             return ['status' => 'imported', 'revision' => $revision, 'problems' => []];
         });
     }
+
+    public function activate(MandarinCourseRevision $revision): bool
+    {
+        return DB::transaction(function () use ($revision): bool {
+            $revisions = MandarinCourseRevision::query()
+                ->where('course_id', $revision->course_id)
+                ->lockForUpdate()
+                ->get();
+            $changed = false;
+
+            foreach ($revisions as $candidate) {
+                $status = $candidate->is($revision) ? 'published' : 'superseded';
+                if ($candidate->status === $status) {
+                    continue;
+                }
+                $candidate->status = $status;
+                $candidate->save();
+                $changed = true;
+            }
+
+            return $changed;
+        });
+    }
 }
