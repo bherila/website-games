@@ -87,6 +87,24 @@ that list has no first-class path into an installed window).
 `settings-fullscreen-webkit-mobile-375.png` shows the install advice and the desktop
 capture shows the toggle. The two are committed side by side for exactly that contrast.
 
+## Offline practice and the outbox
+
+Every practice event is written to the outbox before it is sent and removed only when the
+server acknowledges it, so a session played with no connection is kept rather than lost. It
+is replayed on the next load, on the next append, and on the browser's `online` event.
+
+Replay is safe by construction: `(user_id, client_event_id)` is unique and an identical
+re-upload is answered `already_present`, which is not a rejection and so clears the entry.
+A different payload under the same id is rejected as `conflict` and kept.
+
+Uploads are chunked at `MAX_EVENT_BATCH` (`domain/outbox.ts`) because the API caps a batch at
+`mandarin.events.max_batch`. An oversized replay is a permanent 422 — the backlog can only
+grow — so `MandarinEventBatchTest` fails if the server limit is ever lowered past the client
+constant.
+
+Audio is cached by the service worker from `/media/games/mandarin/{asset}/{hash}.{ext}`, so a
+line heard once stays playable offline. The whole corpus is ~1.1 MB across 162 assets.
+
 ## Backend layout (`app/Services/Games/Mandarin/`)
 
 - `Course/` — `CourseValidator` (mirrors the TS validator), `CourseImporter` (immutable
