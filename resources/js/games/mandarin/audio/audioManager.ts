@@ -91,6 +91,11 @@ export function createAudioManager(deps: AudioManagerDeps): AudioManager {
   // What `play` last handed to the channel, so callers can follow the audio
   // rather than guess from an animation beat.
   let speaking: AudioSourceRef | null = null
+  // Identifies the playback that owns `speaking`. Two taps on one button hand
+  // `play` the very same `ref` object, so identity cannot tell the interrupted
+  // first playback from the second one that superseded it — and the first one's
+  // late `finish` would clear the line the second is still speaking.
+  let speakingToken = 0
   const stopWatchingVoices = deps.deviceVoicesDisabled
     ? () => {}
     : watchVoices(deps.speechSynthesis, () => {
@@ -276,9 +281,10 @@ export function createAudioManager(deps: AudioManagerDeps): AudioManager {
       // A new play supersedes the previous one, so the source flips before the
       // await: a rapid second tap must not leave the first line on screen.
       speaking = ref
+      const token = (speakingToken += 1)
       notify()
       const finish = (outcome: PlaybackOutcome): PlaybackOutcome => {
-        if (speaking === ref) {
+        if (speakingToken === token) {
           speaking = null
           notify()
         }
@@ -300,6 +306,7 @@ export function createAudioManager(deps: AudioManagerDeps): AudioManager {
     },
     stop() {
       speaking = null
+      speakingToken += 1
       deps.channel.stop()
       notify()
     },
