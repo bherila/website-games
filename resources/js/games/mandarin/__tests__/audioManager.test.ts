@@ -112,6 +112,23 @@ describe('audio manager', () => {
     audio.dispose()
   })
 
+  it('keeps the spoken source through a rapid replay of the same line', async () => {
+    const audio = manager('fresh', { simulatedMs: 200 })
+    audio.ensure([source])
+    await waitFor(() => audio.getStatus(source).phase === 'settled')
+    const first = audio.play(source)
+    const second = audio.play(source)
+    // Both calls were handed the very same `ref` object, so the interrupted
+    // first play must not be allowed to clear the source the second one is
+    // still speaking — that blanked the dialogue stage on an ordinary replay.
+    await expect(first).resolves.toBe('interrupted')
+    expect(audio.speakingSource()).toEqual(source)
+    audio.stop()
+    await second
+    expect(audio.speakingSource()).toBeNull()
+    audio.dispose()
+  })
+
   it('does not play SFX over speech', async () => {
     const played: string[] = []
     const sfx: SfxPlayer = { play: (id) => { played.push(id) }, unlock: () => {}, available: () => true, dispose: () => {} }

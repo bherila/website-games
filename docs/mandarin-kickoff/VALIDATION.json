@@ -1,0 +1,22 @@
+{
+  "schemaValidation": "passed (Draft 2020-12)",
+  "semanticValidation": "passed",
+  "counts": {
+    "scenes": 5,
+    "nodes": 10,
+    "targets": 30,
+    "supportGlossary": 18,
+    "utterances": 50,
+    "exercises": 50,
+    "constructionExercises": 5,
+    "checkpointExercises": 10
+  },
+  "lessonFileSha256": "11de40ef1dedbca7abeb721bac582cc4736aff5dcc53d6eef443cb222d1e1e93",
+  "notValidated": [
+    "native Mandarin editorial quality",
+    "audio synthesis or pronunciation",
+    "game implementation",
+    "browser or API integration"
+  ],
+  "typescriptContractValidation": "passed: tsc --noEmit --strict --target ES2022 --lib ES2022,DOM"
+}

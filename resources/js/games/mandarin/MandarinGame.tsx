@@ -12,7 +12,7 @@ import { createInitialProgress, parseStoredProgress, type PreviewProgress } from
 import { DEFAULT_SETTINGS, type MandarinSettings, parseSettings } from './domain/settings'
 import type { MandarinRuntime } from './runtime/MandarinRuntime'
 import type { DioramaBeat } from './scene/sceneConfigs'
-import { type GameApi, GameContext, type Overlay, type Route } from './ui/GameContext'
+import { type ActiveAssessment, type GameApi, GameContext, type Overlay, type Route } from './ui/GameContext'
 import { GameShell } from './ui/GameShell'
 import { GlossaryOverlay, MapOverlay } from './ui/Overlays'
 import { GameButton, MUTED, Panel, SectionTitle } from './ui/primitives'
@@ -74,6 +74,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
   const [saveState, setSaveState] = useState<SaveState>(runtime.scenario?.saveState ?? 'local_preview')
   const [route, setRoute] = useState<Route>({ name: 'home' })
   const [overlay, setOverlay] = useState<Overlay>(null)
+  const [activeAssessment, setActiveAssessment] = useState<ActiveAssessment | null>(null)
   const [beat, setBeat] = useState<DioramaBeat>('idle')
   const [reloadKey, setReloadKey] = useState(0)
   const prefersReduced = useReducedMotionPreference()
@@ -184,6 +185,13 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     if (next.name === 'home' || next.name === 'settings') setBeat('idle')
   }, [])
 
+  // Clearing is identity-guarded so a question unmounting after its successor
+  // mounted cannot wipe the successor's registration.
+  const registerAssessment = useCallback((entry: ActiveAssessment) => {
+    setActiveAssessment(entry)
+    return () => setActiveAssessment((current) => (current === entry ? null : current))
+  }, [])
+
   const eventContext = useMemo<EventContext>(() => ({
     identity: course.identity,
     clientInstanceId: runtime.clientInstanceId,
@@ -233,13 +241,16 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     saveState,
     route,
     overlay,
+    activeAssessment,
     beat,
     setting: sceneForRoute.setting,
+    sceneId: sceneForRoute.id,
     posterSlotId: sceneForRoute.artSlotId,
     reducedMotion: settings.lowMotion || prefersReduced,
     eventContext,
     navigate,
     setOverlay,
+    registerAssessment,
     setBeat,
     updateProgress,
     updateSettings,

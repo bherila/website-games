@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "style": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters.",
+  "generationPolicy": "Authoring-time Codex image-generation tool only; no runtime image-generation API is needed for this alpha.",
+  "assets": [
+    {
+      "id": "scene-gate-poster",
+      "kind": "scene_poster",
+      "priority": "required",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "alpha": false,
+      "use": "2D fallback, scene card crop, and art-direction reference. Not a replacement for 3D foreground geometry.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a modest timber village gate with distant misty hills. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. No people: story actions and answer clues must be rendered separately.",
+      "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
+      "fallback": "authored SVG for gate",
+      "outputPath": "public/images/games/mandarin/scene-gate-poster.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "scene-street-poster",
+      "kind": "scene_poster",
+      "priority": "required",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "alpha": false,
+      "use": "2D fallback, scene card crop, and art-direction reference. Not a replacement for 3D foreground geometry.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a quiet stone-paved village street with modest timber buildings. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. No people: story actions and answer clues must be rendered separately.",
+      "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
+      "fallback": "authored SVG for street",
+      "outputPath": "public/images/games/mandarin/scene-street-poster.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "scene-bridge-poster",
+      "kind": "scene_poster",
+      "priority": "required",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "alpha": false,
+      "use": "2D fallback, scene card crop, and art-direction reference. Not a replacement for 3D foreground geometry.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a small arched stone bridge over a calm narrow river. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. No people: story actions and answer clues must be rendered separately.",
+      "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
+      "fallback": "authored SVG for bridge",
+      "outputPath": "public/images/games/mandarin/scene-bridge-poster.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "scene-roadside-poster",
+      "kind": "scene_poster",
+      "priority": "required",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "alpha": false,
+      "use": "2D fallback, scene card crop, and art-direction reference. Not a replacement for 3D foreground geometry.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a simple roadside shelter with a bench and foliage. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. No people: story actions and answer clues must be rendered separately.",
+      "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
+      "fallback": "authored SVG for roadside",
+      "outputPath": "public/images/games/mandarin/scene-roadside-poster.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "scene-reunion-poster",
+      "kind": "scene_poster",
+      "priority": "required",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "alpha": false,
+      "use": "2D fallback, scene card crop, and art-direction reference. Not a replacement for 3D foreground geometry.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a small open courtyard near the village path, late afternoon light. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. No people: story actions and answer clues must be rendered separately.",
+      "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
+      "fallback": "authored SVG for reunion",
+      "outputPath": "public/images/games/mandarin/scene-reunion-poster.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "portrait-guide",
+      "kind": "portrait",
+      "priority": "required",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "alpha": true,
+      "use": "Dialogue portrait in DOM overlay and optional billboard, not a rigged 3D character.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Waist-up portrait of an adult village guide wearing a simple muted jade jacket, calm neutral expression. Original fictional character, consistent three-quarter orientation, plain transparent background, complete silhouette with comfortable margins. No props indicating a correct quiz answer.",
+      "safeArea": "Face and shoulders within central 70%; keep silhouette away from image edges.",
+      "fallback": "authored SVG portrait for guide",
+      "outputPath": "public/images/games/mandarin/portrait-guide.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "portrait-traveler",
+      "kind": "portrait",
+      "priority": "required",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "alpha": true,
+      "use": "Dialogue portrait in DOM overlay and optional billboard, not a rigged 3D character.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Waist-up portrait of an adult traveler named Xiaolin, simple slate-blue travel clothing and small shoulder bag, curious neutral expression. Original fictional character, consistent three-quarter orientation, plain transparent background, complete silhouette with comfortable margins. No props indicating a correct quiz answer.",
+      "safeArea": "Face and shoulders within central 70%; keep silhouette away from image edges.",
+      "fallback": "authored SVG portrait for traveler",
+      "outputPath": "public/images/games/mandarin/portrait-traveler.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "portrait-friend",
+      "kind": "portrait",
+      "priority": "required",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "alpha": true,
+      "use": "Dialogue portrait in DOM overlay and optional billboard, not a rigged 3D character.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Waist-up portrait of an adult friend in warm neutral travel clothing, relaxed neutral expression. Original fictional character, consistent three-quarter orientation, plain transparent background, complete silhouette with comfortable margins. No props indicating a correct quiz answer.",
+      "safeArea": "Face and shoulders within central 70%; keep silhouette away from image edges.",
+      "fallback": "authored SVG portrait for friend",
+      "outputPath": "public/images/games/mandarin/portrait-friend.webp",
+      "status": "not_generated"
+    },
+    {
+      "id": "material-paper",
+      "kind": "texture",
+      "priority": "optional",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "alpha": false,
+      "use": "Very subtle paper material behind DOM cards, only if readability remains excellent.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Seamless fine warm ivory paper texture, extremely subtle fibers, flat lighting, no objects or writing.",
+      "safeArea": "Tile-test edges and inspect contrast under text.",
+      "fallback": "solid CSS background",
+      "outputPath": "public/images/games/mandarin/material-paper.webp",
+      "status": "not_generated"
+    }
+  ]
+}

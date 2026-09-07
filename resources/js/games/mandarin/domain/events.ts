@@ -50,8 +50,11 @@ export function responseEvent(
     source,
     responseAction: attempt?.action ?? null,
     selectedOptionId: attempt?.optionId ?? null,
-    // A retry after feedback has seen the correct answer: that is text help, never an unaided listen.
-    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || state.answerDisclosed,
+    // A retry after feedback has seen the correct answer: that is text help, never
+    // an unaided listen. Read that from the attempt, not from `state.answerDisclosed`
+    // — submitting sets that flag itself, so the post-action state reports every
+    // first answer as assisted and the scheduler never sees an unaided success.
+    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || attempt?.isRetry === true,
     pinyinHelpUsed: state.helpRevealed.includes('pinyin'),
     audioEvidence: audioEvidence(state),
   }
@@ -79,11 +82,16 @@ export function constructionEvent(
   mode: PracticeEvent['mode'],
   location: { sceneId: string; nodeId: string; exerciseId: string },
   orderedTileIds: string[],
+  /** True once a derived hint or the revealed order has been shown. */
+  assisted = false,
 ): PracticeEvent {
   return {
     ...base(context, { kind: 'response', mode, ...location, opportunityId: null }),
     responseAction: 'answer',
     orderedTileIds,
+    // Construction is excluded from listening scheduling either way, but the
+    // record should still say whether the learner built this unaided.
+    textHelpUsed: assisted,
   }
 }
 

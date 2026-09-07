@@ -2,7 +2,7 @@
  * Owns one opportunity's assessment state and emits the matching practice
  * events. A new exercise/opportunity remounts the hook via the caller's key.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { type AssessmentAction, type AssessmentMode, type AssessmentState, createAssessment, reduceAssessment } from '../domain/assessment'
 import type { ChoiceExercise } from '../domain/courseSchema'
@@ -38,6 +38,17 @@ export function useAssessment(exercise: ChoiceExercise, mode: AssessmentMode, lo
     // location is a plain object recreated by callers; its two ids are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise.correctOptionId, game.appendEvents, game.eventContext, location.sceneId, location.nodeId, source])
+
+  // The header's glossary lists English meanings, so reaching it mid-question is
+  // help. Publish this opportunity so the shell records it here instead of
+  // handing out the meaning outside the assessment's accounting entirely.
+  const registerAssessment = game.registerAssessment
+  useEffect(() => registerAssessment({
+    opportunityId: state.opportunityId,
+    strict: mode === 'checkpoint',
+    unanswered: state.phase === 'listening',
+    revealMeaning: () => dispatch({ type: 'reveal', kind: 'meaning' }),
+  }), [registerAssessment, mode, state.opportunityId, state.phase, dispatch])
 
   return { state, dispatch }
 }

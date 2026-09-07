@@ -20,6 +20,23 @@ export type Route =
 
 export type Overlay = 'map' | 'glossary' | null
 
+/**
+ * The question currently on screen, published so the shell's header controls
+ * cannot hand out help behind the assessment's back. The glossary lists the
+ * English meaning of every introduced word, so opening it mid-question is
+ * exactly the `meaning` help the question already knows how to record.
+ */
+export interface ActiveAssessment {
+  /** Identifies the question itself, so the shell can tell one item from the next. */
+  opportunityId: string
+  /** Checkpoint items refuse the shortcut outright while the item is unanswered. */
+  strict: boolean
+  /** True while the learner can still answer; help after that changes no record. */
+  unanswered: boolean
+  /** Records glossary use as `meaning` help on this opportunity. */
+  revealMeaning(): void
+}
+
 export interface GameApi {
   course: CourseIndex
   bootstrap: Bootstrap<Course>
@@ -29,14 +46,20 @@ export interface GameApi {
   saveState: SaveState
   route: Route
   overlay: Overlay
+  /** Null whenever no question is mounted. */
+  activeAssessment: ActiveAssessment | null
   beat: DioramaBeat
   /** Diorama setting for the current route. */
   setting: SceneSetting
+  /** Scene the current route belongs to. */
+  sceneId: string
   posterSlotId: string
   reducedMotion: boolean
   eventContext: EventContext
   navigate(route: Route): void
   setOverlay(overlay: Overlay): void
+  /** Publishes the mounted question; returns the matching unregister. */
+  registerAssessment(entry: ActiveAssessment): () => void
   setBeat(beat: DioramaBeat): void
   updateProgress(update: (progress: PreviewProgress) => PreviewProgress): void
   updateSettings(patch: Partial<MandarinSettings>): void
