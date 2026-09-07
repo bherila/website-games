@@ -126,6 +126,15 @@ test.describe('Mandarin Quest visual harness', () => {
     await page.getByLabel('Settings').click()
     await expect(page.getByTestId('settings-screen')).toBeVisible()
     await capture(page, testInfo, 'settings')
+
+    // Deliberately captured on both projects: WebKit reports no Element
+    // Fullscreen API, exactly as iPhone Safari does, so this panel shows the
+    // Add to Home Screen route there and a working toggle on Chromium.
+    const fullscreenNote = page.getByTestId('fullscreen-note')
+    await fullscreenNote.scrollIntoViewIfNeeded()
+    await expect(fullscreenNote).toBeVisible()
+    await capture(page, testInfo, 'settings-fullscreen')
+
     await page.getByLabel('Use 2D scenery').check()
     await page.getByRole('button', { name: 'Back to journey' }).click()
     await expect(page.getByTestId('diorama')).toHaveAttribute('data-diorama-status', 'poster')

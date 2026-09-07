@@ -19,7 +19,13 @@ class GamePwaTest extends TestCase
         $this->assertSame('/', $manifest['scope']);
         $this->assertSame('/', $manifest['start_url']);
         $this->assertCount(4, $manifest['icons']);
-        $this->assertCount(8, $manifest['shortcuts']);
+        $this->assertCount(9, $manifest['shortcuts']);
+
+        // Every shipped game is reachable from the installed app's shortcut
+        // menu. On iPhone, installing is the only way to lose the address bar,
+        // so a game missing here has no route to a full-screen window.
+        $urls = array_column($manifest['shortcuts'], 'url');
+        $this->assertContains('/mandarin', $urls);
     }
 
     public function test_games_hub_registers_the_manifest_and_service_worker_entry(): void

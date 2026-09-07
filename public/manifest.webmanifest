@@ -83,6 +83,12 @@
       "short_name": "2048",
       "url": "/2048",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Mandarin Quest",
+      "short_name": "Mandarin",
+      "url": "/mandarin",
+      "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 import { PREVIEW_SCENARIOS, previewScenarioHref } from '../../adapters/previewScenarios'
 import { PREVIEW_STORAGE_PREFIX } from '../../adapters/previewStore'
+import { FullscreenNote } from '../FullscreenNote'
 import { useGame } from '../GameContext'
 import { PreviewBanner } from '../PreviewBanner'
 import { Eyebrow, GameButton, MUTED, Panel, SectionTitle } from '../primitives'
@@ -51,6 +52,10 @@ export function SettingsScreen(): ReactElement {
             ))}
           </div>
         </fieldset>
+      </Panel>
+
+      <Panel className="flex flex-col gap-4">
+        <FullscreenNote />
       </Panel>
 
       <Panel className="flex flex-col gap-3">
