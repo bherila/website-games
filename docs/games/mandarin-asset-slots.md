@@ -79,6 +79,10 @@ The generated set was produced from the manifest prompts with the gate poster an
 portrait as style references for the rest, so all eight read as one place. Posters contain
 no people or text; portraits are original fictional adults on transparent backgrounds.
 
+Scene 1 carries the first fantasy reskin pass: restrained jade-and-bronze gate details,
+lantern motes, luminous mountain mist, edge glows, and a distant suspended shrine. Its
+foreground path and middle crop stay quiet so lesson UI and portrait crops remain readable.
+
 ### Fallback SVGs
 
 The SVGs use the same palette as the diorama (`PALETTE` in
