@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "promptSource": "resources/data/mandarin/visual-assets.v1.json",
-  "generationNotes": "Built-in image generation; model not exposed. Manifest prompts and safe areas supplied, with the gate poster and guide portrait used as style references. PNG masters are not committed. ImageMagick removes painted near-white portrait checkerboards and adds transparent margins; cwebp encodes WebP with lossless alpha.",
+  "generationNotes": "Built-in image generation; model not exposed. Manifest prompts and safe areas supplied, with the gate poster and guide portrait used as style references. The gate poster was regenerated from its prior committed image as a one-scene fantasy reskin, then encoded with cwebp quality 88. PNG masters are not committed. ImageMagick removes painted near-white portrait checkerboards and adds transparent margins; cwebp encodes WebP with lossless alpha for portraits.",
   "assets": [
     {
       "id": "scene-gate-poster",
@@ -9,8 +9,8 @@
       "width": 1536,
       "height": 1024,
       "hasAlpha": false,
-      "byteSize": 255512,
-      "sha256": "8dccfe2a55b42cbbb4457d0a0143adbe2541668ad5bd1c0f8a01f439c9395857",
+      "byteSize": 370700,
+      "sha256": "7ac8fb73f4c66a9e64c79e3dfc84e7a4af29f988f3f9699f2ae4aea800a862aa",
       "generationTool": "image_gen.imagegen",
       "generationModel": null,
       "status": "generated"

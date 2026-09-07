@@ -13,7 +13,7 @@
       },
       "alpha": false,
       "use": "2D fallback, scene card crop, and art-direction reference. Not a replacement for 3D foreground geometry.",
-      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a modest timber village gate with distant misty hills. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. No people: story actions and answer clues must be rendered separately.",
+      "prompt": "Original storybook diorama, restrained ink-and-gouache textures, warm ivory, muted jade, slate blue and a small amber accent; adult-friendly, inviting but not childish. No text, glyphs, lettering, logos, watermarks, UI, celebrities or recognizable film/TV characters. Wide establishing view of a modest timber village gate at the threshold of a subtle mythic mountain realm, with distant misty hills, restrained jade-and-bronze carvings, faint lantern motes, luminous mist ribbons, softly glowing edge plants, and one distant suspended shrine. Gentle elevated three-quarter camera, simple readable silhouettes, quiet central/lower area. Keep the magic atmospheric and secondary. No people: story actions and answer clues must be rendered separately.",
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for gate",
       "outputPath": "public/images/games/mandarin/scene-gate-poster.webp",

@@ -71,7 +71,7 @@ function slot(id: VisualSlotId, alt: string, anchor: VisualSlot['anchor'], usage
 }
 
 export const VISUAL_REGISTRY: Record<VisualSlotId, VisualSlot> = {
-  'scene-gate-poster': slot('scene-gate-poster', 'A modest timber village gate with misty hills behind it.', 'center', 'Scene 1 journey card, 2D fallback behind the lesson card, story-beat backdrop.'),
+  'scene-gate-poster': slot('scene-gate-poster', 'A timber village gate opens toward misty mountains and a distant floating shrine.', 'center', 'Scene 1 journey card, 2D fallback behind the lesson card, story-beat backdrop.'),
   'scene-street-poster': slot('scene-street-poster', 'A quiet stone-paved village street with timber buildings.', 'center', 'Scene 2 journey card, 2D fallback, story-beat backdrop.'),
   'scene-bridge-poster': slot('scene-bridge-poster', 'A small arched stone bridge over a calm river.', 'center', 'Scene 3 journey card, 2D fallback, story-beat backdrop.'),
   'scene-roadside-poster': slot('scene-roadside-poster', 'A simple roadside shelter with a bench and foliage.', 'center', 'Scene 4 journey card, 2D fallback, story-beat backdrop.'),
