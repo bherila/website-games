@@ -300,6 +300,31 @@ class AudioManifestService
         return $missing;
     }
 
+    /**
+     * Source mappings that do not name an allowlisted source in their imported revision.
+     *
+     * @param  Manifest  $manifest
+     * @return list<string>
+     */
+    public function invalidSources(array $manifest): array
+    {
+        $courses = [];
+        $invalid = [];
+        foreach ($manifest['sources'] as $source) {
+            $identity = $source['course_id'].'@'.$source['content_version'];
+            if (! array_key_exists($identity, $courses)) {
+                $courses[$identity] = $this->courses->revision($source['course_id'], $source['content_version']);
+            }
+            $course = $courses[$identity];
+            if ($course !== null && ! $course->hasSource($source['source_kind'], $source['source_id'], $source['variant'])) {
+                $invalid[] = $identity.':'.$source['source_kind'].':'.$source['source_id'].':'.$source['variant'];
+            }
+        }
+        sort($invalid, SORT_STRING);
+
+        return array_values(array_unique($invalid));
+    }
+
     // ── import ───────────────────────────────────────────────────────────────
 
     /**

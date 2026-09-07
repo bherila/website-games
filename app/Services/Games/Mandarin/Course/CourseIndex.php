@@ -18,6 +18,9 @@ class CourseIndex
     public readonly array $targets;
 
     /** @var array<string, array<string, mixed>> */
+    public readonly array $supports;
+
+    /** @var array<string, array<string, mixed>> */
     public readonly array $utterances;
 
     /** @var array<string, array<string, mixed>> */
@@ -47,6 +50,7 @@ class CourseIndex
         $this->scenes = $by($course['scenes']);
         $this->nodes = $by($course['nodes']);
         $this->targets = $by($course['targets']);
+        $this->supports = $by($course['supportGlossary']);
         $this->utterances = $by($course['utterances']);
         $this->exercises = $by($course['exercises']);
         $this->checkpoints = $by($course['checkpointExercises']);
@@ -91,6 +95,7 @@ class CourseIndex
         return match ($sourceKind) {
             'utterance' => isset($this->utterances[$sourceId]) ? (string) $this->utterances[$sourceId]['speechText'] : null,
             'target' => isset($this->targets[$sourceId]) ? (string) $this->targets[$sourceId]['speechText'] : null,
+            'support' => isset($this->supports[$sourceId]) ? (string) $this->supports[$sourceId]['zh'] : null,
             default => null,
         };
     }
@@ -116,6 +121,7 @@ class CourseIndex
         return match ($sourceKind) {
             'utterance' => isset($this->utterances[$sourceId]) && in_array($variant, $this->utterances[$sourceId]['audioVariants'], true),
             'target' => isset($this->targets[$sourceId]) && in_array($variant, ['normal', 'slow'], true),
+            'support' => isset($this->supports[$sourceId]) && in_array($variant, ['normal', 'slow'], true),
             'sfx' => isset($this->sfx[$sourceId]) && $variant === 'default',
             default => false,
         };

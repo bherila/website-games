@@ -24,7 +24,7 @@ export async function openPreview(page: Page, scenario: string | null, options: 
   const seed = { settings: options.settings ?? {}, progress: options.progress ?? null }
   await expect(async () => {
     const stable = await page.evaluate(async ({ settings, progress }) => {
-      const progressJson = progress ? JSON.stringify({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.0', ...progress }) : null
+      const progressJson = progress ? JSON.stringify({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.1', ...progress }) : null
       for (const key of Object.keys(window.localStorage)) {
         if (key.startsWith('mandarin.preview.')) window.localStorage.removeItem(key)
       }

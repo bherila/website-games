@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
  */
 class AudioWarmCommand extends Command
 {
-    protected $signature = 'mandarin:audio:warm {--node=s1n1 : Node id, or "all"} {--variant=normal : normal | slow | both} {--dry-run} {--execute} {--sfx : Also render the four UI cues}';
+    protected $signature = 'mandarin:audio:warm {--node=s1n1 : Node id, or "all"} {--variant=normal : normal | slow | both} {--dry-run} {--execute} {--support : Also warm supporting glossary entries introduced in the selected nodes} {--sfx : Also render the four UI cues}';
 
     protected $description = 'Warm the audio cache for a node (operator prewarm; optional UX optimisation).';
 
@@ -29,7 +29,7 @@ class AudioWarmCommand extends Command
         $sources = [];
         foreach ($nodes as $nodeId) {
             foreach ($variants as $variant) {
-                foreach ($assets->sourcesForNode($course, $nodeId, $variant) as $source) {
+                foreach ($assets->sourcesForNode($course, $nodeId, $variant, (bool) $this->option('support')) as $source) {
                     $sources[$source['sourceKind'].':'.$source['sourceId'].':'.$source['variant']] = $source;
                 }
             }
@@ -42,8 +42,18 @@ class AudioWarmCommand extends Command
         $sources = array_values($sources);
         $this->info(count($sources).' source(s) for node(s) '.implode(',', $nodes).' ['.implode(',', $variants).']');
         if ($this->option('dry-run')) {
+            $tally = [];
             foreach ($sources as $source) {
-                $this->line(" - {$source['sourceKind']}:{$source['sourceId']}:{$source['variant']}");
+                $inspection = $assets->inspectOne($course, $source);
+                $tally[$inspection['state']] = ($tally[$inspection['state']] ?? 0) + 1;
+                $mapping = $inspection['mapped'] ? 'mapped' : 'mapping-missing';
+                $detail = $inspection['recipeHash'] === null
+                    ? (string) $inspection['code']
+                    : substr($inspection['recipeHash'], 0, 12).' '.$mapping;
+                $this->line(" - {$source['sourceKind']}:{$source['sourceId']}:{$source['variant']} {$inspection['state']} {$detail}");
+            }
+            foreach ($tally as $state => $count) {
+                $this->line(sprintf('%-11s %d', $state, $count));
             }
 
             return self::SUCCESS;

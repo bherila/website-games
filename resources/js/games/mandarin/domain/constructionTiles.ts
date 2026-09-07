@@ -8,10 +8,8 @@
  * words that share a form but not a sense, and it would silently attach the
  * wrong recording rather than fail.
  *
- * `audio` is null where no curated recording covers the chunk. The support
- * glossary (请, 再, 一遍) has no audio sources at all — `AudioSourceRef` admits
- * only utterances and targets — so those three tiles stay silent until a
- * support source kind exists. Nothing here synthesises free text.
+ * Support chunks use their versioned glossary IDs. Nothing here synthesises
+ * free text or promotes a supporting word into the tested target vocabulary.
  */
 import type { AudioSourceRef } from '../contracts/mandarin'
 
@@ -24,6 +22,10 @@ export interface ConstructionTile {
 
 function target(sourceId: string): AudioSourceRef {
   return { sourceKind: 'target', sourceId, variant: 'normal' }
+}
+
+function support(sourceId: string): AudioSourceRef {
+  return { sourceKind: 'support', sourceId, variant: 'normal' }
 }
 
 export const CONSTRUCTION_TILES: Readonly<Record<string, ConstructionTile>> = {
@@ -44,11 +46,11 @@ export const CONSTRUCTION_TILES: Readonly<Record<string, ConstructionTile>> = {
   // are introduced well before this exercise.
   'g03-c3': { pinyin: 'zài zhèlǐ', en: 'here', audio: { sourceKind: 'utterance', sourceId: '05c', variant: 'normal' } },
   'g03-c4': { pinyin: 'děng nǐ', en: 'wait for you', audio: target('wait-you') },
-  // g04 — 请再说一遍。Three support-glossary chunks have no recording yet.
-  'g04-c1': { pinyin: 'qǐng', en: 'please', audio: null },
-  'g04-c2': { pinyin: 'zài', en: 'again', audio: null },
+  // g04 — 请再说一遍。
+  'g04-c1': { pinyin: 'qǐng', en: 'please', audio: support('please') },
+  'g04-c2': { pinyin: 'zài', en: 'again', audio: support('again') },
   'g04-c3': { pinyin: 'shuō', en: 'say', audio: target('say') },
-  'g04-c4': { pinyin: 'yí biàn', en: 'one more time', audio: null },
+  'g04-c4': { pinyin: 'yí biàn', en: 'one more time', audio: support('one-time') },
   // g05 — 我们一起走吧。
   'g05-c1': { pinyin: 'wǒmen', en: 'we', audio: target('we') },
   'g05-c2': { pinyin: 'yìqǐ', en: 'together', audio: target('together') },

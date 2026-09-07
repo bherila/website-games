@@ -197,7 +197,8 @@ export class MockMandarinGateway implements MandarinGateway<Course> {
   private isKnownSource(source: AudioSourceRef): boolean {
     if (source.sourceKind === 'sfx') return this.course.course.sfx.some((sfx) => sfx.id === source.sourceId)
     if (source.sourceKind === 'utterance') return this.course.utteranceById.has(source.sourceId)
-    return this.course.targetById.has(source.sourceId)
+    if (source.sourceKind === 'target') return this.course.targetById.has(source.sourceId)
+    return this.course.supportById.has(source.sourceId)
   }
 
   private resolveOne(source: AudioSourceRef): AudioResolution {

@@ -56,20 +56,24 @@ class CourseImportTest extends MandarinTestCase
     {
         $this->importCourse();
         $course = $this->app->make(CourseRepository::class)->publishedOrFail();
-        $this->assertSame('1.0.0', $course->contentVersion());
+        $this->assertSame('1.0.1', $course->contentVersion());
         $this->assertCount(10, $course->nodeOrder);
         $this->assertSame('s5n2', $course->nodeOrder[9]);
         $this->assertSame('你好。', $course->speechText('utterance', '01a'));
+        $this->assertSame('请', $course->speechText('support', 'please'));
         $this->assertSame('guide', $course->roleFor('utterance', '01a'));
         $this->assertSame('narrator', $course->roleFor('target', 'hello'));
         $this->assertTrue($course->hasSource('sfx', 'ui-tap', 'default'));
         $this->assertFalse($course->hasSource('sfx', 'ui-tap', 'normal'));
+        $this->assertTrue($course->hasSource('support', 'please', 'normal'));
+        $this->assertTrue($course->hasSource('support', 'please', 'slow'));
+        $this->assertFalse($course->hasSource('support', 'missing', 'normal'));
         $this->assertTrue($course->isReservedUtterance('T01'));
     }
 
     public function test_commands_import_and_validate(): void
     {
-        $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Imported mandarin-foundations@1.0.0');
+        $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Imported mandarin-foundations@1.0.1');
         $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Unchanged');
         $this->artisan('mandarin:validate')->assertSuccessful()->expectsOutputToContain('Matches the imported revision');
     }
