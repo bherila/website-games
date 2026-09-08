@@ -167,7 +167,7 @@ describe('MandarinGame ten-scene preview', () => {
   it('locks the checkpoint and hides reserved text for a fresh learner on Home', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
-    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1' })
+    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.1', onboardingComplete: true, currentNodeId: 's1n1' })
     const runtime = createPreviewRuntime({ scenario: findPreviewScenario('fresh'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
     render(<MandarinGame runtime={runtime} />)
     await screen.findByTestId('home-screen')
@@ -213,7 +213,7 @@ describe('MandarinGame ten-scene preview', () => {
   it('resets the preview partition and the mock server state only after confirmation', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
-    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1', completedNodeIds: ['s1n1'] })
+    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.1', onboardingComplete: true, currentNodeId: 's1n1', completedNodeIds: ['s1n1'] })
     // The returning scenario seeds completed nodes in the mock gateway too; reset must clear both.
     const runtime = createPreviewRuntime({ scenario: findPreviewScenario('returning'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
     render(<MandarinGame runtime={runtime} />)

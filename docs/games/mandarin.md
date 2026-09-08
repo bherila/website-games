@@ -3,12 +3,41 @@
 A listening-first Mandarin course told as a ten-scene story. Served at `/mandarin`;
 entry point `resources/js/games/mandarin/index.tsx`.
 
-Current lesson proposal: `docs/games/mandarin-story-review.md` describes revision `1.1.0`,
+Shipped story design: `docs/games/mandarin-story-review.md` describes revision `1.1.0`,
 its recurring characters, new scenes, listening-first reveals, and separate character practice.
 
-Read next: `docs/games/mandarin-phase2-live.md` (what is real, what is verified, how to
-run it with real speech), `docs/games/mandarin-phase1-handoff.md` (the UI pass and its
+Read next: `docs/games/mandarin-phase2-live.md` (historical local validation at `44c6986`), `docs/games/mandarin-phase1-handoff.md` (the UI pass and its
 invariants), `docs/games/mandarin-asset-slots.md` (artwork slots).
+
+## Release status and follow-ups
+
+Revision `1.1.0` shipped in [#54](https://github.com/bherila/website-games/pull/54)
+at `e7251b6`; its [deployment run](https://github.com/bherila/website-games/actions/runs/34186230928)
+completed successfully. It contains ten scenes, 20 nodes, 50 mastery targets,
+100 listening exercises, five constructions and 20 reserved checkpoint items.
+Revision `1.1.1` changes only the construction support chunk and its audio mappings;
+these learning counts and existing content IDs stay stable. Its release is pending
+until this change merges and the deployment gate verifies the corpus.
+
+Full-course Polly recordings and bucket-backed assets are shipped capabilities.
+Production stages the course, strictly imports/verifies its audio manifest, then activates
+that revision (`.github/workflows/ci.yml`). Playback uses pre-generated recordings with
+provider generation disabled. Offline practice covers cached content and durable event
+replay; it does not promise every unheard clip or a first visit will work offline.
+
+Remaining work:
+
+- [#55: live progress on the homepage card](https://github.com/bherila/website-games/issues/55).
+- [#56: dedicated construction chunk](https://github.com/bherila/website-games/issues/56), implemented in revision `1.1.1`, pending release verification.
+- [#57: fluent-speaker editorial and audio review](https://github.com/bherila/website-games/issues/57). Both course review flags remain false; asset/playback checks are not full language QA.
+- [#58: multi-session learner trial](https://github.com/bherila/website-games/issues/58), before further course expansion.
+- [#59: installed-iPhone OAuth verification](https://github.com/bherila/website-games/issues/59).
+
+Guest progress import remains absent: `runtime/liveRuntime.ts` selects the bootstrap
+account’s partition, and `adapters/previewStore.ts` keeps guest and account stores separate;
+there is no import action in the current Mandarin runtime/API. This is an intentional
+scope limit, not a broken sync promise or a committed feature. Sign-in never reassigns
+guest events to an account. Any future deliberate import needs its own agreed design.
 
 ## Runtimes
 
@@ -64,12 +93,12 @@ All 18 tiles have an allowlisted recording source. The three supporting chunks i
 (请, 再, 一遍) use the `support` source kind, which resolves text from the versioned
 `supportGlossary` without adding those words to the 50 scheduled mastery targets.
 
-在这里 uses utterance `05c` — an ordinary
-dialogue line, not a reserved checkpoint sentence. Note its Polly recipe text is `在这里。`
-*with* the full stop, so it is a sentence-final rendering being reused for a mid-sentence
-chunk; it is intelligible but the contour is not ideal, and a mid-sentence recipe is the
-remaining audio-content follow-up. See `docs/games/mandarin-support-audio-handoff.md` for
-the source-kind decision and release evidence.
+在这里 now uses the dedicated `support:at-here` chunk (normal and slow), introduced at
+`s3n2`, with no terminal punctuation. Dialogue `05c` keeps its original `在这里。`
+recording. This adds no mastery target or checkpoint exposure. See
+[the support-audio record](mandarin-support-audio-handoff.md) and
+[#56](https://github.com/bherila/website-games/issues/56). Full-course fluent-speaker
+review, including chunk prosody, remains [#57](https://github.com/bherila/website-games/issues/57).
 
 ## Full screen and the address bar
 
@@ -108,7 +137,7 @@ grow — so `MandarinEventBatchTest` fails if the server limit is ever lowered p
 constant.
 
 Audio is cached by the service worker from `/media/games/mandarin/{asset}/{hash}.{ext}`, so a
-line heard once stays playable offline. The whole corpus is ~2.3 MB across 312 assets.
+line heard once stays playable offline. The whole corpus is ~2.3 MB across 314 assets.
 
 ## Backend layout (`app/Services/Games/Mandarin/`)
 
@@ -174,7 +203,7 @@ disk exits 1 without touching anything, and the command is idempotent, resumable
 `mandarin:audio:warm --dry-run` computes each provider recipe without synthesizing it and
 reports `ready`, `missing`, and whether the exact revision mapping exists. Supporting
 glossary entries are included only with `--support`, so an ordinary full-course warm does
-not unexpectedly expand from the scored corpus to all 20 context entries.
+not unexpectedly expand from the scored corpus to all 21 context entries.
 
 ## Ship audio to production without a provider
 
@@ -186,9 +215,9 @@ content hash, type, size, duration) and a `mandarin_audio_sources` row mapping t
 source to that recipe hash. `mandarin:audio:export` / `mandarin:audio:import` move them.
 
 The checked-in manifest `resources/data/mandarin/audio-manifest.json` is the current
-corpus: every utterance and target of `mandarin-foundations@1.1.0` in both variants, the
-normal and slow support sources for 请, 再, 一遍, 吃 and 很, and the four cues. Its 312 assets and
-314 revision mappings were generated with Polly (Zhiyu, neural) and stored on the `s3`
+corpus: every utterance and target of `mandarin-foundations@1.1.1` in both variants, the
+normal and slow support sources for 请, 再, 一遍, 吃, 很 and 在这里, and the four cues. Its 314 assets and
+316 revision mappings were generated with Polly (Zhiyu, neural) and stored on the `s3`
 disk under content-addressed keys. Regenerate it when the course or the voice changes:
 
 ```bash
@@ -248,7 +277,7 @@ Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
 
 `GET /mandarin/qa` (`games.mandarin.qa`, signed in) is a server-rendered audition sheet for
 the published revision: every utterance grouped by scene with its role, every target, each
-with Chinese, pinyin, English, usage, a "reserved for the listening check" tag on the ten
+with Chinese, pinyin, English, usage, a "reserved for the listening check" tag on the twenty
 checkpoint lines, and — per `normal`/`slow` variant — either a plain `<audio controls>`
 element for a ready object (with the asset's provider, voice and duration) or the honest
 state (`queued`, `generating`, `failed: <code>`, `unavailable: <code>`). The header shows

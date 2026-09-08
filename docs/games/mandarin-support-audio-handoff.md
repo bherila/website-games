@@ -1,6 +1,10 @@
 # Support-glossary audio decision and implementation record
 
-**For:** Codex · **Blocks:** three silent tiles in construction exercise `g04`
+> Historical decision and implementation record for revision `1.0.1`, shipped in [#50](https://github.com/bherila/website-games/pull/50).
+> The original problem and instructions below are retained for context, not an unstarted task.
+> See [current status](mandarin.md#release-status-and-follow-ups) and the construction follow-up below.
+
+**Original audience:** Codex · **Original blocker:** three silent tiles in construction exercise `g04`
 **Approved by:** GPT Pro review of 2026-09-07, decision Q4 — *"Make support words audible;
 keep them outside the primary targets."*
 
@@ -11,7 +15,7 @@ and identified exactly six missing recipes before Polly was called. The final ca
 check returned `ready` for all six with `MANDARIN_SPEECH_PROVIDER=null` and
 `MANDARIN_GENERATION_ENABLED=false`.
 
-## The problem
+## The original problem (before revision 1.0.1)
 
 `AudioSourceRef` in `resources/js/games/mandarin/contracts/mandarin.ts` admits only:
 
@@ -42,7 +46,7 @@ the controls work.
 is that an item may have a pronunciation, a glossary entry and a teaching role without
 having its own scheduled mastery card.
 
-## Implementation scope
+## Approved implementation scope (completed in #50)
 
 A narrow `support` source kind, carried consistently through:
 
@@ -78,11 +82,29 @@ mappings for a newly imported revision. In a cache-only deployment with generati
 disabled, importing the revision without writing its mappings leaves previously generated
 audio unreachable.
 
-Remaining follow-up: `在这里` (tile `g03-c3`) reuses utterance `05c`,
-whose Polly recipe text is `在这里。` — a sentence-final rendering being played for a
-mid-sentence chunk. A mid-sentence recipe for that chunk would be the clean fix.
+Construction follow-up [#56](https://github.com/bherila/website-games/issues/56):
+revision `1.1.1` maps `g03-c3` to the dedicated `support:at-here` source, `在这里`
+without terminal punctuation, in normal and slow variants. Dialogue `05c` remains
+`在这里。`; scheduled targets and reserved checkpoint items are unchanged. Removing
+terminal punctuation gives the chunk its own recipe; fluent-speaker prosody assessment
+remains part of [#57](https://github.com/bherila/website-games/issues/57).
 
-## Release check
+## Revision 1.1.1 verification (2026-09-08)
+
+The dry run found 314 ready source resolutions and exactly two missing recipes.
+Polly generated those two normal/slow `在这里` clips (six text characters across the
+requests), retaining all 312 prior asset records unchanged. The manifest now contains
+314 assets and 316 mappings for `1.1.1`; old deployed revision mappings remain intact.
+Strict cache-only import with object verification reported 314 unchanged assets,
+zero conflicts and zero unverified objects.
+
+In local Chromium and WebKit, tapping construction tile `g03-c3` resolved
+`support:at-here`; both real MP3 variants played to completion with the provider and
+generation disabled. These are technical playback checks, not a fluent-speaker
+judgment of prosody. That assessment remains tracked in #57. Production verification
+is still required after this revision is deployed.
+
+## Original release checklist (historical)
 
 Demonstrate, separately from "implemented":
 
@@ -91,4 +113,5 @@ Demonstrate, separately from "implemented":
 - playback working with `MANDARIN_GENERATION_ENABLED=false` (cache hits only),
 - a dry run reporting the actual missing recipes **before** any paid call.
 
-Do not merge or deploy production.
+The original handoff withheld merge/deployment authorization. That instruction applied
+to that handoff, not current release policy; later releases are recorded in the current status.

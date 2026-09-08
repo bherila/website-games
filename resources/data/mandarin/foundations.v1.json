@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "courseId": "mandarin-foundations",
-  "contentVersion": "1.1.0",
+  "contentVersion": "1.1.1",
   "title": "Mandarin Quest: The Seven-School Supper",
   "locale": {
     "spokenLanguage": "cmn",
@@ -497,7 +497,8 @@
       ],
       "introducedSupportIds": [
         "wait",
-        "brief-action"
+        "brief-action",
+        "at-here"
       ],
       "teachingUtteranceIds": [
         "03e",
@@ -1549,6 +1550,13 @@
       "pinyin": "chī",
       "en": "eat",
       "introducedInNode": "s10n1"
+    },
+    {
+      "id": "at-here",
+      "zh": "在这里",
+      "pinyin": "zài zhèlǐ",
+      "en": "here (location chunk)",
+      "introducedInNode": "s3n2"
     }
   ],
   "utterances": [

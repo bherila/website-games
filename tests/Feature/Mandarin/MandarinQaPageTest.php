@@ -67,7 +67,7 @@ class MandarinQaPageTest extends MandarinTestCase
         $requestId = (int) $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',
-                'contentVersion' => '1.1.0',
+                'contentVersion' => '1.1.1',
                 'sources' => [['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal']],
             ])->assertStatus(202)->json('results.0.requestId');
         $this->app->make(AudioAssetService::class)->generate($requestId);

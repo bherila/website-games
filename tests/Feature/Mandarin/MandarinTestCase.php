@@ -50,7 +50,7 @@ abstract class MandarinTestCase extends TestCase
     {
         return array_merge([
             'courseId' => 'mandarin-foundations',
-            'contentVersion' => '1.1.0',
+            'contentVersion' => '1.1.1',
             'schemaVersion' => 1,
             'clientEventId' => 'evt-'.bin2hex(random_bytes(4)),
             'clientInstanceId' => 'client-a',

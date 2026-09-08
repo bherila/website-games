@@ -20,7 +20,7 @@ function click(element: HTMLElement): void {
 function startRuntime(): ReturnType<typeof createPreviewRuntime> {
   const store = createMemoryPreviewStore()
   store.saveSettings({ twoDMode: true, lowMotion: true })
-  store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1' })
+  store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.1', onboardingComplete: true, currentNodeId: 's1n1' })
   return createPreviewRuntime({ scenario: findPreviewScenario('fresh'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0 })
 }
 
