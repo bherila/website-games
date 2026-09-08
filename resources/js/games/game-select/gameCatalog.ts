@@ -154,7 +154,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     slug: 'mandarin',
     title: 'Mandarin Quest',
     emoji: '🏮',
-    description: 'Find your friend across five scenes by listening to short Mandarin lines — a preview with local-only progress.',
+    description: 'Join Xiaolin and an aspiring cook across ten scenes of sword-school adventure. Listen to Mandarin first, then recognize written Chinese.',
     href: '/mandarin',
     loadSummary: () => {
       const summary = summarizeMandarinPreview()
