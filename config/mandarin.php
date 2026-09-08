@@ -88,6 +88,15 @@ return [
          * corpus on a bucket the app holds no read key for); local disks are always checked.
          */
         'verify_objects' => (bool) env('MANDARIN_AUDIO_VERIFY_OBJECTS', true),
+        // Optional glossary sources used directly by constructionTiles.ts.
+        'required_sources' => [
+            ['source_kind' => 'support', 'source_id' => 'please', 'variant' => 'normal'],
+            ['source_kind' => 'support', 'source_id' => 'please', 'variant' => 'slow'],
+            ['source_kind' => 'support', 'source_id' => 'again', 'variant' => 'normal'],
+            ['source_kind' => 'support', 'source_id' => 'again', 'variant' => 'slow'],
+            ['source_kind' => 'support', 'source_id' => 'one-time', 'variant' => 'normal'],
+            ['source_kind' => 'support', 'source_id' => 'one-time', 'variant' => 'slow'],
+        ],
     ],
 
     'events' => [

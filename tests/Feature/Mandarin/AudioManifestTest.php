@@ -353,6 +353,27 @@ class AudioManifestTest extends MandarinTestCase
         $this->assertNull($healed->error_message);
     }
 
+    public function test_a_ready_row_is_repointed_to_the_verified_manifest_location(): void
+    {
+        $asset = $this->ready(self::HELLO);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+        $manifest = $this->manifest();
+        $newKey = 'games/mandarin/audio/repointed.mp3';
+        Storage::disk('s3')->put($newKey, Storage::disk('local')->get((string) $asset->object_key));
+        $manifest['assets'][0]['disk'] = 's3';
+        $manifest['assets'][0]['object_key'] = $newKey;
+        $manifest['assetsHash'] = AudioManifestService::assetsHash($manifest['assets']);
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --execute --strict")
+            ->assertSuccessful()
+            ->expectsOutputToContain('Inserted 0, refreshed 1, left 0 unchanged');
+
+        $asset->refresh();
+        $this->assertSame('s3', $asset->disk);
+        $this->assertSame($newKey, $asset->object_key);
+    }
+
     public function test_verify_objects_refuses_to_publish_a_row_whose_object_is_absent(): void
     {
         $present = $this->ready(self::HELLO);
@@ -431,6 +452,16 @@ class AudioManifestTest extends MandarinTestCase
         $checkedIn = resource_path('data/mandarin/audio-manifest.json');
         $this->artisan("mandarin:audio:import {$checkedIn} --dry-run --require-configured-course")
             ->assertSuccessful();
+
+        $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
+        $manifest['sources'] = array_values(array_filter(
+            $manifest['sources'],
+            fn (array $source): bool => ! ($source['source_kind'] === 'support' && $source['source_id'] === 'please' && $source['variant'] === 'normal'),
+        ));
+        $this->rewrite($manifest);
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
+            ->assertFailed()
+            ->expectsOutputToContain('support:please:normal');
 
         $older = $this->courseJson();
         $older['contentVersion'] = '1.0.0';

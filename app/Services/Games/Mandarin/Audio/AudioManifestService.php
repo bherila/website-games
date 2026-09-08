@@ -381,6 +381,16 @@ class AudioManifestService
                 $problems[] = $key;
             }
         }
+        /** @var list<array{source_kind: string, source_id: string, variant: string}> $requiredSources */
+        $requiredSources = config('mandarin.audio.required_sources', []);
+        foreach ($requiredSources as $required) {
+            $key = $required['source_kind'].':'.$required['source_id'].':'.$required['variant'];
+            if (! $course->hasSource($required['source_kind'], $required['source_id'], $required['variant'])) {
+                $problems[] = "configured source is invalid: {$key}";
+            } elseif (! isset($mapped[$key])) {
+                $problems[] = $key;
+            }
+        }
 
         sort($problems, SORT_STRING);
 
@@ -433,8 +443,28 @@ class AudioManifestService
 
             if ($existing !== null && $existing->isReady()) {
                 if ((string) $existing->content_hash === $asset['content_hash']) {
-                    $unchanged++;
-                    $this->remember($examples['unchanged'], $hash);
+                    $sameLocation = $existing->disk === $asset['disk']
+                        && $existing->object_key === $asset['object_key']
+                        && $existing->content_type === $asset['content_type']
+                        && (int) $existing->bytes === $asset['bytes'];
+                    if ($sameLocation) {
+                        $unchanged++;
+                        $this->remember($examples['unchanged'], $hash);
+
+                        continue;
+                    }
+
+                    $refreshed++;
+                    $this->remember($examples['refreshed'], $hash);
+                    if ($execute) {
+                        $outcome = $this->refreshReady($existing, $asset);
+                        if ($outcome !== null) {
+                            $refreshed--;
+                            $conflicts++;
+                            array_pop($examples['refreshed']);
+                            $problems[] = ['recipeHash' => $hash, 'reason' => $outcome];
+                        }
+                    }
 
                     continue;
                 }
@@ -596,6 +626,23 @@ class AudioManifestService
             ->update($this->readyAttributes($asset) + ['updated_at' => Carbon::now()]);
 
         return $updated === 1 ? null : 'became ready during the import; left as it is';
+    }
+
+    /**
+     * @param  ManifestAsset  $asset
+     * @return string|null the reason the ready row was not repointed
+     */
+    private function refreshReady(MandarinAudioAsset $existing, array $asset): ?string
+    {
+        $updated = MandarinAudioAsset::query()
+            ->whereKey($existing->id)
+            ->where('state', MandarinAudioAsset::STATE_READY)
+            ->where('content_hash', $asset['content_hash'])
+            ->where('disk', $existing->disk)
+            ->where('object_key', $existing->object_key)
+            ->update($this->readyAttributes($asset) + ['updated_at' => Carbon::now()]);
+
+        return $updated === 1 ? null : 'changed during the import; left as it is';
     }
 
     /**
