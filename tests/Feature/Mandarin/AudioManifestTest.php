@@ -374,6 +374,25 @@ class AudioManifestTest extends MandarinTestCase
         $this->assertSame($newKey, $asset->object_key);
     }
 
+    public function test_an_unverified_import_does_not_repoint_a_ready_row(): void
+    {
+        $asset = $this->ready(self::HELLO);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+        $manifest = $this->manifest();
+        $manifest['assets'][0]['disk'] = 's3';
+        $manifest['assets'][0]['object_key'] = 'games/mandarin/audio/not-verified.mp3';
+        $manifest['assetsHash'] = AudioManifestService::assetsHash($manifest['assets']);
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --execute --strict")
+            ->assertSuccessful()
+            ->expectsOutputToContain('Inserted 0, refreshed 0, left 1 unchanged');
+
+        $asset->refresh();
+        $this->assertSame('local', $asset->disk);
+        $this->assertNotSame($manifest['assets'][0]['object_key'], $asset->object_key);
+    }
+
     public function test_verify_objects_refuses_to_publish_a_row_whose_object_is_absent(): void
     {
         $present = $this->ready(self::HELLO);

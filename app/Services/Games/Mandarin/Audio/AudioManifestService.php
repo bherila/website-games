@@ -477,7 +477,7 @@ class AudioManifestService
                         && $existing->object_key === $asset['object_key']
                         && $existing->content_type === $asset['content_type']
                         && (int) $existing->bytes === $asset['bytes'];
-                    if ($sameLocation) {
+                    if ($sameLocation || ! $verifyObjects) {
                         $unchanged++;
                         $this->remember($examples['unchanged'], $hash);
 
