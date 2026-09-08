@@ -8,6 +8,7 @@ use App\Models\Mandarin\MandarinAudioSource;
 use App\Models\User;
 use App\Services\Games\Mandarin\Audio\AudioAssetService;
 use App\Services\Games\Mandarin\Audio\AudioManifestService;
+use App\Services\Games\Mandarin\Course\CourseImporter;
 use App\Services\Games\Mandarin\Speech\NullSpeechSynthesizer;
 use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Support\Facades\Bus;
@@ -423,6 +424,28 @@ class AudioManifestTest extends MandarinTestCase
             ->assertExitCode(1)
             ->expectsOutputToContain('No imported course revision for: mandarin-foundations@9.9.9');
         $this->assertSame(0, MandarinAudioAsset::query()->count());
+    }
+
+    public function test_deployment_requires_the_manifest_to_cover_the_configured_course(): void
+    {
+        $checkedIn = resource_path('data/mandarin/audio-manifest.json');
+        $this->artisan("mandarin:audio:import {$checkedIn} --dry-run --require-configured-course")
+            ->assertSuccessful();
+
+        $older = $this->courseJson();
+        $older['contentVersion'] = '1.0.0';
+        $this->app->make(CourseImporter::class)->import($older);
+        $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
+        $manifest['courses'][0]['contentVersion'] = '1.0.0';
+        foreach ($manifest['sources'] as &$source) {
+            $source['content_version'] = '1.0.0';
+        }
+        unset($source);
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
+            ->assertFailed()
+            ->expectsOutputToContain('Manifest does not cover configured course mandarin-foundations@1.0.1');
     }
 
     public function test_a_source_outside_the_imported_course_revision_is_refused(): void

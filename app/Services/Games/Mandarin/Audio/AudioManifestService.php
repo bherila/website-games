@@ -325,6 +325,68 @@ class AudioManifestService
         return array_values(array_unique($invalid));
     }
 
+    /**
+     * Ensure a deployment manifest names the exact course being staged and
+     * carries every core utterance, target and cue that live play can request.
+     * Support glossary audio remains opt-in because most support entries are
+     * intentionally shown for context without scheduled playback.
+     *
+     * @param  Manifest  $manifest
+     * @return list<string>
+     */
+    public function courseCoverageProblems(array $manifest, string $courseId, string $contentVersion): array
+    {
+        $identity = $courseId.'@'.$contentVersion;
+        $declared = false;
+        foreach ($manifest['courses'] as $course) {
+            if ($identity === $course['courseId'].'@'.$course['contentVersion']) {
+                $declared = true;
+                break;
+            }
+        }
+
+        $course = $this->courses->revision($courseId, $contentVersion);
+        if ($course === null) {
+            return ["course revision {$identity} is not imported"];
+        }
+
+        /** @var array<string, true> $mapped */
+        $mapped = [];
+        foreach ($manifest['sources'] as $source) {
+            if ($source['course_id'] === $courseId && $source['content_version'] === $contentVersion) {
+                $mapped[$source['source_kind'].':'.$source['source_id'].':'.$source['variant']] = true;
+            }
+        }
+
+        $problems = $declared ? [] : ['course declaration is missing'];
+        foreach ($course->utterances as $id => $utterance) {
+            foreach ($utterance['audioVariants'] as $variant) {
+                $key = "utterance:{$id}:{$variant}";
+                if (! isset($mapped[$key])) {
+                    $problems[] = $key;
+                }
+            }
+        }
+        foreach (array_keys($course->targets) as $id) {
+            foreach (['normal', 'slow'] as $variant) {
+                $key = "target:{$id}:{$variant}";
+                if (! isset($mapped[$key])) {
+                    $problems[] = $key;
+                }
+            }
+        }
+        foreach (array_keys($course->sfx) as $id) {
+            $key = "sfx:{$id}:default";
+            if (! isset($mapped[$key])) {
+                $problems[] = $key;
+            }
+        }
+
+        sort($problems, SORT_STRING);
+
+        return $problems;
+    }
+
     // ── import ───────────────────────────────────────────────────────────────
 
     /**

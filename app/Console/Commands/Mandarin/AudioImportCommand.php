@@ -18,7 +18,7 @@ use InvalidArgumentException;
  */
 class AudioImportCommand extends Command
 {
-    protected $signature = 'mandarin:audio:import {path : Manifest written by mandarin:audio:export} {--dry-run} {--execute} {--verify-objects : Check every object on its disk before marking the row ready} {--strict : Fail when any asset or source mapping is skipped}';
+    protected $signature = 'mandarin:audio:import {path : Manifest written by mandarin:audio:export} {--dry-run} {--execute} {--verify-objects : Check every object on its disk before marking the row ready} {--strict : Fail when any asset or source mapping is skipped} {--require-configured-course : Require complete core coverage for the configured course revision}';
 
     protected $description = 'Import a Mandarin audio manifest: recreate ready asset rows and their course source mappings.';
 
@@ -57,6 +57,23 @@ class AudioImportCommand extends Command
             $this->error('The manifest references source(s) outside their course revision: '.implode(', ', $invalidSources).'.');
 
             return self::FAILURE;
+        }
+        if ($this->option('require-configured-course')) {
+            try {
+                [$courseId, $contentVersion] = $this->configuredCourseIdentity();
+            } catch (InvalidArgumentException $exception) {
+                $this->error($exception->getMessage());
+
+                return self::FAILURE;
+            }
+            $coverageProblems = $manifests->courseCoverageProblems($manifest, $courseId, $contentVersion);
+            if ($coverageProblems !== []) {
+                $examples = implode(', ', array_slice($coverageProblems, 0, 5));
+                $suffix = count($coverageProblems) > 5 ? ', …' : '';
+                $this->error(sprintf('Manifest does not cover configured course %s@%s: %s%s', $courseId, $contentVersion, $examples, $suffix));
+
+                return self::FAILURE;
+            }
         }
 
         $execute = (bool) $this->option('execute');
@@ -103,5 +120,22 @@ class AudioImportCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function configuredCourseIdentity(): array
+    {
+        $path = (string) config('mandarin.course.source');
+        $raw = is_file($path) ? file_get_contents($path) : false;
+        if ($raw === false) {
+            throw new InvalidArgumentException('Configured Mandarin course file is not readable.');
+        }
+        /** @var mixed $decoded */
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded) || ! is_string($decoded['courseId'] ?? null) || ! is_string($decoded['contentVersion'] ?? null)) {
+            throw new InvalidArgumentException('Configured Mandarin course file has no valid course identity.');
+        }
+
+        return [$decoded['courseId'], $decoded['contentVersion']];
     }
 }

@@ -196,8 +196,8 @@ php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/aud
 
 # In production (the objects are already in the bucket; the disk needs read access to verify):
 php -d memory_limit=1G artisan mandarin:course:import --stage
-php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict
-php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute --strict
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
+php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute --strict --require-configured-course
 php -d memory_limit=1G artisan mandarin:course:import --activate
 php -d memory_limit=1G artisan mandarin:audio:doctor
 ```
@@ -236,6 +236,8 @@ Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
   a few example recipe hashes. A second `--execute` is a no-op.
 - `--strict` exits unsuccessfully when any asset or source mapping is skipped, so deployment
   cannot report success with an incomplete cache.
+- `--require-configured-course` binds deployment to the exact configured revision and requires
+  all of its utterance, primary-target and cue mappings before that revision can be activated.
 - An unconfigured disk, a course revision that was never imported here, an object key that is
   not a relative storage key, or a digest mismatch all exit 1 before anything is written.
 
