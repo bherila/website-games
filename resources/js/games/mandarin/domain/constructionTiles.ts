@@ -44,7 +44,7 @@ export const CONSTRUCTION_TILES: Readonly<Record<string, ConstructionTile>> = {
   // No target covers this chunk, but utterance 05c is exactly 在这里 and is an
   // ordinary dialogue line, not a reserved checkpoint sentence. Both 在 and 这里
   // are introduced well before this exercise.
-  'g03-c3': { pinyin: 'zài zhèlǐ', en: 'here', audio: { sourceKind: 'utterance', sourceId: '05c', variant: 'normal' } },
+  'g03-c3': { pinyin: 'zài zhèlǐ', en: 'here', audio: support('at-here') },
   'g03-c4': { pinyin: 'děng nǐ', en: 'wait for you', audio: target('wait-you') },
   // g04 — 请再说一遍。
   'g04-c1': { pinyin: 'qǐng', en: 'please', audio: support('please') },

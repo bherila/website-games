@@ -117,6 +117,8 @@ describe('curated tile metadata', () => {
   it('gives every construction tile a curated recording source', () => {
     const silent = Object.entries(CONSTRUCTION_TILES).filter(([, meta]) => meta.audio === null).map(([id]) => id)
     expect(silent).toEqual([])
+    expect(CONSTRUCTION_TILES['g03-c3']?.audio).toEqual({ sourceKind: 'support', sourceId: 'at-here', variant: 'normal' })
+    expect(course.utteranceById.get('05c')?.speechText).toBe('在这里。')
     expect(CONSTRUCTION_TILES['g04-c1']?.audio).toEqual({ sourceKind: 'support', sourceId: 'please', variant: 'normal' })
     expect(CONSTRUCTION_TILES['g04-c2']?.audio).toEqual({ sourceKind: 'support', sourceId: 'again', variant: 'normal' })
     expect(CONSTRUCTION_TILES['g04-c4']?.audio).toEqual({ sourceKind: 'support', sourceId: 'one-time', variant: 'normal' })

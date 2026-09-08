@@ -33,7 +33,7 @@ function strandedEvents(count: number): PracticeEvent[] {
 function setup(pending: PracticeEvent[]) {
   const store = createMemoryPreviewStore()
   store.saveSettings({ twoDMode: true, lowMotion: true })
-  store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1' })
+  store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.1', onboardingComplete: true, currentNodeId: 's1n1' })
   store.saveOutbox(pending)
   const runtime = createPreviewRuntime({ scenario: findPreviewScenario('fresh'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0 })
 
@@ -135,7 +135,7 @@ describe('practice event outbox', () => {
   it('keeps events when the network is down, and sends them when it returns', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true, lowMotion: true })
-    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1' })
+    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.1', onboardingComplete: true, currentNodeId: 's1n1' })
     store.saveOutbox(strandedEvents(2))
     const offline = createPreviewRuntime({ scenario: findPreviewScenario('offline'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0 })
 

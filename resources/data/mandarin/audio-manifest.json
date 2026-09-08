@@ -1,17 +1,17 @@
 {
     "schemaVersion": 1,
-    "exportedAt": "2026-09-08T01:40:21+00:00",
+    "exportedAt": "2026-09-08T06:35:01+00:00",
     "courses": [
         {
             "courseId": "mandarin-foundations",
-            "contentVersion": "1.1.0"
+            "contentVersion": "1.1.1"
         }
     ],
     "counts": {
-        "assets": 312,
-        "sources": 314
+        "assets": 314,
+        "sources": 316
     },
-    "assetsHash": "39edd52444ae332b929e5c1f06b3425712d5f7918e013e44dec48825dfc45ed5",
+    "assetsHash": "4ac0d257d574efe5546ed9bd1fb1ba287c573037de4c298f2abfa81b821035f0",
     "assets": [
         {
             "recipe_hash": "002a65b6e67e0c4b60be5e3d27e98370b481222068b00f693c9acc4f55ac438f",
@@ -4525,6 +4525,43 @@
                 "validation": "ffprobe"
             },
             "ready_at": "2026-09-06T20:06:41+00:00"
+        },
+        {
+            "recipe_hash": "5e7612ba3c1c1bd8d7d0a51efc7559d1697a15bf4d414e48adb88ddca5407a36",
+            "provider": "polly",
+            "kind": "speech",
+            "recipe": {
+                "provider": "polly",
+                "engine": "neural",
+                "voice": "Zhiyu",
+                "language": "cmn-CN",
+                "region": "us-east-1",
+                "rate": "85%",
+                "format": "mp3",
+                "sampleRate": 24000,
+                "template": "polly-v1",
+                "text": "在这里",
+                "kind": "speech",
+                "role": "narrator",
+                "variant": "slow"
+            },
+            "text_length": 3,
+            "disk": "s3",
+            "object_key": "games/mandarin/audio/5e/5e7612ba3c1c1bd8d7d0a51efc7559d1697a15bf4d414e48adb88ddca5407a36-be67dec5afb5.mp3",
+            "content_hash": "be67dec5afb58fc3e78664434b9a874aa3c413088f484cd510147f9849cdd5e4",
+            "content_type": "audio/mpeg",
+            "bytes": 5372,
+            "duration_ms": 888,
+            "provider_metadata": {
+                "voice": "Zhiyu",
+                "engine": "neural",
+                "region": "us-east-1",
+                "requestCharacters": 3,
+                "reportedContentType": "audio/mpeg",
+                "charactersBilled": 3,
+                "validation": "ffprobe"
+            },
+            "ready_at": "2026-09-08T06:34:07+00:00"
         },
         {
             "recipe_hash": "5eceaf21ee4f13fd6008f6f4484cd680e08177ebe3db7f754bd6eff35eeab2fa",
@@ -10180,6 +10217,43 @@
             "ready_at": "2026-09-07T21:27:39+00:00"
         },
         {
+            "recipe_hash": "e0e00222adfd4d86961ed3853782689055ebe744c741cdb29d044d11d71cf6ea",
+            "provider": "polly",
+            "kind": "speech",
+            "recipe": {
+                "provider": "polly",
+                "engine": "neural",
+                "voice": "Zhiyu",
+                "language": "cmn-CN",
+                "region": "us-east-1",
+                "rate": "100%",
+                "format": "mp3",
+                "sampleRate": 24000,
+                "template": "polly-v1",
+                "text": "在这里",
+                "kind": "speech",
+                "role": "narrator",
+                "variant": "normal"
+            },
+            "text_length": 3,
+            "disk": "s3",
+            "object_key": "games/mandarin/audio/e0/e0e00222adfd4d86961ed3853782689055ebe744c741cdb29d044d11d71cf6ea-6f948627c35d.mp3",
+            "content_hash": "6f948627c35dbdae8a60804d6c0067b1672aa99ed5a8f76cff2b3f9038068db1",
+            "content_type": "audio/mpeg",
+            "bytes": 4796,
+            "duration_ms": 792,
+            "provider_metadata": {
+                "voice": "Zhiyu",
+                "engine": "neural",
+                "region": "us-east-1",
+                "requestCharacters": 3,
+                "reportedContentType": "audio/mpeg",
+                "charactersBilled": 3,
+                "validation": "ffprobe"
+            },
+            "ready_at": "2026-09-08T06:34:06+00:00"
+        },
+        {
             "recipe_hash": "e13dc7f0b5d3cbf1d8cda3cf72a08cbafc83a27311b26539168e78212ac37f77",
             "provider": "polly",
             "kind": "speech",
@@ -11515,7 +11589,7 @@
     "sources": [
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "sfx",
             "source_id": "answer-correct",
             "variant": "default",
@@ -11523,7 +11597,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "sfx",
             "source_id": "answer-help",
             "variant": "default",
@@ -11531,7 +11605,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "sfx",
             "source_id": "scene-complete",
             "variant": "default",
@@ -11539,7 +11613,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "sfx",
             "source_id": "ui-tap",
             "variant": "default",
@@ -11547,7 +11621,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "again",
             "variant": "normal",
@@ -11555,7 +11629,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "again",
             "variant": "slow",
@@ -11563,7 +11637,23 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
+            "source_kind": "support",
+            "source_id": "at-here",
+            "variant": "normal",
+            "recipe_hash": "e0e00222adfd4d86961ed3853782689055ebe744c741cdb29d044d11d71cf6ea"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.1.1",
+            "source_kind": "support",
+            "source_id": "at-here",
+            "variant": "slow",
+            "recipe_hash": "5e7612ba3c1c1bd8d7d0a51efc7559d1697a15bf4d414e48adb88ddca5407a36"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "eat",
             "variant": "normal",
@@ -11571,7 +11661,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "eat",
             "variant": "slow",
@@ -11579,7 +11669,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "one-time",
             "variant": "normal",
@@ -11587,7 +11677,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "one-time",
             "variant": "slow",
@@ -11595,7 +11685,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "please",
             "variant": "normal",
@@ -11603,7 +11693,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "please",
             "variant": "slow",
@@ -11611,7 +11701,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "very",
             "variant": "normal",
@@ -11619,7 +11709,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "support",
             "source_id": "very",
             "variant": "slow",
@@ -11627,7 +11717,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "arrived",
             "variant": "normal",
@@ -11635,7 +11725,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "arrived",
             "variant": "slow",
@@ -11643,7 +11733,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "at",
             "variant": "normal",
@@ -11651,7 +11741,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "at",
             "variant": "slow",
@@ -11659,7 +11749,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "be",
             "variant": "normal",
@@ -11667,7 +11757,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "be",
             "variant": "slow",
@@ -11675,7 +11765,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "blue",
             "variant": "normal",
@@ -11683,7 +11773,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "blue",
             "variant": "slow",
@@ -11691,7 +11781,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "bowl",
             "variant": "normal",
@@ -11699,7 +11789,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "bowl",
             "variant": "slow",
@@ -11707,7 +11797,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "bridge",
             "variant": "normal",
@@ -11715,7 +11805,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "bridge",
             "variant": "slow",
@@ -11723,7 +11813,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "dont-know",
             "variant": "normal",
@@ -11731,7 +11821,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "dont-know",
             "variant": "slow",
@@ -11739,7 +11829,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "dont-leave",
             "variant": "normal",
@@ -11747,7 +11837,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "dont-leave",
             "variant": "slow",
@@ -11755,7 +11845,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "find",
             "variant": "normal",
@@ -11763,7 +11853,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "find",
             "variant": "slow",
@@ -11771,7 +11861,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "give",
             "variant": "normal",
@@ -11779,7 +11869,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "give",
             "variant": "slow",
@@ -11787,7 +11877,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "go",
             "variant": "normal",
@@ -11795,7 +11885,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "go",
             "variant": "slow",
@@ -11803,7 +11893,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "have",
             "variant": "normal",
@@ -11811,7 +11901,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "have",
             "variant": "slow",
@@ -11819,7 +11909,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "he",
             "variant": "normal",
@@ -11827,7 +11917,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "he",
             "variant": "slow",
@@ -11835,7 +11925,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "hello",
             "variant": "normal",
@@ -11843,7 +11933,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "hello",
             "variant": "slow",
@@ -11851,7 +11941,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "help",
             "variant": "normal",
@@ -11859,7 +11949,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "help",
             "variant": "slow",
@@ -11867,7 +11957,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "here",
             "variant": "normal",
@@ -11875,7 +11965,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "here",
             "variant": "slow",
@@ -11883,7 +11973,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "i",
             "variant": "normal",
@@ -11891,7 +11981,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "i",
             "variant": "slow",
@@ -11899,7 +11989,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "inside",
             "variant": "normal",
@@ -11907,7 +11997,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "inside",
             "variant": "slow",
@@ -11915,7 +12005,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "left",
             "variant": "normal",
@@ -11923,7 +12013,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "left",
             "variant": "slow",
@@ -11931,7 +12021,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "lets-go",
             "variant": "normal",
@@ -11939,7 +12029,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "lets-go",
             "variant": "slow",
@@ -11947,7 +12037,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "my-friend",
             "variant": "normal",
@@ -11955,7 +12045,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "my-friend",
             "variant": "slow",
@@ -11963,7 +12053,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "noodles",
             "variant": "normal",
@@ -11971,7 +12061,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "noodles",
             "variant": "slow",
@@ -11979,7 +12069,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "not-have",
             "variant": "normal",
@@ -11987,7 +12077,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "not-have",
             "variant": "slow",
@@ -11995,7 +12085,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "not-present",
             "variant": "normal",
@@ -12003,7 +12093,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "not-present",
             "variant": "slow",
@@ -12011,7 +12101,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "not-understand",
             "variant": "normal",
@@ -12019,7 +12109,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "not-understand",
             "variant": "slow",
@@ -12027,7 +12117,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "now",
             "variant": "normal",
@@ -12035,7 +12125,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "now",
             "variant": "slow",
@@ -12043,7 +12133,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "okay",
             "variant": "normal",
@@ -12051,7 +12141,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "okay",
             "variant": "slow",
@@ -12059,7 +12149,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "outside",
             "variant": "normal",
@@ -12067,7 +12157,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "outside",
             "variant": "slow",
@@ -12075,7 +12165,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "question-ma",
             "variant": "normal",
@@ -12083,7 +12173,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "question-ma",
             "variant": "slow",
@@ -12091,7 +12181,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "red",
             "variant": "normal",
@@ -12099,7 +12189,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "red",
             "variant": "slow",
@@ -12107,7 +12197,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "repeat",
             "variant": "normal",
@@ -12115,7 +12205,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "repeat",
             "variant": "slow",
@@ -12123,7 +12213,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "right",
             "variant": "normal",
@@ -12131,7 +12221,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "right",
             "variant": "slow",
@@ -12139,7 +12229,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "say",
             "variant": "normal",
@@ -12147,7 +12237,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "say",
             "variant": "slow",
@@ -12155,7 +12245,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "see",
             "variant": "normal",
@@ -12163,7 +12253,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "see",
             "variant": "slow",
@@ -12171,7 +12261,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "sorry",
             "variant": "normal",
@@ -12179,7 +12269,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "sorry",
             "variant": "slow",
@@ -12187,7 +12277,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "start",
             "variant": "normal",
@@ -12195,7 +12285,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "start",
             "variant": "slow",
@@ -12203,7 +12293,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "tasty",
             "variant": "normal",
@@ -12211,7 +12301,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "tasty",
             "variant": "slow",
@@ -12219,7 +12309,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "thanks",
             "variant": "normal",
@@ -12227,7 +12317,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "thanks",
             "variant": "slow",
@@ -12235,7 +12325,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "there",
             "variant": "normal",
@@ -12243,7 +12333,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "there",
             "variant": "slow",
@@ -12251,7 +12341,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "this",
             "variant": "normal",
@@ -12259,7 +12349,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "this",
             "variant": "slow",
@@ -12267,7 +12357,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "together",
             "variant": "normal",
@@ -12275,7 +12365,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "together",
             "variant": "slow",
@@ -12283,7 +12373,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "tomorrow",
             "variant": "normal",
@@ -12291,7 +12381,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "tomorrow",
             "variant": "slow",
@@ -12299,7 +12389,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "understand",
             "variant": "normal",
@@ -12307,7 +12397,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "understand",
             "variant": "slow",
@@ -12315,7 +12405,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "wait-moment",
             "variant": "normal",
@@ -12323,7 +12413,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "wait-moment",
             "variant": "slow",
@@ -12331,7 +12421,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "wait-you",
             "variant": "normal",
@@ -12339,7 +12429,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "wait-you",
             "variant": "slow",
@@ -12347,7 +12437,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "we",
             "variant": "normal",
@@ -12355,7 +12445,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "we",
             "variant": "slow",
@@ -12363,7 +12453,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "where",
             "variant": "normal",
@@ -12371,7 +12461,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "where",
             "variant": "slow",
@@ -12379,7 +12469,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "who",
             "variant": "normal",
@@ -12387,7 +12477,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "who",
             "variant": "slow",
@@ -12395,7 +12485,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "why",
             "variant": "normal",
@@ -12403,7 +12493,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "why",
             "variant": "slow",
@@ -12411,7 +12501,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "you",
             "variant": "normal",
@@ -12419,7 +12509,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "target",
             "source_id": "you",
             "variant": "slow",
@@ -12427,7 +12517,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01a",
             "variant": "normal",
@@ -12435,7 +12525,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01a",
             "variant": "slow",
@@ -12443,7 +12533,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01b",
             "variant": "normal",
@@ -12451,7 +12541,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01b",
             "variant": "slow",
@@ -12459,7 +12549,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01c",
             "variant": "normal",
@@ -12467,7 +12557,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01c",
             "variant": "slow",
@@ -12475,7 +12565,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01d",
             "variant": "normal",
@@ -12483,7 +12573,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01d",
             "variant": "slow",
@@ -12491,7 +12581,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01e",
             "variant": "normal",
@@ -12499,7 +12589,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01e",
             "variant": "slow",
@@ -12507,7 +12597,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01f",
             "variant": "normal",
@@ -12515,7 +12605,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "01f",
             "variant": "slow",
@@ -12523,7 +12613,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02a",
             "variant": "normal",
@@ -12531,7 +12621,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02a",
             "variant": "slow",
@@ -12539,7 +12629,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02b",
             "variant": "normal",
@@ -12547,7 +12637,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02b",
             "variant": "slow",
@@ -12555,7 +12645,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02c",
             "variant": "normal",
@@ -12563,7 +12653,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02c",
             "variant": "slow",
@@ -12571,7 +12661,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02d",
             "variant": "normal",
@@ -12579,7 +12669,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02d",
             "variant": "slow",
@@ -12587,7 +12677,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02e",
             "variant": "normal",
@@ -12595,7 +12685,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02e",
             "variant": "slow",
@@ -12603,7 +12693,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02f",
             "variant": "normal",
@@ -12611,7 +12701,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "02f",
             "variant": "slow",
@@ -12619,7 +12709,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03a",
             "variant": "normal",
@@ -12627,7 +12717,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03a",
             "variant": "slow",
@@ -12635,7 +12725,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03b",
             "variant": "normal",
@@ -12643,7 +12733,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03b",
             "variant": "slow",
@@ -12651,7 +12741,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03c",
             "variant": "normal",
@@ -12659,7 +12749,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03c",
             "variant": "slow",
@@ -12667,7 +12757,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03d",
             "variant": "normal",
@@ -12675,7 +12765,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03d",
             "variant": "slow",
@@ -12683,7 +12773,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03e",
             "variant": "normal",
@@ -12691,7 +12781,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03e",
             "variant": "slow",
@@ -12699,7 +12789,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03f",
             "variant": "normal",
@@ -12707,7 +12797,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "03f",
             "variant": "slow",
@@ -12715,7 +12805,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04a",
             "variant": "normal",
@@ -12723,7 +12813,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04a",
             "variant": "slow",
@@ -12731,7 +12821,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04b",
             "variant": "normal",
@@ -12739,7 +12829,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04b",
             "variant": "slow",
@@ -12747,7 +12837,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04c",
             "variant": "normal",
@@ -12755,7 +12845,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04c",
             "variant": "slow",
@@ -12763,7 +12853,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04d",
             "variant": "normal",
@@ -12771,7 +12861,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04d",
             "variant": "slow",
@@ -12779,7 +12869,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04e",
             "variant": "normal",
@@ -12787,7 +12877,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04e",
             "variant": "slow",
@@ -12795,7 +12885,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04f",
             "variant": "normal",
@@ -12803,7 +12893,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "04f",
             "variant": "slow",
@@ -12811,7 +12901,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05a",
             "variant": "normal",
@@ -12819,7 +12909,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05a",
             "variant": "slow",
@@ -12827,7 +12917,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05b",
             "variant": "normal",
@@ -12835,7 +12925,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05b",
             "variant": "slow",
@@ -12843,7 +12933,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05c",
             "variant": "normal",
@@ -12851,7 +12941,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05c",
             "variant": "slow",
@@ -12859,7 +12949,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05d",
             "variant": "normal",
@@ -12867,7 +12957,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05d",
             "variant": "slow",
@@ -12875,7 +12965,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05e",
             "variant": "normal",
@@ -12883,7 +12973,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05e",
             "variant": "slow",
@@ -12891,7 +12981,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05f",
             "variant": "normal",
@@ -12899,7 +12989,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "05f",
             "variant": "slow",
@@ -12907,7 +12997,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06a",
             "variant": "normal",
@@ -12915,7 +13005,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06a",
             "variant": "slow",
@@ -12923,7 +13013,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06b",
             "variant": "normal",
@@ -12931,7 +13021,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06b",
             "variant": "slow",
@@ -12939,7 +13029,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06c",
             "variant": "normal",
@@ -12947,7 +13037,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06c",
             "variant": "slow",
@@ -12955,7 +13045,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06d",
             "variant": "normal",
@@ -12963,7 +13053,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06d",
             "variant": "slow",
@@ -12971,7 +13061,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06e",
             "variant": "normal",
@@ -12979,7 +13069,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06e",
             "variant": "slow",
@@ -12987,7 +13077,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06f",
             "variant": "normal",
@@ -12995,7 +13085,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06f",
             "variant": "slow",
@@ -13003,7 +13093,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06g",
             "variant": "normal",
@@ -13011,7 +13101,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06g",
             "variant": "slow",
@@ -13019,7 +13109,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06h",
             "variant": "normal",
@@ -13027,7 +13117,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "06h",
             "variant": "slow",
@@ -13035,7 +13125,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07a",
             "variant": "normal",
@@ -13043,7 +13133,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07a",
             "variant": "slow",
@@ -13051,7 +13141,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07b",
             "variant": "normal",
@@ -13059,7 +13149,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07b",
             "variant": "slow",
@@ -13067,7 +13157,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07c",
             "variant": "normal",
@@ -13075,7 +13165,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07c",
             "variant": "slow",
@@ -13083,7 +13173,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07d",
             "variant": "normal",
@@ -13091,7 +13181,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07d",
             "variant": "slow",
@@ -13099,7 +13189,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07e",
             "variant": "normal",
@@ -13107,7 +13197,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07e",
             "variant": "slow",
@@ -13115,7 +13205,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07f",
             "variant": "normal",
@@ -13123,7 +13213,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07f",
             "variant": "slow",
@@ -13131,7 +13221,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07g",
             "variant": "normal",
@@ -13139,7 +13229,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07g",
             "variant": "slow",
@@ -13147,7 +13237,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07h",
             "variant": "normal",
@@ -13155,7 +13245,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "07h",
             "variant": "slow",
@@ -13163,7 +13253,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08a",
             "variant": "normal",
@@ -13171,7 +13261,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08a",
             "variant": "slow",
@@ -13179,7 +13269,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08b",
             "variant": "normal",
@@ -13187,7 +13277,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08b",
             "variant": "slow",
@@ -13195,7 +13285,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08c",
             "variant": "normal",
@@ -13203,7 +13293,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08c",
             "variant": "slow",
@@ -13211,7 +13301,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08d",
             "variant": "normal",
@@ -13219,7 +13309,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08d",
             "variant": "slow",
@@ -13227,7 +13317,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08e",
             "variant": "normal",
@@ -13235,7 +13325,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08e",
             "variant": "slow",
@@ -13243,7 +13333,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08f",
             "variant": "normal",
@@ -13251,7 +13341,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08f",
             "variant": "slow",
@@ -13259,7 +13349,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08g",
             "variant": "normal",
@@ -13267,7 +13357,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08g",
             "variant": "slow",
@@ -13275,7 +13365,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08h",
             "variant": "normal",
@@ -13283,7 +13373,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "08h",
             "variant": "slow",
@@ -13291,7 +13381,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09a",
             "variant": "normal",
@@ -13299,7 +13389,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09a",
             "variant": "slow",
@@ -13307,7 +13397,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09b",
             "variant": "normal",
@@ -13315,7 +13405,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09b",
             "variant": "slow",
@@ -13323,7 +13413,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09c",
             "variant": "normal",
@@ -13331,7 +13421,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09c",
             "variant": "slow",
@@ -13339,7 +13429,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09d",
             "variant": "normal",
@@ -13347,7 +13437,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09d",
             "variant": "slow",
@@ -13355,7 +13445,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09e",
             "variant": "normal",
@@ -13363,7 +13453,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09e",
             "variant": "slow",
@@ -13371,7 +13461,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09f",
             "variant": "normal",
@@ -13379,7 +13469,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09f",
             "variant": "slow",
@@ -13387,7 +13477,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09g",
             "variant": "normal",
@@ -13395,7 +13485,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09g",
             "variant": "slow",
@@ -13403,7 +13493,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09h",
             "variant": "normal",
@@ -13411,7 +13501,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "09h",
             "variant": "slow",
@@ -13419,7 +13509,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10a",
             "variant": "normal",
@@ -13427,7 +13517,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10a",
             "variant": "slow",
@@ -13435,7 +13525,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10b",
             "variant": "normal",
@@ -13443,7 +13533,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10b",
             "variant": "slow",
@@ -13451,7 +13541,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10c",
             "variant": "normal",
@@ -13459,7 +13549,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10c",
             "variant": "slow",
@@ -13467,7 +13557,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10d",
             "variant": "normal",
@@ -13475,7 +13565,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10d",
             "variant": "slow",
@@ -13483,7 +13573,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10e",
             "variant": "normal",
@@ -13491,7 +13581,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10e",
             "variant": "slow",
@@ -13499,7 +13589,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10f",
             "variant": "normal",
@@ -13507,7 +13597,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10f",
             "variant": "slow",
@@ -13515,7 +13605,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10g",
             "variant": "normal",
@@ -13523,7 +13613,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10g",
             "variant": "slow",
@@ -13531,7 +13621,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10h",
             "variant": "normal",
@@ -13539,7 +13629,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "10h",
             "variant": "slow",
@@ -13547,7 +13637,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T01",
             "variant": "normal",
@@ -13555,7 +13645,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T01",
             "variant": "slow",
@@ -13563,7 +13653,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T02",
             "variant": "normal",
@@ -13571,7 +13661,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T02",
             "variant": "slow",
@@ -13579,7 +13669,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T03",
             "variant": "normal",
@@ -13587,7 +13677,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T03",
             "variant": "slow",
@@ -13595,7 +13685,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T04",
             "variant": "normal",
@@ -13603,7 +13693,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T04",
             "variant": "slow",
@@ -13611,7 +13701,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T05",
             "variant": "normal",
@@ -13619,7 +13709,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T05",
             "variant": "slow",
@@ -13627,7 +13717,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T06",
             "variant": "normal",
@@ -13635,7 +13725,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T06",
             "variant": "slow",
@@ -13643,7 +13733,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T07",
             "variant": "normal",
@@ -13651,7 +13741,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T07",
             "variant": "slow",
@@ -13659,7 +13749,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T08",
             "variant": "normal",
@@ -13667,7 +13757,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T08",
             "variant": "slow",
@@ -13675,7 +13765,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T09",
             "variant": "normal",
@@ -13683,7 +13773,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T09",
             "variant": "slow",
@@ -13691,7 +13781,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T10",
             "variant": "normal",
@@ -13699,7 +13789,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T10",
             "variant": "slow",
@@ -13707,7 +13797,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T11",
             "variant": "normal",
@@ -13715,7 +13805,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T11",
             "variant": "slow",
@@ -13723,7 +13813,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T12",
             "variant": "normal",
@@ -13731,7 +13821,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T12",
             "variant": "slow",
@@ -13739,7 +13829,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T13",
             "variant": "normal",
@@ -13747,7 +13837,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T13",
             "variant": "slow",
@@ -13755,7 +13845,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T14",
             "variant": "normal",
@@ -13763,7 +13853,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T14",
             "variant": "slow",
@@ -13771,7 +13861,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T15",
             "variant": "normal",
@@ -13779,7 +13869,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T15",
             "variant": "slow",
@@ -13787,7 +13877,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T16",
             "variant": "normal",
@@ -13795,7 +13885,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T16",
             "variant": "slow",
@@ -13803,7 +13893,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T17",
             "variant": "normal",
@@ -13811,7 +13901,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T17",
             "variant": "slow",
@@ -13819,7 +13909,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T18",
             "variant": "normal",
@@ -13827,7 +13917,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T18",
             "variant": "slow",
@@ -13835,7 +13925,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T19",
             "variant": "normal",
@@ -13843,7 +13933,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T19",
             "variant": "slow",
@@ -13851,7 +13941,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T20",
             "variant": "normal",
@@ -13859,7 +13949,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "T20",
             "variant": "slow",
@@ -13867,7 +13957,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v01",
             "variant": "normal",
@@ -13875,7 +13965,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v01",
             "variant": "slow",
@@ -13883,7 +13973,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v02",
             "variant": "normal",
@@ -13891,7 +13981,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v02",
             "variant": "slow",
@@ -13899,7 +13989,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v03",
             "variant": "normal",
@@ -13907,7 +13997,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v03",
             "variant": "slow",
@@ -13915,7 +14005,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v04",
             "variant": "normal",
@@ -13923,7 +14013,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v04",
             "variant": "slow",
@@ -13931,7 +14021,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v05",
             "variant": "normal",
@@ -13939,7 +14029,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v05",
             "variant": "slow",
@@ -13947,7 +14037,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v06",
             "variant": "normal",
@@ -13955,7 +14045,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v06",
             "variant": "slow",
@@ -13963,7 +14053,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v07",
             "variant": "normal",
@@ -13971,7 +14061,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v07",
             "variant": "slow",
@@ -13979,7 +14069,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v08",
             "variant": "normal",
@@ -13987,7 +14077,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v08",
             "variant": "slow",
@@ -13995,7 +14085,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v09",
             "variant": "normal",
@@ -14003,7 +14093,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v09",
             "variant": "slow",
@@ -14011,7 +14101,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v10",
             "variant": "normal",
@@ -14019,7 +14109,7 @@
         },
         {
             "course_id": "mandarin-foundations",
-            "content_version": "1.1.0",
+            "content_version": "1.1.1",
             "source_kind": "utterance",
             "source_id": "v10",
             "variant": "slow",

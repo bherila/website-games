@@ -1,4 +1,11 @@
-# Mandarin Quest — phase 2: live runtime report
+# Mandarin Quest — phase 2: historical live runtime report
+
+> Historical snapshot from 2026-09-06 at `44c6986`. The status table, limitations,
+> counts, and validation below describe that local implementation, not today’s release.
+> See [current status](mandarin.md#release-status-and-follow-ups) for the shipped course
+> and tracked follow-ups. Full-course Polly audio, real bucket storage, the SDK adapter,
+> offline practice, and staged deployment verification shipped after this report.
+> Preserve these original observations as evidence of what was tested at that time.
 
 **Branch:** `mandarin-phase2-live` (off `main` at `3d3dc98`, the squash of #41)
 **Implementation head:** `44c6986` — "Add Mandarin Quest live runtime with pluggable speech providers"
@@ -111,7 +118,7 @@ only); no preview banner, Play controls in the `ready` state.
 4. `recordCheckpointResult` takes the freshness captured when the item was shown.
 5. The prompt player's Retry covers a failed slow variant as well.
 
-## Mocked, deferred, or blocked
+## Mocked, deferred, or blocked at this historical head
 
 - **Polly beyond scene 1** is not generated. Full-course cost at the neural rate is about
   $0.011 for both variants (688 characters); the daily character budget caps runaway

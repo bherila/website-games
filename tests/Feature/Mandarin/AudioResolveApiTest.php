@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AudioResolveApiTest extends MandarinTestCase
 {
-    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.1.0'];
+    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.1.1'];
 
     private const HELLO = ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal'];
 

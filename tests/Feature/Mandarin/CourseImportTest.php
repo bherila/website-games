@@ -56,7 +56,7 @@ class CourseImportTest extends MandarinTestCase
     {
         $this->importCourse();
         $course = $this->app->make(CourseRepository::class)->publishedOrFail();
-        $this->assertSame('1.1.0', $course->contentVersion());
+        $this->assertSame('1.1.1', $course->contentVersion());
         $this->assertCount(20, $course->nodeOrder);
         $this->assertSame('s10n2', $course->nodeOrder[19]);
         $this->assertSame('你好。', $course->speechText('utterance', '01a'));
@@ -73,7 +73,7 @@ class CourseImportTest extends MandarinTestCase
 
     public function test_commands_import_and_validate(): void
     {
-        $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Imported mandarin-foundations@1.1.0');
+        $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Imported mandarin-foundations@1.1.1');
         $this->artisan('mandarin:course:import')->assertSuccessful()->expectsOutputToContain('Unchanged');
         $this->artisan('mandarin:validate')->assertSuccessful()->expectsOutputToContain('Matches the imported revision');
     }
@@ -88,18 +88,18 @@ class CourseImportTest extends MandarinTestCase
         $this->artisan("mandarin:course:import {$path} --activate")->assertSuccessful();
         $this->artisan('mandarin:course:import --stage')->assertSuccessful();
         $this->assertSame('1.0.0', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
-        $this->assertSame('staged', MandarinCourseRevision::query()->where('content_version', '1.1.0')->value('status'));
+        $this->assertSame('staged', MandarinCourseRevision::query()->where('content_version', '1.1.1')->value('status'));
 
         $this->artisan('mandarin:course:import --activate')->assertSuccessful();
-        $this->assertSame('1.1.0', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
+        $this->assertSame('1.1.1', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
 
         $this->artisan("mandarin:course:import {$path} --stage")->assertSuccessful();
-        $this->assertSame('1.1.0', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
+        $this->assertSame('1.1.1', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
         $this->artisan("mandarin:course:import {$path} --activate")
             ->assertSuccessful()
             ->expectsOutputToContain('Activated mandarin-foundations@1.0.0.');
         $this->assertSame('1.0.0', $this->app->make(CourseRepository::class)->publishedOrFail()->contentVersion());
-        $this->assertSame('superseded', MandarinCourseRevision::query()->where('content_version', '1.1.0')->value('status'));
+        $this->assertSame('superseded', MandarinCourseRevision::query()->where('content_version', '1.1.1')->value('status'));
     }
 
     public function test_stage_and_activate_are_mutually_exclusive(): void
