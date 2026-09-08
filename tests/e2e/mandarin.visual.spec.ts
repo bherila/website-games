@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import course from '../../resources/data/mandarin/foundations.v1.json' with { type: 'json' }
 import { capture, ONBOARDED, openPreview } from './mandarin.helpers'
 
 test.describe('Mandarin Quest visual harness', () => {
@@ -74,7 +75,16 @@ test.describe('Mandarin Quest visual harness', () => {
     await expect(page.getByTestId('scene-complete-screen')).toBeVisible()
     await page.waitForTimeout(1500)
     await capture(page, testInfo, 'scene-complete-reunion')
-    await page.getByTestId('open-listening-check').click()
+    await expect(page.getByTestId('open-listening-check')).toHaveCount(0)
+    await page.getByTestId('next-scene').click()
+    await expect(page.getByTestId('teaching-screen')).toHaveAttribute('data-node-id', 's6n1')
+    // The reunion is now the midpoint. Only the expanded finale opens the check.
+    await openPreview(page, null, { progress: { ...ONBOARDED,
+      completedNodeIds: course.nodes.map((node) => node.id),
+      introducedNodeIds: course.nodes.map((node) => node.id),
+      completedSceneIds: course.scenes.map((scene) => scene.id), currentNodeId: 's10n2',
+    } })
+    await page.getByTestId('listening-check-button').click()
     await expect(page.getByTestId('listening-check-screen')).toBeVisible()
     await capture(page, testInfo, 'listening-check-intro')
   })

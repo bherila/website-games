@@ -292,18 +292,25 @@ export function parseStoredProgress(value: unknown, course: CourseIndex): Previe
   if (record.version !== PROGRESS_VERSION) return null
   if (record.courseId !== course.identity.courseId) return null
   const strings = (input: unknown): string[] => Array.isArray(input) ? input.filter((item): item is string => typeof item === 'string') : []
-  const currentNodeId = typeof record.currentNodeId === 'string' && course.nodeById.has(record.currentNodeId)
+  let currentNodeId = typeof record.currentNodeId === 'string' && course.nodeById.has(record.currentNodeId)
     ? record.currentNodeId
     : course.nodes[0]!.id
+  // Stable node IDs survive additive course revisions. A learner who finished
+  // the former last node should continue at the extension, not replay the finale.
+  const completedNodeIds = strings(record.completedNodeIds).filter((id) => course.nodeById.has(id))
+  if (record.contentVersion !== course.identity.contentVersion && completedNodeIds.includes(currentNodeId)) {
+    const position = course.nodes.findIndex((node) => node.id === currentNodeId)
+    currentNodeId = course.nodes.slice(position + 1).find((node) => !completedNodeIds.includes(node.id))?.id ?? currentNodeId
+  }
   const checkpoint = typeof record.checkpoint === 'object' && record.checkpoint !== null ? record.checkpoint as Record<string, unknown> : {}
   return {
     version: PROGRESS_VERSION,
     courseId: course.identity.courseId,
-    contentVersion: typeof record.contentVersion === 'string' ? record.contentVersion : course.identity.contentVersion,
+    contentVersion: course.identity.contentVersion,
     onboardingComplete: record.onboardingComplete === true,
     currentNodeId,
     introducedNodeIds: strings(record.introducedNodeIds).filter((id) => course.nodeById.has(id)),
-    completedNodeIds: strings(record.completedNodeIds).filter((id) => course.nodeById.has(id)),
+    completedNodeIds,
     completedSceneIds: strings(record.completedSceneIds).filter((id) => course.sceneById.has(id)),
     opportunities: Array.isArray(record.opportunities)
       ? record.opportunities.filter((item): item is OpportunitySummary =>

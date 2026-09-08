@@ -1,6 +1,6 @@
 @extends('layouts.game')
 
-@section('title', 'Mandarin Quest: Find Your Friend')
+@section('title', 'Mandarin Quest: The Seven-School Supper')
 @section('viewport-content', 'width=device-width, initial-scale=1, viewport-fit=cover')
 
 @section('content')

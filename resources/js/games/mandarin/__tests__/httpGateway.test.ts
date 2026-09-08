@@ -14,7 +14,7 @@ function bootstrapBody(signedIn: boolean): unknown {
     course: courseJson,
     account: { signedIn, accountPartitionId: signedIn ? 'user:7' : null },
     capabilities: { canGenerateAudio: signedIn, canSaveToAccount: signedIn, hasDistinctMandarinVoices: true },
-    audio: { courseId: 'mandarin-foundations', contentVersion: '1.0.1', results: [] },
+    audio: { courseId: 'mandarin-foundations', contentVersion: '1.1.0', results: [] },
     serverTime: '2026-09-06T00:00:00Z',
   }
 }
@@ -30,7 +30,7 @@ function gatewayWith(handler: (call: Call) => Response | Promise<Response>): { g
 }
 
 const event: PracticeEvent = {
-  courseId: 'mandarin-foundations', contentVersion: '1.0.1', schemaVersion: 1, clientEventId: 'e1', clientInstanceId: 'c', sessionId: 's',
+  courseId: 'mandarin-foundations', contentVersion: '1.1.0', schemaVersion: 1, clientEventId: 'e1', clientInstanceId: 'c', sessionId: 's',
   clientOccurredAt: '2026-09-06T00:00:00Z', opportunityId: 'o', kind: 'response', mode: 'lesson', sceneId: 's1', nodeId: 's1n1', exerciseId: 'e001',
   source: null, responseAction: 'answer', selectedOptionId: 'e001-o1', orderedTileIds: null, textHelpUsed: false, pinyinHelpUsed: false,
   audioEvidence: { status: 'completed', normalPlayCount: 1, slowPlayCount: 0, interrupted: false },
@@ -40,7 +40,7 @@ describe('HttpMandarinGateway', () => {
   it('parses the bootstrap course, caches it, and gives guests an empty local projection without calling progress', async () => {
     const { gateway, calls } = gatewayWith(() => jsonResponse(200, bootstrapBody(false)))
     const bootstrap = await gateway.bootstrap()
-    expect(bootstrap.course.scenes).toHaveLength(5)
+    expect(bootstrap.course.scenes).toHaveLength(10)
     expect(bootstrap.account.signedIn).toBe(false)
     const projection = await gateway.getProgress()
     expect(projection.currentNodeId).toBe('s1n1')
@@ -53,7 +53,7 @@ describe('HttpMandarinGateway', () => {
     const { gateway, calls } = gatewayWith((call) => call.url === MANDARIN_API.bootstrap
       ? jsonResponse(200, bootstrapBody(true))
       : jsonResponse(200, {
-        courseId: 'mandarin-foundations', contentVersion: '1.0.1', lastSequence: 2, completedNodeIds: ['s1n1'], completedSceneIds: [], currentNodeId: 's1n2',
+        courseId: 'mandarin-foundations', contentVersion: '1.1.0', lastSequence: 2, completedNodeIds: ['s1n1'], completedSceneIds: [], currentNodeId: 's1n2',
         dueTargetIds: [], checkpointExposedIds: [], schedulerVersion: 'ts-fsrs-5.4.2', schedulerConfigHash: 'x',
         listeningCards: { kind: 'graded-review-log', windowMinutes: 10, reviews: [{ targetId: 'hello', grade: 'Again', scheduleEligible: true, acceptedAt: '2026-09-06T00:00:00Z', sequence: 1 }] },
       }))
@@ -87,9 +87,9 @@ describe('HttpMandarinGateway', () => {
     const ready = { state: 'ready', source: { sourceKind: 'utterance', sourceId: '01a', variant: 'normal' }, assetId: '1', url: '/media/games/mandarin/1/abc.m4a', expiresAt: null, contentHash: 'abc', contentType: 'audio/mp4', durationMs: 900, provenance: 'synthesized_speech' }
     let status = 202
     const { gateway } = gatewayWith((call) => call.url === MANDARIN_API.resolve
-      ? (status === 202 ? jsonResponse(202, { courseId: 'mandarin-foundations', contentVersion: '1.0.1', results: [ready] }) : jsonResponse(status, {}))
+      ? (status === 202 ? jsonResponse(202, { courseId: 'mandarin-foundations', contentVersion: '1.1.0', results: [ready] }) : jsonResponse(status, {}))
       : jsonResponse(200, ready))
-    const request = { courseId: 'mandarin-foundations', contentVersion: '1.0.1', sources: [{ sourceKind: 'utterance' as const, sourceId: '01a', variant: 'normal' as const }] }
+    const request = { courseId: 'mandarin-foundations', contentVersion: '1.1.0', sources: [{ sourceKind: 'utterance' as const, sourceId: '01a', variant: 'normal' as const }] }
     expect((await gateway.resolveAudio(request)).results[0]).toEqual(ready)
     expect(await gateway.pollAudio('1')).toEqual(ready)
     status = 401

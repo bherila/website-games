@@ -35,8 +35,8 @@ export function HomeScreen(): ReactElement {
       <Panel className="flex flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <Eyebrow>Find your friend</Eyebrow>
-            <SectionTitle>{allDone ? 'You reached the reunion.' : `Scene ${currentScene.order}: ${currentScene.title}`}</SectionTitle>
+            <Eyebrow>The Seven-School Supper</Eyebrow>
+            <SectionTitle>{allDone ? 'You made it to the supper.' : `Scene ${currentScene.order}: ${currentScene.title}`}</SectionTitle>
             <p className={cn('text-sm', MUTED)}>{allDone ? 'Every scene is complete. Review, practice, or take the listening check.' : `Next: ${currentNode?.title ?? ''}. ${currentScene.objective}`}</p>
           </div>
           <Chip tone={account.tone}>{mock ? (bootstrap.account.signedIn ? 'Mock account' : 'Preview') : bootstrap.account.signedIn ? 'Signed in' : 'Guest'}</Chip>
@@ -71,6 +71,7 @@ export function HomeScreen(): ReactElement {
           </GameButton>
         </div>
       </Panel>
+      <details className="rounded-xl border border-[#e2dccd] bg-white/80 p-3"><summary className="cursor-pointer font-bold">The story so far · meet the friends</summary><p className="mt-2 text-sm">{course.course.synopsis}</p><ul className="mt-2 space-y-2 text-sm">{course.course.roles.map((role) => <li key={role.id}><strong>{role.name}</strong> — {role.description}</li>)}</ul></details>
       <section aria-labelledby="journey-heading" className="flex flex-col gap-2">
         <h2 id="journey-heading" className="text-base font-bold">Journey</h2>
         <JourneyMap

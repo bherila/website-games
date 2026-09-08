@@ -17,7 +17,7 @@ const TONES = [
 
 export function OnboardingScreen(): ReactElement {
   const game = useGame()
-  const { audio } = useRuntime()
+  const { audio, scenario } = useRuntime()
   const [step, setStep] = useState(0)
   const [soundChecked, setSoundChecked] = useState(false)
   const device = audio.deviceVoiceStatus()
@@ -35,10 +35,11 @@ export function OnboardingScreen(): ReactElement {
       {step === 0 && (
         <Panel className="flex flex-col gap-3">
           <Eyebrow>Welcome</Eyebrow>
-          <SectionTitle>Find your friend.</SectionTitle>
-          <p>You arrive in a small town with one goal: find the friend you came to meet. Along the way you will hear short Mandarin lines and learn what they mean by listening, not reading.</p>
+          <SectionTitle>The Seven-School Supper</SectionTitle>
+          <p>{game.course.course.synopsis ?? "Find your friend by listening to the people you meet."}</p>
+          <ul className="space-y-2 text-sm">{game.course.course.roles.map((role) => <li key={role.id}><strong>{role.name}</strong> — {role.description}</li>)}</ul>
           <ul className={cn('list-disc space-y-1 pl-5 text-sm', MUTED)}>
-            <li>Every question plays a spoken line first. The words stay hidden until you answer or ask for help.</li>
+            <li>Listen first; recognizing Chinese characters comes next. Every question plays a spoken line first. The words stay hidden until you answer or ask for help.</li>
             <li>Replays, slower playback and help are always available. They are recorded, never punished.</li>
             <li>No microphone. Nothing you say is recorded.</li>
           </ul>
@@ -54,7 +55,9 @@ export function OnboardingScreen(): ReactElement {
             Play test sound
           </GameButton>
           <p className={cn('text-sm', MUTED)} role="status">
-            {device.available
+            {scenario === null
+              ? 'The chime checks your device volume. In lessons, tap Play to hear recorded Mandarin.'
+              : device.available
               ? `Mandarin preview voice on this device: ${device.name ?? 'available'}. It is a stand-in until real recordings are connected.`
               : 'No Mandarin voice was found on this device. Prompts will show a simulated-playback notice and answers stay unscored until real audio is connected.'}
           </p>

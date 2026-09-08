@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 
 class AudioManifestTest extends MandarinTestCase
 {
-    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.1'];
+    private const IDENTITY = ['courseId' => 'mandarin-foundations', 'contentVersion' => '1.1.0'];
 
     private const HELLO = ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal'];
 
@@ -86,7 +86,7 @@ class AudioManifestTest extends MandarinTestCase
 
         $this->artisan("mandarin:audio:export {$this->path}")
             ->assertSuccessful()
-            ->expectsOutputToContain('mandarin-foundations@1.0.1')
+            ->expectsOutputToContain('mandarin-foundations@1.1.0')
             ->expectsOutputToContain('Wrote 2 ready asset(s) and 2 source mapping(s)');
 
         $raw = (string) file_get_contents($this->path);
@@ -97,7 +97,7 @@ class AudioManifestTest extends MandarinTestCase
         $manifest = $this->manifest();
         $this->assertSame(1, $manifest['schemaVersion']);
         $this->assertNotSame('', $manifest['exportedAt']);
-        $this->assertSame([['courseId' => 'mandarin-foundations', 'contentVersion' => '1.0.1']], $manifest['courses']);
+        $this->assertSame([['courseId' => 'mandarin-foundations', 'contentVersion' => '1.1.0']], $manifest['courses']);
         $this->assertSame(['assets' => 2, 'sources' => 2], $manifest['counts']);
         $this->assertSame(AudioManifestService::assetsHash($manifest['assets']), $manifest['assetsHash']);
 
@@ -118,7 +118,7 @@ class AudioManifestTest extends MandarinTestCase
         $this->assertSame('你好。', $entry['recipe']['text']);
         $this->assertSame(true, $entry['provider_metadata']['fake']);
 
-        $this->assertContains(['course_id' => 'mandarin-foundations', 'content_version' => '1.0.1', 'source_kind' => 'utterance', 'source_id' => '01a', 'variant' => 'slow', 'recipe_hash' => (string) $slow->recipe_hash], $manifest['sources']);
+        $this->assertContains(['course_id' => 'mandarin-foundations', 'content_version' => '1.1.0', 'source_kind' => 'utterance', 'source_id' => '01a', 'variant' => 'slow', 'recipe_hash' => (string) $slow->recipe_hash], $manifest['sources']);
     }
 
     public function test_export_can_be_limited_to_one_disk_and_refuses_an_unknown_one(): void
@@ -511,7 +511,7 @@ class AudioManifestTest extends MandarinTestCase
 
         $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
             ->assertFailed()
-            ->expectsOutputToContain('Manifest does not cover configured course mandarin-foundations@1.0.1');
+            ->expectsOutputToContain('Manifest does not cover configured course mandarin-foundations@1.1.0');
     }
 
     public function test_a_source_outside_the_imported_course_revision_is_refused(): void

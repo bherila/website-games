@@ -87,6 +87,7 @@ export const utteranceSchema = z.object({
 
 export const nodeSchema = z.object({
   id,
+  storyBeat: z.string().optional(),
   sceneId: id,
   order: z.number().int().min(1),
   title: z.string(),
@@ -102,6 +103,7 @@ export const sceneSettingSchema = z.enum(['gate', 'street', 'bridge', 'roadside'
 
 export const sceneSchema = z.object({
   id,
+  resolution: z.string().optional(),
   order: z.number().int().min(1),
   title: z.string(),
   /** The JSON schema allows any non-empty string; the renderer needs one of five known settings. */
@@ -119,6 +121,7 @@ export const courseSchema = z.object({
   schemaVersion: z.literal(1),
   courseId: id,
   contentVersion: id,
+  synopsis: z.string().optional(),
   title: z.string(),
   locale: z.object({
     spokenLanguage: z.string(),
@@ -133,7 +136,7 @@ export const courseSchema = z.object({
     audioAuditioned: z.boolean(),
     notes: z.string(),
   }).strict(),
-  roles: z.array(z.object({ id, name: z.string(), portraitSlotId: id }).strict()),
+  roles: z.array(z.object({ id, name: z.string(), portraitSlotId: id, description: z.string().optional() }).strict()),
   scenes: z.array(sceneSchema),
   nodes: z.array(nodeSchema),
   targets: z.array(targetSchema),

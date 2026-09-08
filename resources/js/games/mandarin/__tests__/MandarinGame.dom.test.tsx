@@ -1,5 +1,5 @@
 /**
- * Full five-scene preview journey in jsdom (2D scenery, memory store, simulated
+ * Full ten-scene preview journey in jsdom (2D scenery, memory store, simulated
  * audio). Asserts the honesty invariants along the way: preview banner, no
  * cloud-save claim, no mastery language, no reserved checkpoint text before
  * the listening check, and preview-only persistence.
@@ -57,7 +57,7 @@ async function solveConstruction(): Promise<void> {
   click(within(construction).getByTestId('continue'))
 }
 
-describe('MandarinGame five-scene preview', () => {
+describe('MandarinGame ten-scene preview', () => {
   it('pre-resolves construction support audio before the learner can tap its tiles', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
@@ -88,7 +88,7 @@ describe('MandarinGame five-scene preview', () => {
     runtime.dispose()
   })
 
-  it('walks onboarding → five scenes → listening check with honest labelling throughout', async () => {
+  it('walks onboarding → ten scenes → listening check with honest labelling throughout', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true, lowMotion: true })
     const fetchSpy = jest.spyOn(globalThis, 'fetch')
@@ -135,7 +135,7 @@ describe('MandarinGame five-scene preview', () => {
         const complete = await screen.findByTestId('scene-complete-screen')
         expect(complete).toHaveAttribute('data-scene-id', scene.id)
         expect(complete.textContent).not.toMatch(/master/i)
-        if (scene.id !== 's5') click(within(complete).getByTestId('next-scene'))
+        if (scene.id !== course.scenes.at(-1)?.id) click(within(complete).getByTestId('next-scene'))
       }
     }
 
@@ -144,21 +144,21 @@ describe('MandarinGame five-scene preview', () => {
     click(within(complete).getByTestId('open-listening-check'))
     const check = await screen.findByTestId('listening-check-screen')
     expect(check).toHaveAttribute('data-check-state', 'intro')
-    expect(screen.getByTestId('fresh-chip')).toHaveTextContent('All 10 items are new to you')
+    expect(screen.getByTestId('fresh-chip')).toHaveTextContent('All 20 items are new to you')
     click(screen.getByTestId('start-check'))
     expect(screen.getByTestId('exposure-chip')).toHaveTextContent('First time')
     // Strict mode: no help before answering, no slow control.
     expect(screen.queryByTestId('help-toggle')).toBeNull()
     expect(screen.queryByTestId('slow-button')).toBeNull()
-    for (let i = 0; i < 10; i += 1) await answerQuestion()
+    for (let i = 0; i < course.checkpointById.size; i += 1) await answerQuestion()
     expect(await screen.findByTestId('check-complete')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(FORBIDDEN)
 
     // Preview persistence only: memory store, no fetch, checkpoint exposure recorded.
     expect(fetchSpy).not.toHaveBeenCalled()
     const saved = store.loadProgress() as { completedSceneIds: string[]; checkpoint: { exposedExerciseIds: string[] } }
-    expect(saved.completedSceneIds).toEqual(['s1', 's2', 's3', 's4', 's5'])
-    expect(saved.checkpoint.exposedExerciseIds).toHaveLength(10)
+    expect(saved.completedSceneIds).toEqual(course.scenes.map((scene) => scene.id))
+    expect(saved.checkpoint.exposedExerciseIds).toHaveLength(20)
     expect(store.loadOutbox()).toEqual([])
     runtime.dispose()
     fetchSpy.mockRestore()
@@ -167,7 +167,7 @@ describe('MandarinGame five-scene preview', () => {
   it('locks the checkpoint and hides reserved text for a fresh learner on Home', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
-    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.1', onboardingComplete: true, currentNodeId: 's1n1' })
+    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1' })
     const runtime = createPreviewRuntime({ scenario: findPreviewScenario('fresh'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
     render(<MandarinGame runtime={runtime} />)
     await screen.findByTestId('home-screen')
@@ -175,7 +175,7 @@ describe('MandarinGame five-scene preview', () => {
     click(screen.getByTestId('listening-check-button'))
     expect(screen.queryByTestId('listening-check-screen')).toBeNull()
     assertHonest()
-    expect(screen.getAllByTestId('scene-card').map((card) => card.getAttribute('data-scene-status'))).toEqual(['available', 'locked', 'locked', 'locked', 'locked'])
+    expect(screen.getAllByTestId('scene-card').map((card) => card.getAttribute('data-scene-status'))).toEqual(['available', ...Array(9).fill('locked')])
     runtime.dispose()
   })
 
@@ -186,7 +186,7 @@ describe('MandarinGame five-scene preview', () => {
     render(<MandarinGame runtime={runtime} />)
     await screen.findByTestId('home-screen')
     expect(screen.getByTestId('review-button')).toHaveTextContent('12 due')
-    expect(screen.getAllByTestId('scene-card').map((card) => card.getAttribute('data-scene-status'))).toEqual(['complete', 'complete', 'available', 'locked', 'locked'])
+    expect(screen.getAllByTestId('scene-card').map((card) => card.getAttribute('data-scene-status'))).toEqual(['complete', 'complete', 'available', ...Array(7).fill('locked')])
     click(screen.getByTestId('review-button'))
     const review = await screen.findByTestId('review-screen')
     expect(review).toHaveAttribute('data-review-state', 'backlogged')
@@ -213,7 +213,7 @@ describe('MandarinGame five-scene preview', () => {
   it('resets the preview partition and the mock server state only after confirmation', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
-    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.0.1', onboardingComplete: true, currentNodeId: 's1n1', completedNodeIds: ['s1n1'] })
+    store.saveProgress({ version: 1, courseId: 'mandarin-foundations', contentVersion: '1.1.0', onboardingComplete: true, currentNodeId: 's1n1', completedNodeIds: ['s1n1'] })
     // The returning scenario seeds completed nodes in the mock gateway too; reset must clear both.
     const runtime = createPreviewRuntime({ scenario: findPreviewScenario('returning'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
     render(<MandarinGame runtime={runtime} />)

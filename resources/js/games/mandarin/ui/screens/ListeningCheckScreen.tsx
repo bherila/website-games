@@ -1,5 +1,5 @@
 /**
- * Ten reserved items, available only after the course. Normal speed first, no
+ * Reserved items, available only after the course. Normal speed first, no
  * subtitles before answering, help only after answering, fresh vs repeat
  * exposure tracked per item. Makes no learning or voice-transfer claim.
  */
@@ -47,7 +47,7 @@ export function ListeningCheckScreen(): ReactElement {
         <Panel className="flex flex-col gap-3">
           <Eyebrow>Listening check</Eyebrow>
           <SectionTitle>Not yet.</SectionTitle>
-          <p className={cn('text-sm', MUTED)}>The listening check opens after the last scene. It uses ten lines you have not heard in the story, so nothing from it is shown early.</p>
+          <p className={cn('text-sm', MUTED)}>The listening check opens after the last scene. It uses {items.length} lines you have not heard in the story, so nothing from it is shown early.</p>
           <GameButton variant="secondary" size="lg" onClick={() => game.navigate({ name: 'home' })}>Back to journey</GameButton>
         </Panel>
       </div>
@@ -64,13 +64,13 @@ export function ListeningCheckScreen(): ReactElement {
             <SectionTitle>Listening check</SectionTitle>
           </div>
           <Chip tone={freshCount === items.length ? 'jade' : freshCount === 0 ? 'neutral' : 'amber'} data-testid="fresh-chip">
-            {freshCount === items.length ? 'All 10 items are new to you' : freshCount === 0 ? 'Repeat · you have heard all 10 before' : `${freshCount} new · ${items.length - freshCount} repeat`}
+            {freshCount === items.length ? `All ${items.length} items are new to you` : freshCount === 0 ? `Repeat · you have heard all ${items.length} before` : `${freshCount} new · ${items.length - freshCount} repeat`}
           </Chip>
         </div>
 
         {!started && (
           <div className="flex flex-col gap-2">
-            <p>Ten short lines, each played once at normal speed. Pick the meaning. No subtitles or hints until you answer. Replays are allowed and recorded.</p>
+            <p>{items.length} short lines, each played once at normal speed. Pick the meaning. No subtitles or hints until you answer. Replays are allowed and recorded.</p>
             <p className={cn('text-sm', MUTED)}>This checks whether you can follow these particular lines today. It is not a certificate, and it says nothing about other speakers or voices.</p>
             <div className="flex flex-wrap gap-2">
               <GameButton variant="primary" size="lg" onClick={() => setStarted(true)} data-testid="start-check">Start</GameButton>

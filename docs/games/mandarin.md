@@ -1,7 +1,10 @@
-# Mandarin Quest: Find Your Friend
+# Mandarin Quest: The Seven-School Supper
 
-A listening-first Mandarin course told as a five-scene story. Served at `/mandarin`;
+A listening-first Mandarin course told as a ten-scene story. Served at `/mandarin`;
 entry point `resources/js/games/mandarin/index.tsx`.
+
+Current lesson proposal: `docs/games/mandarin-story-review.md` describes revision `1.1.0`,
+its recurring characters, new scenes, listening-first reveals, and separate character practice.
 
 Read next: `docs/games/mandarin-phase2-live.md` (what is real, what is verified, how to
 run it with real speech), `docs/games/mandarin-phase1-handoff.md` (the UI pass and its
@@ -46,7 +49,7 @@ never be switched to mocks from the URL.
   computes correctness and the Again/Hard/Good grade from the versioned course. At most
   one schedule-changing result per target every ten minutes; the rest is practice.
 - **Story unlocks are not mastery.** Scene completion counts any resolved run.
-- **Reserved items stay reserved.** Ten checkpoint utterances appear only in the listening
+- **Reserved items stay reserved.** Twenty checkpoint utterances appear only in the listening
   check after the last node.
 - **Partitioned local state.** Preview data lives under `mandarin.preview.*`, live data
   under `mandarin.live.<account>.`; a sign-in never relabels queued events.
@@ -59,7 +62,7 @@ which would attach a wrong recording silently instead of failing.
 
 All 18 tiles have an allowlisted recording source. The three supporting chunks in `g04`
 (请, 再, 一遍) use the `support` source kind, which resolves text from the versioned
-`supportGlossary` without adding those words to the 30 scheduled mastery targets.
+`supportGlossary` without adding those words to the 50 scheduled mastery targets.
 
 在这里 uses utterance `05c` — an ordinary
 dialogue line, not a reserved checkpoint sentence. Note its Polly recipe text is `在这里。`
@@ -105,7 +108,7 @@ grow — so `MandarinEventBatchTest` fails if the server limit is ever lowered p
 constant.
 
 Audio is cached by the service worker from `/media/games/mandarin/{asset}/{hash}.{ext}`, so a
-line heard once stays playable offline. The whole corpus is ~1.1 MB across 162 assets.
+line heard once stays playable offline. The whole corpus is ~2.3 MB across 312 assets.
 
 ## Backend layout (`app/Services/Games/Mandarin/`)
 
@@ -171,7 +174,7 @@ disk exits 1 without touching anything, and the command is idempotent, resumable
 `mandarin:audio:warm --dry-run` computes each provider recipe without synthesizing it and
 reports `ready`, `missing`, and whether the exact revision mapping exists. Supporting
 glossary entries are included only with `--support`, so an ordinary full-course warm does
-not unexpectedly expand from the scored corpus to all 18 context entries.
+not unexpectedly expand from the scored corpus to all 20 context entries.
 
 ## Ship audio to production without a provider
 
@@ -183,9 +186,9 @@ content hash, type, size, duration) and a `mandarin_audio_sources` row mapping t
 source to that recipe hash. `mandarin:audio:export` / `mandarin:audio:import` move them.
 
 The checked-in manifest `resources/data/mandarin/audio-manifest.json` is the current
-corpus: every utterance and target of `mandarin-foundations@1.0.1` in both variants, the
-normal and slow support sources for 请, 再 and 一遍, and the four cues. Its 168 assets and
-170 revision mappings were generated with Polly (Zhiyu, neural) and stored on the `s3`
+corpus: every utterance and target of `mandarin-foundations@1.1.0` in both variants, the
+normal and slow support sources for 请, 再, 一遍, 吃 and 很, and the four cues. Its 312 assets and
+314 revision mappings were generated with Polly (Zhiyu, neural) and stored on the `s3`
 disk under content-addressed keys. Regenerate it when the course or the voice changes:
 
 ```bash

@@ -9,7 +9,7 @@ function fetchFor(signedIn: boolean): typeof fetch {
     runtime: 'live', course: courseJson,
     account: { signedIn, accountPartitionId: signedIn ? 'user:42' : null },
     capabilities: { canGenerateAudio: false, canSaveToAccount: signedIn, hasDistinctMandarinVoices: false },
-    audio: { courseId: 'mandarin-foundations', contentVersion: '1.0.1', results: [] }, serverTime: 'x',
+    audio: { courseId: 'mandarin-foundations', contentVersion: '1.1.0', results: [] }, serverTime: 'x',
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 

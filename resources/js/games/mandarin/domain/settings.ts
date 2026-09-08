@@ -19,7 +19,7 @@ export const DEFAULT_SETTINGS: MandarinSettings = {
   sfxVolume: 0.6,
   lowMotion: false,
   twoDMode: false,
-  pinyinAssist: 'always',
+  pinyinAssist: 'on_request',
   deviceVoicePreview: true,
 }
 
@@ -35,7 +35,7 @@ export function parseSettings(value: unknown): MandarinSettings {
     sfxVolume: clamp01(record.sfxVolume, DEFAULT_SETTINGS.sfxVolume),
     lowMotion: record.lowMotion === true,
     twoDMode: record.twoDMode === true,
-    pinyinAssist: record.pinyinAssist === 'on_request' ? 'on_request' : 'always',
+    pinyinAssist: record.pinyinAssist === 'always' ? 'always' : 'on_request',
     deviceVoicePreview: record.deviceVoicePreview !== false,
   }
 }

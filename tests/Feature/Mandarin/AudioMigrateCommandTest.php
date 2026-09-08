@@ -27,7 +27,7 @@ class AudioMigrateCommandTest extends MandarinTestCase
         $response = $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',
-                'contentVersion' => '1.0.1',
+                'contentVersion' => '1.1.0',
                 'sources' => [$source],
             ])->assertStatus(202);
         $id = (int) $response->json('results.0.requestId');
