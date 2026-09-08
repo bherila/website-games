@@ -1,5 +1,5 @@
 /**
- * The line being spoken, shown on the scenery during teaching.
+ * The current speaker, shown on the scenery during teaching without subtitles.
  *
  * The diorama is decorative, so this is ordinary DOM rendered as a sibling of
  * the canvas rather than inside it — nothing here depends on WebGL, and it
@@ -9,8 +9,8 @@
  * so cancelling, failing or tapping a second line all clear or replace it
  * immediately instead of leaving a stale speaker on screen.
  *
- * It is deliberately `aria-hidden`: every line it shows is already in the
- * dialogue list below it, and announcing both would read the exchange twice.
+ * It is deliberately `aria-hidden`: the speaker is already identified in the
+ * dialogue list below it. Written support is revealed explicitly in that list.
  */
 import type { ReactElement } from 'react'
 
@@ -41,8 +41,7 @@ export function DialogueStage({ course }: { course: CourseIndex }): ReactElement
         )}
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-[#6d7a86]">{role?.name ?? utterance.roleId}</p>
-          <p lang="zh-Hans" className="text-xl font-medium leading-snug tracking-wide text-[#2f3a44]">{utterance.zh}</p>
-          <p lang="zh-Latn-pinyin" className="text-xs text-[#5b6470]">{utterance.pinyin}</p>
+          <p className="text-sm text-[#2f3a44]">Speaking · listen to the exchange</p>
         </div>
       </div>
     </div>

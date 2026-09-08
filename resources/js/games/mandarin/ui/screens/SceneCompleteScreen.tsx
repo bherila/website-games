@@ -28,10 +28,11 @@ export function SceneCompleteScreen({ sceneId }: { sceneId: string }): ReactElem
       <PreviewBanner compact />
       <Panel className="flex flex-col gap-3">
         <Eyebrow>Scene {scene.order} complete</Eyebrow>
-        <SectionTitle>{isFinal ? 'You found your friend.' : `${scene.title}: done.`}</SectionTitle>
+        <SectionTitle>{isFinal ? 'You made it to the supper.' : `${scene.title}: done.`}</SectionTitle>
+        {scene.resolution && <p data-testid="story-resolution">{scene.resolution}</p>}
         <p className={cn('text-sm', MUTED)}>
           {isFinal
-            ? 'The story ends here. The listening check is now open; it uses lines you have not heard before.'
+            ? 'This episode ends here. The listening check is now open; it uses lines you have not heard before.'
             : 'The next scene is unlocked. Completing a scene means you got through it, not that every word is remembered. Review keeps it fresh.'}
         </p>
         <dl className="grid grid-cols-3 gap-2 text-center">

@@ -24,7 +24,7 @@ class BootstrapApiTest extends MandarinTestCase
             ->assertJsonPath('capabilities.canSaveToAccount', false)
             ->assertJsonPath('capabilities.hasDistinctMandarinVoices', false)
             ->assertJsonPath('course.courseId', 'mandarin-foundations')
-            ->assertJsonCount(50, 'course.utterances');
+            ->assertJsonCount(100, 'course.utterances');
         $this->assertSame(0, MandarinAudioAsset::query()->count(), 'bootstrap must never enqueue generation');
     }
 

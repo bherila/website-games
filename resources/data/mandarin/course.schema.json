@@ -82,6 +82,9 @@
           "portraitSlotId": {
             "type": "string",
             "minLength": 1
+          },
+          "description": {
+            "type": "string"
           }
         },
         "required": [
@@ -264,6 +267,9 @@
         ],
         "additionalProperties": false
       }
+    },
+    "synopsis": {
+      "type": "string"
     }
   },
   "required": [
@@ -707,6 +713,9 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "storyBeat": {
+          "type": "string"
         }
       },
       "required": [
@@ -786,6 +795,9 @@
             "string",
             "null"
           ]
+        },
+        "resolution": {
+          "type": "string"
         }
       },
       "required": [

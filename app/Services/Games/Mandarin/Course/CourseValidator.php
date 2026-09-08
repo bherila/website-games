@@ -61,6 +61,16 @@ class CourseValidator
                 }
             }
         }
+        if (array_key_exists('synopsis', $course) && ! is_string($course['synopsis'])) {
+            $problems[] = 'synopsis must be a string';
+        }
+        foreach (['roles' => 'description', 'nodes' => 'storyBeat', 'scenes' => 'resolution'] as $collection => $field) {
+            foreach (is_array($course[$collection]) ? $course[$collection] : [] as $item) {
+                if (is_array($item) && array_key_exists($field, $item) && ! is_string($item[$field])) {
+                    $problems[] = "{$collection}.{$field} must be a string";
+                }
+            }
+        }
         $requiredFields = [
             'scenes' => ['order', 'title', 'setting', 'objective', 'setup', 'nodeIds', 'dialogueUtteranceIds', 'artSlotId', 'grammarNote', 'unlockAfterSceneId'],
             'nodes' => ['sceneId', 'order', 'title', 'introducedTargetIds', 'introducedSupportIds', 'teachingUtteranceIds', 'exerciseIds', 'constructionIds', 'prerequisites'],

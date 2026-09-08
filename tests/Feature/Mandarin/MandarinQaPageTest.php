@@ -29,7 +29,7 @@ class MandarinQaPageTest extends MandarinTestCase
         $response->assertSee('你好。', false)
             ->assertSee('Nǐ hǎo.', false)
             ->assertSee('Hello.')
-            ->assertSee('Scene 1 — At the gate')
+            ->assertSee('Scene 1 — The invitation')
             ->assertSee('Guide')
             // Targets are listed as well as utterances.
             ->assertSee('Targets')
@@ -67,7 +67,7 @@ class MandarinQaPageTest extends MandarinTestCase
         $requestId = (int) $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',
-                'contentVersion' => '1.0.1',
+                'contentVersion' => '1.1.0',
                 'sources' => [['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal']],
             ])->assertStatus(202)->json('results.0.requestId');
         $this->app->make(AudioAssetService::class)->generate($requestId);

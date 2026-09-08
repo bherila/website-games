@@ -28,7 +28,7 @@ describe('preview progress', () => {
     expect(isCheckpointUnlocked(progress, course)).toBe(false)
   })
 
-  it('walks the whole five-scene journey and unlocks the checkpoint only at the end', () => {
+  it('walks the whole ten-scene journey and unlocks the checkpoint only at the end', () => {
     let progress = createInitialProgress(course, now)
     const completedScenes: string[] = []
     for (const node of course.nodes) {
@@ -37,10 +37,10 @@ describe('preview progress', () => {
       const result = completeNode(progress, course, node.id, now)
       progress = result.progress
       if (result.completedSceneId) completedScenes.push(result.completedSceneId)
-      if (node.id !== 's5n2') expect(isCheckpointUnlocked(progress, course)).toBe(false)
+      if (node.id !== 's10n2') expect(isCheckpointUnlocked(progress, course)).toBe(false)
     }
-    expect(completedScenes).toEqual(['s1', 's2', 's3', 's4', 's5'])
-    expect(progress.completedNodeIds).toHaveLength(10)
+    expect(completedScenes).toEqual(course.scenes.map((scene) => scene.id))
+    expect(progress.completedNodeIds).toHaveLength(20)
     expect(isCheckpointUnlocked(progress, course)).toBe(true)
     expect(sceneStatus(progress, course, 's5')).toBe('complete')
   })
@@ -57,7 +57,7 @@ describe('preview progress', () => {
     let progress = createInitialProgress(course, now)
     for (const node of course.nodes) progress = completeNode(markNodeIntroduced(progress, node.id, now), course, node.id, now).progress
     const vocabulary = learnerVisibleVocabulary(progress, course)
-    expect(vocabulary.targetIds).toHaveLength(30)
+    expect(vocabulary.targetIds).toHaveLength(50)
     for (const id of vocabulary.targetIds) expect(course.reservedUtteranceIds.has(id)).toBe(false)
   })
 
@@ -69,6 +69,21 @@ describe('preview progress', () => {
     progress = recordCheckpointResult(progress, { exerciseId: 'cp01', fresh: false, correct: true, assistance: 'unaided', replays: 1 }, now)
     expect(progress.checkpoint.results[1]?.fresh).toBe(false)
     expect(progress.checkpoint.exposedExerciseIds).toEqual(['cp01'])
+  })
+
+  it('continues a completed five-scene revision at scene six without forgetting checkpoint exposure', () => {
+    const completedNodeIds = course.nodes.slice(0, 10).map((node) => node.id)
+    const progress = parseStoredProgress({
+      version: 1, courseId: course.identity.courseId, contentVersion: '1.0.1',
+      currentNodeId: 's5n2', completedNodeIds,
+      completedSceneIds: ['s1', 's2', 's3', 's4', 's5'],
+      checkpoint: { exposedExerciseIds: ['cp01'], results: [] },
+    }, course)!
+    expect(progress.currentNodeId).toBe('s6n1')
+    expect(progress.contentVersion).toBe(course.identity.contentVersion)
+    expect(progress.completedNodeIds).toEqual(completedNodeIds)
+    expect(progress.checkpoint.exposedExerciseIds).toEqual(['cp01'])
+    expect(isCheckpointUnlocked(progress, course)).toBe(false)
   })
 
   it('rejects stored progress from another course or version', () => {
