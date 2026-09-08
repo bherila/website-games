@@ -4,6 +4,7 @@ namespace App\Services\Games\Mandarin\Audio;
 
 use App\Models\Mandarin\MandarinAudioAsset;
 use App\Models\Mandarin\MandarinAudioSource;
+use App\Services\Games\Mandarin\Course\CourseIndex;
 use App\Services\Games\Mandarin\Course\CourseRepository;
 use App\Services\Games\Mandarin\Course\CourseValidator;
 use Illuminate\Database\QueryException;
@@ -325,6 +326,107 @@ class AudioManifestService
         return array_values(array_unique($invalid));
     }
 
+    /**
+     * Ensure a deployment manifest names the exact course being staged and
+     * carries every core utterance, target and cue that live play can request.
+     * Support glossary audio remains opt-in because most support entries are
+     * intentionally shown for context without scheduled playback.
+     *
+     * @param  Manifest  $manifest
+     * @return list<string>
+     */
+    public function courseCoverageProblems(array $manifest, string $courseId, string $contentVersion): array
+    {
+        $identity = $courseId.'@'.$contentVersion;
+        $declared = false;
+        foreach ($manifest['courses'] as $course) {
+            if ($identity === $course['courseId'].'@'.$course['contentVersion']) {
+                $declared = true;
+                break;
+            }
+        }
+
+        $course = $this->courses->revision($courseId, $contentVersion);
+        if ($course === null) {
+            return ["course revision {$identity} is not imported"];
+        }
+
+        /** @var array<string, ManifestAsset> $assets */
+        $assets = array_column($manifest['assets'], null, 'recipe_hash');
+        /** @var array<string, string> $mapped */
+        $mapped = [];
+        $problems = $declared ? [] : ['course declaration is missing'];
+        foreach ($manifest['sources'] as $source) {
+            if ($source['course_id'] === $courseId && $source['content_version'] === $contentVersion) {
+                $key = $source['source_kind'].':'.$source['source_id'].':'.$source['variant'];
+                $mapped[$key] = $source['recipe_hash'];
+                $asset = $assets[$source['recipe_hash']] ?? null;
+                if ($asset === null || ! $this->sourceMatchesRecipe($course, $source, $asset)) {
+                    $problems[] = "source recipe mismatch: {$key}";
+                }
+            }
+        }
+
+        foreach ($course->utterances as $id => $utterance) {
+            foreach ($utterance['audioVariants'] as $variant) {
+                $key = "utterance:{$id}:{$variant}";
+                if (! isset($mapped[$key])) {
+                    $problems[] = $key;
+                }
+            }
+        }
+        foreach (array_keys($course->targets) as $id) {
+            foreach (['normal', 'slow'] as $variant) {
+                $key = "target:{$id}:{$variant}";
+                if (! isset($mapped[$key])) {
+                    $problems[] = $key;
+                }
+            }
+        }
+        foreach (array_keys($course->sfx) as $id) {
+            $key = "sfx:{$id}:default";
+            if (! isset($mapped[$key])) {
+                $problems[] = $key;
+            }
+        }
+        /** @var list<array{source_kind: string, source_id: string, variant: string}> $requiredSources */
+        $requiredSources = config('mandarin.audio.required_sources', []);
+        foreach ($requiredSources as $required) {
+            $key = $required['source_kind'].':'.$required['source_id'].':'.$required['variant'];
+            if (! $course->hasSource($required['source_kind'], $required['source_id'], $required['variant'])) {
+                $problems[] = "configured source is invalid: {$key}";
+            } elseif (! isset($mapped[$key])) {
+                $problems[] = $key;
+            }
+        }
+
+        sort($problems, SORT_STRING);
+
+        return $problems;
+    }
+
+    /**
+     * @param  ManifestSource  $source
+     * @param  ManifestAsset  $asset
+     */
+    private function sourceMatchesRecipe(CourseIndex $course, array $source, array $asset): bool
+    {
+        $recipe = $asset['recipe'];
+        if ($source['source_kind'] === 'sfx') {
+            return $asset['kind'] === 'sfx'
+                && ($recipe['kind'] ?? null) === 'sfx'
+                && ($recipe['recipe'] ?? null) === $course->sfxRecipe($source['source_id']);
+        }
+
+        $text = $course->speechText($source['source_kind'], $source['source_id']);
+
+        return $text !== null
+            && $asset['kind'] === 'speech'
+            && ($recipe['kind'] ?? null) === 'speech'
+            && AudioRecipe::normalizeText((string) ($recipe['text'] ?? '')) === AudioRecipe::normalizeText($text)
+            && ($recipe['variant'] ?? null) === $source['variant'];
+    }
+
     // ── import ───────────────────────────────────────────────────────────────
 
     /**
@@ -354,22 +456,6 @@ class AudioManifestService
         foreach ($manifest['assets'] as $asset) {
             $hash = $asset['recipe_hash'];
             $existing = $existingAssets[$hash] ?? null;
-            if ($existing !== null) {
-                $present[$hash] = true;
-            }
-
-            if ($existing !== null && $existing->isReady()) {
-                if ((string) $existing->content_hash === $asset['content_hash']) {
-                    $unchanged++;
-                    $this->remember($examples['unchanged'], $hash);
-
-                    continue;
-                }
-                $conflicts++;
-                $problems[] = ['recipeHash' => $hash, 'reason' => 'already ready here with a different content hash; left untouched'];
-
-                continue;
-            }
 
             if ($verifyObjects) {
                 $problem = $this->objectProblem($asset);
@@ -379,6 +465,43 @@ class AudioManifestService
 
                     continue;
                 }
+            }
+
+            if ($existing !== null) {
+                $present[$hash] = true;
+            }
+
+            if ($existing !== null && $existing->isReady()) {
+                if ((string) $existing->content_hash === $asset['content_hash']) {
+                    $sameLocation = $existing->disk === $asset['disk']
+                        && $existing->object_key === $asset['object_key']
+                        && $existing->content_type === $asset['content_type']
+                        && (int) $existing->bytes === $asset['bytes'];
+                    if ($sameLocation || ! $verifyObjects) {
+                        $unchanged++;
+                        $this->remember($examples['unchanged'], $hash);
+
+                        continue;
+                    }
+
+                    $refreshed++;
+                    $this->remember($examples['refreshed'], $hash);
+                    if ($execute) {
+                        $outcome = $this->refreshReady($existing, $asset);
+                        if ($outcome !== null) {
+                            $refreshed--;
+                            $conflicts++;
+                            array_pop($examples['refreshed']);
+                            $problems[] = ['recipeHash' => $hash, 'reason' => $outcome];
+                        }
+                    }
+
+                    continue;
+                }
+                $conflicts++;
+                $problems[] = ['recipeHash' => $hash, 'reason' => 'already ready here with a different content hash; left untouched'];
+
+                continue;
             }
 
             if ($existing === null) {
@@ -533,6 +656,23 @@ class AudioManifestService
             ->update($this->readyAttributes($asset) + ['updated_at' => Carbon::now()]);
 
         return $updated === 1 ? null : 'became ready during the import; left as it is';
+    }
+
+    /**
+     * @param  ManifestAsset  $asset
+     * @return string|null the reason the ready row was not repointed
+     */
+    private function refreshReady(MandarinAudioAsset $existing, array $asset): ?string
+    {
+        $updated = MandarinAudioAsset::query()
+            ->whereKey($existing->id)
+            ->where('state', MandarinAudioAsset::STATE_READY)
+            ->where('content_hash', $asset['content_hash'])
+            ->where('disk', $existing->disk)
+            ->where('object_key', $existing->object_key)
+            ->update($this->readyAttributes($asset) + ['updated_at' => Carbon::now()]);
+
+        return $updated === 1 ? null : 'changed during the import; left as it is';
     }
 
     /**

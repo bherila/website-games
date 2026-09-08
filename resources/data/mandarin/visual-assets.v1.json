@@ -17,6 +17,7 @@
       "safeArea": "Keep the middle 60% readable after portrait cropping; render no text. Do not bake UI panels into the art.",
       "fallback": "authored SVG for gate",
       "outputPath": "public/images/games/mandarin/scene-gate-poster.webp",
+      "cacheKey": "7ac8fb73f4c6",
       "status": "generated"
     },
     {

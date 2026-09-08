@@ -8,6 +8,7 @@ use App\Models\Mandarin\MandarinAudioSource;
 use App\Models\User;
 use App\Services\Games\Mandarin\Audio\AudioAssetService;
 use App\Services\Games\Mandarin\Audio\AudioManifestService;
+use App\Services\Games\Mandarin\Course\CourseImporter;
 use App\Services\Games\Mandarin\Speech\NullSpeechSynthesizer;
 use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Support\Facades\Bus;
@@ -352,13 +353,63 @@ class AudioManifestTest extends MandarinTestCase
         $this->assertNull($healed->error_message);
     }
 
+    public function test_a_ready_row_is_repointed_to_the_verified_manifest_location(): void
+    {
+        $asset = $this->ready(self::HELLO);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+        $manifest = $this->manifest();
+        $newKey = 'games/mandarin/audio/repointed.mp3';
+        Storage::disk('s3')->put($newKey, Storage::disk('local')->get((string) $asset->object_key));
+        $manifest['assets'][0]['disk'] = 's3';
+        $manifest['assets'][0]['object_key'] = $newKey;
+        $manifest['assetsHash'] = AudioManifestService::assetsHash($manifest['assets']);
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --execute --strict")
+            ->assertSuccessful()
+            ->expectsOutputToContain('Inserted 0, refreshed 1, left 0 unchanged');
+
+        $asset->refresh();
+        $this->assertSame('s3', $asset->disk);
+        $this->assertSame($newKey, $asset->object_key);
+    }
+
+    public function test_an_unverified_import_does_not_repoint_a_ready_row(): void
+    {
+        $asset = $this->ready(self::HELLO);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+        $manifest = $this->manifest();
+        $manifest['assets'][0]['disk'] = 's3';
+        $manifest['assets'][0]['object_key'] = 'games/mandarin/audio/not-verified.mp3';
+        $manifest['assetsHash'] = AudioManifestService::assetsHash($manifest['assets']);
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --execute --strict")
+            ->assertSuccessful()
+            ->expectsOutputToContain('Inserted 0, refreshed 0, left 1 unchanged');
+
+        $asset->refresh();
+        $this->assertSame('local', $asset->disk);
+        $this->assertNotSame($manifest['assets'][0]['object_key'], $asset->object_key);
+    }
+
     public function test_verify_objects_refuses_to_publish_a_row_whose_object_is_absent(): void
     {
         $present = $this->ready(self::HELLO);
         $absent = $this->ready(self::HELLO_SLOW);
         $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
-        $this->wipeRows();
         Storage::disk('local')->delete((string) $absent->object_key);
+
+        // Verification must not trust a matching ready database row when its object is gone.
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --dry-run --strict")
+            ->assertFailed()
+            ->expectsOutputToContain('Strict import failed because the manifest was not imported completely.');
+        $this->assertSame(2, MandarinAudioAsset::query()->count());
+
+        $this->wipeRows();
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --dry-run --strict")
+            ->assertFailed();
+        $this->assertSame(0, MandarinAudioAsset::query()->count());
 
         $this->artisan("mandarin:audio:import {$this->path} --verify-objects --execute")
             ->assertSuccessful()
@@ -413,6 +464,54 @@ class AudioManifestTest extends MandarinTestCase
             ->assertExitCode(1)
             ->expectsOutputToContain('No imported course revision for: mandarin-foundations@9.9.9');
         $this->assertSame(0, MandarinAudioAsset::query()->count());
+    }
+
+    public function test_deployment_requires_the_manifest_to_cover_the_configured_course(): void
+    {
+        $checkedIn = resource_path('data/mandarin/audio-manifest.json');
+        $this->artisan("mandarin:audio:import {$checkedIn} --dry-run --require-configured-course")
+            ->assertSuccessful();
+
+        $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
+        $wrongHash = collect($manifest['sources'])->first(
+            fn (array $source): bool => $source['source_kind'] === 'utterance' && $source['source_id'] === '02a' && $source['variant'] === 'normal',
+        )['recipe_hash'];
+        foreach ($manifest['sources'] as &$source) {
+            if ($source['source_kind'] === 'utterance' && $source['source_id'] === '01a' && $source['variant'] === 'normal') {
+                $source['recipe_hash'] = $wrongHash;
+                break;
+            }
+        }
+        unset($source);
+        $this->rewrite($manifest);
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
+            ->assertFailed()
+            ->expectsOutputToContain('source recipe mismatch: utterance:01a:normal');
+
+        $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
+        $manifest['sources'] = array_values(array_filter(
+            $manifest['sources'],
+            fn (array $source): bool => ! ($source['source_kind'] === 'support' && $source['source_id'] === 'please' && $source['variant'] === 'normal'),
+        ));
+        $this->rewrite($manifest);
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
+            ->assertFailed()
+            ->expectsOutputToContain('support:please:normal');
+
+        $older = $this->courseJson();
+        $older['contentVersion'] = '1.0.0';
+        $this->app->make(CourseImporter::class)->import($older);
+        $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
+        $manifest['courses'][0]['contentVersion'] = '1.0.0';
+        foreach ($manifest['sources'] as &$source) {
+            $source['content_version'] = '1.0.0';
+        }
+        unset($source);
+        $this->rewrite($manifest);
+
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
+            ->assertFailed()
+            ->expectsOutputToContain('Manifest does not cover configured course mandarin-foundations@1.0.1');
     }
 
     public function test_a_source_outside_the_imported_course_revision_is_refused(): void

@@ -42,6 +42,7 @@ interface ManifestAsset {
   dimensions: { width: number; height: number }
   alpha: boolean
   outputPath: string
+  cacheKey?: string
   status: 'not_generated' | 'generated'
 }
 
@@ -52,11 +53,12 @@ function slot(id: VisualSlotId, alt: string, anchor: VisualSlot['anchor'], usage
   if (!asset) throw new Error(`visual-assets.v1.json has no slot ${id}`)
   const fallbackSrc = `${FALLBACK_DIR}/${id}.svg`
   const generatedPath = asset.outputPath.replace(/^public/, '')
+  const generatedSrc = asset.cacheKey ? `${generatedPath}?v=${asset.cacheKey}` : generatedPath
   const generated = asset.status === 'generated'
   return {
     id,
     kind: asset.kind,
-    src: generated ? generatedPath : fallbackSrc,
+    src: generated ? generatedSrc : fallbackSrc,
     fallbackSrc,
     status: generated ? 'generated' : 'fallback',
     width: asset.dimensions.width,
