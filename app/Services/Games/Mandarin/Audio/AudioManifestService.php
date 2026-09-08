@@ -4,6 +4,7 @@ namespace App\Services\Games\Mandarin\Audio;
 
 use App\Models\Mandarin\MandarinAudioAsset;
 use App\Models\Mandarin\MandarinAudioSource;
+use App\Services\Games\Mandarin\Course\CourseIndex;
 use App\Services\Games\Mandarin\Course\CourseRepository;
 use App\Services\Games\Mandarin\Course\CourseValidator;
 use Illuminate\Database\QueryException;
@@ -350,15 +351,22 @@ class AudioManifestService
             return ["course revision {$identity} is not imported"];
         }
 
-        /** @var array<string, true> $mapped */
+        /** @var array<string, ManifestAsset> $assets */
+        $assets = array_column($manifest['assets'], null, 'recipe_hash');
+        /** @var array<string, string> $mapped */
         $mapped = [];
+        $problems = $declared ? [] : ['course declaration is missing'];
         foreach ($manifest['sources'] as $source) {
             if ($source['course_id'] === $courseId && $source['content_version'] === $contentVersion) {
-                $mapped[$source['source_kind'].':'.$source['source_id'].':'.$source['variant']] = true;
+                $key = $source['source_kind'].':'.$source['source_id'].':'.$source['variant'];
+                $mapped[$key] = $source['recipe_hash'];
+                $asset = $assets[$source['recipe_hash']] ?? null;
+                if ($asset === null || ! $this->sourceMatchesRecipe($course, $source, $asset)) {
+                    $problems[] = "source recipe mismatch: {$key}";
+                }
             }
         }
 
-        $problems = $declared ? [] : ['course declaration is missing'];
         foreach ($course->utterances as $id => $utterance) {
             foreach ($utterance['audioVariants'] as $variant) {
                 $key = "utterance:{$id}:{$variant}";
@@ -395,6 +403,28 @@ class AudioManifestService
         sort($problems, SORT_STRING);
 
         return $problems;
+    }
+
+    /**
+     * @param  ManifestSource  $source
+     * @param  ManifestAsset  $asset
+     */
+    private function sourceMatchesRecipe(CourseIndex $course, array $source, array $asset): bool
+    {
+        $recipe = $asset['recipe'];
+        if ($source['source_kind'] === 'sfx') {
+            return $asset['kind'] === 'sfx'
+                && ($recipe['kind'] ?? null) === 'sfx'
+                && ($recipe['recipe'] ?? null) === $course->sfxRecipe($source['source_id']);
+        }
+
+        $text = $course->speechText($source['source_kind'], $source['source_id']);
+
+        return $text !== null
+            && $asset['kind'] === 'speech'
+            && ($recipe['kind'] ?? null) === 'speech'
+            && AudioRecipe::normalizeText((string) ($recipe['text'] ?? '')) === AudioRecipe::normalizeText($text)
+            && ($recipe['variant'] ?? null) === $source['variant'];
     }
 
     // ── import ───────────────────────────────────────────────────────────────

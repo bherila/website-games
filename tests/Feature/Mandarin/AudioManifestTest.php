@@ -454,6 +454,22 @@ class AudioManifestTest extends MandarinTestCase
             ->assertSuccessful();
 
         $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
+        $wrongHash = collect($manifest['sources'])->first(
+            fn (array $source): bool => $source['source_kind'] === 'utterance' && $source['source_id'] === '02a' && $source['variant'] === 'normal',
+        )['recipe_hash'];
+        foreach ($manifest['sources'] as &$source) {
+            if ($source['source_kind'] === 'utterance' && $source['source_id'] === '01a' && $source['variant'] === 'normal') {
+                $source['recipe_hash'] = $wrongHash;
+                break;
+            }
+        }
+        unset($source);
+        $this->rewrite($manifest);
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run --require-configured-course")
+            ->assertFailed()
+            ->expectsOutputToContain('source recipe mismatch: utterance:01a:normal');
+
+        $manifest = $this->app->make(AudioManifestService::class)->parseFile($checkedIn);
         $manifest['sources'] = array_values(array_filter(
             $manifest['sources'],
             fn (array $source): bool => ! ($source['source_kind'] === 'support' && $source['source_id'] === 'please' && $source['variant'] === 'normal'),
