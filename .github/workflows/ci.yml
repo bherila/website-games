@@ -263,3 +263,11 @@ jobs:
               /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course && \
               /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course && \
               /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:course:import --activate"
+
+      # The web handler's limits cannot be read from the CLI, and LiteSpeed silently ignores
+      # .user.ini, so ask the running site. Fails the deploy when the vhost runs another PHP
+      # version or a memory_limit below the php_value that public/.htaccess sets.
+      - name: Verify the web handler's PHP version and memory limit
+        run: |
+          bash scripts/deploy/verify-web-php.sh "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}" \
+            games-laravel https://games.bherila.net 8.5 1024M -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes
