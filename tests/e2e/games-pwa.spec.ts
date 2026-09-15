@@ -20,6 +20,7 @@ test.describe('BWH Games PWA offline reload', () => {
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest')
     const manifest = await page.request.get('/manifest.webmanifest')
     expect(manifest.ok()).toBe(true)
+    expect(manifest.headers()['content-type']).toMatch(/^application\/(?:manifest\+json|json)(?:;|$)/i)
     await expectOfflineReloads(context, page, ALL_GAMES)
   })
 
