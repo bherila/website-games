@@ -209,65 +209,19 @@ jobs:
           name: frontend-build
           path: public/build/
 
-      # cPanel stores the vhost's PHP-version handler INSIDE public/.htaccess, which rsync
-      # replaces on every deploy. Without re-appending it the vhost silently falls back to
-      # the account default (ea-php81) and every page 500s on composer's platform check —
-      # while this workflow still reports success, because every step exits 0. The failure
-      # is visible only in ~/games-laravel/public/error_log. Setting the version in MultiPHP
-      # is not enough on its own: the next deploy wipes it again. This site is currently
-      # serving only because the version was set after the last deploy.
-      - name: Append cPanel PHP handler to .htaccess
-        run: cat htaccess-append.txt >> public/.htaccess
-
-      - name: Set up SSH deploy key
-        run: |
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      # Destination is hard-coded to the games application directory. Because --delete
-      # makes a wrong or empty destination catastrophic, keep this path narrowly scoped.
-      #
-      # Host key is pinned via SSH_KNOWN_HOSTS (no StrictHostKeyChecking=no) — the
-      # deploy key alone only proves who we are, not that the server is who it claims
-      # to be, so skipping host verification here would defeat the point of pinning it.
-      - name: Deploy with rsync
-        run: |
-          rsync -av --delete --exclude='.env' \
-            -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
-            app \
-            bootstrap \
-            config \
-            database \
-            public \
-            resources \
-            routes \
-            storage \
-            vendor \
-            artisan \
-            composer.json \
-            composer.lock \
-            ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/games-laravel/
-
-      - name: Migrate and activate checked-in content on server
-        run: |
-          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes \
-            ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} \
-            "cd ~/games-laravel && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan migrate --force && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan config:clear && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan config:cache && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:course:import --stage && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course && \
-              /opt/cpanel/ea-php85/root/usr/bin/php -d memory_limit=1G artisan mandarin:course:import --activate"
-
-      # The web handler's limits cannot be read from the CLI, and LiteSpeed silently ignores
-      # .user.ini, so ask the running site. Fails the deploy when the vhost runs another PHP
-      # version or a memory_limit below the php_value that public/.htaccess sets.
-      - name: Verify the web handler's PHP version and memory limit
-        run: |
-          bash scripts/deploy/verify-web-php.sh "${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}" \
-            games-laravel https://games.bherila.net 8.5 1024M -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes
+      - name: Deploy with the shared cPanel action
+        uses: bherila/shared-cpanel-deployment@9ecbb31fea530ddecc83b4e5f31924a4a9231253 # v1.1.1
+        with:
+          ssh-host: ${{ secrets.SSH_HOST }}
+          ssh-username: ${{ secrets.SSH_USERNAME }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          deploy-dir: games-laravel
+          site-url: https://games.bherila.net
+          install-cron: false
+          artisan-memory-limit: 1G
+          artisan-commands: |
+            mandarin:course:import --stage
+            mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
+            mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course
+            mandarin:course:import --activate
