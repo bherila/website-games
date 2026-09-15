@@ -1,6 +1,9 @@
 # pnpm 11 reads `allowBuilds` and ignores `onlyBuiltDependencies`; older pnpm
 # versions do the reverse. Both list the same packages deliberately — without
 # `allowBuilds`, pnpm 11 fails closed with ERR_PNPM_IGNORED_BUILDS.
+# Keep per-worktree node_modules as links into pnpm's shared virtual store.
+enableGlobalVirtualStore: true
+
 allowBuilds:
   '@swc/core': true
   spotlight-noindex: true
