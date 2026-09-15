@@ -225,3 +225,20 @@ jobs:
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course
             mandarin:course:import --activate
+
+      - name: Verify deployed manifest MIME type
+        run: |
+          content_type="$({
+            curl --fail --silent --show-error --location --head \
+              --retry 5 --retry-delay 2 --retry-all-errors \
+              https://games.bherila.net/manifest.webmanifest
+          } | awk -F ': *' 'tolower($1) == "content-type" { value = tolower($2) } END { gsub("\\r", "", value); print value }')"
+          media_type="${content_type%%;*}"
+
+          case "$media_type" in
+            application/manifest+json|application/json) ;;
+            *)
+              echo "::error::Unexpected manifest Content-Type: ${content_type:-missing}"
+              exit 1
+              ;;
+          esac
