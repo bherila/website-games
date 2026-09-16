@@ -27,8 +27,11 @@ esac
 
 candidate_root=$(readlink -f -- "$HOME/$candidate_path")
 stable_root=$(readlink -f -- "$HOME/$stable_path")
+releases_root=$(readlink -f -- "$HOME/.deployments/games-laravel/releases")
 [ -f "$candidate_root/artisan" ] || { echo "::error::Candidate has no artisan file." >&2; exit 1; }
 [ -f "$stable_root/artisan" ] || { echo "::error::Stable release has no artisan file." >&2; exit 1; }
+[ -d "$releases_root" ] || { echo "::error::Games releases directory is unavailable." >&2; exit 1; }
+[[ $candidate_root == "$releases_root/"* ]] || { echo "::error::Candidate is outside the games releases directory." >&2; exit 1; }
 
 proc_root=${DEPLOY_QUIESCE_PROC_ROOT:-/proc}
 expected_uid=${DEPLOY_QUIESCE_UID:-$(id -u)}
@@ -67,7 +70,9 @@ for process in "$proc_root"/[0-9]*; do
         *) artisan_path=$(readlink -f -- "$cwd/$artisan_argument" 2>/dev/null || true) ;;
     esac
     if [ "$cwd" = "$stable_root" ] || [[ $cwd == "$stable_root/"* ]] \
-        || [ "$artisan_path" = "$stable_root/artisan" ]; then
+        || [[ $cwd == "$releases_root/"* ]] \
+        || [ "$artisan_path" = "$stable_root/artisan" ] \
+        || [[ $artisan_path == "$releases_root/"* ]]; then
         owned+=("$pid")
     fi
 done
