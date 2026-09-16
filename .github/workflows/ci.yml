@@ -223,7 +223,7 @@ jobs:
         run: printf '{"source_commit":"%s"}\n' "$GITHUB_SHA" > public/deployment-identity.json
 
       - name: Deploy with the shared cPanel action
-        uses: bherila/shared-cpanel-deployment@dce6fd7b6254acdb900b0d50810d72326f60b2c6 # v2.0.0
+        uses: bherila/shared-cpanel-deployment@2d2ef6109f5814d5916bb009467c22ab8e1810d2 # v2.0.1
         with:
           ssh-host: ${{ secrets.SSH_HOST }}
           ssh-username: ${{ secrets.SSH_USERNAME }}
