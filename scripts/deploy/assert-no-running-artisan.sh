@@ -24,8 +24,6 @@ case $php in
     *) echo "::error::PHP must be an absolute path." >&2; exit 2 ;;
 esac
 [ -x "$php" ] || { echo "::error::PHP is not executable." >&2; exit 1; }
-php_executable=$(readlink -f -- "$php")
-[ -n "$php_executable" ] || { echo "::error::Cannot resolve the PHP executable." >&2; exit 1; }
 
 candidate_root=$(readlink -f -- "$HOME/$candidate_path")
 stable_root=$(readlink -f -- "$HOME/$stable_path")
@@ -44,11 +42,6 @@ for process in "$proc_root"/[0-9]*; do
     process_uid=$(awk '$1 == "Uid:" { print $2; exit }' "$process/status")
     [ "$process_uid" = "$expected_uid" ] || continue
 
-    executable=$(readlink -f -- "$process/exe" 2>/dev/null || true)
-    case ${executable##*/} in
-        php | php-cgi | lsphp | ea-php*) ;;
-        *) [ "$executable" = "$php_executable" ] || continue ;;
-    esac
     [ -r "$process/cmdline" ] || {
         echo "::error::Cannot inspect same-user PHP process $pid." >&2
         exit 1

@@ -67,6 +67,17 @@ if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=12
 fi
 rm -rf "$temporary/proc/104"
 
+touch "$temporary/bin/php8.4"
+chmod +x "$temporary/bin/php8.4"
+make_process "$temporary/proc" 105 123 "$stable_release" "$temporary/bin/php8.4" \
+    php8.4 artisan queue:work
+if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
+    fail 'games-owned Artisan process using a stale versioned PHP executable was accepted'
+fi
+rm -rf "$temporary/proc/105"
+
 activation_log="$temporary/activation.log"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >"%s"\n' "$activation_log" >"$temporary/bin/activate-php"
 chmod +x "$temporary/bin/activate-php"
