@@ -6,6 +6,34 @@ use PHPUnit\Framework\TestCase;
 
 class ManifestDeploymentTest extends TestCase
 {
+    public function test_operational_audit_preserves_the_atomic_production_contract(): void
+    {
+        $workflow = file_get_contents(dirname(__DIR__, 2).'/.github/workflows/ci.yml');
+
+        self::assertIsString($workflow);
+        foreach ([
+            'bherila/shared-cpanel-deployment@6e9edf640e38b828eb0b273c339474b28ab3dca4',
+            'operational-audit: true',
+            'deployment-mode: atomic',
+            'atomic-layout: stable-directory',
+            'persistent-paths: storage',
+            'failure-policy: maintenance',
+            'install-cron: false',
+            'artisan-memory-limit: 1G',
+            'quiesce-script: scripts/deploy/assert-no-running-artisan.sh',
+            'post-activate-script: scripts/deploy/activate-mandarin-course.sh',
+            'verification-script: scripts/deploy/verify-production.sh',
+            "!cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main'",
+            "needs.test.result == 'success' && needs['frontend-build'].result == 'success'",
+        ] as $contract) {
+            self::assertStringContainsString($contract, $workflow);
+        }
+        self::assertMatchesRegularExpression(
+            '/group: website-games-production\R\s+cancel-in-progress: false/',
+            $workflow,
+        );
+    }
+
     public function test_audio_import_preflights_strictly_before_writing_shared_data(): void
     {
         $workflow = file_get_contents(dirname(__DIR__, 2).'/.github/workflows/ci.yml');
