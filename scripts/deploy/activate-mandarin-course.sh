@@ -15,10 +15,10 @@ candidate_path=$3
     echo "::error::Unexpected stable path '$stable_path'." >&2
     exit 2
 }
-case $candidate_path in
-    .deployments/games-laravel/releases/*) ;;
-    *) echo "::error::Unexpected candidate path '$candidate_path'." >&2; exit 2 ;;
-esac
+candidate_prefix=.deployments/games-laravel/releases/
+case $candidate_path in "$candidate_prefix"*) ;; *) echo "::error::Unexpected candidate path '$candidate_path'." >&2; exit 2 ;; esac
+candidate_release=${candidate_path#"$candidate_prefix"}
+case $candidate_release in '' | .* | */* | *[!A-Za-z0-9._-]*) echo "::error::Unsafe candidate release name." >&2; exit 2 ;; esac
 case $php in
     /*) ;;
     *) echo "::error::PHP must be an absolute path." >&2; exit 2 ;;
