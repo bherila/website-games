@@ -54,9 +54,10 @@ for process in "$proc_root"/[0-9]*; do
 
     mapfile -d '' -t arguments <"$process/cmdline" || true
     is_artisan=false
+    artisan_argument=
     for argument in "${arguments[@]+"${arguments[@]}"}"; do
         case $argument in
-            artisan | */artisan) is_artisan=true; break ;;
+            artisan | */artisan) is_artisan=true; artisan_argument=$argument; break ;;
         esac
     done
     [ "$is_artisan" = true ] || continue
@@ -66,7 +67,12 @@ for process in "$proc_root"/[0-9]*; do
         echo "::error::Cannot inspect the working directory of Artisan process $pid." >&2
         exit 1
     }
-    if [ "$cwd" = "$stable_root" ] || [[ $cwd == "$stable_root/"* ]]; then
+    case $artisan_argument in
+        /*) artisan_path=$(readlink -f -- "$artisan_argument" 2>/dev/null || true) ;;
+        *) artisan_path=$(readlink -f -- "$cwd/$artisan_argument" 2>/dev/null || true) ;;
+    esac
+    if [ "$cwd" = "$stable_root" ] || [[ $cwd == "$stable_root/"* ]] \
+        || [ "$artisan_path" = "$stable_root/artisan" ]; then
         owned+=("$pid")
     fi
 done

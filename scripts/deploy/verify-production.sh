@@ -50,6 +50,14 @@ for path in /up / /mandarin; do
     curl --fail "${curl_options[@]}" --output /dev/null "$base$path"
 done
 
+curl --fail "${curl_options[@]}" --output "$work/deployment-identity.json" \
+    "$base/deployment-identity.json?commit=$source_commit"
+jq -e --arg commit "$source_commit" '.source_commit == $commit' \
+    "$work/deployment-identity.json" >/dev/null || {
+    echo "::error::The public site is not serving this deployment's source commit." >&2
+    exit 1
+}
+
 curl --fail "${curl_options[@]}" --dump-header "$work/manifest.headers" \
     --output "$work/manifest.body" "$base/manifest.webmanifest"
 content_type=$(awk -F ': *' 'tolower($1) == "content-type" { value = tolower($2) } END { gsub("\r", "", value); print value }' "$work/manifest.headers")
@@ -71,4 +79,4 @@ jq -e --arg version "$expected_version" '
     exit 1
 }
 
-echo "Verified games pages, manifest MIME type, and published Mandarin course $expected_version."
+echo "Verified games source commit, pages, manifest MIME type, and published Mandarin course $expected_version."

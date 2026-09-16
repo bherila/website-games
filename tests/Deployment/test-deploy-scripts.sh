@@ -47,6 +47,15 @@ if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=12
 fi
 rm -rf "$temporary/proc/102"
 
+make_process "$temporary/proc" 103 123 "$home" "$temporary/bin/php" \
+    php "$home/games-laravel/artisan" queue:work
+if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
+    fail 'games-owned Artisan process launched by absolute script path was accepted'
+fi
+rm -rf "$temporary/proc/103"
+
 activation_log="$temporary/activation.log"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >"%s"\n' "$activation_log" >"$temporary/bin/activate-php"
 chmod +x "$temporary/bin/activate-php"
@@ -89,7 +98,7 @@ verify() {
 start_server success
 (cd "$repository" && verify >/dev/null) || fail 'successful production fixture was rejected'
 
-for scenario in wrong_mime stale_course preview_runtime endpoint_failure; do
+for scenario in stale_deployment wrong_mime stale_course preview_runtime endpoint_failure; do
     start_server "$scenario"
     if (cd "$repository" && verify >/dev/null 2>&1); then
         fail "verification accepted $scenario"

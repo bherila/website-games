@@ -19,6 +19,15 @@ if ($path === '/manifest.webmanifest') {
     return;
 }
 
+if ($path === '/deployment-identity.json') {
+    header('Content-Type: application/json');
+    echo json_encode([
+        'source_commit' => $scenario === 'stale_deployment' ? 'bbbbbbbb' : 'aaaaaaaa',
+    ], JSON_THROW_ON_ERROR);
+
+    return;
+}
+
 if ($path === '/api/games/mandarin/bootstrap') {
     header('Content-Type: application/json');
     echo json_encode([
