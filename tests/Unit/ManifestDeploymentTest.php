@@ -19,11 +19,14 @@ class ManifestDeploymentTest extends TestCase
 
     public function test_production_deployment_smokes_the_manifest_mime_type(): void
     {
-        $contents = file_get_contents(dirname(__DIR__, 2).'/.github/workflows/ci.yml');
+        $root = dirname(__DIR__, 2);
+        $workflow = file_get_contents($root.'/.github/workflows/ci.yml');
+        $verification = file_get_contents($root.'/scripts/deploy/verify-production.sh');
 
-        self::assertIsString($contents);
-        self::assertStringContainsString('Verify deployed manifest MIME type', $contents);
-        self::assertStringContainsString('https://games.bherila.net/manifest.webmanifest', $contents);
-        self::assertStringContainsString('application/manifest+json|application/json', $contents);
+        self::assertIsString($workflow);
+        self::assertIsString($verification);
+        self::assertStringContainsString('verification-script: scripts/deploy/verify-production.sh', $workflow);
+        self::assertStringContainsString('/manifest.webmanifest', $verification);
+        self::assertStringContainsString('application/manifest+json | application/json', $verification);
     }
 }
