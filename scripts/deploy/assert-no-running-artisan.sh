@@ -69,6 +69,10 @@ for process in "$proc_root"/[0-9]*; do
         /*) artisan_path=$(readlink -f -- "$artisan_argument" 2>/dev/null || true) ;;
         *) artisan_path=$(readlink -f -- "$cwd/$artisan_argument" 2>/dev/null || true) ;;
     esac
+    [ -n "$artisan_path" ] || {
+        echo "::error::Cannot resolve the Artisan path of same-user process $pid." >&2
+        exit 1
+    }
     if [ "$cwd" = "$stable_root" ] || [[ $cwd == "$stable_root/"* ]] \
         || [[ $cwd == "$releases_root/"* ]] \
         || [ "$artisan_path" = "$stable_root/artisan" ] \
