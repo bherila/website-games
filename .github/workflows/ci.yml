@@ -223,7 +223,7 @@ jobs:
         run: printf '{"source_commit":"%s"}\n' "$GITHUB_SHA" > public/deployment-identity.json
 
       - name: Deploy with the shared cPanel action
-        uses: bherila/shared-cpanel-deployment@e97463f105268c9f63449cf5b6730c95386f709d # v2.1.1
+        uses: bherila/shared-cpanel-deployment@6e9edf640e38b828eb0b273c339474b28ab3dca4 # v2.1.2
         with:
           ssh-host: ${{ secrets.SSH_HOST }}
           ssh-username: ${{ secrets.SSH_USERNAME }}
@@ -235,6 +235,7 @@ jobs:
           atomic-layout: stable-directory
           recovery-release-id: ${{ vars.ATOMIC_RECOVERY_RELEASE_ID }}
           persistent-paths: storage
+          operational-audit: true
           retain-releases: 3
           failure-policy: maintenance
           initial-live-commit: 7462f36067c48b12c786dda82ce01736de5914e1
