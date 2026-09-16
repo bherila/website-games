@@ -15,18 +15,32 @@ candidate_path=$3
     echo "::error::Unexpected stable path '$stable_path'." >&2
     exit 2
 }
-candidate_prefix=.deployments/games-laravel/releases/
-case $candidate_path in "$candidate_prefix"*) ;; *) echo "::error::Unexpected candidate path '$candidate_path'." >&2; exit 2 ;; esac
-candidate_release=${candidate_path#"$candidate_prefix"}
-case $candidate_release in '' | .* | */* | *[!A-Za-z0-9._-]*) echo "::error::Unsafe candidate release name." >&2; exit 2 ;; esac
 case $php in
     /*) ;;
     *) echo "::error::PHP must be an absolute path." >&2; exit 2 ;;
 esac
 [ -x "$php" ] || { echo "::error::PHP is not executable." >&2; exit 1; }
 
-stable_root=$(readlink -f -- "$HOME/$stable_path")
-candidate_root=$(readlink -f -- "$HOME/$candidate_path")
+stable_location=$HOME/$stable_path
+[ -d "$stable_location" ] || { echo "::error::Stable games path is not a directory." >&2; exit 1; }
+stable_root=$(readlink -f -- "$stable_location")
+
+if [ "$candidate_path" = "$stable_path" ]; then
+    # In the stable-directory layout, activation has renamed the exact candidate
+    # into the real cPanel application path before this hook runs.
+    [ ! -L "$stable_location" ] || {
+        echo "::error::Stable-directory activation unexpectedly selected a symlink." >&2
+        exit 1
+    }
+    candidate_root=$stable_root
+else
+    # Keep the hook safe for the opt-in v2.0 release-symlink layout.
+    candidate_prefix=.deployments/games-laravel/releases/
+    case $candidate_path in "$candidate_prefix"*) ;; *) echo "::error::Unexpected candidate path '$candidate_path'." >&2; exit 2 ;; esac
+    candidate_release=${candidate_path#"$candidate_prefix"}
+    case $candidate_release in '' | .* | */* | *[!A-Za-z0-9._-]*) echo "::error::Unsafe candidate release name." >&2; exit 2 ;; esac
+    candidate_root=$(readlink -f -- "$HOME/$candidate_path")
+fi
 [ "$stable_root" = "$candidate_root" ] || {
     echo "::error::Stable games path does not select the candidate release." >&2
     exit 1

@@ -24,10 +24,10 @@ make_process() {
 home="$temporary/home"
 candidate="$home/.deployments/games-laravel/releases/candidate"
 stable_release="$home/.deployments/games-laravel/releases/old"
-mkdir -p "$candidate" "$stable_release" "$temporary/bin" "$temporary/proc"
-touch "$candidate/artisan" "$stable_release/artisan" "$temporary/bin/php"
+stable="$home/games-laravel"
+mkdir -p "$candidate" "$stable_release" "$stable" "$temporary/bin" "$temporary/proc"
+touch "$candidate/artisan" "$stable_release/artisan" "$stable/artisan" "$temporary/bin/php"
 chmod +x "$temporary/bin/php"
-ln -s .deployments/games-laravel/releases/old "$home/games-laravel"
 
 HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
     bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
@@ -39,7 +39,7 @@ HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
     bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
     .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null
 
-make_process "$temporary/proc" 102 123 "$stable_release" "$temporary/bin/php" php artisan queue:work
+make_process "$temporary/proc" 102 123 "$stable" "$temporary/bin/php" php artisan queue:work
 if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
     bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
     .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
@@ -58,7 +58,7 @@ rm -rf "$temporary/proc/103"
 
 touch "$temporary/bin/php8.5"
 chmod +x "$temporary/bin/php8.5"
-make_process "$temporary/proc" 104 123 "$stable_release" "$temporary/bin/php8.5" \
+make_process "$temporary/proc" 104 123 "$stable" "$temporary/bin/php8.5" \
     php8.5 artisan queue:work
 if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
     bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
@@ -69,7 +69,7 @@ rm -rf "$temporary/proc/104"
 
 touch "$temporary/bin/php8.4"
 chmod +x "$temporary/bin/php8.4"
-make_process "$temporary/proc" 105 123 "$stable_release" "$temporary/bin/php8.4" \
+make_process "$temporary/proc" 105 123 "$stable" "$temporary/bin/php8.4" \
     php8.4 artisan queue:work
 if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
     bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
@@ -102,12 +102,19 @@ rm -rf "$temporary/proc/107"
 activation_log="$temporary/activation.log"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >"%s"\n' "$activation_log" >"$temporary/bin/activate-php"
 chmod +x "$temporary/bin/activate-php"
-rm "$home/games-laravel"
-ln -s .deployments/games-laravel/releases/candidate "$home/games-laravel"
+rm -rf "$home/games-laravel"
+mv "$candidate" "$home/games-laravel"
 HOME="$home" bash "$repository/scripts/deploy/activate-mandarin-course.sh" \
-    games-laravel "$temporary/bin/activate-php" .deployments/games-laravel/releases/candidate
+    games-laravel "$temporary/bin/activate-php" games-laravel
 grep -Fx -- '-d memory_limit=1G artisan mandarin:course:import --activate --no-ansi' "$activation_log" >/dev/null \
     || fail 'activation command did not use the stable selected release'
+
+mv "$home/games-laravel" "$home/games-laravel-selected"
+ln -s games-laravel-selected "$home/games-laravel"
+if HOME="$home" bash "$repository/scripts/deploy/activate-mandarin-course.sh" \
+    games-laravel "$temporary/bin/activate-php" games-laravel >/dev/null 2>&1; then
+    fail 'stable-directory activation accepted a symlinked application path'
+fi
 
 allocate_port() {
     php -r '$s = stream_socket_server("tcp://127.0.0.1:0", $e, $m); $n = stream_socket_get_name($s, false); echo substr($n, strrpos($n, ":") + 1); fclose($s);'
