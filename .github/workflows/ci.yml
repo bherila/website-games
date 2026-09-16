@@ -243,9 +243,9 @@ jobs:
           quiesce-script: scripts/deploy/assert-no-running-artisan.sh
           post-activate-script: scripts/deploy/activate-mandarin-course.sh
           verification-script: scripts/deploy/verify-production.sh
-          # --execute performs the same strict object validation as --dry-run.
-          # Running both repeats 314 remote object checks and roughly doubles the
-          # maintenance window without adding a second safety boundary.
+          # Strict execution reports incomplete imports only after writing valid rows.
+          # Preflight without writes before allowing shared production data changes.
           artisan-commands: |
             mandarin:course:import --stage
+            mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course

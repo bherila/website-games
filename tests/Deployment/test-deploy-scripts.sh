@@ -117,7 +117,7 @@ if HOME="$home" bash "$repository/scripts/deploy/activate-mandarin-course.sh" \
 fi
 
 allocate_port() {
-    php -r '$s = stream_socket_server("tcp://127.0.0.1:0", $e, $m); $n = stream_socket_get_name($s, false); echo substr($n, strrpos($n, ":") + 1); fclose($s);'
+    php -d memory_limit=1G -r 'if (ini_get("memory_limit") !== "1G") { exit(1); } $s = stream_socket_server("tcp://127.0.0.1:0", $e, $m); $n = stream_socket_get_name($s, false); echo substr($n, strrpos($n, ":") + 1); fclose($s);'
 }
 
 start_server() {
@@ -127,7 +127,7 @@ start_server() {
         wait "$server_pid" 2>/dev/null || true
     fi
     port=$(allocate_port)
-    VERIFY_SCENARIO="$scenario" php -S "127.0.0.1:$port" "$repository/tests/Deployment/fixtures/production-router.php" \
+    VERIFY_SCENARIO="$scenario" php -d memory_limit=1G -S "127.0.0.1:$port" "$repository/tests/Deployment/fixtures/production-router.php" \
         >"$temporary/server.log" 2>&1 &
     server_pid=$!
     for _ in {1..50}; do

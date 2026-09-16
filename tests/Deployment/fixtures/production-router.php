@@ -2,6 +2,13 @@
 
 declare(strict_types=1);
 
+if (ini_get('memory_limit') !== '1G') {
+    http_response_code(500);
+    echo 'Fixture PHP requires memory_limit=1G';
+
+    return;
+}
+
 $scenario = getenv('VERIFY_SCENARIO') ?: 'success';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
