@@ -7,7 +7,9 @@ on:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Pull-request supersession is cheap, but cancelling a main run can strand an
+  # in-progress production transaction. Main pushes queue instead.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   frontend-build:
@@ -103,6 +105,11 @@ jobs:
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
+      - name: Test deployment guards and production verification
+        run: |
+          bash -n scripts/deploy/*.sh tests/Deployment/test-deploy-scripts.sh
+          tests/Deployment/test-deploy-scripts.sh
+
   backend-tests:
     name: Backend Tests
     # Several page tests (e.g. BlockBlasterGamePageTest) render a real Blade view
@@ -182,6 +189,9 @@ jobs:
     # trigger GitHub Actions' implicit success() guard and skip deployment.
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.test.result == 'success' && needs['frontend-build'].result == 'success' }}
     runs-on: ubuntu-24.04-arm
+    concurrency:
+      group: website-games-production
+      cancel-in-progress: false
     environment: prod
     permissions:
       contents: read
@@ -209,8 +219,11 @@ jobs:
           name: frontend-build
           path: public/build/
 
+      - name: Stamp the candidate source commit
+        run: printf '{"source_commit":"%s"}\n' "$GITHUB_SHA" > public/deployment-identity.json
+
       - name: Deploy with the shared cPanel action
-        uses: bherila/shared-cpanel-deployment@9ecbb31fea530ddecc83b4e5f31924a4a9231253 # v1.1.1
+        uses: bherila/shared-cpanel-deployment@e97463f105268c9f63449cf5b6730c95386f709d # v2.1.1
         with:
           ssh-host: ${{ secrets.SSH_HOST }}
           ssh-username: ${{ secrets.SSH_USERNAME }}
@@ -218,27 +231,21 @@ jobs:
           ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
           deploy-dir: games-laravel
           site-url: https://games.bherila.net
+          deployment-mode: atomic
+          atomic-layout: stable-directory
+          recovery-release-id: ${{ vars.ATOMIC_RECOVERY_RELEASE_ID }}
+          persistent-paths: storage
+          retain-releases: 3
+          failure-policy: maintenance
+          initial-live-commit: 7462f36067c48b12c786dda82ce01736de5914e1
           install-cron: false
           artisan-memory-limit: 1G
+          quiesce-script: scripts/deploy/assert-no-running-artisan.sh
+          post-activate-script: scripts/deploy/activate-mandarin-course.sh
+          verification-script: scripts/deploy/verify-production.sh
+          # Strict execution reports incomplete imports only after writing valid rows.
+          # Preflight without writes before allowing shared production data changes.
           artisan-commands: |
             mandarin:course:import --stage
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course
-            mandarin:course:import --activate
-
-      - name: Verify deployed manifest MIME type
-        run: |
-          content_type="$({
-            curl --fail --silent --show-error --location --head \
-              --retry 5 --retry-delay 2 --retry-all-errors \
-              https://games.bherila.net/manifest.webmanifest
-          } | awk -F ': *' 'tolower($1) == "content-type" { value = tolower($2) } END { gsub("\\r", "", value); print value }')"
-          media_type="${content_type%%;*}"
-
-          case "$media_type" in
-            application/manifest+json|application/json) ;;
-            *)
-              echo "::error::Unexpected manifest Content-Type: ${content_type:-missing}"
-              exit 1
-              ;;
-          esac
