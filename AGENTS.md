@@ -30,6 +30,8 @@ touch database/database.sqlite   # local DB is sqlite; run migrations only when 
 composer run dev                 # serve + queue + pail + vite concurrently
 ```
 
+**Claude Code cloud sessions:** the `SessionStart` hook in `.claude/settings.json` runs `cloud-repo-bootstrap` (installed by the cloud environment's setup script). It seeds `.env`, installs Composer and pnpm dependencies, sets `APP_KEY`, and prints a `[cloud-repo-bootstrap]` status report. Trust that report rather than reinstalling; rerun `cloud-repo-bootstrap --force` only if it reports a failure. In the cloud, never run `composer install --prefer-dist`: dist archives are `api.github.com` zipballs, which the cloud GitHub proxy refuses for repositories not attached to the session, so Composer stalls falling back package by package. The bootstrap uses `--prefer-source`.
+
 ## Validation (all must pass before committing)
 
 ```bash
