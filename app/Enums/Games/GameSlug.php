@@ -11,6 +11,7 @@ enum GameSlug: string
     case Hover = 'hover';
     case MathHorde = 'math-horde';
     case TwentyFortyEight = '2048';
+    case MarbleWorks = 'marble-works';
 
     public function supports(GameDataScope $scope, string $slot): bool
     {
@@ -50,7 +51,7 @@ enum GameSlug: string
         $level = (int) $slot;
         $maximum = match ($this) {
             self::ChicksChallenge => 40,
-            self::MathHorde => 12,
+            self::MathHorde, self::MarbleWorks => 12,
             default => 25,
         };
 

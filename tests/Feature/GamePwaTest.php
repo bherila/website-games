@@ -19,7 +19,7 @@ class GamePwaTest extends TestCase
         $this->assertSame('/', $manifest['scope']);
         $this->assertSame('/', $manifest['start_url']);
         $this->assertCount(4, $manifest['icons']);
-        $this->assertCount(9, $manifest['shortcuts']);
+        $this->assertCount(10, $manifest['shortcuts']);
 
         // Every shipped game is reachable from the installed app's shortcut
         // menu. On iPhone, installing is the only way to lose the address bar,

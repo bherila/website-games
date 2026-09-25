@@ -1,5 +1,6 @@
 import * as CANNON from 'cannon-es'
 
+import { stepWorldClamped } from '../../../_shared/three/physicsStep'
 import { BLOCK_CATALOG, blockId, type BlockPlacement, type BlockType, type LevelDef, type PlatformDef } from '../../levels/levelTypes'
 import {
   BALL_KILL_Y,
@@ -199,7 +200,7 @@ export function buildLevelWorld(level: LevelDef): LevelWorld {
           platform.body.angularVelocity.set(0, platformAngularVelocity(platform.def, levelWorld.elapsed), 0)
         }
       }
-      handles.world.step(PHYSICS_TIMESTEP, dt, PHYSICS_MAX_SUBSTEPS)
+      stepWorldClamped(handles.world, dt, { fixedStep: PHYSICS_TIMESTEP, maxSubsteps: PHYSICS_MAX_SUBSTEPS })
       for (const block of blocks) {
         if (clearedBlockIds.has(block.id)) {
           continue

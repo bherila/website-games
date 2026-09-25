@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { disposeObject } from '../../_shared/three/threeUtils'
 import {
   BOX_MARBLE_COUNT,
   generateLevel,
@@ -18,7 +19,6 @@ import {
 import { CONVEYOR_PATH_SOUTH_Z } from '../scene/sceneConstants'
 import { computeChuteRefillEvents, computeOpenedBoxEvents } from '../scene/sceneEvents'
 import { conveyorPositionAt, sortingStackColumnPosition } from '../scene/sceneGeometry'
-import { disposeObject } from '../scene/threeUtils'
 
 describe('MarbleSortScene rendering bookkeeping', () => {
   it('maps conveyor drop windows to the physical Lego columns from left to right', () => {

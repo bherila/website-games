@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 
 import { createHintPositionReporter } from '../_shared/hintPositionReporter'
 import type { TapHintPosition } from '../_shared/TapHint'
+import { clearGroup, disposeObject } from '../_shared/three/threeUtils'
 import {
   type GameState,
   type GridPosition,
@@ -78,7 +79,7 @@ import {
 import { computeChuteRefillEvents, computeOpenedBoxEvents } from './scene/sceneEvents'
 import { chutePosition, conveyorPositionAt, gridCellPosition } from './scene/sceneGeometry'
 import type { BeltMarkerRenderItem } from './scene/sceneTypes'
-import { clearGroup, createCanvasTexture, disposeObject, findBoxId } from './scene/threeUtils'
+import { createCanvasTexture, findBoxId } from './scene/threeUtils'
 
 interface MarbleSortSceneProps {
   colorblindMode: boolean

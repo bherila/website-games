@@ -1,3 +1,4 @@
+import type { LevelStarsProgress } from '../_shared/levelStarsProgress'
 import { LEVELS } from './levels/levels'
 import type { LevelDef, StarThresholds } from './levels/levelTypes'
 
@@ -7,13 +8,7 @@ export const BLOCK_BLASTER_PROGRESS_STORAGE_KEY = 'bwh.block-blaster.progress.v1
 
 export type GameStatus = 'select' | 'playing' | 'won' | 'lost'
 
-export interface SavedProgress {
-  version: 1
-  /** Highest playable level id, 1..TOTAL_LEVELS. */
-  unlockedLevel: number
-  /** Best stars earned per level id (0-3). */
-  stars: Record<number, number>
-}
+export type SavedProgress = LevelStarsProgress
 
 export interface HintScreenPosition {
   x: number

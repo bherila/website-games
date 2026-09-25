@@ -17,6 +17,7 @@ import {
   saveProgress as saveMarbleProgress,
 } from '../../marble-sort/gameProgress'
 import { MARBLE_SORT_PROGRESS_STORAGE_KEY } from '../../marble-sort/gameTypes'
+import { loadProgress as loadMarbleWorksProgress } from '../../marble-works/gameProgress'
 import { DATABASE_GAME_DATA, DATABASE_GAME_PROGRESS_DATA } from '../databaseGameData'
 import {
   definitionRowKey,
@@ -83,6 +84,8 @@ describe('database-backed game definitions', () => {
       row('parking-pickup', 'level', '4', { version: 3, stars: 2, score: 350 }),
       row('hover', 'profile', 'default', { version: 1, best_score: 900, best_round_index: 2 }),
       row('hover', 'level', FIRST_MAP, { version: 1, map: FIRST_MAP, clears: 2 }),
+      row('marble-works', 'profile', 'default', { version: 1, unlocked_level: 3 }),
+      row('marble-works', 'level', '2', { version: 1, stars: 3 }),
     ] })
 
     await initializeGameDataPersistence(DATABASE_GAME_DATA)
@@ -106,6 +109,7 @@ describe('database-backed game definitions', () => {
       bestRoundIndex: 2,
       mapsCleared: { [FIRST_MAP]: 2 },
     })
+    expect(loadMarbleWorksProgress()).toMatchObject({ unlockedLevel: 3, stars: { 2: 3 } })
     expect(mockPut).not.toHaveBeenCalled()
   })
 
@@ -237,7 +241,7 @@ describe('database-backed game definitions', () => {
   })
 })
 
-type TestGame = 'chicks-challenge' | 'block-blaster' | 'marble-sort' | 'parking-pickup' | 'hover'
+type TestGame = 'chicks-challenge' | 'block-blaster' | 'marble-sort' | 'parking-pickup' | 'hover' | 'marble-works'
 type TestScope = 'profile' | 'level' | 'save'
 
 function row(game: TestGame, scope: TestScope, slot: string, data: Record<string, unknown>) {
