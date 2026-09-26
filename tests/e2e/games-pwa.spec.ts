@@ -4,6 +4,7 @@ const ALL_GAMES = [
   ['/math-horde', '#math-horde-root'],
   ['/parking-pickup', '#cars-game-root'],
   ['/marble-sort', '#marble-sort-root'],
+  ['/marble-works', '#marble-works-root'],
   ['/block-blaster', '#block-blaster-root'],
   ['/hover', '#hover-game-root'],
   ['/chicks-challenge', '#chicks-game-root'],

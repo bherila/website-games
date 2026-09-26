@@ -1,6 +1,6 @@
-import { canvasSizeForContainer, pointerNdcForRect } from '../scene/viewport'
+import { canvasSizeForContainer, pointerNdcForRect } from '../three/viewport'
 
-describe('Block Blaster viewport helpers', () => {
+describe('shared three.js viewport helpers', () => {
   it('never grows the renderer beyond a small container', () => {
     expect(canvasSizeForContainer(220, 300)).toEqual({ width: 220, height: 300 })
     expect(canvasSizeForContainer(0, 0)).toEqual({ width: 1, height: 1 })

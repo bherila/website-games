@@ -12,6 +12,8 @@ import { TOTAL_LEVELS as HOVER_TOTAL_LEVELS } from '../hover/maps/maps'
 import { summarizeMandarinPreview } from '../mandarin/previewSummary'
 import { loadProgress as loadMarbleSortProgress } from '../marble-sort/gameProgress'
 import { TOTAL_LEVELS as MARBLE_SORT_TOTAL_LEVELS } from '../marble-sort/levels'
+import { loadProgress as loadMarbleWorksProgress } from '../marble-works/gameProgress'
+import { TOTAL_LEVELS as MARBLE_WORKS_TOTAL_LEVELS } from '../marble-works/gameTypes'
 import { loadProgress as loadMathHordeProgress } from '../math-horde/gameProgress'
 import { TOTAL_LEVELS as MATH_HORDE_TOTAL_LEVELS } from '../math-horde/gameTypes'
 import { loadProgress as loadTowerProgress } from '../tower-throwback/gameProgress'
@@ -99,6 +101,16 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     href: '/marble-sort',
     totalLevels: MARBLE_SORT_TOTAL_LEVELS,
     loadProgress: () => loadMarbleSortProgress(),
+  },
+  {
+    kind: 'levels',
+    slug: 'marble-works',
+    title: 'Marble Works',
+    emoji: '🎢',
+    description: 'Build a marble run from ramps, tubes, turns and jumps to roll the marble into the basket.',
+    href: '/marble-works',
+    totalLevels: MARBLE_WORKS_TOTAL_LEVELS,
+    loadProgress: () => loadMarbleWorksProgress(),
   },
   {
     kind: 'levels',

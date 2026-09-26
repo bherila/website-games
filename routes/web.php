@@ -40,6 +40,10 @@ Route::get('/marble-sort', function () {
     return view('games.marble-sort');
 })->name('games.marble-sort');
 
+Route::get('/marble-works', function () {
+    return view('games.marble-works');
+})->name('games.marble-works');
+
 Route::get('/block-blaster', function () {
     return view('games.block-blaster');
 })->name('games.block-blaster');

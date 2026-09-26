@@ -264,6 +264,14 @@ class GameDataApiTest extends TestCase
             'data' => ['version' => 1, 'stars' => 1],
         ])->assertUnprocessable()->assertJsonValidationErrors('slot');
 
+        $this->actingAs($user)->putJson('/api/games/marble-works/data/level/13', [
+            'data' => ['version' => 1, 'stars' => 1],
+        ])->assertUnprocessable()->assertJsonValidationErrors('slot');
+
+        $this->actingAs($user)->putJson('/api/games/marble-works/data/save/autosave', [
+            'data' => ['version' => 1],
+        ])->assertUnprocessable()->assertJsonValidationErrors('slot');
+
         // 2048 is score-only: it has board sizes, not levels.
         $this->actingAs($user)->putJson('/api/games/2048/data/level/1', [
             'data' => ['version' => 1, 'score' => 10],
@@ -338,6 +346,17 @@ class GameDataApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.game', GameSlug::MathHorde->value)
+            ->assertJsonPath('data.slot', '12');
+    }
+
+    public function test_marble_works_accepts_its_final_campaign_level(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->putJson('/api/games/marble-works/data/level/12', [
+                'data' => ['version' => 1, 'stars' => 3],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.game', GameSlug::MarbleWorks->value)
             ->assertJsonPath('data.slot', '12');
     }
 

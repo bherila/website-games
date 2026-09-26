@@ -13,6 +13,7 @@ export const DATABASE_GAME_SLUGS = [
   'hover',
   'math-horde',
   '2048',
+  'marble-works',
 ] as const
 
 export type DatabaseGameSlug = (typeof DATABASE_GAME_SLUGS)[number]

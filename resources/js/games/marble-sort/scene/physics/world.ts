@@ -1,5 +1,6 @@
 import * as CANNON from 'cannon-es'
 
+import { stepWorldClamped } from '../../../_shared/three/physicsStep'
 import {
   BASIN_EXIT_HALF_WIDTH,
   BASIN_FLOOR_Y,
@@ -207,8 +208,7 @@ export function spawnMarbleBody(
 }
 
 export function stepPhysics(world: CANNON.World, dt: number): void {
-  const clamped = Math.min(dt, PHYSICS_MAX_FRAME_DELTA_SECONDS)
-  world.step(PHYSICS_FIXED_TIME_STEP_SECONDS, clamped, PHYSICS_MAX_SUBSTEPS)
+  stepWorldClamped(world, dt, { fixedStep: PHYSICS_FIXED_TIME_STEP_SECONDS, maxSubsteps: PHYSICS_MAX_SUBSTEPS })
 }
 
 export function disposePhysicsWorld(physics: PhysicsWorld): void {

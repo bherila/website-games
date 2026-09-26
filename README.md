@@ -20,7 +20,8 @@ authenticated cloud-saves.
 ## Route prefix
 
 Routes are root-mounted — `/`, `/2048`, `/block-blaster`, `/chicks-challenge`,
-`/hover`, `/marble-sort`, `/math-horde`, `/parking-pickup`, `/tower-throwback` — with
+`/hover`, `/marble-sort`, `/marble-works`, `/math-horde`, `/parking-pickup`,
+`/tower-throwback` — with
 no `/games` prefix. Route *names* use the `games.` prefix (`games.index`,
 `games.2048`, ...), while the service worker and user-facing routes are rooted at `/`.
 The API remains under `/api/games/...` as a namespaced API path.

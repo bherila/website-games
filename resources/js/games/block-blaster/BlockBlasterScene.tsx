@@ -3,6 +3,9 @@ import { type ReactElement, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 import { createHintPositionReporter } from '../_shared/hintPositionReporter'
+import { type ConfettiBurst, createConfettiBurst, disposeConfettiBurst, updateConfettiBurst } from '../_shared/three/effects/confetti'
+import { clearGroup, disposeObject } from '../_shared/three/threeUtils'
+import { canvasSizeForContainer, pointerNdcForRect } from '../_shared/three/viewport'
 import type { SceneProps } from './gameTypes'
 import { blockId, type PlatformDef } from './levels/levelTypes'
 import { type BarrelTipLaunch, type CannonAimAngles, cannonAimAngles, intersectAimPlane, type RimObstacle, solveRimClearingLaunch, trajectoryPositionAt, type Vec3Like } from './scene/aiming'
@@ -12,7 +15,6 @@ import { type CannonMesh, createCannonMesh, setCannonAim } from './scene/builder
 import { createEnvironment } from './scene/builders/environment'
 import { createPlatformMesh } from './scene/builders/platformMesh'
 import { cameraDollyPosition, createCamera, updateCameraAspect } from './scene/cameraRig'
-import { type ConfettiBurst, createConfettiBurst, disposeConfettiBurst, updateConfettiBurst } from './scene/effects/confetti'
 import { createHitPuff, disposeHitPuff, type HitPuff, updateHitPuff } from './scene/effects/hitPuff'
 import { buildLevelWorld, type LevelBlockBody, type LevelWorld, platformAngularVelocity } from './scene/physics/levelWorld'
 import {
@@ -36,6 +38,7 @@ import {
   CANNON_RECOIL_DEPTH,
   CANNON_RECOIL_DURATION_S,
   CLEARED_BLOCK_FADE_S,
+  CONFETTI_DURATION_S,
   FIRE_COOLDOWN_S,
   GHOST_ARC_POINT_COUNT,
   GRAVITY_Y,
@@ -46,8 +49,6 @@ import {
   RETICLE_RADIUS,
   SHADOW_MAP_SIZE,
 } from './scene/sceneConstants'
-import { clearGroup, disposeObject } from './scene/threeUtils'
-import { canvasSizeForContainer, pointerNdcForRect } from './scene/viewport'
 
 /** The barrel swings around this point; the actual launch origin is the tip, solved per aim. */
 const PIVOT: Vec3Like = {
@@ -436,7 +437,7 @@ export function BlockBlasterScene({
         const centerX = level.platforms.reduce((sum, p) => sum + p.center[0], 0) / level.platforms.length
         const centerZ = level.platforms.reduce((sum, p) => sum + p.center[1], 0) / level.platforms.length
         const topY = level.platforms[0]?.topY ?? 2
-        const burst = createConfettiBurst(new THREE.Vector3(centerX, topY + 1, centerZ), now)
+        const burst = createConfettiBurst(new THREE.Vector3(centerX, topY + 1, centerZ), now, CONFETTI_DURATION_S)
         effectGroup.add(burst.group)
         confettiBursts.push(burst)
         onWinRef.current()

@@ -1,9 +1,9 @@
 import * as THREE from 'three'
 
-import { CONFETTI_DURATION_S } from '../sceneConstants'
 
 const CONFETTI_PALETTE = ['#ffe14a', '#ff7be0', '#71f0d3', '#ff9b3f', '#9b7bff', '#ffffff']
 const PARTICLE_COUNT = 24
+const DEFAULT_CONFETTI_DURATION_S = 1.1
 
 export interface ConfettiBurst {
   group: THREE.Group
@@ -19,8 +19,17 @@ interface ConfettiParticle {
   baseScale: number
 }
 
-/** Adapted from marble-sort/scene/animation/confetti.ts for the win-overlay burst. */
-export function createConfettiBurst(position: THREE.Vector3, now: number): ConfettiBurst {
+/**
+ * Win-celebration burst shared by the three.js games (adapted from
+ * marble-sort/scene/animation/confetti.ts). `scale` multiplies particle size
+ * and launch speed for scenes whose world units differ from Block Blaster's.
+ */
+export function createConfettiBurst(
+  position: THREE.Vector3,
+  now: number,
+  duration = DEFAULT_CONFETTI_DURATION_S,
+  scale = 1,
+): ConfettiBurst {
   const group = new THREE.Group()
   group.position.copy(position)
 
@@ -28,15 +37,15 @@ export function createConfettiBurst(position: THREE.Vector3, now: number): Confe
   for (let i = 0; i < PARTICLE_COUNT; i += 1) {
     const hex = CONFETTI_PALETTE[i % CONFETTI_PALETTE.length] ?? '#ffffff'
     const geometry = i % 2 === 0
-      ? new THREE.PlaneGeometry(0.14, 0.07)
-      : new THREE.PlaneGeometry(0.1, 0.1)
+      ? new THREE.PlaneGeometry(0.14 * scale, 0.07 * scale)
+      : new THREE.PlaneGeometry(0.1 * scale, 0.1 * scale)
     const material = new THREE.MeshBasicMaterial({ color: hex, side: THREE.DoubleSide, transparent: true })
     const mesh = new THREE.Mesh(geometry, material)
     const angle = (i / PARTICLE_COUNT) * Math.PI * 2
-    const speed = 2.4 + (Math.random() * 1.8)
+    const speed = (2.4 + (Math.random() * 1.8)) * scale
     const velocity = new THREE.Vector3(
       Math.cos(angle) * speed * 0.7,
-      3.2 + (Math.random() * 1.4),
+      (3.2 + (Math.random() * 1.4)) * scale,
       Math.sin(angle) * speed * 0.7,
     )
     mesh.rotation.z = Math.random() * Math.PI
@@ -49,7 +58,7 @@ export function createConfettiBurst(position: THREE.Vector3, now: number): Confe
     })
   }
 
-  return { group, particles, startedAt: now, duration: CONFETTI_DURATION_S }
+  return { group, particles, startedAt: now, duration }
 }
 
 export function updateConfettiBurst(burst: ConfettiBurst, now: number, gravityY: number, dt: number): boolean {
