@@ -23,7 +23,7 @@ export const LEVELS: readonly LevelDef[] = [
     inventory: { 'ramp-steep': 1 },
     par: { two: 1, three: 1 },
     hint: 'Put a ramp under the marble so it rolls into the basket.',
-    tutorial: { pieceId: 'ramp-steep', cell: { col: 1, row: 3 } },
+    tutorial: { pieceId: 'ramp-steep', cell: { col: 1, row: 3 }, variant: 0, flipped: false },
     solution: [P('ramp-steep', 1, 3)],
   },
   {

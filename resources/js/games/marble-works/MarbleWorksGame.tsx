@@ -10,15 +10,14 @@ import {
   canFlip,
   canRotate,
   cellCenter,
-  cellKey,
   computeStars,
   flipPlacement,
-  footprintCells,
+  matchesTutorial,
+  onTutorialCell,
   placementAt,
   placementProblem,
   placementSize,
   remainingCount,
-  reservedCells,
   rotatePlacement,
 } from './board/grid'
 import { type BoardLayout, worldToScreen } from './board/layout'
@@ -51,7 +50,7 @@ interface Drag {
   moved: boolean
 }
 
-type TutorialStep = 'pick' | 'place' | 'fix' | 'go'
+type TutorialStep = 'pick' | 'place' | 'fix' | 'flip' | 'go'
 
 const FAIL_RESET_DELAY_MS = 650
 
@@ -187,20 +186,15 @@ export function MarbleWorksGame(): ReactElement {
     return null
   }, [armed, drag, editing, hover, level, placements])
 
+  // Highlight exactly the cells a tap would accept: same anchoring and legality check as placing.
   const freeCells = useMemo<Cell[]>(() => {
     if (!level || !armed || !editing) {
       return []
     }
-    const blocked = reservedCells(level)
-    for (const placement of placements) {
-      for (const cell of footprintCells(placement)) {
-        blocked.add(cellKey(cell))
-      }
-    }
     const cells: Cell[] = []
     for (let row = 0; row < level.rows; row += 1) {
       for (let col = 0; col < level.cols; col += 1) {
-        if (!blocked.has(cellKey({ col, row }))) {
+        if (placementProblem(level, placements, anchoredPlacement(armed, { col, row })) === null) {
           cells.push({ col, row })
         }
       }
@@ -214,9 +208,11 @@ export function MarbleWorksGame(): ReactElement {
     ? null
     : placements.length === 0
       ? (armed?.pieceId === tutorial.pieceId ? 'place' : 'pick')
-      : placements.some((placement) => placement.pieceId === tutorial.pieceId && placement.col === tutorial.cell.col && placement.row === tutorial.cell.row)
+      : placements.some((placement) => matchesTutorial(placement, tutorial))
         ? 'go'
-        : 'fix'
+        : placements.some((placement) => onTutorialCell(placement, tutorial))
+          ? 'flip'
+          : 'fix'
 
   const shakeTray = (pieceId: PieceId): void => setTrayShake((current) => ({ pieceId, key: (current?.key ?? 0) + 1 }))
 
@@ -539,9 +535,11 @@ export function MarbleWorksGame(): ReactElement {
       ? 'Now tap the glowing spot to place it.'
       : tutorialStep === 'fix'
         ? 'Almost! Drag your ramp onto the glowing spot.'
-        : tutorialStep === 'go'
-          ? 'Press Go and let it roll!'
-          : null
+        : tutorialStep === 'flip'
+          ? 'Almost! Tap your ramp and use Flip so it slopes toward the basket.'
+          : tutorialStep === 'go'
+            ? 'Press Go and let it roll!'
+            : null
 
   return (
     <PortraitGameShell allowLandscape>
@@ -557,7 +555,7 @@ export function MarbleWorksGame(): ReactElement {
             placements={placements}
             runToken={runToken}
             selected={editing ? selected : null}
-            tutorialCell={tutorialStep === 'place' || tutorialStep === 'fix' ? tutorial?.cell ?? null : null}
+            tutorialCell={tutorialStep === 'place' || tutorialStep === 'fix' || tutorialStep === 'flip' ? tutorial?.cell ?? null : null}
             onBoardPointer={handleBoardPointer}
             onLayout={setLayout}
             onRunEnd={handleRunEnd}
@@ -581,6 +579,7 @@ export function MarbleWorksGame(): ReactElement {
             <PieceActionBar
               canFlip={canFlip(selected.pieceId)}
               canRotate={canRotate(selected.pieceId)}
+              containerWidth={layout?.width ?? 0}
               x={actionBarAnchor[0]}
               y={actionBarAnchor[1]}
               onFlip={() => replaceSelected(flipPlacement)}

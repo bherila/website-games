@@ -44,7 +44,7 @@ export interface LevelDef {
   par: { two: number; three: number }
   hint?: string
   /** Level 1 only: the guided first-run overlay. */
-  tutorial?: { pieceId: PieceId; cell: Cell }
+  tutorial?: { pieceId: PieceId; cell: Cell; variant: number; flipped: boolean }
   /** Reference solution proven by the headless physics test. */
   solution: readonly PiecePlacement[]
 }

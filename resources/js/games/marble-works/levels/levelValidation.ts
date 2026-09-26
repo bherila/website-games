@@ -1,4 +1,4 @@
-import { cellKey, footprintCells, placementProblem, reservedCells } from '../board/grid'
+import { cellKey, footprintCells, matchesTutorial, placementProblem, reservedCells } from '../board/grid'
 import { PIECES } from '../pieces/pieceCatalog'
 import type { Cell, LevelDef, PiecePlacement } from './levelTypes'
 
@@ -86,9 +86,8 @@ export function validateLevel(level: LevelDef): string[] {
     if (reserved.has(cellKey(level.tutorial.cell))) {
       problems.push(`${where}: tutorial cell is not buildable.`)
     }
-    const matches = level.solution.some((placement) => placement.pieceId === level.tutorial?.pieceId
-      && placement.col === level.tutorial.cell.col
-      && placement.row === level.tutorial.cell.row)
+    const tutorial = level.tutorial
+    const matches = level.solution.some((placement) => matchesTutorial(placement, tutorial))
     if (!matches) {
       problems.push(`${where}: tutorial step does not match the reference solution.`)
     }

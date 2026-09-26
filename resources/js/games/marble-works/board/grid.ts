@@ -191,3 +191,17 @@ export function computeStars(piecesUsed: number, par: LevelDef['par']): 1 | 2 | 
 
   return 1
 }
+
+/** Whether a placement is the tutorial's piece on its cell *and* in its orientation. */
+export function matchesTutorial(placement: PiecePlacement, tutorial: NonNullable<LevelDef['tutorial']>): boolean {
+  return placement.pieceId === tutorial.pieceId
+    && placement.col === tutorial.cell.col
+    && placement.row === tutorial.cell.row
+    && placement.variant === tutorial.variant
+    && placement.flipped === tutorial.flipped
+}
+
+/** Whether a placement sits on the tutorial cell with the tutorial piece, in any orientation. */
+export function onTutorialCell(placement: PiecePlacement, tutorial: NonNullable<LevelDef['tutorial']>): boolean {
+  return placement.pieceId === tutorial.pieceId && placement.col === tutorial.cell.col && placement.row === tutorial.cell.row
+}

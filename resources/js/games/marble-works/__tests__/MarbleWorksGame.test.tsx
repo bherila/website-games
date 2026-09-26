@@ -23,6 +23,7 @@ jest.mock('../MarbleWorksScene', () => ({
     return (
       <div
         data-editing={String(props.editing)}
+        data-free-cells={props.freeCells.map((cell) => `${cell.col},${cell.row}`).join(' ')}
         data-ghost={props.ghost ? (props.ghost.ok ? 'ok' : 'bad') : 'none'}
         data-ghost-path={props.ghostPath ? String(props.ghostPath.length) : 'none'}
         data-placements={props.placements.map((placement) => `${placement.pieceId}@${placement.col},${placement.row}${placement.flipped ? 'F' : ''}`).join(' ')}
@@ -96,6 +97,38 @@ describe('MarbleWorksGame', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next level' }))
     expect(screen.getByTestId('level-pill')).toHaveTextContent('Zig-Zag')
+  })
+
+  it('does not advance the tutorial to Go while the ramp is flipped the wrong way', () => {
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 3)
+    tapCell(1, 3)
+    fireEvent.click(screen.getByRole('button', { name: 'Flip piece' }))
+
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3F')
+    expect(screen.getByTestId('tutorial-message')).toHaveTextContent('use Flip')
+    expect(scene()).toHaveAttribute('data-tutorial-cell', '1,3')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flip piece' }))
+    expect(screen.getByTestId('tutorial-message')).toHaveTextContent('Press Go')
+  })
+
+  it('highlights only cells where the armed piece’s whole footprint fits', () => {
+    window.localStorage.setItem(MARBLE_WORKS_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 12, stars: {} }))
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 12, 0 stars' }))
+    fireEvent.click(screen.getByTestId('tray-funnel'))
+
+    const cells = (scene().getAttribute('data-free-cells') ?? '').split(' ')
+    // The 3-wide funnel centres on the tapped cell, so the edge columns can never host it…
+    expect(cells).not.toContain('0,1')
+    expect(cells).not.toContain('7,1')
+    // …nor can a cell whose neighbour is a block or a no-build cell.
+    expect(cells).not.toContain('4,6')
+    expect(cells).not.toContain('4,2')
+    expect(cells).toContain('3,1')
   })
 
   it('rejects placements on blocked cells and shows a red ghost while dragging there', () => {
