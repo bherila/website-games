@@ -16,6 +16,8 @@ make_process() {
     shift 5
     mkdir -p "$root/$pid"
     printf 'Name:\tfixture\nUid:\t%s\t%s\t%s\t%s\n' "$uid" "$uid" "$uid" "$uid" >"$root/$pid/status"
+    printf '%s (%s) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 1 0 %s 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n' \
+        "$pid" "${executable##*/}" "${process_starttime:-1000}" >"$root/$pid/stat"
     ln -s "$cwd" "$root/$pid/cwd"
     ln -s "$executable" "$root/$pid/exe"
     printf '%s\0' "$@" >"$root/$pid/cmdline"
@@ -98,6 +100,76 @@ if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=12
     fail 'games-owned Artisan process from a pruned release was accepted'
 fi
 rm -rf "$temporary/proc/107"
+
+mkdir -p "$temporary/proc/108"
+mkfifo "$temporary/proc/108/status"
+printf '108 (php) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 1 0 1000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n' >"$temporary/proc/108/stat"
+(
+    printf 'Name:\tfixture\nUid:\t123\t123\t123\t123\n' >"$temporary/proc/108/status"
+    rm -rf "$temporary/proc/108"
+) &
+writer_pid=$!
+HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null \
+    || fail 'process exit between status and cmdline aborted deployment'
+wait "$writer_pid" 2>/dev/null || true
+rm -rf "$temporary/proc/108"
+
+make_process "$temporary/proc" 109 123 "$stable" "$temporary/bin/php" php artisan queue:work
+rm -f "$temporary/proc/109/cmdline"
+mkfifo "$temporary/proc/109/cmdline"
+(
+    printf 'php\0artisan\0queue:work\0' >"$temporary/proc/109/cmdline"
+    rm -rf "$temporary/proc/109"
+) &
+writer_pid=$!
+HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null \
+    || fail 'process exit between cmdline and cwd aborted deployment'
+wait "$writer_pid" 2>/dev/null || true
+rm -rf "$temporary/proc/109"
+
+make_process "$temporary/proc" 110 123 "$temporary/sibling" "$temporary/bin/php" php artisan queue:work
+chmod 000 "$temporary/proc/110/cmdline"
+if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
+    fail 'live unreadable cmdline process was accepted'
+fi
+chmod 644 "$temporary/proc/110/cmdline"
+rm -rf "$temporary/proc/110"
+
+make_process "$temporary/proc" 111 123 "$stable" "$temporary/bin/php" php artisan queue:work
+rm -f "$temporary/proc/111/cwd"
+mkdir -p "$temporary/proc/111/cwd"
+chmod 000 "$temporary/proc/111/cwd"
+if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
+    fail 'live uninspectable cwd process was accepted'
+fi
+chmod 755 "$temporary/proc/111/cwd"
+rm -rf "$temporary/proc/111"
+
+make_process "$temporary/proc" 112 123 "$temporary/sibling" "$temporary/bin/php" php artisan queue:work
+rm -f "$temporary/proc/112/status"
+mkfifo "$temporary/proc/112/status"
+(
+    printf 'Name:\tfixture\nUid:\t123\t123\t123\t123\n' >"$temporary/proc/112/status"
+    rm -rf "$temporary/proc/112"
+    process_starttime=2000 make_process "$temporary/proc" 112 123 "$temporary/sibling" "$temporary/bin/php" php artisan queue:work
+    chmod 000 "$temporary/proc/112/cmdline"
+) &
+writer_pid=$!
+HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null \
+    || fail 'PID reuse after exit aborted deployment'
+wait "$writer_pid" 2>/dev/null || true
+chmod 644 "$temporary/proc/112/cmdline" 2>/dev/null || true
+rm -rf "$temporary/proc/112"
 
 activation_log="$temporary/activation.log"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >"%s"\n' "$activation_log" >"$temporary/bin/activate-php"
