@@ -9,7 +9,7 @@ import { loadProgress as loadChicksProgress } from '../chicks-challenge/gameProg
 import { TOTAL_LEVELS as CHICKS_TOTAL_LEVELS } from '../chicks-challenge/gameTypes'
 import { loadProgress as loadHoverProgress } from '../hover/gameProgress'
 import { TOTAL_LEVELS as HOVER_TOTAL_LEVELS } from '../hover/maps/maps'
-import { summarizeMandarinPreview } from '../mandarin/previewSummary'
+import { summarizeMandarinLive } from '../mandarin/previewSummary'
 import { loadProgress as loadMarbleSortProgress } from '../marble-sort/gameProgress'
 import { TOTAL_LEVELS as MARBLE_SORT_TOTAL_LEVELS } from '../marble-sort/levels'
 import { loadProgress as loadMarbleWorksProgress } from '../marble-works/gameProgress'
@@ -168,18 +168,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     emoji: '🏮',
     description: 'Join Xiaolin and an aspiring cook across ten scenes of sword-school adventure. Listen to Mandarin first, then recognize written Chinese.',
     href: '/mandarin',
-    loadSummary: () => {
-      const summary = summarizeMandarinPreview()
-      return {
-        kind: 'score',
-        started: summary.started,
-        emptyLabel: 'Preview · progress stays in this browser',
-        stats: [
-          { label: 'Scenes', value: `${summary.scenesCompleted}/${summary.totalScenes}` },
-          { label: 'Lessons', value: `${summary.nodesCompleted}/${summary.totalNodes}` },
-        ],
-      }
-    },
+    loadSummary: () => summarizeMandarin(),
   },
 ]
 
@@ -231,3 +220,18 @@ function summarizeTwenty48(): GameScoreSummary {
     ],
   }
 }
+
+export function summarizeMandarin(storage?: Storage | null, accountPartitionId?: string | null): GameScoreSummary {
+  const summary = summarizeMandarinLive(storage, accountPartitionId)
+
+  return {
+    kind: 'score',
+    started: summary.started,
+    emptyLabel: `${summary.totalScenes} scenes · not played yet`,
+    stats: [
+      { label: 'Scenes', value: `${summary.scenesCompleted}/${summary.totalScenes}` },
+      { label: 'Lessons', value: `${summary.nodesCompleted}/${summary.totalNodes}` },
+    ],
+  }
+}
+
