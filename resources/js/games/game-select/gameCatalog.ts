@@ -9,7 +9,7 @@ import { loadProgress as loadChicksProgress } from '../chicks-challenge/gameProg
 import { TOTAL_LEVELS as CHICKS_TOTAL_LEVELS } from '../chicks-challenge/gameTypes'
 import { loadProgress as loadHoverProgress } from '../hover/gameProgress'
 import { TOTAL_LEVELS as HOVER_TOTAL_LEVELS } from '../hover/maps/maps'
-import { summarizeMandarinPreview } from '../mandarin/previewSummary'
+import { summarizeMandarinLive, summarizeMandarinPreview } from '../mandarin/previewSummary'
 import { loadProgress as loadMarbleSortProgress } from '../marble-sort/gameProgress'
 import { TOTAL_LEVELS as MARBLE_SORT_TOTAL_LEVELS } from '../marble-sort/levels'
 import { loadProgress as loadMarbleWorksProgress } from '../marble-works/gameProgress'
@@ -168,18 +168,7 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     emoji: '🏮',
     description: 'Join Xiaolin and an aspiring cook across ten scenes of sword-school adventure. Listen to Mandarin first, then recognize written Chinese.',
     href: '/mandarin',
-    loadSummary: () => {
-      const summary = summarizeMandarinPreview()
-      return {
-        kind: 'score',
-        started: summary.started,
-        emptyLabel: 'Preview · progress stays in this browser',
-        stats: [
-          { label: 'Scenes', value: `${summary.scenesCompleted}/${summary.totalScenes}` },
-          { label: 'Lessons', value: `${summary.nodesCompleted}/${summary.totalNodes}` },
-        ],
-      }
-    },
+    loadSummary: () => summarizeMandarin(),
   },
 ]
 
@@ -228,6 +217,39 @@ function summarizeTwenty48(): GameScoreSummary {
       { label: 'Best', value: summary.bestScore.toLocaleString() },
       { label: 'Highest tile', value: summary.highestTile.toLocaleString() },
       { label: 'Games played', value: summary.gamesPlayed.toLocaleString() },
+    ],
+  }
+}
+
+/**
+ * Which Mandarin runtime `/mandarin` mounts, as stamped by the game-select Blade
+ * shell. Only an explicit `preview` selects the mock partition; anything else,
+ * including a missing root, is live — matching the Mandarin entrypoint itself.
+ */
+export function readMandarinRuntime(): 'preview' | 'live' {
+  if (typeof document === 'undefined') {
+    return 'live'
+  }
+  return document.getElementById('game-select-root')?.dataset.mandarinRuntime === 'preview' ? 'preview' : 'live'
+}
+
+export function summarizeMandarin(
+  storage?: Storage | null,
+  accountPartitionId?: string | null,
+  runtime: 'preview' | 'live' = readMandarinRuntime(),
+): GameScoreSummary {
+  const preview = runtime === 'preview'
+  const summary = preview ? summarizeMandarinPreview(storage) : summarizeMandarinLive(storage, accountPartitionId)
+
+  return {
+    kind: 'score',
+    started: summary.started,
+    emptyLabel: preview
+      ? 'Preview · progress stays in this browser'
+      : `${summary.totalScenes} scenes · not played yet`,
+    stats: [
+      { label: 'Scenes', value: `${summary.scenesCompleted}/${summary.totalScenes}` },
+      { label: 'Lessons', value: `${summary.nodesCompleted}/${summary.totalNodes}` },
     ],
   }
 }

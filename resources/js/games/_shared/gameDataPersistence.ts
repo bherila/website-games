@@ -991,11 +991,9 @@ function canUseKeepalive(operations: readonly SlotOperation[]): boolean {
   return new Blob([JSON.stringify({ operations: operations.map(toBatchPayload) })]).size <= KEEPALIVE_MAX_BYTES
 }
 
-function readAuthenticationContext(): { authenticated: boolean, accountId: string | null } {
-  const localStorage = safeLocalStorage()
-
+export function readAuthenticationContext(storage: GameDataStorage | null = safeLocalStorage()): { authenticated: boolean, accountId: string | null } {
   try {
-    const script = document.getElementById('app-initial-data')
+    const script = typeof document !== 'undefined' ? document.getElementById('app-initial-data') : null
     const raw: unknown = script?.textContent ? JSON.parse(script.textContent) : null
     const parsed = appAuthenticationSchema.safeParse(raw)
     if (!parsed.success) {
@@ -1003,7 +1001,7 @@ function readAuthenticationContext(): { authenticated: boolean, accountId: strin
     }
 
     if (parsed.data.pwaCachedShell) {
-      const cachedAccountId = readStorageValue(localStorage, LAST_AUTHENTICATED_USER_KEY)
+      const cachedAccountId = readStorageValue(storage, LAST_AUTHENTICATED_USER_KEY)
 
       return { authenticated: cachedAccountId !== null, accountId: cachedAccountId }
     }
@@ -1012,12 +1010,12 @@ function readAuthenticationContext(): { authenticated: boolean, accountId: strin
       const accountId = parsed.data.currentUser?.id !== undefined
         ? String(parsed.data.currentUser.id)
         : 'authenticated'
-      writeStorageValue(localStorage, LAST_AUTHENTICATED_USER_KEY, accountId)
+      writeStorageValue(storage, LAST_AUTHENTICATED_USER_KEY, accountId)
 
       return { authenticated: true, accountId }
     }
 
-    removeStorageValue(localStorage, LAST_AUTHENTICATED_USER_KEY)
+    removeStorageValue(storage, LAST_AUTHENTICATED_USER_KEY)
 
     return { authenticated: false, accountId: null }
   } catch {

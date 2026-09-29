@@ -134,7 +134,8 @@
             </script>
         </div>
     </div>
-    <div id="game-select-root"></div>
+    {{-- Mirrors the runtime /mandarin mounts, so the Mandarin card summarizes the same partition. --}}
+    <div id="game-select-root" data-mandarin-runtime="{{ config('mandarin.runtime', 'live') === 'preview' ? 'preview' : 'live' }}"></div>
 @endsection
 
 @push('scripts')
