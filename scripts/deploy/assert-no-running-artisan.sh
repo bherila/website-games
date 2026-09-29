@@ -37,20 +37,58 @@ proc_root=${DEPLOY_QUIESCE_PROC_ROOT:-/proc}
 expected_uid=${DEPLOY_QUIESCE_UID:-$(id -u)}
 [ -d "$proc_root" ] || { echo "::error::Process filesystem is unavailable." >&2; exit 1; }
 
+get_process_identity() {
+    local proc_dir=$1
+    local identity=
+    if [ -r "$proc_dir/stat" ]; then
+        identity=$(awk '{
+            str = $0
+            sub(/^.*\)[[:space:]]*/, "", str)
+            split(str, f, /[[:space:]]+/)
+            print f[20]
+        }' "$proc_dir/stat" 2>/dev/null || true)
+    fi
+    if [ -z "$identity" ] && command -v stat >/dev/null 2>&1; then
+        identity=$(stat -c '%i %Z' "$proc_dir" 2>/dev/null || true)
+    fi
+    printf '%s\n' "$identity"
+}
+
+process_vanished() {
+    local proc_dir=$1 expected_uid=$2 initial_identity=$3
+    [ -d "$proc_dir" ] || return 0
+    [ -r "$proc_dir/status" ] || return 0
+    local current_uid
+    current_uid=$(awk '$1 == "Uid:" { print $2; exit }' "$proc_dir/status" 2>/dev/null || true)
+    [ "$current_uid" = "$expected_uid" ] || return 0
+    if [ -n "$initial_identity" ]; then
+        local current_identity
+        current_identity=$(get_process_identity "$proc_dir")
+        if [ "$current_identity" != "$initial_identity" ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 owned=()
 for process in "$proc_root"/[0-9]*; do
     [ -d "$process" ] || continue
     pid=${process##*/}
     [ -r "$process/status" ] || continue
-    process_uid=$(awk '$1 == "Uid:" { print $2; exit }' "$process/status")
+    initial_identity=$(get_process_identity "$process")
+    process_uid=$(awk '$1 == "Uid:" { print $2; exit }' "$process/status" 2>/dev/null || true)
     [ "$process_uid" = "$expected_uid" ] || continue
 
-    [ -r "$process/cmdline" ] || {
+    arguments=()
+    if [ ! -r "$process/cmdline" ] || ! mapfile -d '' -t arguments <"$process/cmdline" 2>/dev/null; then
+        if process_vanished "$process" "$expected_uid" "$initial_identity"; then
+            continue
+        fi
         echo "::error::Cannot inspect same-user PHP process $pid." >&2
         exit 1
-    }
+    fi
 
-    mapfile -d '' -t arguments <"$process/cmdline" || true
     is_artisan=false
     artisan_argument=
     for argument in "${arguments[@]+"${arguments[@]}"}"; do
@@ -61,22 +99,31 @@ for process in "$proc_root"/[0-9]*; do
     [ "$is_artisan" = true ] || continue
 
     cwd=$(readlink -f -- "$process/cwd" 2>/dev/null || true)
-    [ -n "$cwd" ] || {
+    if [ -z "$cwd" ]; then
+        if process_vanished "$process" "$expected_uid" "$initial_identity"; then
+            continue
+        fi
         echo "::error::Cannot inspect the working directory of Artisan process $pid." >&2
         exit 1
-    }
+    fi
     case $artisan_argument in
         /*) artisan_path=$(readlink -f -- "$artisan_argument" 2>/dev/null || true) ;;
         *) artisan_path=$(readlink -f -- "$cwd/$artisan_argument" 2>/dev/null || true) ;;
     esac
-    [ -n "$artisan_path" ] || {
+    if [ -z "$artisan_path" ]; then
+        if process_vanished "$process" "$expected_uid" "$initial_identity"; then
+            continue
+        fi
         echo "::error::Cannot resolve the Artisan path of same-user process $pid." >&2
         exit 1
-    }
+    fi
     if [ "$cwd" = "$stable_root" ] || [[ $cwd == "$stable_root/"* ]] \
         || [[ $cwd == "$releases_root/"* ]] \
         || [ "$artisan_path" = "$stable_root/artisan" ] \
         || [[ $artisan_path == "$releases_root/"* ]]; then
+        if process_vanished "$process" "$expected_uid" "$initial_identity"; then
+            continue
+        fi
         owned+=("$pid")
     fi
 done
