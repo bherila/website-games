@@ -235,4 +235,26 @@ for scenario in stale_deployment wrong_mime stale_course preview_runtime endpoin
     fi
 done
 
+# Every redirect-following probe must refuse to leave HTTPS, even in the loopback HTTP
+# fixture mode: that exception covers the configured base URL only, never a redirect.
+redirect_paths=(/up / /mandarin /deployment-identity.json /manifest.webmanifest /api/games/mandarin/bootstrap)
+for path in "${redirect_paths[@]}"; do
+    start_server "http_redirect:$path"
+    # Guard against a vacuous pass: a client that follows the redirect reaches a valid page.
+    curl --fail --silent --location --output /dev/null "http://127.0.0.1:$port$path" \
+        || fail "HTTP redirect fixture for $path is not followable"
+    if (cd "$repository" && verify >/dev/null 2>"$temporary/verify.err"); then
+        fail "verification followed an HTTP redirect from $path"
+    fi
+    grep -Eq 'Protocol "?http"? (not supported|disabled)' "$temporary/verify.err" \
+        || fail "HTTP redirect from $path failed for the wrong reason: $(cat "$temporary/verify.err")"
+done
+
+start_server 'ftp_redirect:/deployment-identity.json'
+if (cd "$repository" && verify >/dev/null 2>"$temporary/verify.err"); then
+    fail 'verification followed a non-HTTP redirect'
+fi
+grep -Eq 'Protocol "?ftp"? (not supported|disabled)' "$temporary/verify.err" \
+    || fail "non-HTTP redirect failed for the wrong reason: $(cat "$temporary/verify.err")"
+
 echo 'Deployment script tests passed.'

@@ -43,7 +43,10 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 retries=${DEPLOY_VERIFY_RETRIES:-3}
 [[ $retries =~ ^[0-9]+$ ]] || { echo "::error::DEPLOY_VERIFY_RETRIES must be numeric." >&2; exit 2; }
-curl_options=(--silent --show-error --location --retry "$retries" --retry-delay 1 --retry-all-errors --connect-timeout 10 --max-time 30)
+# --location follows redirects, so pin their protocol: a redirect to plain HTTP (or any other
+# scheme) could let an intercepted response satisfy the identity and bootstrap assertions.
+# The loopback HTTP exception above applies to the configured base URL only, never to a redirect.
+curl_options=(--silent --show-error --location --proto-redir =https --retry "$retries" --retry-delay 1 --retry-all-errors --connect-timeout 10 --max-time 30)
 base=${site_url%/}
 
 for path in /up / /mandarin; do
