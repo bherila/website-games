@@ -10,7 +10,21 @@ if (ini_get('memory_limit') !== '1G') {
 }
 
 $scenario = getenv('VERIFY_SCENARIO') ?: 'success';
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
+$path = parse_url($requestUri, PHP_URL_PATH);
+
+// Redirect scenarios send one probed path elsewhere. The redirect target is served from
+// this same fixture under a /redirected prefix, so a client that follows the redirect gets
+// a fully valid response: a rejection can only come from the redirect's protocol.
+if (is_string($path) && str_starts_with($path, '/redirected/')) {
+    $path = substr($path, strlen('/redirected'));
+} elseif (preg_match('/^(http|ftp)_redirect:(\/.*)$/', $scenario, $redirect) === 1 && $path === $redirect[2]) {
+    $port = (int) ($_SERVER['SERVER_PORT'] ?? 80);
+    http_response_code(302);
+    header('Location: '.$redirect[1].'://127.0.0.1:'.$port.'/redirected'.$requestUri);
+
+    return;
+}
 
 if ($scenario === 'endpoint_failure' && $path === '/mandarin') {
     http_response_code(503);
