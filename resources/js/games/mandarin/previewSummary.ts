@@ -76,5 +76,3 @@ export function summarizeMandarinLive(
     totalNodes: course.nodes.length,
   }
 }
-
-export const summarizeMandarin = summarizeMandarinLive

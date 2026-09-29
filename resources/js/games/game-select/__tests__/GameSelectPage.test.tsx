@@ -204,4 +204,28 @@ describe('GameSelectPage', () => {
     expect(screen.getByTestId('game-card-mandarin')).toHaveTextContent('Scenes: 0/10')
     expect(screen.getByTestId('game-card-mandarin')).toHaveTextContent('Lessons: 1/20')
   })
+
+  it('summarizes the preview partition when /mandarin mounts the preview runtime', () => {
+    const course = loadMandarinCourse()
+    let previewProgress = createMandarinInitialProgress(course)
+    previewProgress = completeMandarinNode(markMandarinNodeIntroduced(previewProgress, 's1n1'), course, 's1n1').progress
+    window.localStorage.setItem('mandarin.preview.progress.v1', JSON.stringify(previewProgress))
+
+    const selectRoot = document.createElement('div')
+    selectRoot.id = 'game-select-root'
+    selectRoot.dataset.mandarinRuntime = 'preview'
+    document.body.appendChild(selectRoot)
+    try {
+      const { unmount } = render(<GameSelectPage />)
+      expect(screen.getByTestId('game-card-mandarin')).toHaveTextContent('Lessons: 1/20')
+      unmount()
+
+      window.localStorage.removeItem('mandarin.preview.progress.v1')
+      window.localStorage.setItem('mandarin.live.guest.progress.v1', JSON.stringify(previewProgress))
+      render(<GameSelectPage />)
+      expect(screen.getByTestId('game-card-mandarin')).toHaveTextContent('Preview · progress stays in this browser')
+    } finally {
+      selectRoot.remove()
+    }
+  })
 })

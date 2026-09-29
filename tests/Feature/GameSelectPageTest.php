@@ -47,4 +47,34 @@ class GameSelectPageTest extends TestCase
             ->assertSee('value="dark" class="sr-only" checked', false)
             ->assertDontSee('value="system" class="sr-only" checked', false);
     }
+
+    public function test_select_root_mirrors_the_live_mandarin_runtime(): void
+    {
+        $this->withoutVite();
+        config(['mandarin.runtime' => 'live']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('id="game-select-root" data-mandarin-runtime="live"', false);
+    }
+
+    public function test_select_root_mirrors_the_preview_mandarin_runtime(): void
+    {
+        $this->withoutVite();
+        config(['mandarin.runtime' => 'preview']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('id="game-select-root" data-mandarin-runtime="preview"', false);
+    }
+
+    public function test_select_root_treats_an_unknown_mandarin_runtime_as_live(): void
+    {
+        $this->withoutVite();
+        config(['mandarin.runtime' => 'mock']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('id="game-select-root" data-mandarin-runtime="live"', false);
+    }
 }
