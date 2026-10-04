@@ -1,0 +1,101 @@
+name: Production Health
+
+# Out-of-band check that production is actually serving. On 2026-09-29 a
+# deploy failed inside its maintenance window and left the site returning 503
+# for five days: the failed deploy was the only signal, and every later deploy
+# refused to touch an application already in maintenance. This runs on a
+# schedule, independent of deploys, and keeps one open issue while the site is
+# down, closing it once the site serves again.
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: production-health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check games.bherila.net
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      healthy: ${{ steps.probe.outputs.healthy }}
+      detail: ${{ steps.probe.outputs.detail }}
+    steps:
+      - name: Probe the home page and Laravel's health route
+        id: probe
+        env:
+          SITE: https://games.bherila.net
+        run: |
+          set -uo pipefail
+          # A deploy legitimately holds maintenance for a few minutes, so a
+          # failure is only reported once it has lasted across every attempt.
+          detail=''
+          for attempt in 1 2 3 4; do
+            detail=''
+            for path in / /up; do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$SITE$path" || echo 000)
+              [ "$code" = 200 ] || detail="$detail $path=$code"
+            done
+            if [ -z "$detail" ]; then
+              echo 'healthy=true' >> "$GITHUB_OUTPUT"
+              echo "Production is serving (attempt $attempt)."
+              exit 0
+            fi
+            echo "Attempt $attempt:$detail"
+            [ "$attempt" = 4 ] || sleep 120
+          done
+          echo 'healthy=false' >> "$GITHUB_OUTPUT"
+          echo "detail=${detail# }" >> "$GITHUB_OUTPUT"
+          echo "::error::Production is not serving:$detail. A 503 from every path usually means Laravel was left in maintenance by a failed deploy; see docs/deploy-recovery.md."
+          exit 1
+
+  report:
+    name: Open or close the outage issue
+    needs: check
+    if: always() && github.event_name == 'schedule' && needs.check.result != 'cancelled'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Keep one issue open while production is down
+        uses: actions/github-script@v8
+        env:
+          HEALTHY: ${{ needs.check.outputs.healthy }}
+          DETAIL: ${{ needs.check.outputs.detail }}
+        with:
+          script: |
+            const label = 'production-down';
+            const { owner, repo } = context.repo;
+            const open = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: 'open', labels: label });
+            const run = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            if (process.env.HEALTHY === 'true') {
+              for (const issue of open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: issue.number, body: `Serving again as of ${run}.` });
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, state: 'closed', state_reason: 'completed' });
+              }
+              return;
+            }
+            if (open.length > 0) {
+              return;
+            }
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title: 'Production is not serving',
+              labels: [label],
+              body: [
+                `The scheduled health check found production not serving: ${process.env.DETAIL || 'no detail'}.`,
+                '',
+                `- Run: ${run}`,
+                '- Recovery: docs/deploy-recovery.md',
+                '',
+                'This issue closes itself once the check passes again.',
+              ].join('\n'),
+            });

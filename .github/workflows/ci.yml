@@ -223,7 +223,7 @@ jobs:
         run: printf '{"source_commit":"%s"}\n' "$GITHUB_SHA" > public/deployment-identity.json
 
       - name: Deploy with the shared cPanel action
-        uses: bherila/shared-cpanel-deployment@6e9edf640e38b828eb0b273c339474b28ab3dca4 # v2.1.2
+        uses: bherila/shared-cpanel-deployment@d137328a37eea2b5893712c8f547513c70ba7d07 # v2.2.1
         with:
           ssh-host: ${{ secrets.SSH_HOST }}
           ssh-username: ${{ secrets.SSH_USERNAME }}
@@ -250,3 +250,14 @@ jobs:
             mandarin:course:import --stage
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course
+
+      - name: Explain a deploy that left production in maintenance
+        if: failure()
+        run: |
+          {
+            echo '## Production may be in maintenance'
+            echo
+            echo 'A deploy that fails after the database-risk boundary leaves the site returning 503, and later deploys refuse to touch it.'
+            echo 'Follow docs/deploy-recovery.md; the Production Health workflow reports whether the site is serving.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo '::error::Deploy failed; production may be stranded in maintenance. See docs/deploy-recovery.md.'

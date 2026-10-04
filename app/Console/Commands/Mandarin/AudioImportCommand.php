@@ -18,6 +18,8 @@ use InvalidArgumentException;
  */
 class AudioImportCommand extends Command
 {
+    private const int PROGRESS_EVERY = 25;
+
     protected $signature = 'mandarin:audio:import {path : Manifest written by mandarin:audio:export} {--dry-run} {--execute} {--verify-objects : Check every object on its disk before marking the row ready} {--strict : Fail when any asset or source mapping is skipped} {--require-configured-course : Require complete core coverage for the configured course revision}';
 
     protected $description = 'Import a Mandarin audio manifest: recreate ready asset rows and their course source mappings.';
@@ -85,7 +87,18 @@ class AudioImportCommand extends Command
             $manifest['counts']['sources'],
         ));
 
-        $result = $manifests->import($manifest, $execute, (bool) $this->option('verify-objects'));
+        // Deploys run this over SSH with the site in maintenance; a long silent
+        // check is what let an idle connection drop on 2026-09-29.
+        $result = $manifests->import(
+            $manifest,
+            $execute,
+            (bool) $this->option('verify-objects'),
+            function (int $checked, int $total): void {
+                if ($checked % self::PROGRESS_EVERY === 0 || $checked === $total) {
+                    $this->line(sprintf('Checked %d of %d object(s).', $checked, $total));
+                }
+            },
+        );
         foreach (['inserted', 'refreshed', 'unchanged'] as $bucket) {
             if ($result['examples'][$bucket] !== []) {
                 $this->line(sprintf('     %-22s %s', $bucket, implode(', ', $result['examples'][$bucket]).($result[$bucket] > count($result['examples'][$bucket]) ? ', …' : '')));

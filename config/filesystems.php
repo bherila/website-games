@@ -57,6 +57,12 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            // Bounded so a slow object store fails a request instead of
+            // stalling a deploy or a guest's audio lookup indefinitely.
+            'http' => [
+                'connect_timeout' => (int) env('AWS_CONNECT_TIMEOUT', 5),
+                'timeout' => (int) env('AWS_HTTP_TIMEOUT', 30),
+            ],
             'throw' => false,
             'report' => false,
         ],

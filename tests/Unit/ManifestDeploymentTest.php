@@ -12,7 +12,11 @@ class ManifestDeploymentTest extends TestCase
 
         self::assertIsString($workflow);
         foreach ([
-            'bherila/shared-cpanel-deployment@6e9edf640e38b828eb0b273c339474b28ab3dca4',
+            // v2.2.1: every SSH call shares one multiplexed connection with
+            // ServerAliveInterval keepalives. v2.1.2 had none, so a quiet Artisan
+            // step outlived the runner's idle-TCP timeout and stranded production
+            // in maintenance (2026-09-29).
+            'bherila/shared-cpanel-deployment@d137328a37eea2b5893712c8f547513c70ba7d07',
             'operational-audit: true',
             'deployment-mode: atomic',
             'atomic-layout: stable-directory',
@@ -32,6 +36,27 @@ class ManifestDeploymentTest extends TestCase
             '/group: website-games-production\R\s+cancel-in-progress: false/',
             $workflow,
         );
+    }
+
+    /**
+     * A deploy that fails after the risk boundary leaves the site in
+     * maintenance on purpose, and later deploys refuse to touch it, so only a
+     * check outside the deploy notices. On 2026-09-29 nothing did for five days.
+     */
+    public function test_production_is_watched_outside_the_deploy(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $health = file_get_contents($root.'/.github/workflows/production-health.yml');
+        $deploy = file_get_contents($root.'/.github/workflows/ci.yml');
+
+        self::assertIsString($health);
+        self::assertIsString($deploy);
+        self::assertMatchesRegularExpression('/schedule:\R\s+- cron: /', $health);
+        foreach (['SITE: https://games.bherila.net', 'for path in / /up', "label = 'production-down'", 'issues: write'] as $contract) {
+            self::assertStringContainsString($contract, $health);
+        }
+        self::assertStringContainsString('docs/deploy-recovery.md', $deploy);
+        self::assertFileExists($root.'/docs/deploy-recovery.md');
     }
 
     public function test_audio_import_preflights_strictly_before_writing_shared_data(): void
