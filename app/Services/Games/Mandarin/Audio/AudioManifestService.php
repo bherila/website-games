@@ -435,10 +435,15 @@ class AudioManifestService
      * left alone — so importing a stale manifest cannot un-publish audio a
      * newer generation produced. Re-running an executed import writes nothing.
      *
+     * `$verified` is told after each object check how many of the manifest's
+     * assets have been checked, so a caller running this over SSH inside a
+     * deploy's maintenance window can keep printing while it works.
+     *
      * @param  Manifest  $manifest
+     * @param  (callable(int $checked, int $total): void)|null  $verified
      * @return ImportResult
      */
-    public function import(array $manifest, bool $execute, bool $verifyObjects): array
+    public function import(array $manifest, bool $execute, bool $verifyObjects, ?callable $verified = null): array
     {
         $inserted = 0;
         $refreshed = 0;
@@ -453,12 +458,17 @@ class AudioManifestService
         $present = [];
 
         $existingAssets = $this->existingAssets($manifest);
+        $total = count($manifest['assets']);
+        $checked = 0;
         foreach ($manifest['assets'] as $asset) {
             $hash = $asset['recipe_hash'];
             $existing = $existingAssets[$hash] ?? null;
 
             if ($verifyObjects) {
                 $problem = $this->objectProblem($asset);
+                if ($verified !== null) {
+                    $verified(++$checked, $total);
+                }
                 if ($problem !== null) {
                     $missing++;
                     $problems[] = ['recipeHash' => $hash, 'reason' => $problem];
@@ -709,19 +719,33 @@ class AudioManifestService
     {
         try {
             $filesystem = Storage::disk($asset['disk']);
-            if (! $filesystem->exists($asset['object_key'])) {
-                return "object is missing on {$asset['disk']}";
-            }
-            $size = $filesystem->size($asset['object_key']);
-            if ($size !== $asset['bytes']) {
-                return "object on {$asset['disk']} is {$size} bytes, manifest says {$asset['bytes']}";
-            }
-
-            return null;
         } catch (Throwable $exception) {
-            // Never echo the message: a storage exception can carry a signed URL.
             return 'could not be checked on '.$asset['disk'].' ('.class_basename($exception).')';
         }
+
+        // One metadata request for a present object, which is every object on
+        // a healthy deploy; only a failed read pays a second request to say
+        // whether the object is absent or the store could not be read.
+        try {
+            $size = $filesystem->size($asset['object_key']);
+        } catch (Throwable $exception) {
+            try {
+                if (! $filesystem->exists($asset['object_key'])) {
+                    return "object is missing on {$asset['disk']}";
+                }
+            } catch (Throwable) {
+                // Reported below by the read that failed first.
+            }
+
+            // Never echo the message: a storage exception can carry a signed URL.
+
+            return 'could not be checked on '.$asset['disk'].' ('.class_basename($exception).')';
+        }
+        if ($size !== $asset['bytes']) {
+            return "object on {$asset['disk']} is {$size} bytes, manifest says {$asset['bytes']}";
+        }
+
+        return null;
     }
 
     /** @param list<string> $bucket */

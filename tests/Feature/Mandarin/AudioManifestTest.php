@@ -13,6 +13,7 @@ use App\Services\Games\Mandarin\Speech\NullSpeechSynthesizer;
 use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 
 class AudioManifestTest extends MandarinTestCase
 {
@@ -391,6 +392,33 @@ class AudioManifestTest extends MandarinTestCase
         $asset->refresh();
         $this->assertSame('local', $asset->disk);
         $this->assertNotSame($manifest['assets'][0]['object_key'], $asset->object_key);
+    }
+
+    /**
+     * Deploys run the import over SSH inside the maintenance window. A check
+     * that prints nothing until it finishes let the runner's idle connection
+     * drop on 2026-09-29 and stranded the site in maintenance, so verification
+     * reports as it goes, and a present object costs one metadata read.
+     */
+    public function test_verification_reports_progress_and_reads_a_present_object_once(): void
+    {
+        $this->ready(self::HELLO);
+        $this->ready(self::HELLO_SLOW);
+        $this->artisan("mandarin:audio:export {$this->path}")->assertSuccessful();
+
+        $local = Storage::disk('local');
+        $disk = Mockery::mock($local);
+        $disk->shouldReceive('exists')->never();
+        $disk->shouldReceive('size')->twice()->andReturnUsing(fn (string $path): int => $local->size($path));
+        Storage::set('local', $disk);
+
+        $this->artisan("mandarin:audio:import {$this->path} --verify-objects --dry-run --strict")
+            ->assertSuccessful()
+            ->expectsOutputToContain('Checked 2 of 2 object(s).');
+
+        $this->artisan("mandarin:audio:import {$this->path} --dry-run")
+            ->assertSuccessful()
+            ->doesntExpectOutputToContain('Checked ');
     }
 
     public function test_verify_objects_refuses_to_publish_a_row_whose_object_is_absent(): void
