@@ -12,7 +12,11 @@ class ManifestDeploymentTest extends TestCase
 
         self::assertIsString($workflow);
         foreach ([
-            'bherila/shared-cpanel-deployment@6e9edf640e38b828eb0b273c339474b28ab3dca4',
+            // v2.2.1: every SSH call shares one multiplexed connection with
+            // ServerAliveInterval keepalives. v2.1.2 had none, so a quiet Artisan
+            // step outlived the runner's idle-TCP timeout and stranded production
+            // in maintenance (2026-09-29).
+            'bherila/shared-cpanel-deployment@d137328a37eea2b5893712c8f547513c70ba7d07',
             'operational-audit: true',
             'deployment-mode: atomic',
             'atomic-layout: stable-directory',
