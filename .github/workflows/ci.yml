@@ -250,3 +250,14 @@ jobs:
             mandarin:course:import --stage
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --execute --verify-objects --strict --require-configured-course
+
+      - name: Explain a deploy that left production in maintenance
+        if: failure()
+        run: |
+          {
+            echo '## Production may be in maintenance'
+            echo
+            echo 'A deploy that fails after the database-risk boundary leaves the site returning 503, and later deploys refuse to touch it.'
+            echo 'Follow docs/deploy-recovery.md; the Production Health workflow reports whether the site is serving.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo '::error::Deploy failed; production may be stranded in maintenance. See docs/deploy-recovery.md.'
