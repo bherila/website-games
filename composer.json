@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework", "games"],
     "license": "MIT",
     "require": {
-        "php": ">=8.4 <8.6",
+        "php": ">=8.4.1 <8.6",
         "aws/aws-sdk-php": "^3.394",
         "bherila/auth-laravel": "^0.12",
         "laravel/framework": "^13.8",
