@@ -1,0 +1,36 @@
+name: cloudflare-ranges
+
+# The app trusts X-Forwarded-For only from Cloudflare's published ranges, as
+# shipped with the auth package. A stale list fails quietly - callers on a new
+# edge share that edge's rate-limit budget - so compare it weekly and fail
+# loudly when Cloudflare revises its ranges (then update the auth package).
+on:
+  schedule:
+    - cron: '29 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Compare with Cloudflare's published ranges
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+          php artisan bherila-auth:check-cloudflare-ranges
