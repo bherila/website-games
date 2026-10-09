@@ -286,7 +286,9 @@ the bound provider id, ready/pending/failed/unavailable counts and the revision'
 
 It resolves read-only, so opening it can never call a provider, enqueue a job or spend
 budget; use `mandarin:audio:warm` to fill the cache. It carries `Cache-Control: no-store`,
-needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=true`.
+needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=true` **and**
+the viewer is an application administrator (see the README). Elsewhere any signed-in account
+can open it.
 
 ## Configuration (`config/mandarin.php`, `.env.example`)
 
@@ -298,7 +300,7 @@ needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=t
 | `MANDARIN_MEDIA_DISK` | `local` | Disk for **new** audio objects (`mandarin:audio:migrate` moves existing ones) |
 | `AWS_URL` | unset | Public base URL of the media bucket (e.g. `https://games-assets.bherila.net`); when set, ready clips are served from it directly instead of presigned URLs |
 | `MANDARIN_AUDIO_VERIFY_OBJECTS` | `true` | Check a ready row's object exists before serving it. `false` trusts ready rows on a disk with a public `url` (an imported, verified corpus on a bucket the app holds no read key for); local disks are always checked |
-| `MANDARIN_QA_ENABLED` | `false` | Serve `/mandarin/qa` in production as well as elsewhere |
+| `MANDARIN_QA_ENABLED` | `false` | Serve `/mandarin/qa` in production (to administrators only) as well as elsewhere |
 | `MANDARIN_DAILY_CHARACTER_BUDGET` | `20000` | Characters per day across all attempts |
 | `MANDARIN_POLLY_PROFILE`, `MANDARIN_POLLY_REGION` | unset, `us-east-1` | Profile / region for both Polly adapters (the CLI's chain or the SDK's default credential chain); no keys in `.env` |
 | `MANDARIN_MACOS_VOICE_GUIDE` etc. | unset | Optional explicit role → voice overrides |
