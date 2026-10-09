@@ -115,14 +115,7 @@ final class ApplicationAdministrators
         $provider = $this->provider() ?? throw AdministratorChangeRefused::providerUnknown();
 
         $changed = DB::transaction(function () use ($user, $provider, $actor): bool {
-            // Lock every administrator row, in a stable order, before deciding. Two concurrent
-            // revocations of the last two administrators then queue on the same rows, and the
-            // second one counts after the first has committed instead of before.
-            $administrators = User::query()
-                ->where('is_admin', true)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
+            $administrators = $this->lockAdministrators();
 
             $target = $administrators->firstWhere('id', $user->getKey());
             if ($target === null) {
@@ -147,6 +140,28 @@ final class ApplicationAdministrators
         $user->refresh();
 
         return $changed;
+    }
+
+    /**
+     * Lock every administrator row, in a stable order. Call it inside a transaction, first.
+     *
+     * {@see revoke()} decides on these rows. Two concurrent revocations of the last two
+     * administrators then queue on the same rows, and the second one counts after the first
+     * has committed instead of before. A caller that must decide something else on the same
+     * rows before changing the flag (the delegated access adapter compares a revision and
+     * re-checks its actor) takes this lock first, so its decision and the rule's are made on
+     * one locked state; revoke() re-taking it in the same transaction is a no-op. Lock
+     * administrators before any other user row, so every path takes them in the same order.
+     *
+     * @return Collection<int, User>
+     */
+    public function lockAdministrators(): Collection
+    {
+        return User::query()
+            ->where('is_admin', true)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
     }
 
     /**

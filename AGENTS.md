@@ -24,6 +24,9 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
 - Application administrator is `users.is_admin` (never set by sign-in), checked through the
   `administer` gate and changed only through `App\Services\Admin\ApplicationAdministrators`,
   which owns the last-administrator rule. See README for `php artisan users:admin`.
+- The identity provider manages accounts through `POST /application-access`, answered by
+  `App\Services\Admin\DelegatedApplicationAccess` (account-only: no workspaces). Off by default,
+  writes off separately; tests in `tests/Feature/DelegatedAccess/`. See README "Delegated access".
 
 ## Setup / run
 

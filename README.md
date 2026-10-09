@@ -76,6 +76,43 @@ cannot sign in do not count, and revoking them is always allowed. The rule lives
 `App\Services\Admin\ApplicationAdministrators`; change the flag only through it
 (`canRevoke()` to ask, `grant()`/`revoke()` to act).
 
+### Delegated access (managing accounts from the identity provider)
+
+The identity provider's user-management page can list accounts here, create one for a
+subject before its first sign-in, and grant or revoke the administrator flag, through
+`POST /application-access` (the auth package's delegated access contract, version 2). This app
+is account-only: there are no workspaces. `App\Services\Admin\DelegatedApplicationAccess`
+decides every request:
+
+- Only an administrator who can sign in (bound under `OAUTH_PROVIDER`) may do anything, reads
+  included. Nobody may change their own flag, and the last-administrator rule above still holds.
+- A created account is bound to the exact subject with placeholder contact details, and first
+  sign-in fills them in. An already-bound subject is refused, and no existing row is adopted.
+- Each change is logged at info level with the request's `jti` and row ids.
+
+It is off by default. To enable it:
+
+1. Apply migrations (the deploy does), which creates the `bherila_auth_delegated_nonces` table.
+2. Set, in the server environment:
+
+   | Variable | Value |
+   |---|---|
+   | `GAMES_DELEGATED_ACCESS_ENABLED` | `true`; the route answers 404 otherwise |
+   | `GAMES_DELEGATED_ACCESS_ISSUER` | the provider's issuer; must equal `OAUTH_PROVIDER_URL` |
+   | `GAMES_DELEGATED_ACCESS_ENDPOINT` | this endpoint's exact HTTPS URL, as the provider calls it |
+   | `GAMES_DELEGATED_ACCESS_APPLICATION` | this app's key in the provider's registry |
+   | `GAMES_DELEGATED_ACCESS_PUBLIC_KEYS` | `key-id\|/absolute/path/to/public.pem`, comma-separated |
+   | `OAUTH_PROVIDER` | already set for sign-in; must be set explicitly |
+
+3. Start read-only. Updates (provisioning and the flag) are refused with 403 until
+   `GAMES_DELEGATED_ACCESS_WRITES_ENABLED=true`. Unset it again to stop accepting changes without
+   touching the provider.
+
+Use one integration key for this application alone, never one shared with another
+application. To rotate, list both keys, switch the provider to the new key id, then remove the
+old one. A misconfigured key, issuer or provider refuses every request rather than falling back.
+Optionally schedule `php artisan bherila-auth:prune-delegated-nonces` to delete expired nonces.
+
 ## Running locally
 
 ```bash
