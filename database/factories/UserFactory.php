@@ -30,7 +30,20 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'is_admin' => false,
         ];
+    }
+
+    /**
+     * An application administrator bound to a provider subject, so it can sign in.
+     */
+    public function administrator(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_admin' => true,
+            'oauth_provider' => 'bherila',
+            'oauth_subject' => 'admin-'.Str::random(16),
+        ]);
     }
 
     /**

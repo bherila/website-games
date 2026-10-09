@@ -184,6 +184,38 @@ class OAuthLoginTest extends TestCase
         $this->assertNull($newUser->email_verified_at);
     }
 
+    /**
+     * Accounts are created for whoever the provider vouches for, so creation must never confer
+     * authority — not even on the very first account in an empty database, where "first user
+     * becomes admin" would hand the app to whoever happened to sign in before the operator.
+     */
+    public function test_first_sign_in_never_creates_an_administrator(): void
+    {
+        $this->assertSame(0, User::query()->count());
+        $this->fakeProvider('first-ever-subject', 'First Account', 'first-account@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $newUser = User::query()->where('oauth_subject', 'first-ever-subject')->sole();
+        $this->assertFalse($newUser->isAdministrator());
+        $this->assertFalse((bool) DB::table('users')->where('id', $newUser->getKey())->value('is_admin'));
+    }
+
+    public function test_signing_in_keeps_an_existing_administrator_an_administrator(): void
+    {
+        $admin = User::factory()->administrator()->create(['oauth_subject' => 'admin-subject']);
+        $this->fakeProvider('admin-subject', 'Renamed Admin', 'renamed-admin@example.test');
+
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $this->assertAuthenticatedAs($admin);
+        $this->assertTrue($admin->fresh()?->isAdministrator());
+    }
+
     public function test_callback_refuses_to_normalize_provider_whitespace(): void
     {
         Config::set('bherila-auth.oauth_client.provider', ' bherila ');

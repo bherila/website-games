@@ -53,6 +53,29 @@ php artisan oauth:bind-subject <local-users-id> <provider-sub>
 The command refuses to re-point an account that is already linked, and refuses to give
 one subject to a second account. It is safe to re-run.
 
+### Application administrators
+
+`users.is_admin` marks an application administrator. Sign-in never sets it: every account,
+including the very first one, starts as an ordinary player. It gates only operator surfaces
+(the `administer` gate); today that is the Mandarin audio QA page in production. Everything
+else an operator does here is an artisan command on the server.
+
+```bash
+php artisan users:admin grant  <local-users-id>
+php artisan users:admin revoke <local-users-id>
+php artisan users:admin list
+```
+
+The account is named by its exact numeric id, never by address. Grant and revoke are
+idempotent, are written to the application log by row id, and refuse an unknown id. Grant
+refuses an account with no provider subject bound (link it first with `oauth:bind-subject`).
+
+**Last-administrator rule:** revoking is refused when it would leave no administrator who can
+still sign in (one bound to a subject under the configured provider). Holders of the flag who
+cannot sign in do not count, and revoking them is always allowed. The rule lives in
+`App\Services\Admin\ApplicationAdministrators`; change the flag only through it
+(`canRevoke()` to ask, `grant()`/`revoke()` to act).
+
 ## Running locally
 
 ```bash

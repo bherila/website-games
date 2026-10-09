@@ -85,12 +85,25 @@ class MandarinQaPageTest extends MandarinTestCase
 
     public function test_production_hides_the_page_unless_it_is_explicitly_enabled(): void
     {
-        $user = User::factory()->create();
+        $admin = User::factory()->administrator()->create();
         $this->app->detectEnvironment(fn () => 'production');
 
-        $this->actingAs($user)->get('/mandarin/qa')->assertNotFound();
+        $this->actingAs($admin)->get('/mandarin/qa')->assertNotFound();
 
         config()->set('mandarin.qa_enabled', true);
-        $this->actingAs($user)->get('/mandarin/qa')->assertOk();
+        $this->actingAs($admin)->get('/mandarin/qa')->assertOk();
+    }
+
+    /**
+     * Enabling the sheet in production opens it to operators, not to every account: accounts
+     * are created at first sign-in, so being signed in says nothing about being an operator.
+     */
+    public function test_production_serves_the_page_only_to_administrators(): void
+    {
+        config()->set('mandarin.qa_enabled', true);
+        $this->app->detectEnvironment(fn () => 'production');
+
+        $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
+        $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
     }
 }

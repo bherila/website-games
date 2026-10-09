@@ -9,6 +9,7 @@ use App\Services\Games\Mandarin\Course\CourseRepository;
 use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Read-only audition sheet for the published course revision: every line, its
@@ -32,7 +33,15 @@ class MandarinQaController extends Controller
 
     public function __invoke(CourseRepository $courses, AudioAssetService $assets, SpeechSynthesizer $speech): Response
     {
-        abort_if(app()->environment('production') && ! config('mandarin.qa_enabled'), 404);
+        // In production the sheet is an operator tool twice over: the deployment has to switch
+        // it on, and the viewer has to be an application administrator. Outside production it
+        // stays open to any signed-in account, as before. 404 rather than 403 in both refusals,
+        // so a player cannot tell a disabled sheet from a forbidden one.
+        abort_if(
+            app()->environment('production')
+                && (! config('mandarin.qa_enabled') || Gate::denies('administer')),
+            404,
+        );
 
         $course = $courses->publishedOrFail();
         $revision = $courses->revisionModel($course->courseId(), $course->contentVersion());
