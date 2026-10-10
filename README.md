@@ -120,6 +120,8 @@ decides every request:
 - A search matches part of the name or address, ignoring case, among the accounts the listing
   shows (bound under `OAUTH_PROVIDER`). Placeholder addresses of accounts not yet signed in to
   never match.
+- Each account in a listing or read carries `provisioned_at`, when its row was created (by first
+  sign-in or by provisioning). Sign-ins are not tracked, so first and last sign-in are not sent.
 - A created account is bound to the exact subject with placeholder contact details, and first
   sign-in fills them in. An already-bound subject is refused, and no existing row is adopted.
 - Removing an account's access clears its administrator flag, the only access managed here. The

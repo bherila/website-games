@@ -131,7 +131,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
      * bound to it.
      *
      * @param  array<string, mixed>  $payload
-     * @return array{subjects: list<array{subject: string, label: string}>, next_cursor: ?string}
+     * @return array{subjects: list<array{subject: string, label: string, provisioned_at: ?string}>, next_cursor: ?string}
      */
     private function subjects(string $actorSubject, array $payload): array
     {
@@ -153,7 +153,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
                     ->whereRaw("LOWER(email) NOT LIKE ? ESCAPE '!'", ['%@invalid'])));
         }
 
-        $rows = $query->orderBy('id')->limit($limit + 1)->get(['id', 'name', 'oauth_subject']);
+        $rows = $query->orderBy('id')->limit($limit + 1)->get(['id', 'name', 'oauth_subject', 'created_at']);
 
         $page = $rows->take($limit)->values();
         $last = $page->last();
@@ -162,6 +162,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
             'subjects' => $page->map(fn (User $user): array => [
                 'subject' => (string) $user->oauth_subject,
                 'label' => $this->label($user),
+                ...$this->observations($user),
             ])->all(),
             'next_cursor' => $rows->count() > $limit && $last !== null
                 ? $this->cursor->encode($actorSubject, 'subjects', (int) $last->getKey(), $search)
@@ -397,7 +398,23 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
                 'provision' => false,
                 'remove' => $editable,
             ],
+            ...$this->observations($target),
         ];
+    }
+
+    /**
+     * What this application knows about the account's history, for display only: never
+     * authorization, never part of the revision.
+     *
+     * `provisioned_at` is when the row was created, by first sign-in or by provisioning. Sign-ins
+     * are not tracked here, so `first_sign_in_at` and `last_seen_at` are left out rather than
+     * guessed.
+     *
+     * @return array{provisioned_at: ?string}
+     */
+    private function observations(User $user): array
+    {
+        return ['provisioned_at' => $user->created_at?->copy()->utc()->toIso8601ZuluString()];
     }
 
     /**
