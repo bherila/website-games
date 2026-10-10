@@ -367,6 +367,46 @@ class AudioAssetService
     }
 
     /**
+     * Operator claim of a source with nothing to serve: no row yet, or a ready row whose object
+     * columns are empty. Returns true only when this call queued it, so a source another request
+     * already queued (or claims concurrently) is never counted twice. Speech is not queued while
+     * generation is disabled; SFX always is.
+     *
+     * @param  array{sourceKind: string, sourceId: string, variant: string}  $source
+     */
+    public function claimMissing(CourseIndex $course, array $source): bool
+    {
+        if (! $course->hasSource($source['sourceKind'], $source['sourceId'], $source['variant'])) {
+            return false;
+        }
+        try {
+            $recipe = $this->recipeFor($course, $source);
+        } catch (SpeechProviderException) {
+            return false;
+        }
+        if ($recipe->kind !== 'sfx' && ! (bool) config('mandarin.speech.generation_enabled')) {
+            return false;
+        }
+
+        $asset = MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->first();
+        if ($asset === null) {
+            $claimed = $this->insertClaim($recipe) !== null;
+        } else {
+            $claimed = MandarinAudioAsset::query()
+                ->whereKey($asset->id)
+                ->where('state', MandarinAudioAsset::STATE_READY)
+                ->where(fn ($query) => $query->whereNull('disk')->orWhereNull('object_key'))
+                ->update(['state' => MandarinAudioAsset::STATE_QUEUED, 'attempts' => 0, 'lease_token' => null, 'lease_expires_at' => null, 'updated_at' => now()]) === 1;
+            if ($claimed) {
+                $this->dispatch($asset->id);
+            }
+        }
+        $this->rememberSource($course, $source, $recipe->hash);
+
+        return $claimed;
+    }
+
+    /**
      * Sources a node needs (teaching utterances, targets, exercise prompts, and optionally supports), for warming.
      *
      * @return list<array{sourceKind: string, sourceId: string, variant: string}>
@@ -471,6 +511,12 @@ class AudioAssetService
 
     private function claim(AudioRecipe $recipe): MandarinAudioAsset
     {
+        return $this->insertClaim($recipe) ?? MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->firstOrFail();
+    }
+
+    /** Insert and dispatch a queued row; null when another request claimed the recipe first. */
+    private function insertClaim(AudioRecipe $recipe): ?MandarinAudioAsset
+    {
         try {
             $asset = DB::transaction(function () use ($recipe): MandarinAudioAsset {
                 return MandarinAudioAsset::query()->create([
@@ -486,8 +532,8 @@ class AudioAssetService
 
             return $asset;
         } catch (QueryException) {
-            // Unique constraint: another request claimed it first. Reuse that row.
-            return MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->firstOrFail();
+            // Unique constraint: another request claimed it first.
+            return null;
         }
     }
 

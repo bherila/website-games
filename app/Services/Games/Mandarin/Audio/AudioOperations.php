@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * The operator's paid audio actions, as the admin dashboard offers them. Each one is idempotent,
  * never queues a row that is already queued or generating, and goes through the resolver's own
- * paths: a missing source is claimed by {@see AudioAssetService::resolve()} (the path playback
- * and `mandarin:audio:warm` use), an existing row is re-queued by
+ * paths: a missing source is claimed by {@see AudioAssetService::claimMissing()} (the insert
+ * playback and `mandarin:audio:warm` use), an existing row is re-queued by
  * {@see AudioAssetService::requeue()}.
  *
  * An action that queues anything writes one `mandarin_audio_requested` row to the audit table,
@@ -131,7 +131,8 @@ class AudioOperations
     }
 
     /**
-     * Claim missing sources through the resolver, as playback would for an administrator.
+     * Claim missing sources. Only a source this call queued counts as queued (and is audited):
+     * one another request queued first is skipped with its current state.
      *
      * @param  list<CatalogEntry>  $entries
      * @return array{0: list<CatalogEntry>, 1: list<array{key: string, reason: string}>}
@@ -140,16 +141,14 @@ class AudioOperations
     {
         $queued = [];
         $skipped = [];
-        foreach (array_chunk($entries, 16) as $chunk) {
-            $results = $this->assets->resolve($course, array_column($chunk, 'source'), true, 'generation_disabled');
-            foreach ($chunk as $i => $entry) {
-                $state = (string) ($results[$i]['state'] ?? 'unavailable');
-                if ($state === 'queued' || $state === 'generating') {
-                    $queued[] = $entry;
-                } else {
-                    $skipped[] = ['key' => $entry['key'], 'reason' => (string) ($results[$i]['code'] ?? $state)];
-                }
+        foreach ($entries as $entry) {
+            if ($this->assets->claimMissing($course, $entry['source'])) {
+                $queued[] = $entry;
+
+                continue;
             }
+            $now = $this->catalog->entries($course, [$entry['source']])[0];
+            $skipped[] = ['key' => $entry['key'], 'reason' => $now['state'] === 'missing' ? ($now['code'] ?? 'generation_disabled') : $now['state']];
         }
 
         return [$queued, $skipped];

@@ -180,6 +180,35 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->assertSame('ready', $ready->refresh()->state);
     }
 
+    public function test_only_a_source_this_call_queued_is_counted_and_audited(): void
+    {
+        $admin = $this->admin();
+        $course = $this->app->make(CourseRepository::class)->publishedOrFail();
+        $catalog = $this->app->make(AudioCatalog::class);
+        $operations = $this->app->make(AudioOperations::class);
+        $source = $catalog->source($course, self::HELLO);
+        $this->assertNotNull($source);
+
+        // Two requests that both read the source as missing: the second finds it claimed.
+        $stale = $catalog->entries($course, [$source]);
+        $this->assertSame('missing', $stale[0]['state']);
+        $this->assertTrue($this->app->make(AudioAssetService::class)->claimMissing($course, $source));
+        $late = (new \ReflectionMethod($operations, 'claim'))->invoke($operations, $course, $stale);
+        $this->assertSame([], $late[0]);
+        $this->assertSame([['key' => self::HELLO, 'reason' => 'queued']], $late[1]);
+        Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 1);
+
+        // A ready row with no object behind it is queued for real, once, and audited once.
+        MandarinAudioAsset::query()->update(['state' => 'ready', 'disk' => null, 'object_key' => null]);
+        $audited = AuthAuditLog::query()->count();
+        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()->assertJsonPath('queued', 1);
+        $this->assertSame('queued', MandarinAudioAsset::query()->sole()->state);
+        Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 2);
+        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
+            ->assertJsonPath('queued', 0)->assertJsonPath('skipped.0.reason', 'queued');
+        $this->assertSame($audited + 1, AuthAuditLog::query()->count());
+    }
+
     public function test_the_actions_throttle_counts_only_actions_not_the_polled_list(): void
     {
         $admin = $this->admin();
