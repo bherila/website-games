@@ -58,7 +58,7 @@ one subject to a second account. It is safe to re-run.
 `users.is_admin` marks an application administrator. Sign-in never sets it: every account,
 including the very first one, starts as an ordinary player. It gates only operator surfaces
 (the `administer` gate): queueing paid Mandarin audio generation (everyone else gets cache
-hits only) and the Mandarin audio QA page. Everything
+hits only) and the Mandarin audio QA page, in every environment. Everything
 else an operator does here is an artisan command on the server.
 
 ```bash
@@ -70,6 +70,13 @@ php artisan users:admin list
 The account is named by its exact numeric id, never by address. Grant and revoke are
 idempotent, are written to the application log by row id, and refuse an unknown id. Grant
 refuses an account with no provider subject bound (link it first with `oauth:bind-subject`).
+
+**Locally**, the same gate applies, so make your own development account an administrator:
+sign in once through the identity provider (which creates the row and binds its subject),
+then run `php artisan users:admin grant <your-local-users-id>` against your local database.
+Make sure `.env` points at a local database first. For the browser end-to-end suite, grant
+the flag to the account named by `E2E_USER_ID`. Feature tests use
+`User::factory()->administrator()`.
 
 **Last-administrator rule:** revoking is refused when it would leave no administrator who can
 still sign in (one bound to a subject under the configured provider). Holders of the flag who

@@ -275,7 +275,7 @@ Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
 
 ## Audio QA page
 
-`GET /mandarin/qa` (`games.mandarin.qa`, signed in) is a server-rendered audition sheet for
+`GET /mandarin/qa` (`games.mandarin.qa`, application administrators only) is a server-rendered audition sheet for
 the published revision: every utterance grouped by scene with its role, every target, each
 with Chinese, pinyin, English, usage, a "reserved for the listening check" tag on the twenty
 checkpoint lines, and — per `normal`/`slow` variant — either a plain `<audio controls>`
@@ -286,9 +286,9 @@ the bound provider id, ready/pending/failed/unavailable counts and the revision'
 
 It resolves read-only, so opening it can never call a provider, enqueue a job or spend
 budget; use `mandarin:audio:warm` to fill the cache. It carries `Cache-Control: no-store`,
-needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=true` **and**
-the viewer is an application administrator (see the README). Elsewhere any signed-in account
-can open it.
+needs no JavaScript, and returns 404 to anyone who is not an application administrator, in every environment (see
+the README for granting the flag, locally too). Production additionally needs
+`MANDARIN_QA_ENABLED=true`.
 
 ## Configuration (`config/mandarin.php`, `.env.example`)
 

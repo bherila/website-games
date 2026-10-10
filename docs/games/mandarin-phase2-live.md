@@ -128,8 +128,8 @@ only); no preview banner, Play controls in the `ready` state.
   `PollyClient` adapter is a drop-in behind the same interface.
 - **S3**: no bucket configured and no integration test against a real bucket; the migrate
   command is tested against `Storage::fake('s3')`.
-- **Audio QA page**: `/mandarin/qa` (signed in; 404 in production unless
-  `MANDARIN_QA_ENABLED=true`) lists every line with Chinese, pinyin, English and a native
+- **Audio QA page**: `/mandarin/qa` (application administrators only; 404 in production
+  unless `MANDARIN_QA_ENABLED=true`) lists every line with Chinese, pinyin, English and a native
   `<audio>` control per ready variant, plus the honest revision flags. Nothing on it can
   trigger generation.
 - **Artwork**: generated; the image model id was not exposed by the tool, so provenance records the tool name only. Review the eight images yourself before a public release.

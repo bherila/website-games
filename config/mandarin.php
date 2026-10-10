@@ -28,9 +28,10 @@ return [
     'media_prefix' => env('MANDARIN_MEDIA_PREFIX', 'games/mandarin/audio'),
 
     /*
-     * The signed-in audio QA page at /mandarin/qa. It lists the whole course
-     * with its generated audio, so it is a development/staging tool: 404 in
-     * production unless an operator turns it on deliberately.
+     * The audio QA page at /mandarin/qa. It lists the whole course with its
+     * generated audio, so it is an operator tool: application administrators
+     * only in every environment, and 404 in production unless an operator
+     * turns it on deliberately.
      */
     'qa_enabled' => (bool) env('MANDARIN_QA_ENABLED', false),
 

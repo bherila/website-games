@@ -75,8 +75,8 @@ Route::get('/mandarin/preview', function () {
     return view('games.mandarin', ['runtime' => 'preview']);
 })->name('games.mandarin.preview');
 
-// Signed-in audition sheet for the whole course. Development/staging tool: the
-// controller 404s in production unless MANDARIN_QA_ENABLED is set.
+// Audition sheet for the whole course. Operator tool: the controller 404s for anyone
+// who is not an application administrator, and in production unless MANDARIN_QA_ENABLED is set.
 Route::get('/mandarin/qa', MandarinQaController::class)
     ->middleware(['web', 'auth'])
     ->name('games.mandarin.qa');

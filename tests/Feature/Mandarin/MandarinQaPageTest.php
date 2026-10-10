@@ -22,9 +22,29 @@ class MandarinQaPageTest extends MandarinTestCase
         $this->getJson('/mandarin/qa')->assertStatus(302);
     }
 
-    public function test_a_signed_in_user_sees_every_line_with_its_provenance(): void
+    public function test_a_signed_in_account_that_is_not_an_administrator_gets_404_in_every_environment(): void
     {
-        $response = $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertOk();
+        foreach (['local', 'testing', 'staging'] as $environment) {
+            $this->app->detectEnvironment(fn () => $environment);
+            $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
+        }
+
+        // qa_enabled is a production deploy switch, not a way past the administrator check.
+        config()->set('mandarin.qa_enabled', true);
+        $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
+    }
+
+    public function test_an_administrator_sees_the_page_outside_production_without_the_switch(): void
+    {
+        config()->set('mandarin.qa_enabled', false);
+        $this->app->detectEnvironment(fn () => 'local');
+
+        $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
+    }
+
+    public function test_an_administrator_sees_every_line_with_its_provenance(): void
+    {
+        $response = $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
 
         $response->assertSee('你好。', false)
             ->assertSee('Nǐ hǎo.', false)
@@ -45,7 +65,7 @@ class MandarinQaPageTest extends MandarinTestCase
 
     public function test_reserved_checkpoint_lines_are_labelled(): void
     {
-        $response = $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertOk();
+        $response = $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
 
         $response->assertSee('Reserved for the listening check')
             ->assertSee('我是他的朋友。', false);
@@ -53,8 +73,8 @@ class MandarinQaPageTest extends MandarinTestCase
 
     public function test_a_line_without_audio_reports_its_state_and_the_page_never_generates(): void
     {
-        // Read-only resolution: even for a signed-in user, nothing is enqueued.
-        $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertOk()
+        // Read-only resolution: even for an administrator, who may generate elsewhere, nothing is enqueued.
+        $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk()
             ->assertSee('unavailable: generation_disabled')
             ->assertDontSee('<audio', false);
 
