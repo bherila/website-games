@@ -9,7 +9,8 @@ use LogicException;
 
 /**
  * The durable record of every change to who has an account here and who administers the
- * application: one row in the auth package's audit table (`bherila-auth.audit.table`) per change.
+ * application, and of every paid action an administrator takes from the admin dashboard: one row
+ * in the auth package's audit table (`bherila-auth.audit.table`) per change.
  *
  * The row is written directly, whatever `bherila-auth.audit.driver` says. That driver decides
  * whether the package records sign-in events; it is not allowed to switch off the record of an
@@ -35,9 +36,19 @@ final class AccessAudit
     /** An account was created for a subject through delegated access (auth_method `delegated`). */
     public const ACCOUNT_PROVISIONED = 'account_provisioned';
 
+    /**
+     * An administrator queued paid audio generation from the admin dashboard (auth_method
+     * `session`). Not an access change, but money spent on an operator's say-so belongs in the
+     * same record. `user_id` and `acting_user_id` are both the administrator.
+     */
+    public const MANDARIN_AUDIO_REQUESTED = 'mandarin_audio_requested';
+
     public const METHOD_CONSOLE = 'console';
 
     public const METHOD_DELEGATED = 'delegated';
+
+    /** A signed-in administrator's browser session. */
+    public const METHOD_SESSION = 'session';
 
     /**
      * @param  array<string, mixed>  $metadata

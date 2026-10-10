@@ -137,12 +137,17 @@ the package's own sign-in events. `App\Services\Admin\AccessAudit` writes it.
 | `application_admin_granted` / `application_admin_revoked` | `console` | `users:admin grant` / `revoke` changes the flag |
 | `delegated_access_changed` | `delegated` | the identity provider's user-management page changes the flag |
 | `account_provisioned` | `delegated` | the identity provider's user-management page creates an account |
+| `mandarin_audio_requested` | `session` | an administrator queues paid audio from the audio dashboard API |
 
 `user_id` is the account changed and `acting_user_id` the administrator who acted (empty from
 the console). `metadata` holds `change`, `before` and `after`, plus the delegated request's
 `jti`, `administrators_remaining` on a revocation, and `application_admin_requested` on
 provisioning. Provisioning an administrator writes two rows: the account, then the grant. No
 address, subject or token is stored. A request that changes nothing writes no row.
+`mandarin_audio_requested` rows name the administrator as both `user_id` and `acting_user_id`,
+and their `metadata` holds `action` (`request`, `regenerate`, `request_missing`,
+`retry_failed`), the exact `count`, `course_id`, `content_version`, and up to 50 source keys in
+`sources` (`sources_truncated` says whether there were more).
 
 The table comes from a migration (`2026_06_05_000000_create_auth_audit_log_table`, the
 package's own, published) that creates it only when it is missing; the deploy applies it.

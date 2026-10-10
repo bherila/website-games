@@ -25,6 +25,10 @@ use Throwable;
  */
 class AudioAssetService
 {
+    public const REQUEUE_FROM_FAILED = MandarinAudioAsset::STATE_FAILED;
+
+    public const REQUEUE_FROM_READY = MandarinAudioAsset::STATE_READY;
+
     public function __construct(
         private readonly SpeechSynthesizer $speech,
         private readonly SfxRenderer $sfx,
@@ -319,6 +323,46 @@ class AudioAssetService
         }
 
         return ['expired' => $stale->count(), 'requeued' => $requeued, 'failed' => $failed];
+    }
+
+    /**
+     * Operator re-queue of an existing row: a failed one (retry), or a ready one (regenerate).
+     * The attempt count starts over, because an operator asked for it explicitly; the bounded
+     * retries apply again from there. The update is conditional on the row still being in
+     * `$fromState`, so a queued or generating row is never queued twice and two concurrent
+     * requests queue it once. Speech is not queued while generation is disabled; SFX always is.
+     *
+     * Regenerating takes a ready clip out of service until the new one is published: the media
+     * route serves only ready rows.
+     *
+     * @param  string  $fromState  {@see self::REQUEUE_FROM_FAILED} or {@see self::REQUEUE_FROM_READY}
+     * @return bool whether this call queued the row
+     */
+    public function requeue(MandarinAudioAsset $asset, string $fromState): bool
+    {
+        if (! in_array($fromState, [self::REQUEUE_FROM_FAILED, self::REQUEUE_FROM_READY], true)) {
+            throw new \InvalidArgumentException("Cannot re-queue a {$fromState} row.");
+        }
+        if ($asset->kind !== 'sfx' && ! (bool) config('mandarin.speech.generation_enabled')) {
+            return false;
+        }
+        $updated = MandarinAudioAsset::query()
+            ->whereKey($asset->id)
+            ->where('state', $fromState)
+            ->update([
+                'state' => MandarinAudioAsset::STATE_QUEUED,
+                'attempts' => 0,
+                'lease_token' => null,
+                'lease_expires_at' => null,
+                'error_code' => null,
+                'error_message' => null,
+                'updated_at' => now(),
+            ]);
+        if ($updated === 1) {
+            $this->dispatch($asset->id);
+        }
+
+        return $updated === 1;
     }
 
     /**
