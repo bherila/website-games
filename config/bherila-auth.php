@@ -36,5 +36,8 @@ return [
         'oauth_provider' => env('OAUTH_PROVIDER'),
         // The nonce table's connection; null for the default. Durable and shared by every worker.
         'nonce_connection' => env('GAMES_DELEGATED_ACCESS_NONCE_CONNECTION'),
+        // The operation receipts table's connection; the nonce connection unless set. Durable and
+        // shared by every worker: a lost receipt lets a repeated write run again.
+        'receipt_connection' => env('GAMES_DELEGATED_ACCESS_RECEIPT_CONNECTION', env('GAMES_DELEGATED_ACCESS_NONCE_CONNECTION')),
     ],
 ];

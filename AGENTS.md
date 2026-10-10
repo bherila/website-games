@@ -26,7 +26,8 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
   which owns the last-administrator rule. See README for `php artisan users:admin`.
 - The identity provider manages accounts through `POST /application-access`, answered by
   `App\Services\Admin\DelegatedApplicationAccess` (account-only: no workspaces). Off by default,
-  writes off separately; tests in `tests/Feature/DelegatedAccess/`. See README "Delegated access".
+  writes off separately; contract version 3, including `remove` (clears the administrator flag,
+  keeps the account). Tests in `tests/Feature/DelegatedAccess/`. See README "Delegated access".
 - `/admin` (`App\Http\Controllers\Admin\AdminPanelController`, React in `resources/js/admin/`) is the
   operator panel, administrators only in every environment. Its Mandarin audio dashboard API is
   under `/api/admin/mandarin/audio` (`MandarinAudioAdminController` over `AudioCatalog` and

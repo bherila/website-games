@@ -109,22 +109,33 @@ action that queues something writes one `mandarin_audio_requested` audit row (se
 
 ### Delegated access (managing accounts from the identity provider)
 
-The identity provider's user-management page can list accounts here, create one for a
-subject before its first sign-in, and grant or revoke the administrator flag, through
-`POST /application-access` (the auth package's delegated access contract, version 2). This app
-is account-only: there are no workspaces. `App\Services\Admin\DelegatedApplicationAccess`
+The identity provider's user-management page can list and search accounts here, create one for a
+subject before its first sign-in, grant or revoke the administrator flag, and remove an account's
+access, through `POST /application-access` (the auth package's delegated access contract,
+version 3). This app is account-only: there are no workspaces. `App\Services\Admin\DelegatedApplicationAccess`
 decides every request:
 
 - Only an administrator who can sign in (bound under `OAUTH_PROVIDER`) may do anything, reads
   included. Nobody may change their own flag, and the last-administrator rule above still holds.
+- A search matches part of the name or address, ignoring case, among the accounts the listing
+  shows (bound under `OAUTH_PROVIDER`). Placeholder addresses of accounts not yet signed in to
+  never match.
+- Each account in a listing or read carries `provisioned_at`, when its row was created (by first
+  sign-in or by provisioning). Sign-ins are not tracked, so first and last sign-in are not sent.
 - A created account is bound to the exact subject with placeholder contact details, and first
   sign-in fills them in. An already-bound subject is refused, and no existing row is adopted.
+- Removing an account's access clears its administrator flag, the only access managed here. The
+  account, its sign-in binding and its game data stay. Removing yourself or the last administrator
+  is refused (and not offered), and removing an account without the flag changes nothing.
 - Each change writes an audit row (see [Access audit](#access-audit)) carrying the request's
-  `jti`, and is logged at info level with the `jti` and row ids.
+  `jti` and the provider's `operation_id`, and is logged at info level with both and row ids.
+- The package answers a retried change from its stored receipt instead of applying it again, and
+  the provider can ask for that receipt after an uncertain answer. Receipts are kept 30 days.
 
 It is off by default. To enable it:
 
-1. Apply migrations (the deploy does), which creates the `bherila_auth_delegated_nonces` table.
+1. Apply migrations (the deploy does), which creates the `bherila_auth_delegated_nonces` and
+   `bherila_auth_delegated_receipts` tables. Changes are refused until the receipts table exists.
 2. Set, in the server environment:
 
    | Variable | Value |
@@ -136,14 +147,16 @@ It is off by default. To enable it:
    | `GAMES_DELEGATED_ACCESS_PUBLIC_KEYS` | `key-id\|/absolute/path/to/public.pem`, comma-separated |
    | `OAUTH_PROVIDER` | already set for sign-in; must be set explicitly |
 
-3. Start read-only. Updates (provisioning and the flag) are refused with 403 until
+3. Start read-only. Changes (provisioning, the flag and removal) are refused with 403 until
    `GAMES_DELEGATED_ACCESS_WRITES_ENABLED=true`. Unset it again to stop accepting changes without
    touching the provider.
 
 Use one integration key for this application alone, never one shared with another
 application. To rotate, list both keys, switch the provider to the new key id, then remove the
 old one. A misconfigured key, issuer or provider refuses every request rather than falling back.
-Optionally schedule `php artisan bherila-auth:prune-delegated-nonces` to delete expired nonces.
+`php artisan bherila-auth:prune-delegated-nonces` deletes expired nonces and receipts older than
+30 days. It is scheduled daily in `routes/console.php`, so it runs wherever the Laravel scheduler
+(`schedule:run`) does.
 
 ### Access audit
 
@@ -156,14 +169,15 @@ the package's own sign-in events. `App\Services\Admin\AccessAudit` writes it.
 | Event | `auth_method` | Written when |
 |---|---|---|
 | `application_admin_granted` / `application_admin_revoked` | `console` | `users:admin grant` / `revoke` changes the flag |
-| `delegated_access_changed` | `delegated` | the identity provider's user-management page changes the flag |
+| `delegated_access_changed` | `delegated` | the identity provider's user-management page changes the flag or removes access |
 | `account_provisioned` | `delegated` | the identity provider's user-management page creates an account |
 | `mandarin_audio_requested` | `session` | an administrator queues paid audio from the admin panel |
 
 `user_id` is the account changed and `acting_user_id` the administrator who acted (empty from
 the console). `metadata` holds `change`, `before` and `after`, plus the delegated request's
-`jti`, `administrators_remaining` on a revocation, and `application_admin_requested` on
-provisioning. Provisioning an administrator writes two rows: the account, then the grant. No
+`jti` and `operation_id`, `administrators_remaining` on a revocation, and
+`application_admin_requested` on provisioning. A delegated `change` is `administrator_granted`,
+`administrator_revoked`, or `access_removed` when a removal cleared the flag. Provisioning an administrator writes two rows: the account, then the grant. No
 address, subject or token is stored. A request that changes nothing writes no row.
 `mandarin_audio_requested` rows name the administrator as both `user_id` and `acting_user_id`,
 and their `metadata` holds `action` (`request`, `regenerate`, `request_missing`,

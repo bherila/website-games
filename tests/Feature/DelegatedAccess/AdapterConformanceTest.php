@@ -47,6 +47,33 @@ class AdapterConformanceTest extends DelegatedAccessTestCase
         $this->assertSame($before, $this->snapshot());
     }
 
+    /**
+     * The contract version 3 assertions: search, removal, metadata, and receipts through the
+     * real endpoint.
+     */
+    public function test_every_version_3_assertion_holds(): void
+    {
+        $this->account('other-admin-subject', administrator: true)->forceFill(['name' => 'Example Admin'])->save();
+        $this->account('player-subject')->forceFill(['name' => 'Example Player'])->save();
+        // Matches a search, but is not addressable here.
+        $this->account('elsewhere-subject', provider: 'another-provider')->forceFill(['name' => 'Hidden Example'])->save();
+
+        $this->assertDelegatedSearchStaysInScope(self::MANAGER, 'subjects', 'Example', 'Hidden Ex');
+        $this->assertDelegatedSearchStaysInScope(self::MANAGER, 'workspaces', 'Example', 'Hidden Ex');
+        $this->assertDelegatedMetadataIsWellFormed(self::MANAGER, 'player-subject');
+
+        // Self-removal is refused even with another administrator, and offered as not allowed.
+        $this->assertDelegatedRemoveRefusedWithoutPartialChange(self::MANAGER, self::MANAGER);
+        // Another administrator: the flag goes, the account stays. A player: a no-op removal.
+        $this->assertDelegatedRemoveStripsOnlyTheManagedProjection(self::MANAGER, 'other-admin-subject');
+        $this->assertDelegatedRemoveStripsOnlyTheManagedProjection(self::MANAGER, 'player-subject');
+        // Now the last administrator who can sign in.
+        $this->assertDelegatedRemoveRefusedWithoutPartialChange(self::MANAGER, self::MANAGER);
+
+        $this->assertDelegatedReceiptsReplayThroughTheEndpoint(self::MANAGER, 'player-subject');
+        $this->assertDelegatedReceiptsReplayThroughTheEndpoint(self::MANAGER, self::MANAGER);
+    }
+
     public function test_the_last_administrator_cannot_demote_themselves(): void
     {
         $this->account('player-subject');
