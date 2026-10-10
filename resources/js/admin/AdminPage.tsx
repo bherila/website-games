@@ -376,7 +376,7 @@ function confirmationTitle(confirmation: Confirmation | null): string {
 
 function confirmationBody(confirmation: Confirmation | null): string {
   switch (confirmation?.kind) {
-    case 'regenerate': return `“${confirmation.entry.text}” (${confirmation.entry.key}) is generated again, which costs money. Players cannot hear it until the new clip is ready.`
+    case 'regenerate': return `“${confirmation.entry.text}” (${confirmation.entry.key}) is generated again, which costs money. Players cannot hear it until the new clip is ready; if generation fails, the current clip comes back.`
     case 'requestMissing': return `This queues paid generation for ${confirmation.count} source${confirmation.count === 1 ? '' : 's'} with no audio yet. Lines already queued or generating are left alone.`
     case 'retryFailed': return `This queues paid generation again for ${confirmation.count} failed source${confirmation.count === 1 ? '' : 's'}, with their attempts starting over.`
     default: return ''

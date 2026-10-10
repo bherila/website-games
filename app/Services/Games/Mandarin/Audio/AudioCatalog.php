@@ -167,12 +167,17 @@ class AudioCatalog
             'en' => (string) ($item['en'] ?? ''),
             'role' => $source['sourceKind'] === 'sfx' ? 'UI cue' : (string) ($course->roles[$roleId]['name'] ?? ucfirst($roleId)),
             'state' => $state,
-            'code' => $state === 'failed' ? $asset->error_code : $code,
+            // A ready row carries an error only when a regeneration failed and the old clip stayed.
+            'code' => in_array($state, ['failed', 'ready'], true) && $asset->error_code !== null ? $asset->error_code : $code,
             'assetId' => $asset?->id,
             'provider' => $asset?->provider,
             'voice' => isset($recipe['voice']) ? (string) $recipe['voice'] : null,
             'attempts' => $asset?->attempts,
-            'error' => $state === 'failed' ? $asset->error_message : null,
+            'error' => match (true) {
+                $state === 'failed' => $asset->error_message,
+                $state === 'ready' && $asset->error_code !== null => 'Last regeneration failed; still serving the previous clip. '.$asset->error_message,
+                default => null,
+            },
             'updatedAt' => $asset?->updated_at?->toIso8601String(),
         ];
     }

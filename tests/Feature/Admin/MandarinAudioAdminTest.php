@@ -180,6 +180,51 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->assertSame('ready', $ready->refresh()->state);
     }
 
+    public function test_a_failed_regeneration_puts_the_previous_clip_back_in_service(): void
+    {
+        $admin = $this->admin();
+        $ready = $this->ready(self::HELLO, $admin);
+        $key = $ready->object_key;
+        $this->assertNotNull($key);
+        $service = $this->app->make(AudioAssetService::class);
+
+        // The budget is checked only inside the job, so it can run out after the clip was queued.
+        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
+        config()->set('mandarin.speech.daily_character_budget', 1);
+        $this->app->make(AudioAssetService::class)->generate($ready->id);
+
+        $ready->refresh();
+        $this->assertSame('ready', $ready->state);
+        $this->assertSame($key, $ready->object_key);
+        $this->assertSame('budget_exhausted', $ready->error_code);
+        $this->assertTrue($ready->isReady());
+
+        // Players still hear it, and the dashboard says the regeneration failed.
+        $course = $this->app->make(CourseRepository::class)->publishedOrFail();
+        $this->actingAs(User::factory()->create())->postJson('/api/games/mandarin/audio/resolve', [
+            'courseId' => $course->courseId(), 'contentVersion' => $course->contentVersion(),
+            'sources' => [['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal']],
+        ])->assertOk()->assertJsonPath('results.0.state', 'ready');
+        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?q=01a')->assertOk()
+            ->assertJsonFragment(['key' => self::HELLO, 'state' => 'ready', 'code' => 'budget_exhausted']);
+
+        // An attempt that never finishes and runs out of retries settles the same way.
+        config()->set('mandarin.speech.daily_character_budget', 5000);
+        config()->set('mandarin.audio.max_attempts', 1);
+        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
+        MandarinAudioAsset::query()->whereKey($ready->id)->update(['state' => 'generating', 'attempts' => 1, 'lease_token' => 'stale', 'lease_expires_at' => now()->subMinute()]);
+        $this->assertSame(['expired' => 1, 'requeued' => 0, 'failed' => 1], $service->recoverExpired(true));
+        $this->assertSame('ready', $ready->refresh()->state);
+        $this->assertSame($key, $ready->object_key);
+
+        // A clip that was never published has nothing to fall back to: it fails.
+        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'utterance:01a:slow'])->assertOk()->assertJsonPath('queued', 1);
+        $fresh = MandarinAudioAsset::query()->latest('id')->firstOrFail();
+        config()->set('mandarin.speech.daily_character_budget', 1);
+        $this->app->make(AudioAssetService::class)->generate($fresh->id);
+        $this->assertSame('failed', $fresh->refresh()->state);
+    }
+
     public function test_request_all_missing_needs_confirmation_queues_exactly_the_missing_ones_and_is_idempotent(): void
     {
         $admin = $this->admin();

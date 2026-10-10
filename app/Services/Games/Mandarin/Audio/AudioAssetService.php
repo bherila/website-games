@@ -313,7 +313,7 @@ class AudioAssetService
                 ->where('lease_token', $asset->lease_token)
                 ->update($canRetry
                     ? ['state' => MandarinAudioAsset::STATE_QUEUED, 'lease_token' => null, 'lease_expires_at' => null, 'error_code' => 'lease_expired', 'error_message' => 'A previous attempt did not finish.', 'updated_at' => now()]
-                    : ['state' => MandarinAudioAsset::STATE_FAILED, 'lease_token' => null, 'lease_expires_at' => null, 'error_code' => 'provider_unavailable', 'error_message' => 'Retry attempts exhausted after an unfinished generation.', 'updated_at' => now()]);
+                    : ['state' => $this->settledState($asset), 'lease_token' => null, 'lease_expires_at' => null, 'error_code' => 'provider_unavailable', 'error_message' => 'Retry attempts exhausted after an unfinished generation.', 'updated_at' => now()]);
             if ($updated === 1 && $canRetry) {
                 $this->dispatch($asset->id);
                 $requeued++;
@@ -332,8 +332,9 @@ class AudioAssetService
      * `$fromState`, so a queued or generating row is never queued twice and two concurrent
      * requests queue it once. Speech is not queued while generation is disabled; SFX always is.
      *
-     * Regenerating takes a ready clip out of service until the new one is published: the media
-     * route serves only ready rows.
+     * Regenerating takes a ready clip out of service until the attempt settles: the media route
+     * serves only ready rows. A new clip replaces it on success; on failure the row goes back to
+     * ready with the old object ({@see fail()}), so a failed regeneration never loses a clip.
      *
      * @param  string  $fromState  {@see self::REQUEUE_FROM_FAILED} or {@see self::REQUEUE_FROM_READY}
      * @return bool whether this call queued the row
@@ -554,10 +555,15 @@ class AudioAssetService
         ], ['recipe_hash' => $recipeHash]);
     }
 
+    /**
+     * Settle a failed attempt. A row that still holds a published object (a regeneration of a
+     * ready clip) goes back to ready and keeps serving that object, with the failure recorded on
+     * it; only a row with nothing to serve becomes failed.
+     */
     private function fail(MandarinAudioAsset $asset, string $token, string $code, string $message, bool $retryable = false, bool $consumeAttempt = true): void
     {
         MandarinAudioAsset::query()->whereKey($asset->id)->where('lease_token', $token)->update([
-            'state' => MandarinAudioAsset::STATE_FAILED,
+            'state' => $this->settledState($asset),
             'error_code' => $code,
             'error_message' => Str::limit($message, 500),
             'lease_token' => null,
@@ -565,6 +571,12 @@ class AudioAssetService
             'provider_metadata' => json_encode(['retryable' => $retryable]),
             'updated_at' => now(),
         ] + ($consumeAttempt ? [] : ['attempts' => DB::raw('CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END')]));
+    }
+
+    /** Where a failed attempt leaves the row: ready while it still has a published object, else failed. */
+    private function settledState(MandarinAudioAsset $asset): string
+    {
+        return $asset->disk !== null && $asset->object_key !== null ? MandarinAudioAsset::STATE_READY : MandarinAudioAsset::STATE_FAILED;
     }
 
     /** The bound synthesizer when it produced this recipe; otherwise the provider the recipe names. */
