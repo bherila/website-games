@@ -27,6 +27,12 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
 - The identity provider manages accounts through `POST /application-access`, answered by
   `App\Services\Admin\DelegatedApplicationAccess` (account-only: no workspaces). Off by default,
   writes off separately; tests in `tests/Feature/DelegatedAccess/`. See README "Delegated access".
+- `/admin` (`App\Http\Controllers\Admin\AdminPanelController`, React in `resources/js/admin/`) is the
+  operator panel, administrators only in every environment. Its Mandarin audio dashboard API is
+  under `/api/admin/mandarin/audio` (`MandarinAudioAdminController` over `AudioCatalog` and
+  `AudioOperations`); tests in `tests/Feature/Admin/`.
+- Administrator, account and paid-audio changes write a row to the auth package's audit table
+  through `App\Services\Admin\AccessAudit`, inside the change's transaction. See README "Access audit".
 
 ## Setup / run
 

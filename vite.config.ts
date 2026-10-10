@@ -31,6 +31,7 @@ export default defineConfig({
         'resources/js/games/mandarin/index.tsx',
         'resources/js/games/2048/index.tsx',
         'resources/js/games/game-select/index.tsx',
+        'resources/js/admin/index.tsx',
         'resources/js/games/pwa/register.ts',
       ],
       refresh: true,

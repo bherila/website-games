@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\Api\Mandarin\MandarinMediaController;
 use App\Http\Controllers\GamePwaController;
 use App\Http\Controllers\MandarinQaController;
@@ -80,6 +81,12 @@ Route::get('/mandarin/preview', function () {
 Route::get('/mandarin/qa', MandarinQaController::class)
     ->middleware(['web', 'auth'])
     ->name('games.mandarin.qa');
+
+// Operator panel: application administrators only, in every environment. Guests are sent to
+// sign in; a signed-in account without the flag gets 403. Its JSON lives in routes/api.php.
+Route::get('/admin', AdminPanelController::class)
+    ->middleware(['auth', 'can:administer'])
+    ->name('admin.index');
 
 Route::get('/media/games/mandarin/{asset}/{hash}.{extension}', [MandarinMediaController::class, 'show'])
     ->whereNumber('asset')->where(['hash' => '[a-f0-9]{64}', 'extension' => '(mp3|m4a|wav)'])

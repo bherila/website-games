@@ -58,7 +58,7 @@ one subject to a second account. It is safe to re-run.
 `users.is_admin` marks an application administrator. Sign-in never sets it: every account,
 including the very first one, starts as an ordinary player. It gates only operator surfaces
 (the `administer` gate): queueing paid Mandarin audio generation (everyone else gets cache
-hits only) and the Mandarin audio QA page, in every environment. Everything
+hits only), the Mandarin audio QA page and the admin panel, in every environment. Everything
 else an operator does here is an artisan command on the server.
 
 ```bash
@@ -85,6 +85,27 @@ still sign in (one bound to a subject under the configured provider). Holders of
 cannot sign in do not count, and revoking them is always allowed. The rule lives in
 `App\Services\Admin\ApplicationAdministrators`; change the flag only through it
 (`canRevoke()` to ask, `grant()`/`revoke()` to act).
+
+**Admin panel** (`/admin`; the games page shows an "Admin" link to administrators only). Guests
+are sent to sign in and other accounts get 403. It links to the identity provider's
+user-management page for this application (`OAUTH_PROVIDER_URL` +
+`/applications/<GAMES_DELEGATED_ACCESS_APPLICATION>/access`, shown only when both are set) and
+to the audio QA page, and holds the Mandarin audio dashboard: counts by state, a filterable,
+paginated list of every audio source in the published revision with a play button for ready
+clips, and four paid actions, each idempotent and never re-queueing a clip that is already
+queued or generating (`App\Services\Games\Mandarin\Audio\AudioOperations`):
+
+| Action | Endpoint (`POST`, CSRF, 30/min per user) |
+|---|---|
+| Request one missing or failed source | `/api/admin/mandarin/audio/request` (`source`) |
+| Regenerate one ready source | `/api/admin/mandarin/audio/regenerate` (`source`, `confirm=1`) |
+| Request every missing source | `/api/admin/mandarin/audio/request-missing` (`confirm=1`) |
+| Retry every failed source | `/api/admin/mandarin/audio/retry-failed` |
+
+The list is `GET /api/admin/mandarin/audio` (`state`, `q`, `page`, `per_page`), which never
+generates; the page refreshes it every few seconds while anything is queued or generating. Each
+action that queues something writes one `mandarin_audio_requested` audit row (see
+[Access audit](#access-audit)).
 
 ### Delegated access (managing accounts from the identity provider)
 
@@ -137,7 +158,7 @@ the package's own sign-in events. `App\Services\Admin\AccessAudit` writes it.
 | `application_admin_granted` / `application_admin_revoked` | `console` | `users:admin grant` / `revoke` changes the flag |
 | `delegated_access_changed` | `delegated` | the identity provider's user-management page changes the flag |
 | `account_provisioned` | `delegated` | the identity provider's user-management page creates an account |
-| `mandarin_audio_requested` | `session` | an administrator queues paid audio from the audio dashboard API |
+| `mandarin_audio_requested` | `session` | an administrator queues paid audio from the admin panel |
 
 `user_id` is the account changed and `acting_user_id` the administrator who acted (empty from
 the console). `metadata` holds `change`, `before` and `after`, plus the delegated request's

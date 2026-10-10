@@ -290,6 +290,20 @@ needs no JavaScript, and returns 404 to anyone who is not an application adminis
 the README for granting the flag, locally too). Production additionally needs
 `MANDARIN_QA_ENABLED=true`.
 
+## Audio dashboard (admin panel)
+
+`/admin` (administrators only; see the README) lists every audio source of the published
+revision with the state of the asset that serves it: `ready`, `queued`, `generating`, `failed`,
+`missing` (no asset under the current recipe) or `unavailable` (no recipe can be made). The
+list reads asset rows only, never storage, and never generates
+(`App\Services\Games\Mandarin\Audio\AudioCatalog`). From it an administrator can request a
+missing or failed source, regenerate a ready one (after a confirmation; the clip is out of
+service until the new one is ready), request every missing source (after a confirmation that
+shows the count) or retry every failed one. A missing source is claimed through the same
+resolver as playback and `mandarin:audio:warm`; a failed or ready row is re-queued by
+`AudioAssetService::requeue()` with its attempts starting over. Nothing already queued or
+generating is queued again, and speech is not queued while generation is disabled.
+
 ## Configuration (`config/mandarin.php`, `.env.example`)
 
 | Variable | Default | Meaning |
