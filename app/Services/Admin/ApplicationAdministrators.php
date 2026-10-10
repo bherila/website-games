@@ -100,7 +100,7 @@ final class ApplicationAdministrators
 
             $this->audit->record($origin->event(true), $target, $origin->actingUser, $origin->authMethod, [
                 ...$origin->metadata,
-                'change' => 'administrator_granted',
+                'change' => $origin->change(true),
                 'before' => ['application_admin' => false],
                 'after' => ['application_admin' => true],
             ]);
@@ -143,7 +143,7 @@ final class ApplicationAdministrators
 
             $this->audit->record($origin->event(false), $target, $origin->actingUser, $origin->authMethod, [
                 ...$origin->metadata,
-                'change' => 'administrator_revoked',
+                'change' => $origin->change(false),
                 'before' => ['application_admin' => true],
                 'after' => ['application_admin' => false],
                 'administrators_remaining' => $administrators->count() - 1,

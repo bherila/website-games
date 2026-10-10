@@ -4,6 +4,7 @@ namespace Tests\Feature\DelegatedAccess;
 
 use App\Models\User;
 use BWH\Auth\OAuth\DelegatedAccess\DelegatedAccessException;
+use BWH\Auth\OAuth\DelegatedAccess\DelegatedContract;
 use BWH\Auth\Testing\AssertsDelegatedAccessAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -12,7 +13,7 @@ use Tests\TestCase;
 
 /**
  * Drives the real adapter against the real tables the way the endpoint does: the request context
- * bound, every answer validated against contract version 2 and against the capabilities.
+ * bound, every answer validated against contract version 3 and against the capabilities.
  *
  * Every test starts with one administrator, `manager-subject`, who can sign in.
  */
@@ -90,6 +91,22 @@ abstract class DelegatedAccessTestCase extends TestCase
             'subject' => $target,
             'expected_revision' => $revision,
             'access' => ['application_admin' => $administrator, 'workspaces' => []],
+            'operation_id' => DelegatedContract::operationId(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function removal(string $actor, string $target, ?string $revision = null): array
+    {
+        $revision ??= $this->delegatedAccessRead($actor, $target)['revision'];
+
+        return [
+            'operation' => 'remove',
+            'subject' => $target,
+            'expected_revision' => $revision,
+            'operation_id' => DelegatedContract::operationId(),
         ];
     }
 
@@ -104,6 +121,7 @@ abstract class DelegatedAccessTestCase extends TestCase
             'expected_revision' => null,
             'access' => ['application_admin' => $administrator, 'workspaces' => []],
             ...($displayName === null ? [] : ['display_name' => $displayName]),
+            'operation_id' => DelegatedContract::operationId(),
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature\DelegatedAccess;
 use App\Models\User;
 use App\Services\Admin\DelegatedApplicationAccess;
 use BWH\Auth\OAuth\DelegatedAccess\ApplicationAccessAdapter;
+use BWH\Auth\OAuth\DelegatedAccess\DelegatedContract;
 use BWH\Auth\OAuth\DelegatedAccess\NonceStore;
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -109,7 +110,7 @@ class EndpointTest extends TestCase
         $this->send('admin-subject', $this->grant('player-subject', $revision))
             ->assertForbidden()
             ->assertExactJson(['error' => 'not_authorized']);
-        $this->send('admin-subject', ['operation' => 'update', 'subject' => 'newcomer', 'expected_revision' => null, 'access' => ['application_admin' => false, 'workspaces' => []]])
+        $this->send('admin-subject', ['operation' => 'update', 'subject' => 'newcomer', 'expected_revision' => null, 'access' => ['application_admin' => false, 'workspaces' => []], 'operation_id' => DelegatedContract::operationId()])
             ->assertForbidden();
 
         $this->assertFalse($this->user('player-subject')->isAdministrator());
@@ -129,6 +130,36 @@ class EndpointTest extends TestCase
         $this->assertTrue($this->user('player-subject')->isAdministrator());
     }
 
+    public function test_a_removal_is_a_write_and_its_receipt_answers_a_repeat(): void
+    {
+        $this->bound('other-admin-subject', administrator: true);
+        Config::set('bherila-auth.delegated_access.enabled', true);
+
+        $revision = $this->send('admin-subject', ['operation' => 'read', 'subject' => 'other-admin-subject'])
+            ->assertOk()->assertJsonPath('allowed_edits.remove', true)->json('revision');
+        $remove = ['operation' => 'remove', 'subject' => 'other-admin-subject', 'expected_revision' => $revision, 'operation_id' => DelegatedContract::operationId()];
+
+        // Read-only until writes are enabled, removal included.
+        $this->send('admin-subject', $remove)->assertForbidden()->assertExactJson(['error' => 'not_authorized']);
+        $this->assertTrue($this->user('other-admin-subject')->isAdministrator());
+
+        Config::set('bherila-auth.delegated_access.writes_enabled', true);
+        $remove['operation_id'] = DelegatedContract::operationId();
+        $first = $this->send('admin-subject', $remove)
+            ->assertOk()
+            ->assertJsonPath('provisioned', true)
+            ->assertJsonPath('access', ['application_admin' => false, 'workspaces' => []]);
+        $this->assertFalse($this->user('other-admin-subject')->isAdministrator());
+
+        // A retry of the same user action is answered from the receipt, not decided again (the
+        // revision it carries is stale by now, so deciding again would be a conflict).
+        $this->assertSame($first->getContent(), $this->send('admin-subject', $remove)->assertOk()->getContent());
+        $this->send('admin-subject', ['operation' => 'receipt', 'operation_id' => $remove['operation_id']])
+            ->assertOk()
+            ->assertJsonPath('status', 'known')
+            ->assertJsonPath('response_status', 200);
+    }
+
     public function test_a_player_is_refused_through_the_endpoint(): void
     {
         Config::set('bherila-auth.delegated_access.enabled', true);
@@ -144,7 +175,7 @@ class EndpointTest extends TestCase
      */
     private function grant(string $subject, string $revision): array
     {
-        return ['operation' => 'update', 'subject' => $subject, 'expected_revision' => $revision, 'access' => ['application_admin' => true, 'workspaces' => []]];
+        return ['operation' => 'update', 'subject' => $subject, 'expected_revision' => $revision, 'access' => ['application_admin' => true, 'workspaces' => []], 'operation_id' => DelegatedContract::operationId()];
     }
 
     private function bound(string $subject, bool $administrator = false): void
@@ -163,7 +194,7 @@ class EndpointTest extends TestCase
      */
     private function send(string $actor, array $input): TestResponse
     {
-        $body = (string) json_encode(['contract_version' => 2, 'application' => self::APPLICATION, ...$input], JSON_UNESCAPED_SLASHES);
+        $body = (string) json_encode(['contract_version' => DelegatedContract::VERSION_3, 'application' => self::APPLICATION, ...$input], JSON_UNESCAPED_SLASHES);
 
         return $this->call('POST', '/application-access', [], [], [], [
             'CONTENT_TYPE' => 'application/json',
