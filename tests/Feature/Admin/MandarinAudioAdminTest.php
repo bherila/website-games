@@ -180,6 +180,20 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->assertSame('ready', $ready->refresh()->state);
     }
 
+    public function test_the_actions_throttle_counts_only_actions_not_the_polled_list(): void
+    {
+        $admin = $this->admin();
+        for ($i = 0; $i < 30; $i++) {
+            $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->assertOk();
+        }
+        // The list's polling has not used the actions' allowance.
+        for ($i = 0; $i < 30; $i++) {
+            $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk();
+        }
+        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertTooManyRequests();
+        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->assertOk();
+    }
+
     public function test_a_failed_regeneration_puts_the_previous_clip_back_in_service(): void
     {
         $admin = $this->admin();

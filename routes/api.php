@@ -39,10 +39,11 @@ Route::middleware(['web', 'auth', 'throttle:120,1'])->group(function (): void {
 
 // The admin panel's audio dashboard (/admin): application administrators only, in every
 // environment. The actions spend money, so they are POSTs (the web group's CSRF check) on a
-// tighter per-user throttle, and each one is idempotent.
+// tighter per-user throttle with its own counter (so the page polling the list cannot use up the
+// actions' allowance), and each one is idempotent.
 Route::middleware(['web', 'auth', 'can:administer'])->prefix('admin/mandarin/audio')->name('admin.mandarin.audio')->group(function (): void {
-    Route::get('/', [MandarinAudioAdminController::class, 'index'])->middleware('throttle:120,1');
-    Route::middleware('throttle:30,1')->group(function (): void {
+    Route::get('/', [MandarinAudioAdminController::class, 'index'])->middleware('throttle:120,1,admin-audio-list');
+    Route::middleware('throttle:30,1,admin-audio-actions')->group(function (): void {
         Route::post('/request', [MandarinAudioAdminController::class, 'request'])->name('.request');
         Route::post('/regenerate', [MandarinAudioAdminController::class, 'regenerate'])->name('.regenerate');
         Route::post('/request-missing', [MandarinAudioAdminController::class, 'requestMissing'])->name('.request-missing');
