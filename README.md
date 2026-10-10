@@ -109,7 +109,7 @@ action that queues something writes one `mandarin_audio_requested` audit row (se
 
 ### Delegated access (managing accounts from the identity provider)
 
-The identity provider's user-management page can list accounts here, create one for a
+The identity provider's user-management page can list and search accounts here, create one for a
 subject before its first sign-in, grant or revoke the administrator flag, and remove an account's
 access, through `POST /application-access` (the auth package's delegated access contract,
 version 3). This app is account-only: there are no workspaces. `App\Services\Admin\DelegatedApplicationAccess`
@@ -117,6 +117,9 @@ decides every request:
 
 - Only an administrator who can sign in (bound under `OAUTH_PROVIDER`) may do anything, reads
   included. Nobody may change their own flag, and the last-administrator rule above still holds.
+- A search matches part of the name or address, ignoring case, among the accounts the listing
+  shows (bound under `OAUTH_PROVIDER`). Placeholder addresses of accounts not yet signed in to
+  never match.
 - A created account is bound to the exact subject with placeholder contact details, and first
   sign-in fills them in. An already-bound subject is refused, and no existing row is adopted.
 - Removing an account's access clears its administrator flag, the only access managed here. The

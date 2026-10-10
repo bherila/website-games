@@ -11,6 +11,7 @@ use BWH\Auth\OAuth\DelegatedAccess\DelegatedRefusal;
 use BWH\Auth\OAuth\DelegatedAccess\DelegatedRequestContext;
 use BWH\Auth\OAuth\PendingAccount;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -121,7 +122,13 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
     }
 
     /**
-     * Accounts that can be addressed by subject (bound under the sign-in provider), by row id.
+     * Accounts that can be addressed by subject (bound under the sign-in provider), by row id,
+     * optionally searched.
+     *
+     * A `query` is a case-insensitive substring of the name or the address. Placeholder addresses
+     * (under `.invalid`, until first sign-in) are not addresses anyone has, so they never match.
+     * A search is the unfiltered listing filtered, with the same keyset pages, and its cursor is
+     * bound to it.
      *
      * @param  array<string, mixed>  $payload
      * @return array{subjects: list<array{subject: string, label: string}>, next_cursor: ?string}
@@ -129,15 +136,24 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
     private function subjects(string $actorSubject, array $payload): array
     {
         $limit = is_int($payload['limit'] ?? null) ? $payload['limit'] : 50;
+        $search = is_string($payload['query'] ?? null) ? $payload['query'] : null;
         $after = $this->cursor->after($actorSubject, 'subjects', $payload);
 
-        $rows = User::query()
+        $query = User::query()
             ->where('oauth_provider', $this->settings->bindingIssuer())
             ->whereNotNull('oauth_subject')
-            ->where('id', '>', $after)
-            ->orderBy('id')
-            ->limit($limit + 1)
-            ->get(['id', 'name', 'oauth_subject']);
+            ->where('id', '>', $after);
+
+        if ($search !== null) {
+            $pattern = '%'.$this->likeEscaped(mb_strtolower($search, 'UTF-8')).'%';
+            $query->where(fn (Builder $matching) => $matching
+                ->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern])
+                ->orWhere(fn (Builder $address) => $address
+                    ->whereRaw("LOWER(email) LIKE ? ESCAPE '!'", [$pattern])
+                    ->whereRaw("LOWER(email) NOT LIKE ? ESCAPE '!'", ['%@invalid'])));
+        }
+
+        $rows = $query->orderBy('id')->limit($limit + 1)->get(['id', 'name', 'oauth_subject']);
 
         $page = $rows->take($limit)->values();
         $last = $page->last();
@@ -148,9 +164,15 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
                 'label' => $this->label($user),
             ])->all(),
             'next_cursor' => $rows->count() > $limit && $last !== null
-                ? $this->cursor->encode($actorSubject, 'subjects', (int) $last->getKey())
+                ? $this->cursor->encode($actorSubject, 'subjects', (int) $last->getKey(), $search)
                 : null,
         ];
+    }
+
+    /** A LIKE operand matching `$value` literally, with `!` as the escape character on every driver. */
+    private function likeEscaped(string $value): string
+    {
+        return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
     }
 
     /**
