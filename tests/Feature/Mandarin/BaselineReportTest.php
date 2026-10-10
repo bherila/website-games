@@ -179,7 +179,21 @@ class BaselineReportTest extends MandarinTestCase
         $this->assertSame(3, $d['activity']['responseEvents']);
         $this->assertSame(33.33, $d['helpDependence']['helpRevealedPer100Responses']);
         $this->assertSame(0.3333, $d['helpDependence']['textOrPinyinShare']);
-        $this->assertSame(1, $d['lapses']['targetsAgainAfterGood']);
+        // Target a's Again is a correct answer with text help, not forgetting.
+        $this->assertSame(0, $d['lapses']['targetsIncorrectAfterGood']);
+    }
+
+    public function test_lapse_is_an_incorrect_answer_after_good_not_a_help_assisted_again(): void
+    {
+        $u = User::factory()->create();
+        $this->event($u, ['target' => 'a', 'grade' => 'Good']);
+        $this->event($u, ['target' => 'a', 'grade' => 'Again', 'text' => true]); // correct with help: server grades Again
+        $this->event($u, ['target' => 'b', 'grade' => 'Good']);
+        $this->event($u, ['target' => 'b', 'grade' => 'Again', 'correctness' => 'incorrect']); // forgot: lapse
+        $this->event($u, ['target' => 'b', 'grade' => 'Again', 'correctness' => 'incorrect']); // same target counted once
+        $this->event($u, ['target' => 'c', 'grade' => 'Again', 'correctness' => 'incorrect']); // never Good: not a lapse
+
+        $this->assertSame(1, $this->report()['total']['lapses']['targetsIncorrectAfterGood']);
     }
 
     public function test_since_until_and_course_filters(): void

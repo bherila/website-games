@@ -97,7 +97,7 @@ class ReportBaselineCommand extends Command
         $this->line('    7+ days          '.$this->rate($b['delayedRecall']['sevenDaysPlus']));
         $h = $b['helpDependence'];
         $this->line(sprintf('  Help: %s help_revealed per 100 responses; %s of responses used text or pinyin help', $h['helpRevealedPer100Responses'] ?? '-', $h['textOrPinyinShare'] === null ? '-' : round($h['textOrPinyinShare'] * 100, 1).'%'));
-        $this->line("  Lapses: {$b['lapses']['targetsAgainAfterGood']} target(s) got Again after an earlier Good");
+        $this->line("  Lapses: {$b['lapses']['targetsIncorrectAfterGood']} target(s) answered incorrectly after an earlier Good");
     }
 
     /** @param  array{n: int, correct: int, rate: float|null}  $r */

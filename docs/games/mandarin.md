@@ -226,8 +226,8 @@ exposure wins, then text, then replay). The client logs `checkpoint_exposure` wh
 same opportunity as its answer, so that event does not make its own showing "previously exposed"; only the first
 answer per opportunity is classified; (4) delayed recall: unaided correct rate for scored responses whose previous scored
 response on the same target was 1 to under 7 days, or 7+ days, earlier; (5) help dependence: `help_revealed`
-per 100 responses and the share of responses with text or pinyin help; (6) lapses: targets graded Again after
-an earlier Good.
+per 100 responses and the share of responses with text or pinyin help; (6) lapses: targets answered incorrectly after
+an earlier Good (a correct answer with text or pinyin help is also graded Again, but is not counted as a lapse).
 
 Time defaults to `accepted_at`, which includes sync delay for offline sessions (an offline session is stamped
 when it uploads). `--time-basis=client` uses `clientOccurredAt`, labelled "client-reported, untrusted".

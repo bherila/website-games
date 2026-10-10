@@ -203,11 +203,13 @@ class BaselineReport
                     $prevScored[$target] = $e['ts'];
                 }
 
+                // The server also grades a help-assisted correct answer Again, which is not forgetting; a lapse
+                // here is an incorrect answer after an earlier Good.
                 if ($isResponse && is_string($e['target'])) {
                     $key = $e['target'];
                     if ($e['grade'] === 'Good') {
                         $good[$key] = true;
-                    } elseif ($e['grade'] === 'Again' && isset($good[$key]) && $counted && ! isset($lapseCounted[$key])) {
+                    } elseif ($e['grade'] === 'Again' && $e['correctness'] === 'incorrect' && isset($good[$key]) && $counted && ! isset($lapseCounted[$key])) {
                         $lapseCounted[$key] = true;
                         $lapsed++;
                     }
@@ -241,7 +243,7 @@ class BaselineReport
                 'helpRevealedPer100Responses' => $per100($helpRevealed),
                 'textOrPinyinShare' => $responses > 0 ? round($helped / $responses, 4) : null,
             ],
-            'lapses' => ['targetsAgainAfterGood' => $lapsed],
+            'lapses' => ['targetsIncorrectAfterGood' => $lapsed],
         ];
     }
 }
