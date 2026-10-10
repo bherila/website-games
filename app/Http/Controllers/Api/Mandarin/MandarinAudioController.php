@@ -8,17 +8,24 @@ use App\Services\Games\Mandarin\Audio\AudioAssetService;
 use App\Services\Games\Mandarin\Course\CourseRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class MandarinAudioController extends Controller
 {
-    /** POST /api/games/mandarin/audio/resolve — 202 while anything is pending, else 200. */
+    /**
+     * POST /api/games/mandarin/audio/resolve — 202 while anything is pending, else 200.
+     *
+     * Generation costs money, so only an application administrator may queue it. Everyone
+     * else (guests and signed-in players alike) gets cache hits only: a line nobody has
+     * generated yet is reported as `not_generated`, never queued.
+     */
     public function resolve(ResolveAudioRequest $request, CourseRepository $courses, AudioAssetService $assets): JsonResponse
     {
         $course = $courses->revision((string) $request->validated('courseId'), (string) $request->validated('contentVersion'));
         if ($course === null) {
             return response()->json(['message' => 'Unknown course revision.'], 422)->header('Cache-Control', 'no-store');
         }
-        $results = $assets->resolve($course, $request->sources(), $request->user() !== null);
+        $results = $assets->resolve($course, $request->sources(), Gate::allows('administer'));
         $pending = array_filter($results, static fn (array $result): bool => in_array($result['state'], ['queued', 'generating'], true));
 
         return response()->json([

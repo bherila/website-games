@@ -57,7 +57,8 @@ one subject to a second account. It is safe to re-run.
 
 `users.is_admin` marks an application administrator. Sign-in never sets it: every account,
 including the very first one, starts as an ordinary player. It gates only operator surfaces
-(the `administer` gate); today that is the Mandarin audio QA page in production. Everything
+(the `administer` gate): queueing paid Mandarin audio generation (everyone else gets cache
+hits only) and the Mandarin audio QA page. Everything
 else an operator does here is an artisan command on the server.
 
 ```bash

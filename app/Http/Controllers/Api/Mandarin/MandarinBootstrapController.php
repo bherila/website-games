@@ -7,6 +7,7 @@ use App\Services\Games\Mandarin\Course\CourseRepository;
 use App\Services\Games\Mandarin\Speech\SpeechSynthesizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /** GET /api/games/mandarin/bootstrap — course + capabilities. Read-only; never generates. */
 class MandarinBootstrapController extends Controller
@@ -28,7 +29,8 @@ class MandarinBootstrapController extends Controller
                 'accountPartitionId' => $user === null ? null : 'user:'.$user->getKey(),
             ],
             'capabilities' => [
-                'canGenerateAudio' => $user !== null && $generationEnabled,
+                // Paid generation is for application administrators only; see MandarinAudioController.
+                'canGenerateAudio' => $user !== null && Gate::forUser($user)->allows('administer') && $generationEnabled,
                 'canSaveToAccount' => $user !== null,
                 'hasDistinctMandarinVoices' => $speech->hasDistinctMandarinVoices(),
             ],

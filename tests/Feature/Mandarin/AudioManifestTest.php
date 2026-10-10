@@ -45,7 +45,7 @@ class AudioManifestTest extends MandarinTestCase
     /** Generate through the normal resolve → worker path, exactly as playback does. */
     private function ready(array $source): MandarinAudioAsset
     {
-        $response = $this->actingAs(User::factory()->create())->withHeaders(['Accept' => 'application/json'])
+        $response = $this->actingAs(User::factory()->administrator()->create())->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => [$source]])
             ->assertStatus(202);
         $id = (int) $response->json('results.0.requestId');

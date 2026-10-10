@@ -63,7 +63,7 @@ class MandarinQaPageTest extends MandarinTestCase
 
     public function test_a_generated_line_gets_a_playable_audio_element(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $requestId = (int) $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',

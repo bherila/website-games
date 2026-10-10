@@ -8,7 +8,7 @@ export type AudioSourceRef =
   | { sourceKind: 'utterance' | 'target' | 'support'; sourceId: string; variant: 'normal' | 'slow' }
   | { sourceKind: 'sfx'; sourceId: string; variant: 'default' };
 export type AudioErrorCode =
-  | 'not_available_in_preview' | 'generation_disabled' | 'sign_in_required'
+  | 'not_available_in_preview' | 'generation_disabled' | 'sign_in_required' | 'not_generated'
   | 'provider_unconfigured' | 'unsupported_language' | 'unsupported_voice'
   | 'budget_exhausted' | 'provider_unavailable' | 'storage_unavailable'
   | 'asset_missing' | 'unknown_source';

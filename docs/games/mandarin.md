@@ -324,7 +324,7 @@ php -d memory_limit=1G artisan mandarin:audio:doctor
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --execute --sfx
 php -d memory_limit=1G artisan queue:work --queue=mandarin-audio &      # keeps generating lazily
 php -d memory_limit=1G artisan serve --no-reload
-# open http://127.0.0.1:8000/mandarin  (guest: plays warmed lines; sign in to generate the rest)
+# open http://127.0.0.1:8000/mandarin  (plays warmed lines; only an administrator's session generates the rest)
 ```
 
 `artisan serve` without `--no-reload` forwards only an allowlist of variables to the PHP

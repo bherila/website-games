@@ -43,24 +43,58 @@ class AudioResolveApiTest extends MandarinTestCase
         Bus::fake();
         $this->resolve(null, [self::HELLO])->assertOk()
             ->assertJsonPath('results.0.state', 'unavailable')
-            ->assertJsonPath('results.0.code', 'sign_in_required');
+            ->assertJsonPath('results.0.code', 'not_generated');
         $this->resolve(null, [['sourceKind' => 'utterance', 'sourceId' => 'nope', 'variant' => 'normal']])
             ->assertOk()->assertJsonPath('results.0.state', 'failed')->assertJsonPath('results.0.code', 'unknown_source');
         Bus::assertNothingDispatched();
         $this->assertSame(0, MandarinAudioAsset::query()->count());
     }
 
+    public function test_signed_in_player_who_is_not_an_administrator_gets_cache_hits_only(): void
+    {
+        Bus::fake();
+        $player = User::factory()->create();
+        $this->resolve($player, [self::HELLO, ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'slow']])->assertOk()
+            ->assertJsonPath('results.0.state', 'unavailable')
+            ->assertJsonPath('results.0.code', 'not_generated')
+            ->assertJsonPath('results.1.code', 'not_generated');
+        Bus::assertNothingDispatched();
+        $this->assertSame(0, MandarinAudioAsset::query()->count());
+
+        // A line an administrator generated is a cache hit for the same player.
+        $requestId = (int) $this->resolve(User::factory()->administrator()->create(), [self::HELLO])->assertStatus(202)->json('results.0.requestId');
+        $this->app->make(AudioAssetService::class)->generate($requestId);
+        $this->resolve($player, [self::HELLO])->assertOk()->assertJsonPath('results.0.state', 'ready');
+    }
+
+    public function test_a_failed_line_is_retried_only_for_an_administrator(): void
+    {
+        Bus::fake([GenerateMandarinAudioJob::class]);
+        $this->speech->behaviour = fn (SpeechRequest $r) => new SpeechProviderException('provider_unavailable', 'boom', true);
+        $admin = User::factory()->administrator()->create();
+        $id = (int) $this->resolve($admin, [self::HELLO])->json('results.0.requestId');
+        $this->app->make(AudioAssetService::class)->generate($id);
+        Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 1);
+
+        $this->resolve(User::factory()->create(), [self::HELLO])->assertOk()->assertJsonPath('results.0.code', 'not_generated');
+        $this->assertSame('failed', MandarinAudioAsset::query()->findOrFail($id)->state);
+        Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 1);
+
+        $this->resolve($admin, [self::HELLO])->assertStatus(202)->assertJsonPath('results.0.requestId', (string) $id);
+        Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 2);
+    }
+
     public function test_generation_disabled_is_reported_honestly(): void
     {
         config()->set('mandarin.speech.generation_enabled', false);
-        $this->resolve(User::factory()->create(), [self::HELLO])->assertOk()
+        $this->resolve(User::factory()->administrator()->create(), [self::HELLO])->assertOk()
             ->assertJsonPath('results.0.state', 'unavailable')
             ->assertJsonPath('results.0.code', 'generation_disabled');
     }
 
     public function test_request_validation_bounds(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $this->resolve($user, array_fill(0, 17, self::HELLO))->assertStatus(422);
         $this->resolve($user, [['sourceKind' => 'text', 'sourceId' => 'x', 'variant' => 'normal']])->assertStatus(422);
         $this->actingAs($user)->postJson('/api/games/mandarin/audio/resolve', ['courseId' => 'mandarin-foundations', 'contentVersion' => '9.9.9', 'sources' => [self::HELLO]])->assertStatus(422);
@@ -69,7 +103,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_support_audio_uses_the_versioned_glossary_text(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $support = ['sourceKind' => 'support', 'sourceId' => 'please', 'variant' => 'normal'];
         $requestId = (int) $this->resolve($user, [$support])->assertStatus(202)
             ->assertJsonPath('results.0.source', $support)
@@ -87,7 +121,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_miss_is_claimed_once_then_generated_stored_and_served(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $first = $this->resolve($user, [self::HELLO])->assertStatus(202)->assertJsonPath('results.0.state', 'queued');
         $requestId = $first->json('results.0.requestId');
         // Concurrent identical miss: same row, no second job.
@@ -135,7 +169,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_normal_and_slow_are_distinct_identities_but_the_same_text_dedupes(): void
     {
         Bus::fake();
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $this->resolve($user, [self::HELLO, ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'slow']])->assertStatus(202);
         $this->assertSame(2, MandarinAudioAsset::query()->count());
         // Target "hello" reads 你好 without the full stop, so it is its own recipe; a second utterance with identical text would share.
@@ -155,7 +189,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_sfx_is_rendered_procedurally_without_a_provider_or_budget(): void
     {
         config()->set('mandarin.speech.generation_enabled', false);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $response = $this->resolve($user, [['sourceKind' => 'sfx', 'sourceId' => 'ui-tap', 'variant' => 'default']])->assertStatus(202);
         $id = (int) $response->json('results.0.requestId');
         $this->app->make(AudioAssetService::class)->generate($id);
@@ -172,7 +206,7 @@ class AudioResolveApiTest extends MandarinTestCase
     {
         config()->set('mandarin.audio.max_attempts', 2);
         $this->speech->behaviour = fn (SpeechRequest $r) => new SpeechProviderException('provider_unavailable', 'boom', true);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         $service->generate($id);
@@ -187,7 +221,7 @@ class AudioResolveApiTest extends MandarinTestCase
 
     public function test_invalid_provider_output_budget_and_storage_failures_never_publish_ready(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
 
         $this->speech->behaviour = fn (SpeechRequest $r) => new SynthesizedAudio('{"error":"not audio"}', 'audio/mpeg', 'mp3', 3);
@@ -215,7 +249,7 @@ class AudioResolveApiTest extends MandarinTestCase
         Bus::fake([GenerateMandarinAudioJob::class]);
         config()->set('mandarin.audio.max_attempts', 2);
         config()->set('mandarin.speech.daily_character_budget', 1);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         for ($i = 0; $i < 3; $i++) {
@@ -235,7 +269,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_generation_refuses_when_provider_configuration_drifted_from_the_queued_recipe(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         $this->speech->voice = 'Different';
@@ -255,7 +289,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_expired_lease_is_recovered_only_by_the_explicit_command_and_a_missing_object_invalidates_ready(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         MandarinAudioAsset::query()->whereKey($id)->update(['state' => 'generating', 'lease_token' => 'stale', 'lease_expires_at' => now()->subMinute(), 'attempts' => 1]);
         // Poll reports generating and does not touch the row.
@@ -282,7 +316,7 @@ class AudioResolveApiTest extends MandarinTestCase
         config()->set('filesystems.disks.s3.url', 'https://games-assets.example.test');
         Storage::fake('s3', ['url' => 'https://games-assets.example.test']);
         config()->set('mandarin.media_disk', 's3');
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         $service->generate($id);
@@ -303,7 +337,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_unreachable_storage_never_demotes_a_ready_row_or_regenerates(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         $service->generate($id);
@@ -343,7 +377,7 @@ class AudioResolveApiTest extends MandarinTestCase
     public function test_warm_dry_run_reports_a_ready_row_with_a_missing_object_as_missing(): void
     {
         Bus::fake([GenerateMandarinAudioJob::class]);
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $service = $this->app->make(AudioAssetService::class);
         $id = (int) $this->resolve($user, [self::HELLO])->json('results.0.requestId');
         $service->generate($id);

@@ -36,12 +36,13 @@ class AudioAssetService
 
     /**
      * Resolve up to 16 allowlisted sources. `$allowGenerate` is false for
-     * guests and read-only callers; they still get cache hits.
+     * every caller who may not spend generation budget (guests, players who are
+     * not application administrators, read-only tools); they still get cache hits.
      *
      * @param  list<array{sourceKind: string, sourceId: string, variant: string}>  $sources
      * @return list<array<string, mixed>>
      */
-    public function resolve(CourseIndex $course, array $sources, bool $allowGenerate, string $guestReason = 'sign_in_required'): array
+    public function resolve(CourseIndex $course, array $sources, bool $allowGenerate, string $guestReason = 'not_generated'): array
     {
         $results = [];
         foreach ($sources as $source) {
@@ -55,7 +56,7 @@ class AudioAssetService
      * @param  array{sourceKind: string, sourceId: string, variant: string}  $source
      * @return array<string, mixed>
      */
-    public function resolveOne(CourseIndex $course, array $source, bool $allowGenerate, string $guestReason = 'sign_in_required'): array
+    public function resolveOne(CourseIndex $course, array $source, bool $allowGenerate, string $guestReason = 'not_generated'): array
     {
         if (! $course->hasSource($source['sourceKind'], $source['sourceId'], $source['variant'])) {
             return $this->failed($source, 'unknown_source', 'That audio source is not part of this course revision.', false);
@@ -99,9 +100,7 @@ class AudioAssetService
             return $this->unavailable($source, 'generation_disabled', 'Speech generation is disabled in this environment.');
         }
         if (! $allowGenerate) {
-            return $this->unavailable($source, $guestReason, $guestReason === 'sign_in_required'
-                ? 'Sign in to generate audio for this line. Already-generated lines stay playable for guests.'
-                : 'Audio for this line has not been generated yet.');
+            return $this->unavailable($source, $guestReason, 'Audio for this line has not been generated yet.');
         }
         if ($asset !== null && $asset->state === MandarinAudioAsset::STATE_FAILED) {
             $retryable = $asset->attempts < (int) config('mandarin.audio.max_attempts', 3) && $asset->error_code !== 'unsupported_voice' && $asset->error_code !== 'unsupported_language';
