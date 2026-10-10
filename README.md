@@ -68,7 +68,9 @@ php artisan users:admin list
 ```
 
 The account is named by its exact numeric id, never by address. Grant and revoke are
-idempotent, are written to the application log by row id, and refuse an unknown id. Grant
+idempotent and refuse an unknown id. Each change writes one row to the audit table (see
+[Access audit](#access-audit)) and a line to the application log, by row id; a re-run that
+changes nothing writes neither. Grant
 refuses an account with no provider subject bound (link it first with `oauth:bind-subject`).
 
 **Locally**, the same gate applies, so make your own development account an administrator:
@@ -96,7 +98,8 @@ decides every request:
   included. Nobody may change their own flag, and the last-administrator rule above still holds.
 - A created account is bound to the exact subject with placeholder contact details, and first
   sign-in fills them in. An already-bound subject is refused, and no existing row is adopted.
-- Each change is logged at info level with the request's `jti` and row ids.
+- Each change writes an audit row (see [Access audit](#access-audit)) carrying the request's
+  `jti`, and is logged at info level with the `jti` and row ids.
 
 It is off by default. To enable it:
 
@@ -120,6 +123,29 @@ Use one integration key for this application alone, never one shared with anothe
 application. To rotate, list both keys, switch the provider to the new key id, then remove the
 old one. A misconfigured key, issuer or provider refuses every request rather than falling back.
 Optionally schedule `php artisan bherila-auth:prune-delegated-nonces` to delete expired nonces.
+
+### Access audit
+
+Every change to who has an account here or who administers the application writes one row to
+the auth package's audit table (`auth_audit_log`, or `bherila-auth.audit.table`), in the same
+database transaction as the change: if the row cannot be written, the change is rolled back.
+The row is written whatever `bherila-auth.audit.driver` is set to; that driver only governs
+the package's own sign-in events. `App\Services\Admin\AccessAudit` writes it.
+
+| Event | `auth_method` | Written when |
+|---|---|---|
+| `application_admin_granted` / `application_admin_revoked` | `console` | `users:admin grant` / `revoke` changes the flag |
+| `delegated_access_changed` | `delegated` | the identity provider's user-management page changes the flag |
+| `account_provisioned` | `delegated` | the identity provider's user-management page creates an account |
+
+`user_id` is the account changed and `acting_user_id` the administrator who acted (empty from
+the console). `metadata` holds `change`, `before` and `after`, plus the delegated request's
+`jti`, `administrators_remaining` on a revocation, and `application_admin_requested` on
+provisioning. Provisioning an administrator writes two rows: the account, then the grant. No
+address, subject or token is stored. A request that changes nothing writes no row.
+
+The table comes from a migration (`2026_06_05_000000_create_auth_audit_log_table`, the
+package's own, published) that creates it only when it is missing; the deploy applies it.
 
 ## Running locally
 

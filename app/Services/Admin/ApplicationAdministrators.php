@@ -19,8 +19,11 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
  * always allowed. Before the first grant there are no administrators at all, which is allowed:
  * the rule protects a state once it exists, it does not create one.
  *
- * Every change is written to the application log with row ids only (no address, no subject),
- * because the app has no audit table of its own.
+ * Every change writes one row to the audit table through {@see AccessAudit}, inside the same
+ * transaction as the change, so a failed audit write rolls the change back. The row names the
+ * target, the acting account (none from the console), how the change was made, and the flag
+ * before and after. The change is also written to the application log, with row ids only (no
+ * address, no subject). A no-op (granting an administrator, revoking a player) writes neither.
  *
  * Callers that only need to know whether a change would be accepted — a management surface
  * that marks the flag as not editable, say — use {@see canRevoke()}. Callers that make the
@@ -29,7 +32,10 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
  */
 final class ApplicationAdministrators
 {
-    public function __construct(private readonly OAuthClient $oauth) {}
+    public function __construct(
+        private readonly OAuthClient $oauth,
+        private readonly AccessAudit $audit,
+    ) {}
 
     /**
      * Administrators, oldest account first.
@@ -73,11 +79,11 @@ final class ApplicationAdministrators
      *
      * @throws AdministratorChangeRefused when the account cannot sign in
      */
-    public function grant(User $user, string $actor): bool
+    public function grant(User $user, AdministratorChangeOrigin $origin): bool
     {
         $provider = $this->provider() ?? throw AdministratorChangeRefused::providerUnknown();
 
-        $changed = DB::transaction(function () use ($user, $provider, $actor): bool {
+        $changed = DB::transaction(function () use ($user, $provider, $origin): bool {
             $target = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
 
             if ($target->isAdministrator()) {
@@ -92,9 +98,16 @@ final class ApplicationAdministrators
 
             $target->forceFill(['is_admin' => true])->save();
 
+            $this->audit->record($origin->event(true), $target, $origin->actingUser, $origin->authMethod, [
+                ...$origin->metadata,
+                'change' => 'administrator_granted',
+                'before' => ['application_admin' => false],
+                'after' => ['application_admin' => true],
+            ]);
+
             Log::notice('Application administrator granted.', [
                 'user' => 'users#'.$target->getKey(),
-                'actor' => $actor,
+                'actor' => $origin->label,
             ]);
 
             return true;
@@ -110,11 +123,11 @@ final class ApplicationAdministrators
      *
      * @throws AdministratorChangeRefused when it is the last administrator who can sign in
      */
-    public function revoke(User $user, string $actor): bool
+    public function revoke(User $user, AdministratorChangeOrigin $origin): bool
     {
         $provider = $this->provider() ?? throw AdministratorChangeRefused::providerUnknown();
 
-        $changed = DB::transaction(function () use ($user, $provider, $actor): bool {
+        $changed = DB::transaction(function () use ($user, $provider, $origin): bool {
             $administrators = $this->lockAdministrators();
 
             $target = $administrators->firstWhere('id', $user->getKey());
@@ -128,9 +141,17 @@ final class ApplicationAdministrators
 
             $target->forceFill(['is_admin' => false])->save();
 
+            $this->audit->record($origin->event(false), $target, $origin->actingUser, $origin->authMethod, [
+                ...$origin->metadata,
+                'change' => 'administrator_revoked',
+                'before' => ['application_admin' => true],
+                'after' => ['application_admin' => false],
+                'administrators_remaining' => $administrators->count() - 1,
+            ]);
+
             Log::notice('Application administrator revoked.', [
                 'user' => 'users#'.$target->getKey(),
-                'actor' => $actor,
+                'actor' => $origin->label,
                 'administrators_remaining' => $administrators->count() - 1,
             ]);
 

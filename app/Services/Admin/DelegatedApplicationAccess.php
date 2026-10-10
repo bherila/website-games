@@ -44,10 +44,16 @@ use Illuminate\Support\Str;
  *   asserted, so it is an administrator who can sign in, exactly what `users:admin grant` allows
  *   for a bound row; and the actor is an administrator who could grant the flag to that account
  *   one step later anyway. It goes through {@see ApplicationAdministrators::grant()} so the
- *   bootstrap rule and its log entry still apply.
+ *   bootstrap rule, its audit row and its log entry still apply.
  *
- * There is no audit table. Each change is logged at info level with the request's `jti`, to
- * correlate with the provider's own records, and row ids only: never an address or a subject.
+ * Every change writes a row to the audit table through {@see AccessAudit}, in the transaction
+ * that makes it, whatever the package's audit driver is set to: `account_provisioned` for a new
+ * account and `delegated_access_changed` for the flag (written by ApplicationAdministrators), both
+ * with auth_method `delegated`, the actor as the acting account, the request's `jti` to correlate
+ * with the provider's own records, and the state before and after. Provisioning an administrator
+ * is two changes and writes both rows. An update that changes nothing writes nothing. Each change
+ * is also logged at info level. Rows and log lines carry row ids only: never an address, a
+ * subject or a token.
  */
 final class DelegatedApplicationAccess implements ApplicationAccessAdapter
 {
@@ -59,6 +65,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
         private readonly DelegatedAccessSettings $settings,
         private readonly DelegatedCursor $cursor,
         private readonly Container $container,
+        private readonly AccessAudit $accessAudit,
     ) {}
 
     public function handle(string $actorSubject, array $payload): array
@@ -190,7 +197,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
                     throw DelegatedRefusal::of(DelegatedRefusal::NOT_AUTHORIZED);
                 }
 
-                $by = $this->actorLabel($actor);
+                $by = AdministratorChangeOrigin::delegated($actor, $this->jti());
                 $changed = $wanted ? $this->administrators->grant($target, $by) : $this->administrators->revoke($target, $by);
 
                 return [$target, $changed ? ($wanted ? 'administrator_granted' : 'administrator_revoked') : null];
@@ -201,7 +208,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
         }
 
         if ($change !== null) {
-            $this->audit($change, $target, $actor);
+            $this->log($change, $target, $actor);
         }
 
         return $this->state($actor, $subject, $target);
@@ -242,8 +249,16 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
                     'oauth_subject' => $subject,
                 ]);
 
+                $this->accessAudit->record(AccessAudit::ACCOUNT_PROVISIONED, $target, $actor, AccessAudit::METHOD_DELEGATED, [
+                    'jti' => $this->jti(),
+                    'change' => 'account_provisioned',
+                    'before' => ['provisioned' => false],
+                    'after' => ['provisioned' => true, 'application_admin' => false],
+                    'application_admin_requested' => $administrator,
+                ]);
+
                 if ($administrator) {
-                    $this->administrators->grant($target, $this->actorLabel($actor));
+                    $this->administrators->grant($target, AdministratorChangeOrigin::delegated($actor, $this->jti()));
                 }
 
                 return $target;
@@ -260,7 +275,7 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
             throw DelegatedRefusal::of(DelegatedRefusal::NOT_AUTHORIZED);
         }
 
-        $this->audit('account_provisioned', $target, $actor, ['application_admin' => $target->isAdministrator()]);
+        $this->log('account_provisioned', $target, $actor, ['application_admin' => $target->isAdministrator()]);
 
         return $this->state($actor, $subject, $target);
     }
@@ -318,25 +333,24 @@ final class DelegatedApplicationAccess implements ApplicationAccessAdapter
         return $name === '' ? 'users#'.$user->getKey() : mb_strcut($name, 0, 255, 'UTF-8');
     }
 
-    private function actorLabel(User $actor): string
+    /** The verified request's `jti`, when the endpoint bound one. */
+    private function jti(): ?string
     {
-        return 'delegated-access users#'.$actor->getKey();
+        return $this->container->bound(DelegatedRequestContext::class)
+            ? $this->container->make(DelegatedRequestContext::class)->jti
+            : null;
     }
 
     /**
      * @param  array<string, bool>  $detail
      */
-    private function audit(string $change, User $target, User $actor, array $detail = []): void
+    private function log(string $change, User $target, User $actor, array $detail = []): void
     {
-        $context = $this->container->bound(DelegatedRequestContext::class)
-            ? $this->container->make(DelegatedRequestContext::class)
-            : null;
-
         Log::info('Delegated access change.', [
             'change' => $change,
             'user' => 'users#'.$target->getKey(),
             'actor' => 'users#'.$actor->getKey(),
-            'jti' => $context?->jti,
+            'jti' => $this->jti(),
             ...$detail,
         ]);
     }

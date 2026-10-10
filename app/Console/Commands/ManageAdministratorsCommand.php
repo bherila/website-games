@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Services\Admin\AdministratorChangeOrigin;
 use App\Services\Admin\AdministratorChangeRefused;
 use App\Services\Admin\ApplicationAdministrators;
 use Illuminate\Console\Attributes\Description;
@@ -19,8 +20,10 @@ use Illuminate\Console\Command;
  * identifier here (the provider does not verify it and its owner can change it), so the
  * command never searches by one. Confirm out of band which row belongs to whom, then name it.
  *
- * Both changes are idempotent, so re-running one is harmless. The last-administrator rule and
- * the log entry live in {@see ApplicationAdministrators}, not here, so every caller keeps them.
+ * Both changes are idempotent, so re-running one is harmless. The last-administrator rule, the
+ * audit row (event `application_admin_granted` / `application_admin_revoked`, auth_method
+ * `console`) and the log entry live in {@see ApplicationAdministrators}, not here, so every
+ * caller keeps them.
  */
 #[Signature('users:admin
     {action : grant, revoke or list}
@@ -62,8 +65,8 @@ class ManageAdministratorsCommand extends Command
 
         try {
             $changed = $action === 'grant'
-                ? $administrators->grant($user, 'console')
-                : $administrators->revoke($user, 'console');
+                ? $administrators->grant($user, AdministratorChangeOrigin::console())
+                : $administrators->revoke($user, AdministratorChangeOrigin::console());
         } catch (AdministratorChangeRefused $refused) {
             $this->components->error($refused->getMessage());
 
