@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use BWH\Auth\Models\AuthAuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
@@ -30,6 +31,13 @@ class ManageAdministratorsCommandTest extends TestCase
             ->assertSuccessful();
 
         $this->assertTrue($user->fresh()?->isAdministrator());
+
+        // One audit row for the grant, none for the idempotent re-run.
+        $row = AuthAuditLog::query()->sole();
+        $this->assertSame('application_admin_granted', $row->event);
+        $this->assertSame('console', $row->auth_method);
+        $this->assertSame($user->getKey(), $row->user_id);
+        $this->assertNull($row->acting_user_id);
     }
 
     public function test_it_revokes_and_is_safe_to_re_run(): void
@@ -45,6 +53,11 @@ class ManageAdministratorsCommandTest extends TestCase
             ->assertSuccessful();
 
         $this->assertFalse($user->fresh()?->isAdministrator());
+
+        $row = AuthAuditLog::query()->sole();
+        $this->assertSame('application_admin_revoked', $row->event);
+        $this->assertSame('console', $row->auth_method);
+        $this->assertSame($user->getKey(), $row->user_id);
     }
 
     public function test_it_refuses_to_revoke_the_last_administrator_who_can_sign_in(): void
@@ -56,6 +69,7 @@ class ManageAdministratorsCommandTest extends TestCase
             ->assertFailed();
 
         $this->assertTrue($only->fresh()?->isAdministrator());
+        $this->assertSame(0, AuthAuditLog::query()->count());
     }
 
     public function test_it_refuses_an_unknown_account(): void

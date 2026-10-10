@@ -227,8 +227,8 @@ export class MockMandarinGateway implements MandarinGateway<Course> {
         return attempts === 1
           ? { state: 'failed', source, code: 'provider_unavailable', retryable: true, retryAfterMs: 800, message: 'The speech provider did not respond. You can try again.' }
           : this.preview(source, 'Retry succeeded (mock).')
-      case 'signInRequired':
-        return { state: 'unavailable', source, code: 'sign_in_required', retryable: false, retryAfterMs: null, message: 'Sign in to generate audio for this line. Already-generated lines stay playable for guests.' }
+      case 'notGenerated':
+        return { state: 'unavailable', source, code: 'not_generated', retryable: false, retryAfterMs: null, message: 'Audio for this line has not been generated yet.' }
       case 'networkError':
         throw new TypeError('Failed to fetch')
     }

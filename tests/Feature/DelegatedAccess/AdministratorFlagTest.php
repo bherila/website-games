@@ -3,8 +3,11 @@
 namespace Tests\Feature\DelegatedAccess;
 
 use App\Models\User;
+use BWH\Auth\Models\AuthAuditLog;
 use BWH\Auth\OAuth\DelegatedAccess\DelegatedRefusal;
 use Illuminate\Database\Events\TransactionBeginning;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -77,6 +80,48 @@ class AdministratorFlagTest extends DelegatedAccessTestCase
         Log::shouldHaveReceived('notice')->with('Application administrator granted.', ['user' => 'users#'.$player->getKey(), 'actor' => 'delegated-access users#'.$this->manager->getKey()])->once();
     }
 
+    public function test_each_flag_change_writes_one_audit_row_with_the_actor_target_and_jti(): void
+    {
+        Config::set('bherila-auth.audit.driver', 'null');
+        $player = $this->account('player-subject');
+
+        $granted = $this->delegatedAccessCall(self::MANAGER, $this->setAdministrator(self::MANAGER, 'player-subject', true));
+        $this->delegatedAccessCall(self::MANAGER, $this->setAdministrator(self::MANAGER, 'player-subject', false, $granted['revision']));
+
+        $rows = AuthAuditLog::query()->orderBy('id')->get();
+        $this->assertCount(2, $rows);
+        foreach ([[$rows[0], 'administrator_granted', false, true], [$rows[1], 'administrator_revoked', true, false]] as [$row, $change, $before, $after]) {
+            $this->assertSame('delegated_access_changed', $row->event);
+            $this->assertSame('delegated', $row->auth_method);
+            $this->assertSame($player->getKey(), $row->user_id);
+            $this->assertSame($this->manager->getKey(), $row->acting_user_id);
+            $this->assertTrue($row->succeeded);
+            $this->assertNull($row->email);
+            $this->assertSame($change, $row->metadata['change']);
+            $this->assertSame(['application_admin' => $before], $row->metadata['before']);
+            $this->assertSame(['application_admin' => $after], $row->metadata['after']);
+            $this->assertIsString($row->metadata['jti']);
+            $this->assertSame(64, strlen($row->metadata['jti']));
+            $this->assertStringNotContainsString('subject', (string) json_encode($row->metadata));
+        }
+        $this->assertNotSame($rows[0]->metadata['jti'], $rows[1]->metadata['jti']);
+    }
+
+    public function test_a_failed_audit_write_rolls_the_flag_change_back(): void
+    {
+        $player = $this->account('player-subject');
+        $update = $this->setAdministrator(self::MANAGER, 'player-subject', true);
+        Config::set('bherila-auth.audit.table', 'missing_audit_table');
+
+        try {
+            $this->delegatedAccessCall(self::MANAGER, $update);
+            $this->fail('The flag changed without its audit row.');
+        } catch (QueryException) {
+        }
+
+        $this->assertFalse($player->refresh()->isAdministrator());
+    }
+
     public function test_resubmitting_the_current_value_changes_and_logs_nothing(): void
     {
         $this->account('player-subject');
@@ -86,6 +131,7 @@ class AdministratorFlagTest extends DelegatedAccessTestCase
 
         $this->assertFalse($state['access']['application_admin']);
         Log::shouldNotHaveReceived('info');
+        $this->assertSame(0, AuthAuditLog::query()->count());
     }
 
     /**

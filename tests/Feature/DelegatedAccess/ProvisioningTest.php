@@ -3,8 +3,10 @@
 namespace Tests\Feature\DelegatedAccess;
 
 use App\Models\User;
+use BWH\Auth\Models\AuthAuditLog;
 use BWH\Auth\OAuth\DelegatedAccess\DelegatedRefusal;
 use BWH\Auth\OAuth\PendingAccount;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -48,6 +50,64 @@ class ProvisioningTest extends DelegatedAccessTestCase
             && $context['application_admin'] === false
             && is_string($context['jti'])
             && ! str_contains((string) json_encode($context), 'newcomer')))->once();
+    }
+
+    public function test_provisioning_writes_one_audit_row_with_the_actor_target_and_jti(): void
+    {
+        Config::set('bherila-auth.audit.driver', 'null');
+
+        $this->delegatedAccessCall(self::MANAGER, $this->provisioning('newcomer'));
+
+        $user = User::query()->where('oauth_subject', 'newcomer')->sole();
+        $row = AuthAuditLog::query()->sole();
+        $this->assertSame('account_provisioned', $row->event);
+        $this->assertSame('delegated', $row->auth_method);
+        $this->assertSame($user->getKey(), $row->user_id);
+        $this->assertSame($this->manager->getKey(), $row->acting_user_id);
+        $this->assertTrue($row->succeeded);
+        $this->assertNull($row->email);
+        $this->assertSame('account_provisioned', $row->metadata['change']);
+        $this->assertSame(['provisioned' => false], $row->metadata['before']);
+        $this->assertSame(['provisioned' => true, 'application_admin' => false], $row->metadata['after']);
+        $this->assertFalse($row->metadata['application_admin_requested']);
+        $this->assertSame(64, strlen((string) $row->metadata['jti']));
+        $this->assertStringNotContainsString('newcomer', (string) json_encode($row->metadata));
+    }
+
+    /** Creating the account and granting the flag are two changes, each with its own row. */
+    public function test_provisioning_an_administrator_records_the_account_and_the_grant(): void
+    {
+        $this->delegatedAccessCall(self::MANAGER, $this->provisioning('newcomer', administrator: true));
+
+        $user = User::query()->where('oauth_subject', 'newcomer')->sole();
+        $rows = AuthAuditLog::query()->orderBy('id')->get();
+        $this->assertSame(['account_provisioned', 'delegated_access_changed'], $rows->pluck('event')->all());
+        $this->assertSame([$user->getKey(), $user->getKey()], $rows->pluck('user_id')->all());
+        $this->assertSame([$this->manager->getKey(), $this->manager->getKey()], $rows->pluck('acting_user_id')->all());
+        $this->assertTrue($rows[0]->metadata['application_admin_requested']);
+        $this->assertSame('administrator_granted', $rows[1]->metadata['change']);
+        $this->assertSame($rows[0]->metadata['jti'], $rows[1]->metadata['jti']);
+    }
+
+    public function test_a_refused_provisioning_writes_no_audit_row(): void
+    {
+        $this->account('taken-subject');
+
+        $this->assertSame(DelegatedRefusal::REVISION_CONFLICT, $this->refusal(self::MANAGER, $this->provisioning('taken-subject')));
+        $this->assertSame(0, AuthAuditLog::query()->count());
+    }
+
+    public function test_a_failed_audit_write_rolls_the_provisioning_back(): void
+    {
+        Config::set('bherila-auth.audit.table', 'missing_audit_table');
+
+        try {
+            $this->delegatedAccessCall(self::MANAGER, $this->provisioning('newcomer'));
+            $this->fail('An account was provisioned without its audit row.');
+        } catch (QueryException) {
+        }
+
+        $this->assertNull(User::query()->where('oauth_subject', 'newcomer')->first());
     }
 
     public function test_without_a_display_name_the_placeholder_name_is_used(): void

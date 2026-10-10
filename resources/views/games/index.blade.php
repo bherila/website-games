@@ -27,6 +27,10 @@
                     </details>
                 @endif
             @endauth
+            @can('administer')
+                {{-- Server-rendered for administrators only; everyone else never receives the link. --}}
+                <a href="{{ route('admin.index') }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:no-underline" data-testid="admin-link">Admin</a>
+            @endcan
             <div id="account-auth-action">
                 @guest
                     <a href="{{ route('oauth.redirect') }}" class="font-medium text-primary hover:underline">

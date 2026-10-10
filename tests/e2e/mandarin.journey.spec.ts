@@ -103,7 +103,7 @@ test.describe('Mandarin Quest preview journey', () => {
       { scenario: 'providerUnavailable', expect: /not configured/ },
       { scenario: 'retryableError', expect: /did not respond/ },
       { scenario: 'offline', expect: /Could not reach|Failed to fetch/ },
-      { scenario: 'guest', expect: /Sign in to generate/ },
+      { scenario: 'guest', expect: /not been generated yet/ },
       { scenario: 'noDeviceVoice', expect: /Simulated playback/ },
     ]
     for (const item of cases) {

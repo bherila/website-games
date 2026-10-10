@@ -275,7 +275,7 @@ Import rules, all covered by `tests/Feature/Mandarin/AudioManifestTest.php`:
 
 ## Audio QA page
 
-`GET /mandarin/qa` (`games.mandarin.qa`, signed in) is a server-rendered audition sheet for
+`GET /mandarin/qa` (`games.mandarin.qa`, application administrators only) is a server-rendered audition sheet for
 the published revision: every utterance grouped by scene with its role, every target, each
 with Chinese, pinyin, English, usage, a "reserved for the listening check" tag on the twenty
 checkpoint lines, and — per `normal`/`slow` variant — either a plain `<audio controls>`
@@ -286,9 +286,23 @@ the bound provider id, ready/pending/failed/unavailable counts and the revision'
 
 It resolves read-only, so opening it can never call a provider, enqueue a job or spend
 budget; use `mandarin:audio:warm` to fill the cache. It carries `Cache-Control: no-store`,
-needs no JavaScript, and returns 404 in production unless `MANDARIN_QA_ENABLED=true` **and**
-the viewer is an application administrator (see the README). Elsewhere any signed-in account
-can open it.
+needs no JavaScript, and returns 404 to anyone who is not an application administrator, in every environment (see
+the README for granting the flag, locally too). Production additionally needs
+`MANDARIN_QA_ENABLED=true`.
+
+## Audio dashboard (admin panel)
+
+`/admin` (administrators only; see the README) lists every audio source of the published
+revision with the state of the asset that serves it: `ready`, `queued`, `generating`, `failed`,
+`missing` (no asset under the current recipe) or `unavailable` (no recipe can be made). The
+list reads asset rows only, never storage, and never generates
+(`App\Services\Games\Mandarin\Audio\AudioCatalog`). From it an administrator can request a
+missing or failed source, regenerate a ready one (after a confirmation; the clip is out of
+service until the new one is ready), request every missing source (after a confirmation that
+shows the count) or retry every failed one. A missing source is claimed through the same
+resolver as playback and `mandarin:audio:warm`; a failed or ready row is re-queued by
+`AudioAssetService::requeue()` with its attempts starting over. Nothing already queued or
+generating is queued again, and speech is not queued while generation is disabled.
 
 ## Configuration (`config/mandarin.php`, `.env.example`)
 
@@ -324,7 +338,7 @@ php -d memory_limit=1G artisan mandarin:audio:doctor
 php -d memory_limit=1G artisan mandarin:audio:warm --node=s1n1 --variant=both --execute --sfx
 php -d memory_limit=1G artisan queue:work --queue=mandarin-audio &      # keeps generating lazily
 php -d memory_limit=1G artisan serve --no-reload
-# open http://127.0.0.1:8000/mandarin  (guest: plays warmed lines; sign in to generate the rest)
+# open http://127.0.0.1:8000/mandarin  (plays warmed lines; only an administrator's session generates the rest)
 ```
 
 `artisan serve` without `--no-reload` forwards only an allowlist of variables to the PHP

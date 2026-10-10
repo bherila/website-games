@@ -92,7 +92,7 @@ describe('MockMandarinGateway audio', () => {
 
   it('reports unavailable states honestly', async () => {
     expect(await resolve(gateway('providerUnavailable'))).toMatchObject({ state: 'unavailable', code: 'provider_unconfigured', retryable: false })
-    expect(await resolve(gateway('guest'))).toMatchObject({ state: 'unavailable', code: 'sign_in_required' })
+    expect(await resolve(gateway('guest'))).toMatchObject({ state: 'unavailable', code: 'not_generated' })
     await expect(resolve(gateway('offline'))).rejects.toThrow('Failed to fetch')
   })
 

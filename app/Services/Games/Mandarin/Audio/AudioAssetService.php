@@ -25,6 +25,10 @@ use Throwable;
  */
 class AudioAssetService
 {
+    public const REQUEUE_FROM_FAILED = MandarinAudioAsset::STATE_FAILED;
+
+    public const REQUEUE_FROM_READY = MandarinAudioAsset::STATE_READY;
+
     public function __construct(
         private readonly SpeechSynthesizer $speech,
         private readonly SfxRenderer $sfx,
@@ -36,12 +40,13 @@ class AudioAssetService
 
     /**
      * Resolve up to 16 allowlisted sources. `$allowGenerate` is false for
-     * guests and read-only callers; they still get cache hits.
+     * every caller who may not spend generation budget (guests, players who are
+     * not application administrators, read-only tools); they still get cache hits.
      *
      * @param  list<array{sourceKind: string, sourceId: string, variant: string}>  $sources
      * @return list<array<string, mixed>>
      */
-    public function resolve(CourseIndex $course, array $sources, bool $allowGenerate, string $guestReason = 'sign_in_required'): array
+    public function resolve(CourseIndex $course, array $sources, bool $allowGenerate, string $guestReason = 'not_generated'): array
     {
         $results = [];
         foreach ($sources as $source) {
@@ -55,7 +60,7 @@ class AudioAssetService
      * @param  array{sourceKind: string, sourceId: string, variant: string}  $source
      * @return array<string, mixed>
      */
-    public function resolveOne(CourseIndex $course, array $source, bool $allowGenerate, string $guestReason = 'sign_in_required'): array
+    public function resolveOne(CourseIndex $course, array $source, bool $allowGenerate, string $guestReason = 'not_generated'): array
     {
         if (! $course->hasSource($source['sourceKind'], $source['sourceId'], $source['variant'])) {
             return $this->failed($source, 'unknown_source', 'That audio source is not part of this course revision.', false);
@@ -99,9 +104,7 @@ class AudioAssetService
             return $this->unavailable($source, 'generation_disabled', 'Speech generation is disabled in this environment.');
         }
         if (! $allowGenerate) {
-            return $this->unavailable($source, $guestReason, $guestReason === 'sign_in_required'
-                ? 'Sign in to generate audio for this line. Already-generated lines stay playable for guests.'
-                : 'Audio for this line has not been generated yet.');
+            return $this->unavailable($source, $guestReason, 'Audio for this line has not been generated yet.');
         }
         if ($asset !== null && $asset->state === MandarinAudioAsset::STATE_FAILED) {
             $retryable = $asset->attempts < (int) config('mandarin.audio.max_attempts', 3) && $asset->error_code !== 'unsupported_voice' && $asset->error_code !== 'unsupported_language';
@@ -310,7 +313,7 @@ class AudioAssetService
                 ->where('lease_token', $asset->lease_token)
                 ->update($canRetry
                     ? ['state' => MandarinAudioAsset::STATE_QUEUED, 'lease_token' => null, 'lease_expires_at' => null, 'error_code' => 'lease_expired', 'error_message' => 'A previous attempt did not finish.', 'updated_at' => now()]
-                    : ['state' => MandarinAudioAsset::STATE_FAILED, 'lease_token' => null, 'lease_expires_at' => null, 'error_code' => 'provider_unavailable', 'error_message' => 'Retry attempts exhausted after an unfinished generation.', 'updated_at' => now()]);
+                    : ['state' => $this->settledState($asset), 'lease_token' => null, 'lease_expires_at' => null, 'error_code' => 'provider_unavailable', 'error_message' => 'Retry attempts exhausted after an unfinished generation.', 'updated_at' => now()]);
             if ($updated === 1 && $canRetry) {
                 $this->dispatch($asset->id);
                 $requeued++;
@@ -320,6 +323,87 @@ class AudioAssetService
         }
 
         return ['expired' => $stale->count(), 'requeued' => $requeued, 'failed' => $failed];
+    }
+
+    /**
+     * Operator re-queue of an existing row: a failed one (retry), or a ready one (regenerate).
+     * The attempt count starts over, because an operator asked for it explicitly; the bounded
+     * retries apply again from there. The update is conditional on the row still being in
+     * `$fromState`, so a queued or generating row is never queued twice and two concurrent
+     * requests queue it once. Speech is not queued while generation is disabled; SFX always is.
+     *
+     * Regenerating takes a ready clip out of service until the attempt settles: the media route
+     * serves only ready rows. A new clip replaces it on success; on failure the row goes back to
+     * ready with the old object ({@see fail()}), so a failed regeneration never loses a clip.
+     *
+     * @param  string  $fromState  {@see self::REQUEUE_FROM_FAILED} or {@see self::REQUEUE_FROM_READY}
+     * @return bool whether this call queued the row
+     */
+    public function requeue(MandarinAudioAsset $asset, string $fromState): bool
+    {
+        if (! in_array($fromState, [self::REQUEUE_FROM_FAILED, self::REQUEUE_FROM_READY], true)) {
+            throw new \InvalidArgumentException("Cannot re-queue a {$fromState} row.");
+        }
+        if ($asset->kind !== 'sfx' && ! (bool) config('mandarin.speech.generation_enabled')) {
+            return false;
+        }
+        $updated = MandarinAudioAsset::query()
+            ->whereKey($asset->id)
+            ->where('state', $fromState)
+            ->update([
+                'state' => MandarinAudioAsset::STATE_QUEUED,
+                'attempts' => 0,
+                'lease_token' => null,
+                'lease_expires_at' => null,
+                'error_code' => null,
+                'error_message' => null,
+                'updated_at' => now(),
+            ]);
+        if ($updated === 1) {
+            $this->dispatch($asset->id);
+        }
+
+        return $updated === 1;
+    }
+
+    /**
+     * Operator claim of a source with nothing to serve: no row yet, or a ready row whose object
+     * columns are empty. Returns true only when this call queued it, so a source another request
+     * already queued (or claims concurrently) is never counted twice. Speech is not queued while
+     * generation is disabled; SFX always is.
+     *
+     * @param  array{sourceKind: string, sourceId: string, variant: string}  $source
+     */
+    public function claimMissing(CourseIndex $course, array $source): bool
+    {
+        if (! $course->hasSource($source['sourceKind'], $source['sourceId'], $source['variant'])) {
+            return false;
+        }
+        try {
+            $recipe = $this->recipeFor($course, $source);
+        } catch (SpeechProviderException) {
+            return false;
+        }
+        if ($recipe->kind !== 'sfx' && ! (bool) config('mandarin.speech.generation_enabled')) {
+            return false;
+        }
+
+        $asset = MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->first();
+        if ($asset === null) {
+            $claimed = $this->insertClaim($recipe) !== null;
+        } else {
+            $claimed = MandarinAudioAsset::query()
+                ->whereKey($asset->id)
+                ->where('state', MandarinAudioAsset::STATE_READY)
+                ->where(fn ($query) => $query->whereNull('disk')->orWhereNull('object_key'))
+                ->update(['state' => MandarinAudioAsset::STATE_QUEUED, 'attempts' => 0, 'lease_token' => null, 'lease_expires_at' => null, 'updated_at' => now()]) === 1;
+            if ($claimed) {
+                $this->dispatch($asset->id);
+            }
+        }
+        $this->rememberSource($course, $source, $recipe->hash);
+
+        return $claimed;
     }
 
     /**
@@ -427,6 +511,12 @@ class AudioAssetService
 
     private function claim(AudioRecipe $recipe): MandarinAudioAsset
     {
+        return $this->insertClaim($recipe) ?? MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->firstOrFail();
+    }
+
+    /** Insert and dispatch a queued row; null when another request claimed the recipe first. */
+    private function insertClaim(AudioRecipe $recipe): ?MandarinAudioAsset
+    {
         try {
             $asset = DB::transaction(function () use ($recipe): MandarinAudioAsset {
                 return MandarinAudioAsset::query()->create([
@@ -442,8 +532,8 @@ class AudioAssetService
 
             return $asset;
         } catch (QueryException) {
-            // Unique constraint: another request claimed it first. Reuse that row.
-            return MandarinAudioAsset::query()->where('recipe_hash', $recipe->hash)->firstOrFail();
+            // Unique constraint: another request claimed it first.
+            return null;
         }
     }
 
@@ -511,10 +601,15 @@ class AudioAssetService
         ], ['recipe_hash' => $recipeHash]);
     }
 
+    /**
+     * Settle a failed attempt. A row that still holds a published object (a regeneration of a
+     * ready clip) goes back to ready and keeps serving that object, with the failure recorded on
+     * it; only a row with nothing to serve becomes failed.
+     */
     private function fail(MandarinAudioAsset $asset, string $token, string $code, string $message, bool $retryable = false, bool $consumeAttempt = true): void
     {
         MandarinAudioAsset::query()->whereKey($asset->id)->where('lease_token', $token)->update([
-            'state' => MandarinAudioAsset::STATE_FAILED,
+            'state' => $this->settledState($asset),
             'error_code' => $code,
             'error_message' => Str::limit($message, 500),
             'lease_token' => null,
@@ -522,6 +617,12 @@ class AudioAssetService
             'provider_metadata' => json_encode(['retryable' => $retryable]),
             'updated_at' => now(),
         ] + ($consumeAttempt ? [] : ['attempts' => DB::raw('CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END')]));
+    }
+
+    /** Where a failed attempt leaves the row: ready while it still has a published object, else failed. */
+    private function settledState(MandarinAudioAsset $asset): string
+    {
+        return $asset->disk !== null && $asset->object_key !== null ? MandarinAudioAsset::STATE_READY : MandarinAudioAsset::STATE_FAILED;
     }
 
     /** The bound synthesizer when it produced this recipe; otherwise the provider the recipe names. */

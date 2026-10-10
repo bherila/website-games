@@ -57,7 +57,8 @@ one subject to a second account. It is safe to re-run.
 
 `users.is_admin` marks an application administrator. Sign-in never sets it: every account,
 including the very first one, starts as an ordinary player. It gates only operator surfaces
-(the `administer` gate); today that is the Mandarin audio QA page in production. Everything
+(the `administer` gate): queueing paid Mandarin audio generation (everyone else gets cache
+hits only), the Mandarin audio QA page and the admin panel, in every environment. Everything
 else an operator does here is an artisan command on the server.
 
 ```bash
@@ -67,14 +68,44 @@ php artisan users:admin list
 ```
 
 The account is named by its exact numeric id, never by address. Grant and revoke are
-idempotent, are written to the application log by row id, and refuse an unknown id. Grant
+idempotent and refuse an unknown id. Each change writes one row to the audit table (see
+[Access audit](#access-audit)) and a line to the application log, by row id; a re-run that
+changes nothing writes neither. Grant
 refuses an account with no provider subject bound (link it first with `oauth:bind-subject`).
+
+**Locally**, the same gate applies, so make your own development account an administrator:
+sign in once through the identity provider (which creates the row and binds its subject),
+then run `php artisan users:admin grant <your-local-users-id>` against your local database.
+Make sure `.env` points at a local database first. For the browser end-to-end suite, grant
+the flag to the account named by `E2E_USER_ID`. Feature tests use
+`User::factory()->administrator()`.
 
 **Last-administrator rule:** revoking is refused when it would leave no administrator who can
 still sign in (one bound to a subject under the configured provider). Holders of the flag who
 cannot sign in do not count, and revoking them is always allowed. The rule lives in
 `App\Services\Admin\ApplicationAdministrators`; change the flag only through it
 (`canRevoke()` to ask, `grant()`/`revoke()` to act).
+
+**Admin panel** (`/admin`; the games page shows an "Admin" link to administrators only). Guests
+are sent to sign in and other accounts get 403. It links to the identity provider's
+user-management page for this application (`OAUTH_PROVIDER_URL` +
+`/applications/<GAMES_DELEGATED_ACCESS_APPLICATION>/access`, shown only when both are set) and
+to the audio QA page, and holds the Mandarin audio dashboard: counts by state, a filterable,
+paginated list of every audio source in the published revision with a play button for ready
+clips, and four paid actions, each idempotent and never re-queueing a clip that is already
+queued or generating (`App\Services\Games\Mandarin\Audio\AudioOperations`):
+
+| Action | Endpoint (`POST`, CSRF, 30/min per user) |
+|---|---|
+| Request one missing or failed source | `/api/admin/mandarin/audio/request` (`source`) |
+| Regenerate one ready source | `/api/admin/mandarin/audio/regenerate` (`source`, `confirm=1`) |
+| Request every missing source | `/api/admin/mandarin/audio/request-missing` (`confirm=1`) |
+| Retry every failed source | `/api/admin/mandarin/audio/retry-failed` |
+
+The list is `GET /api/admin/mandarin/audio` (`state`, `q`, `page`, `per_page`), which never
+generates; the page refreshes it every few seconds while anything is queued or generating. Each
+action that queues something writes one `mandarin_audio_requested` audit row (see
+[Access audit](#access-audit)).
 
 ### Delegated access (managing accounts from the identity provider)
 
@@ -88,7 +119,8 @@ decides every request:
   included. Nobody may change their own flag, and the last-administrator rule above still holds.
 - A created account is bound to the exact subject with placeholder contact details, and first
   sign-in fills them in. An already-bound subject is refused, and no existing row is adopted.
-- Each change is logged at info level with the request's `jti` and row ids.
+- Each change writes an audit row (see [Access audit](#access-audit)) carrying the request's
+  `jti`, and is logged at info level with the `jti` and row ids.
 
 It is off by default. To enable it:
 
@@ -112,6 +144,34 @@ Use one integration key for this application alone, never one shared with anothe
 application. To rotate, list both keys, switch the provider to the new key id, then remove the
 old one. A misconfigured key, issuer or provider refuses every request rather than falling back.
 Optionally schedule `php artisan bherila-auth:prune-delegated-nonces` to delete expired nonces.
+
+### Access audit
+
+Every change to who has an account here or who administers the application writes one row to
+the auth package's audit table (`auth_audit_log`, or `bherila-auth.audit.table`), in the same
+database transaction as the change: if the row cannot be written, the change is rolled back.
+The row is written whatever `bherila-auth.audit.driver` is set to; that driver only governs
+the package's own sign-in events. `App\Services\Admin\AccessAudit` writes it.
+
+| Event | `auth_method` | Written when |
+|---|---|---|
+| `application_admin_granted` / `application_admin_revoked` | `console` | `users:admin grant` / `revoke` changes the flag |
+| `delegated_access_changed` | `delegated` | the identity provider's user-management page changes the flag |
+| `account_provisioned` | `delegated` | the identity provider's user-management page creates an account |
+| `mandarin_audio_requested` | `session` | an administrator queues paid audio from the admin panel |
+
+`user_id` is the account changed and `acting_user_id` the administrator who acted (empty from
+the console). `metadata` holds `change`, `before` and `after`, plus the delegated request's
+`jti`, `administrators_remaining` on a revocation, and `application_admin_requested` on
+provisioning. Provisioning an administrator writes two rows: the account, then the grant. No
+address, subject or token is stored. A request that changes nothing writes no row.
+`mandarin_audio_requested` rows name the administrator as both `user_id` and `acting_user_id`,
+and their `metadata` holds `action` (`request`, `regenerate`, `request_missing`,
+`retry_failed`), the exact `count`, `course_id`, `content_version`, and up to 50 source keys in
+`sources` (`sources_truncated` says whether there were more).
+
+The table comes from a migration (`2026_06_05_000000_create_auth_audit_log_table`, the
+package's own, published) that creates it only when it is missing; the deploy applies it.
 
 ## Running locally
 

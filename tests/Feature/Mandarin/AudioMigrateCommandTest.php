@@ -23,7 +23,7 @@ class AudioMigrateCommandTest extends MandarinTestCase
     /** Generate through the normal resolve → worker path, exactly as playback does. */
     private function ready(array $source): MandarinAudioAsset
     {
-        $user = User::factory()->create();
+        $user = User::factory()->administrator()->create();
         $response = $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',

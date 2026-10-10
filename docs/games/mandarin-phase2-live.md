@@ -62,9 +62,10 @@ local/development for that reason.
   overwrite a newer attempt.
 - Failures record a contract error code; retry is explicit (a new resolve by an allowed
   caller) and bounded by `max_attempts`; `unsupported_voice/language` are never retried.
-- `poll` and `bootstrap` never enqueue. Guests get cache hits; a miss returns
-  `sign_in_required`. Generation disabled returns `generation_disabled` even for
-  signed-in users; SFX render regardless (no provider, no budget).
+- `poll` and `bootstrap` never enqueue. Only an application administrator may queue
+  generation; guests and signed-in players get cache hits, and a miss returns
+  `not_generated`. Generation disabled returns `generation_disabled` even for
+  administrators; SFX render regardless (no provider, no budget).
 - A ready row whose object is missing is demoted and regenerated; the media route 404s.
 - `mandarin:audio:recover --dry-run|--execute` handles expired leases; nothing hidden in a
   GET path does.
@@ -127,8 +128,8 @@ only); no preview banner, Play controls in the `ready` state.
   `PollyClient` adapter is a drop-in behind the same interface.
 - **S3**: no bucket configured and no integration test against a real bucket; the migrate
   command is tested against `Storage::fake('s3')`.
-- **Audio QA page**: `/mandarin/qa` (signed in; 404 in production unless
-  `MANDARIN_QA_ENABLED=true`) lists every line with Chinese, pinyin, English and a native
+- **Audio QA page**: `/mandarin/qa` (application administrators only; 404 in production
+  unless `MANDARIN_QA_ENABLED=true`) lists every line with Chinese, pinyin, English and a native
   `<audio>` control per ready variant, plus the honest revision flags. Nothing on it can
   trigger generation.
 - **Artwork**: generated; the image model id was not exposed by the tool, so provenance records the tool name only. Review the eight images yourself before a public release.

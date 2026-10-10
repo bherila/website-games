@@ -39,8 +39,8 @@ export type MockAudioBehavior =
   | 'failedRetryable'
   /** Network layer throws (offline). */
   | 'networkError'
-  /** `unavailable` with `sign_in_required` (guest cannot trigger cold generation). */
-  | 'signInRequired'
+  /** `unavailable` with `not_generated` (only an administrator can trigger cold generation). */
+  | 'notGenerated'
 
 export interface PreviewScenario {
   id: PreviewScenarioId
@@ -84,7 +84,7 @@ export const PREVIEW_SCENARIOS: readonly PreviewScenario[] = [
   { ...base, id: 'retryableError', label: 'Retryable error', description: 'First resolution fails with a retryable provider error; Retry succeeds.', audio: 'failedRetryable' },
   { ...base, id: 'noDeviceVoice', label: 'No device voice', description: 'Browser has no Mandarin voice, so preview playback is simulated and unscored.', deviceVoice: 'none' },
   { ...base, id: 'offline', label: 'Offline', description: 'Network calls fail; progress stays local and audio cannot be resolved.', saveState: 'offline', audio: 'networkError', appendBehavior: 'networkError' },
-  { ...base, id: 'guest', label: 'Guest (mock)', description: 'Guest session: can browse, cannot trigger generation; progress is guest-local.', saveState: 'guest_local', audio: 'signInRequired' },
+  { ...base, id: 'guest', label: 'Guest (mock)', description: 'Guest session: can browse, cannot trigger generation; progress is guest-local.', saveState: 'guest_local', audio: 'notGenerated' },
   { ...base, id: 'saving', label: 'Signed in, saving (mock)', description: 'Mock signed-in account; events “save” after a delay. Nothing reaches a real account.', account: { signedIn: true, accountPartitionId: 'mock-account' }, capabilities: { canGenerateAudio: true, canSaveToAccount: true, hasDistinctMandarinVoices: false }, saveState: 'saving', appendDelayMs: 1500 },
   { ...base, id: 'signInRequired', label: 'Sign-in required', description: 'Session expired: saves are rejected until sign-in.', saveState: 'sign_in_required', appendBehavior: 'signInRequired' },
 ]

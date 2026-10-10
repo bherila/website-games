@@ -90,7 +90,7 @@ export class HttpMandarinGateway implements MandarinGateway<Course> {
           code: 'sign_in_required',
           retryable: false,
           retryAfterMs: null,
-          message: 'Sign in to generate audio for this line.',
+          message: 'Your session has expired. Reload the page to keep listening.',
         })),
       }
     }

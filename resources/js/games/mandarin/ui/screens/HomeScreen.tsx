@@ -61,7 +61,7 @@ export function HomeScreen(): ReactElement {
         </div>
         {!mock && !bootstrap.account.signedIn && (
           <p className={cn('text-sm', MUTED)} data-testid="guest-notice">
-            You can play as a guest. <a className="font-semibold underline decoration-dotted underline-offset-2" href="/login">Sign in</a> to save progress across devices and to generate audio for lines nobody has heard yet.
+            You can play as a guest. <a className="font-semibold underline decoration-dotted underline-offset-2" href="/login">Sign in</a> to save progress across devices.
           </p>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">

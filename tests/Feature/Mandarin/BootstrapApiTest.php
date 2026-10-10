@@ -28,7 +28,7 @@ class BootstrapApiTest extends MandarinTestCase
         $this->assertSame(0, MandarinAudioAsset::query()->count(), 'bootstrap must never enqueue generation');
     }
 
-    public function test_signed_in_bootstrap_reports_generation_capability_from_config(): void
+    public function test_signed_in_player_who_is_not_an_administrator_cannot_generate(): void
     {
         $this->importCourse();
         $user = User::factory()->create();
@@ -36,6 +36,16 @@ class BootstrapApiTest extends MandarinTestCase
             ->assertOk()
             ->assertJsonPath('account.signedIn', true)
             ->assertJsonPath('account.accountPartitionId', 'user:'.$user->id)
+            ->assertJsonPath('capabilities.canGenerateAudio', false)
+            ->assertJsonPath('capabilities.canSaveToAccount', true);
+    }
+
+    public function test_administrator_bootstrap_reports_generation_capability_from_config(): void
+    {
+        $this->importCourse();
+        $user = User::factory()->administrator()->create();
+        $this->actingAs($user)->getJson('/api/games/mandarin/bootstrap')
+            ->assertOk()
             ->assertJsonPath('capabilities.canGenerateAudio', true)
             ->assertJsonPath('capabilities.canSaveToAccount', true);
 
