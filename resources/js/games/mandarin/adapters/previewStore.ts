@@ -4,12 +4,21 @@
  * or promoted to a real account's learning history.
  */
 import type { PracticeEvent } from '../contracts/mandarin'
+import type { RejectedEvent } from '../domain/outbox'
+
+/** Permanently rejected events kept for inspection; the newest are kept. */
+export const DEAD_LETTER_LIMIT = 200
+
+export interface DeadLetter extends RejectedEvent {
+  rejectedAt: string
+}
 
 export const PREVIEW_STORAGE_PREFIX = 'mandarin.preview.'
 export const PREVIEW_KEYS = {
   progress: `${PREVIEW_STORAGE_PREFIX}progress.v1`,
   settings: `${PREVIEW_STORAGE_PREFIX}settings.v1`,
   outbox: `${PREVIEW_STORAGE_PREFIX}outbox.v1`,
+  deadLetters: `${PREVIEW_STORAGE_PREFIX}outbox-dead.v1`,
   client: `${PREVIEW_STORAGE_PREFIX}client.v1`,
 } as const
 
@@ -20,6 +29,9 @@ export interface PreviewStore {
   saveSettings(settings: unknown): void
   loadOutbox(): PracticeEvent[]
   saveOutbox(events: readonly PracticeEvent[]): void
+  /** Events the server refused for good. Never resent. */
+  loadDeadLetters(): DeadLetter[]
+  addDeadLetters(entries: readonly DeadLetter[]): void
   /** Stable per-browser identifier for `clientInstanceId`. */
   clientInstanceId(create: () => string): string
   /** Removes every `mandarin.preview.*` key. */
@@ -57,7 +69,12 @@ export function createLocalStore(storage: StorageLike | null, prefix: string): P
     progress: `${prefix}progress.v1`,
     settings: `${prefix}settings.v1`,
     outbox: `${prefix}outbox.v1`,
+    deadLetters: `${prefix}outbox-dead.v1`,
     client: `${prefix}client.v1`,
+  }
+  const loadDeadLetters = (): DeadLetter[] => {
+    const value = readJson(storage, KEYS.deadLetters)
+    return Array.isArray(value) ? (value as DeadLetter[]) : []
   }
   return {
     loadProgress: () => readJson(storage, KEYS.progress),
@@ -69,6 +86,8 @@ export function createLocalStore(storage: StorageLike | null, prefix: string): P
       return Array.isArray(value) ? (value as PracticeEvent[]) : []
     },
     saveOutbox: (events) => writeJson(storage, KEYS.outbox, events),
+    loadDeadLetters,
+    addDeadLetters: (entries) => writeJson(storage, KEYS.deadLetters, [...loadDeadLetters(), ...entries].slice(-DEAD_LETTER_LIMIT)),
     clientInstanceId: (create) => {
       const existing = readJson(storage, KEYS.client)
       if (typeof existing === 'string' && existing.length > 0) return existing

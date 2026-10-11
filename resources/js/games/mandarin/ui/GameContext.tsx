@@ -44,6 +44,10 @@ export interface GameApi {
   progress: PreviewProgress
   settings: MandarinSettings
   saveState: SaveState
+  /** Answers the server refused for good; set aside and never resent. */
+  deadLetterCount: number
+  /** The server's scheduler policy differs from this bundle's: the page needs a reload. */
+  schedulerOutdated: boolean
   route: Route
   overlay: Overlay
   /** Null whenever no question is mounted. */

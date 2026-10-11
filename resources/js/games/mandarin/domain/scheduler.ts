@@ -104,6 +104,15 @@ function isGradedReview(value: unknown): value is GradedReview {
     && typeof record.sequence === 'number'
 }
 
+/**
+ * True when the server names a different scheduler policy than the one this
+ * bundle replays its log with, as in a tab left open across a deploy. Guest and preview
+ * projections carry no graded log and name no real scheduler, so they never match.
+ */
+export function isSchedulerOutdated(projection: Pick<ProgressProjection, 'schedulerVersion' | 'listeningCards'> | null): boolean {
+  return projection !== null && isGradedReviewLog(projection.listeningCards) && projection.schedulerVersion !== SCHEDULER_VERSION
+}
+
 /** Reads the server's `listeningCards` log and derives due targets; unknown shapes yield nothing due. */
 export function dueTargetIdsFromProjection(projection: Pick<ProgressProjection, 'listeningCards'>, now: Date): string[] {
   const cards = projection.listeningCards

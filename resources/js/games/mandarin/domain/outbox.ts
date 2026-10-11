@@ -1,4 +1,4 @@
-import type { AppendResult, PracticeEvent } from '../contracts/mandarin'
+import type { AppendResult, EventAcknowledgment, PracticeEvent } from '../contracts/mandarin'
 
 /**
  * Batching for the practice-event outbox.
@@ -32,11 +32,42 @@ export function chunkEvents<T>(events: readonly T[], size: number = MAX_EVENT_BA
 
 export type DrainOutcome = 'sent' | 'empty' | 'sign_in_required' | 'offline'
 
+/**
+ * Rejections a resend can never fix: the payload is malformed, names content the
+ * server never had, or reuses an event id with a different payload. Anything else,
+ * including `unsupported_schema` (the server may be rolled back) and
+ * `sign_in_required`, stays queued. An unrecognised code stays queued too, so a
+ * reason added on the server later is never dropped by an older client.
+ */
+export const PERMANENT_REJECTION_REASONS: ReadonlySet<string> = new Set([
+  'conflict',
+  'invalid_event_id',
+  'invalid_kind',
+  'invalid_payload',
+  'invalid_option',
+  'unknown_course_revision',
+  'unknown_scene',
+  'unknown_node',
+  'unknown_exercise',
+])
+
+export function isPermanentRejection(ack: Pick<EventAcknowledgment, 'status' | 'reasonCode'>): boolean {
+  return ack.status === 'rejected' && ack.reasonCode !== null && PERMANENT_REJECTION_REASONS.has(ack.reasonCode)
+}
+
+/** An event the server refused for good, set aside instead of resent on every flush. */
+export interface RejectedEvent {
+  event: PracticeEvent
+  reasonCode: string
+}
+
 export interface DrainOptions {
   /** The events still awaiting acknowledgment. */
   read: () => PracticeEvent[]
   /** Persists the remaining events; called after each acknowledged batch. */
   write: (events: PracticeEvent[]) => void
+  /** Receives permanently rejected events before they leave the outbox. */
+  deadLetter: (rejected: RejectedEvent[]) => void
   send: (events: PracticeEvent[]) => Promise<AppendResult>
   /** False once a reset has invalidated this drain, so it stops writing. */
   isCurrent: () => boolean
@@ -44,8 +75,9 @@ export interface DrainOptions {
 
 /**
  * Uploads the outbox in acceptable batches, clearing each entry the server
- * acknowledges. Anything not acknowledged stays put for the next attempt, so a
- * failure mid-backlog costs the remaining batches and nothing else.
+ * acknowledges. A permanent rejection is handed to `deadLetter` and removed;
+ * anything else not acknowledged stays put for the next attempt, so a failure
+ * mid-backlog costs the remaining batches and nothing else.
  */
 export async function drainOutbox(options: DrainOptions): Promise<DrainOutcome> {
   const pending = options.read()
@@ -58,7 +90,16 @@ export async function drainOutbox(options: DrainOptions): Promise<DrainOutcome> 
       const acknowledged = new Set(
         result.acknowledgments.filter((ack) => ack.status !== 'rejected').map((ack) => ack.clientEventId),
       )
-      options.write(options.read().filter((event) => !acknowledged.has(event.clientEventId)))
+      const permanent = new Map(
+        result.acknowledgments.filter(isPermanentRejection).map((ack) => [ack.clientEventId, ack.reasonCode!]),
+      )
+      // Set aside before removing, so an interruption between the two writes
+      // leaves a duplicate rather than losing the event.
+      const rejected = batch.filter((event) => permanent.has(event.clientEventId))
+      if (rejected.length > 0) {
+        options.deadLetter(rejected.map((event) => ({ event, reasonCode: permanent.get(event.clientEventId)! })))
+      }
+      options.write(options.read().filter((event) => !acknowledged.has(event.clientEventId) && !permanent.has(event.clientEventId)))
       // A stale session rejects everything that follows; stop rather than
       // hammer the endpoint once per batch.
       if (result.acknowledgments.some((ack) => ack.reasonCode === 'sign_in_required')) {
@@ -78,8 +119,8 @@ export async function drainOutbox(options: DrainOptions): Promise<DrainOutcome> 
  * reads the outbox once, so an answer appended while a batch is in flight would
  * wait for the next append, reconnect or load, and a caller that awaits the
  * drain before reading progress back would read a stale schedule. Only events
- * not yet attempted start another pass, so rejected events, which stay in the
- * outbox, cannot make it loop.
+ * not yet attempted start another pass, so retryable rejections, which stay in
+ * the outbox, cannot make it loop.
  */
 export async function drainOutboxUntilCaughtUp(options: DrainOptions): Promise<DrainOutcome> {
   const attempted = new Set<string>()

@@ -1,4 +1,5 @@
-import { createLocalPreviewStore, createMemoryPreviewStore, PREVIEW_KEYS, PREVIEW_STORAGE_PREFIX } from '../adapters/previewStore'
+import { createLocalPreviewStore, createMemoryPreviewStore, DEAD_LETTER_LIMIT, type DeadLetter, PREVIEW_KEYS, PREVIEW_STORAGE_PREFIX } from '../adapters/previewStore'
+import type { PracticeEvent } from '../contracts/mandarin'
 
 class FakeStorage {
   private readonly map = new Map<string, string>()
@@ -11,6 +12,19 @@ class FakeStorage {
 }
 
 describe('preview store partition', () => {
+  it('keeps only the newest dead letters, and clears them on reset', () => {
+    const store = createMemoryPreviewStore()
+    const entry = (n: number): DeadLetter => ({ event: { clientEventId: `e${n}` } as PracticeEvent, reasonCode: 'conflict', rejectedAt: '2026-10-10T00:00:00.000Z' })
+    store.addDeadLetters(Array.from({ length: DEAD_LETTER_LIMIT - 1 }, (_, n) => entry(n)))
+    store.addDeadLetters([entry(1000), entry(1001)])
+    const kept = store.loadDeadLetters()
+    expect(kept).toHaveLength(DEAD_LETTER_LIMIT)
+    expect(kept[0]!.event.clientEventId).toBe('e1')
+    expect(kept.at(-1)!.event.clientEventId).toBe('e1001')
+    store.clearAll()
+    expect(store.loadDeadLetters()).toEqual([])
+  })
+
   it('writes only mandarin.preview.* keys and leaves other keys alone on reset', () => {
     const storage = new FakeStorage()
     storage.setItem('game-data:tower-throwback', '{"real":true}')
