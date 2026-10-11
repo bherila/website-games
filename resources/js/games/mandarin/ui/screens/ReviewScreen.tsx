@@ -1,6 +1,8 @@
 /**
- * Bounded review session (≤10) from the mock due list, or visibly-separate
- * extra practice. Empty / loaded / completed / backlogged states.
+ * Bounded review session (≤10) from the due list, or visibly-separate extra
+ * practice. Empty / loaded / completed / backlogged states. "Another session"
+ * continues into the backlog: targets already presented during this visit are
+ * left out, so a continuation never repeats the session just finished (#106).
  */
 import { type ReactElement, useEffect, useMemo, useState } from 'react'
 
@@ -22,12 +24,14 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   const { audio } = useRuntime()
   const { course, progress, projection } = game
   const [seed] = useState(() => `${Date.now()}`)
+  // Targets already presented in earlier sessions of this visit; changes only on "Another session".
+  const [presented, setPresented] = useState<ReadonlySet<string>>(() => new Set())
   const plan = useMemo<ReviewPlan>(() => kind === 'scheduled'
-    ? buildScheduledReview(course, progress, projection?.dueTargetIds ?? [])
+    ? buildScheduledReview(course, progress, (projection?.dueTargetIds ?? []).filter((targetId) => !presented.has(targetId)))
     : buildExtraPractice(course, progress, seed),
-  // The plan is built once per visit; later progress updates must not reshuffle it.
+  // The plan is built once per session; later progress updates must not reshuffle it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [kind, seed])
+  [kind, seed, presented])
   const [index, setIndex] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
   const done = index >= plan.items.length
@@ -46,6 +50,8 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   useEffect(() => {
     if (done && plan.items.length > 0 && kind === 'scheduled') {
       game.updateProgress((current) => recordReviewSessionComplete(current))
+      // Read the schedule back once these answers are uploaded, so Home and the next visit see it.
+      void game.refreshProjection()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done])
@@ -59,7 +65,7 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
       <Panel className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <Eyebrow>{kind === 'scheduled' ? 'Scheduled by the mock due list' : 'Not scheduled · does not change your review plan'}</Eyebrow>
+            <Eyebrow>{kind === 'scheduled' ? 'Scheduled from your earlier answers' : 'Not scheduled · does not change your review plan'}</Eyebrow>
             <SectionTitle>{title}</SectionTitle>
           </div>
           <Chip tone={kind === 'scheduled' ? 'slate' : 'amber'}>{kind === 'scheduled' ? 'Review' : 'Extra practice'}</Chip>
@@ -101,10 +107,14 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
         {state === 'completed' && (
           <div className="flex flex-col gap-2" data-testid="review-complete">
             <p className="font-bold">Session finished.</p>
-            <p className={cn('text-sm', MUTED)}>{correctCount} of {plan.items.length} resolved correctly. {kind === 'scheduled' ? 'The mock scheduler will pick the next due set; the real one arrives with the live adapter.' : 'Extra practice is logged but does not move any review dates.'}</p>
+            <p className={cn('text-sm', MUTED)}>{correctCount} of {plan.items.length} resolved correctly. {kind === 'scheduled' ? 'Your answers decide when each item comes back.' : 'Extra practice is logged but does not move any review dates.'}</p>
             {plan.backlog > 0 && <p className={cn('text-sm', MUTED)}>{plan.backlog} items are still due.</p>}
             <div className="flex flex-wrap gap-2">
-              {plan.backlog > 0 && <GameButton variant="primary" size="lg" onClick={() => { setIndex(0); setCorrectCount(0) }}>Another session</GameButton>}
+              {plan.backlog > 0 && <GameButton variant="primary" size="lg" onClick={() => {
+                setPresented((current) => new Set([...current, ...plan.items.map((entry) => entry.targetId)]))
+                setIndex(0)
+                setCorrectCount(0)
+              }}>Another session</GameButton>}
               <GameButton variant="secondary" size="lg" onClick={() => game.navigate({ name: 'home' })}>Back to journey</GameButton>
             </div>
           </div>

@@ -83,6 +83,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
   // Bumped on reset so acknowledgments from before the reset are ignored.
   const resetGenerationRef = useRef(0)
   const drainingRef = useRef(false)
+  const drainPromiseRef = useRef<Promise<void> | null>(null)
 
   // Bootstrap through the gateway (mock or live) — never touches WebGL.
   useEffect(() => {
@@ -142,14 +143,17 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
   // offline session drains on the next successful upload. Replay is safe: the
   // server keys on (user, clientEventId) and answers an identical re-upload
   // `already_present`, which is not a rejection and so clears the entry here.
-  const flushOutbox = useCallback((): void => {
-    if (drainingRef.current || outboxRef.current.length === 0) return
+  // Returns the in-flight drain when one is running, so a caller can wait for
+  // the server to hold every queued event before it reads progress back.
+  const drainNow = useCallback((): Promise<void> => {
+    if (drainPromiseRef.current) return drainPromiseRef.current
+    if (outboxRef.current.length === 0) return Promise.resolve()
     drainingRef.current = true
     const canSave = loaded?.bootstrap.capabilities.canSaveToAccount === true
     if (canSave) setSaveState('saving')
     const generation = resetGenerationRef.current
     const idle = runtime.scenario?.saveState ?? 'local_preview'
-    void drainOutbox({
+    const run = drainOutbox({
       read: () => outboxRef.current,
       write: (events) => {
         outboxRef.current = events
@@ -164,8 +168,15 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
       else setSaveState(canSave ? 'saved' : idle)
     }).finally(() => {
       drainingRef.current = false
+      drainPromiseRef.current = null
     })
+    drainPromiseRef.current = run
+    return run
   }, [gateway, loaded?.bootstrap.capabilities.canSaveToAccount, runtime.scenario?.saveState, store])
+
+  const flushOutbox = useCallback((): void => {
+    void drainNow()
+  }, [drainNow])
 
   const appendEvents = useCallback((events: PracticeEvent[]) => {
     if (events.length === 0) return
@@ -189,14 +200,17 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     return () => window.removeEventListener('online', onOnline)
   }, [flushOutbox])
 
+  // Uploads queued answers first, so the projection read back includes them
+  // and the due list reflects the session that just ended.
   const refreshProjection = useCallback(async () => {
     try {
+      await drainNow()
       const projection = await gateway.getProgress()
       setLoaded((current) => current ? { ...current, projection } : current)
     } catch {
       setSaveState('offline')
     }
-  }, [gateway])
+  }, [drainNow, gateway])
 
   const resetPreview = useCallback(() => {
     audio.stop()

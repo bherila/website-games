@@ -1,5 +1,5 @@
 import { BookOpen, Headphones, Play, RefreshCw, Settings as SettingsIcon } from 'lucide-react'
-import type { ReactElement } from 'react'
+import { type ReactElement, useEffect } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -23,6 +23,12 @@ export function HomeScreen(): ReactElement {
   const { scenario } = useRuntime()
   const mock = scenario !== null
   const account = saveStateLabel(game.saveState, mock)
+
+  // Returning from a lesson or review: read the schedule back so the due count is current (#106).
+  useEffect(() => {
+    void game.refreshProjection()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function openCurrent(): void {
     if (!currentNode) return
