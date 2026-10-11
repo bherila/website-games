@@ -105,7 +105,7 @@ describe('practice event outbox', () => {
       if (send.mock.calls.length === 1) held = [...held, appended!]
       return Promise.resolve(acknowledge(batch))
     })
-    const outcome = await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, deadLetter: () => {}, send, isCurrent: () => true })
+    const outcome = await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, deadLetter: () => true, send, isCurrent: () => true })
 
     expect(outcome).toBe('sent')
     expect(held).toEqual([])
@@ -116,7 +116,7 @@ describe('practice event outbox', () => {
     const [refused] = strandedEvents(1)
     let held = [refused!]
     const send = jest.fn((batch: PracticeEvent[]) => Promise.resolve(acknowledge(batch, new Set([refused!.clientEventId]))))
-    const outcome = await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, deadLetter: () => {}, send, isCurrent: () => true })
+    const outcome = await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, deadLetter: () => true, send, isCurrent: () => true })
 
     expect(outcome).toBe('sent')
     expect(held).toEqual([refused])
@@ -128,7 +128,7 @@ describe('practice event outbox', () => {
     let held = [refused!, accepted!, later!]
     const deadLetters: RejectedEvent[] = []
     const send = jest.fn((batch: PracticeEvent[]) => Promise.resolve(acknowledge(batch, new Set([refused!.clientEventId]), 'conflict')))
-    const options = { read: () => held, write: (next: PracticeEvent[]) => { held = next }, deadLetter: (rejected: RejectedEvent[]) => { deadLetters.push(...rejected) }, send, isCurrent: () => true }
+    const options = { read: () => held, write: (next: PracticeEvent[]) => { held = next }, deadLetter: (rejected: RejectedEvent[]) => { deadLetters.push(...rejected); return true }, send, isCurrent: () => true }
 
     expect(await drainOutbox(options)).toBe('sent')
     expect(held).toEqual([])
@@ -137,6 +137,17 @@ describe('practice event outbox', () => {
     // The next flush has nothing to resend.
     expect(await drainOutbox(options)).toBe('empty')
     expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a permanently rejected event queued when it cannot be set aside', async () => {
+    // Storage full: the dead-letter write fails, so removing the event would lose it (#111 review).
+    const [refused, accepted] = strandedEvents(2)
+    let held = [refused!, accepted!]
+    const send = jest.fn((batch: PracticeEvent[]) => Promise.resolve(acknowledge(batch, new Set([refused!.clientEventId]), 'conflict')))
+    const outcome = await drainOutbox({ read: () => held, write: (next) => { held = next }, deadLetter: () => false, send, isCurrent: () => true })
+
+    expect(outcome).toBe('sent')
+    expect(held).toEqual([refused])
   })
 
   it('treats only known permanent reasons as permanent', () => {

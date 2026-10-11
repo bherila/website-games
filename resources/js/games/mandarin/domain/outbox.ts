@@ -66,8 +66,11 @@ export interface DrainOptions {
   read: () => PracticeEvent[]
   /** Persists the remaining events; called after each acknowledged batch. */
   write: (events: PracticeEvent[]) => void
-  /** Receives permanently rejected events before they leave the outbox. */
-  deadLetter: (rejected: RejectedEvent[]) => void
+  /**
+   * Persists permanently rejected events. They leave the outbox only when this
+   * returns true, so a failed write (storage full) keeps them queued, not lost.
+   */
+  deadLetter: (rejected: RejectedEvent[]) => boolean
   send: (events: PracticeEvent[]) => Promise<AppendResult>
   /** False once a reset has invalidated this drain, so it stops writing. */
   isCurrent: () => boolean
@@ -94,12 +97,12 @@ export async function drainOutbox(options: DrainOptions): Promise<DrainOutcome> 
         result.acknowledgments.filter(isPermanentRejection).map((ack) => [ack.clientEventId, ack.reasonCode!]),
       )
       // Set aside before removing, so an interruption between the two writes
-      // leaves a duplicate rather than losing the event.
+      // leaves a duplicate rather than losing the event, and a failed set-aside
+      // leaves it queued.
       const rejected = batch.filter((event) => permanent.has(event.clientEventId))
-      if (rejected.length > 0) {
-        options.deadLetter(rejected.map((event) => ({ event, reasonCode: permanent.get(event.clientEventId)! })))
-      }
-      options.write(options.read().filter((event) => !acknowledged.has(event.clientEventId) && !permanent.has(event.clientEventId)))
+      const setAside = rejected.length > 0
+        && options.deadLetter(rejected.map((event) => ({ event, reasonCode: permanent.get(event.clientEventId)! })))
+      options.write(options.read().filter((event) => !acknowledged.has(event.clientEventId) && !(setAside && permanent.has(event.clientEventId))))
       // A stale session rejects everything that follows; stop rather than
       // hammer the endpoint once per batch.
       if (result.acknowledgments.some((ack) => ack.reasonCode === 'sign_in_required')) {

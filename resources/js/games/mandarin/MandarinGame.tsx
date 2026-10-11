@@ -164,8 +164,9 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
       },
       deadLetter: (rejected) => {
         const rejectedAt = runtime.now().toISOString()
-        store.addDeadLetters(rejected.map((entry) => ({ ...entry, rejectedAt })))
-        setDeadLetterCount(store.loadDeadLetters().length)
+        const saved = store.addDeadLetters(rejected.map((entry) => ({ ...entry, rejectedAt })))
+        if (saved) setDeadLetterCount(store.loadDeadLetters().length)
+        return saved
       },
       send: (events) => gateway.appendEvents(events),
       isCurrent: () => generation === resetGenerationRef.current,

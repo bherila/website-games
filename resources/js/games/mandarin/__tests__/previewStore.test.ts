@@ -12,6 +12,17 @@ class FakeStorage {
 }
 
 describe('preview store partition', () => {
+  it('reports a dead-letter write that storage refused', () => {
+    const storage = new FakeStorage()
+    const store = createLocalPreviewStore(storage)
+    const entry: DeadLetter = { event: { clientEventId: 'e1' } as PracticeEvent, reasonCode: 'conflict', rejectedAt: '2026-10-10T00:00:00.000Z' }
+    expect(store.addDeadLetters([entry])).toBe(true)
+    storage.setItem = () => { throw new DOMException('full', 'QuotaExceededError') }
+    expect(store.addDeadLetters([entry])).toBe(false)
+    expect(store.loadDeadLetters()).toHaveLength(1)
+    expect(createLocalPreviewStore(null).addDeadLetters([entry])).toBe(false)
+  })
+
   it('keeps only the newest dead letters, and clears them on reset', () => {
     const store = createMemoryPreviewStore()
     const entry = (n: number): DeadLetter => ({ event: { clientEventId: `e${n}` } as PracticeEvent, reasonCode: 'conflict', rejectedAt: '2026-10-10T00:00:00.000Z' })

@@ -31,7 +31,8 @@ export interface PreviewStore {
   saveOutbox(events: readonly PracticeEvent[]): void
   /** Events the server refused for good. Never resent. */
   loadDeadLetters(): DeadLetter[]
-  addDeadLetters(entries: readonly DeadLetter[]): void
+  /** False when the list could not be persisted; the caller must keep the events queued. */
+  addDeadLetters(entries: readonly DeadLetter[]): boolean
   /** Stable per-browser identifier for `clientInstanceId`. */
   clientInstanceId(create: () => string): string
   /** Removes every `mandarin.preview.*` key. */
@@ -50,12 +51,15 @@ function readJson(storage: StorageLike | null, key: string): unknown | null {
   }
 }
 
-function writeJson(storage: StorageLike | null, key: string, value: unknown): void {
-  if (!storage) return
+/** Returns false when nothing was written (no storage, quota, private mode). */
+function writeJson(storage: StorageLike | null, key: string, value: unknown): boolean {
+  if (!storage) return false
   try {
     storage.setItem(key, JSON.stringify(value))
+    return true
   } catch {
     // Quota/private mode: the preview simply does not persist.
+    return false
   }
 }
 
