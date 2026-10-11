@@ -1,6 +1,6 @@
 import { State } from 'ts-fsrs'
 
-import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview } from '../domain/scheduler'
+import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview, LEARNING_STEPS, RELEARNING_STEPS, SCHEDULER_VERSION } from '../domain/scheduler'
 
 const t0 = new Date('2026-09-06T10:00:00.000Z')
 const at = (minutes: number): string => new Date(t0.getTime() + minutes * 60_000).toISOString()
@@ -54,6 +54,11 @@ describe('listening scheduler projection', () => {
     const schedule = buildSchedules(log, 10).get('hello')!
     expect(schedule.card.state).toBe(State.Review)
     expect(schedule.effectiveDue.getTime() - (t0.getTime() + 19 * day * 60_000)).toBeGreaterThanOrEqual(day * 60_000)
+  })
+
+  it('names the step policy in the scheduler version, so replays under different steps are distinguishable', () => {
+    const policy = LEARNING_STEPS.length === 0 && RELEARNING_STEPS.length === 0 ? 'steps-none' : 'steps-custom'
+    expect(SCHEDULER_VERSION).toBe(`ts-fsrs-5.4.2+${policy}`)
   })
 
   it('keeps the Good path: about 2, then 11, then 46 days', () => {

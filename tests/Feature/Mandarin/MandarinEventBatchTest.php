@@ -27,4 +27,20 @@ class MandarinEventBatchTest extends TestCase
             "mandarin.events.max_batch ({$serverLimit}) is below the client's MAX_EVENT_BATCH ({$clientBatch}); "
             .'offline replays would be rejected permanently. Lower MAX_EVENT_BATCH in domain/outbox.ts to match.');
     }
+
+    /**
+     * The server reports schedulerVersion and the client replays the log with its own
+     * parameters; if the two names drift, projections made under different step
+     * policies look identical in diagnostics and evaluation data.
+     */
+    public function test_the_client_and_server_name_the_same_scheduler_version(): void
+    {
+        $source = file_get_contents(resource_path('js/games/mandarin/domain/scheduler.ts'));
+        $this->assertIsString($source);
+        $this->assertSame(1, preg_match("/SCHEDULER_VERSION = '([^']+)'/", $source, $matches),
+            'Could not read SCHEDULER_VERSION from domain/scheduler.ts.');
+
+        $this->assertSame($matches[1], config('mandarin.events.scheduler_version'),
+            'mandarin.events.scheduler_version must match SCHEDULER_VERSION in domain/scheduler.ts.');
+    }
 }

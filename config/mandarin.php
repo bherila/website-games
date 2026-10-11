@@ -104,6 +104,7 @@ return [
         'max_batch' => 64,
         /* At most one schedule-changing result per target inside this window. */
         'schedule_window_minutes' => 10,
-        'scheduler_version' => 'ts-fsrs-5.4.2',
+        /* Names the library and the step policy; must match SCHEDULER_VERSION in domain/scheduler.ts. */
+        'scheduler_version' => 'ts-fsrs-5.4.2+steps-none',
     ],
 ];

@@ -20,7 +20,11 @@ import { type Card, createEmptyCard, fsrs, generatorParameters, type Grade, Rati
 
 import type { ProgressProjection } from '../contracts/mandarin'
 
-export const SCHEDULER_VERSION = 'ts-fsrs-5.4.2'
+/**
+ * Names the library and the step policy, because changing the steps changes every
+ * replayed schedule. Must match `mandarin.events.scheduler_version` on the server.
+ */
+export const SCHEDULER_VERSION = 'ts-fsrs-5.4.2+steps-none'
 export const DESIRED_RETENTION = 0.9
 
 export interface GradedReview {
