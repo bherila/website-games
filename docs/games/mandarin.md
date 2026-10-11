@@ -9,6 +9,11 @@ its recurring characters, new scenes, listening-first reveals, and separate char
 Read next: `docs/games/mandarin-phase2-live.md` (historical local validation at `44c6986`), `docs/games/mandarin-phase1-handoff.md` (the UI pass and its
 invariants), `docs/games/mandarin-asset-slots.md` (artwork slots).
 
+Teaching redesign (#95), designs not yet built: `docs/games/mandarin-skill-contract.md` (skills,
+cards and the first retrieval loop) and `docs/games/mandarin-event-schema-v2.md` (event schema v2
+and its rollout). Background: `mandarin-scheduler-audit.md`, `mandarin-pedagogy-digest.md`,
+`mandarin-curriculum-map.md`.
+
 ## Release status and follow-ups
 
 Revision `1.1.0` shipped in [#54](https://github.com/bherila/website-games/pull/54)
