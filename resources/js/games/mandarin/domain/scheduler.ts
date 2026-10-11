@@ -6,14 +6,25 @@
  *
  * Product policy applied here (mirrors the server's schedule_eligible flag):
  * only schedule-eligible reviews advance a card, and the effective due time
- * is never earlier than the end of the per-target window, so a short
- * learning step cannot create an immediately overdue loop.
+ * is never earlier than the end of the per-target window.
+ *
+ * Learning and relearning steps are disabled. With ts-fsrs's default steps a
+ * card rated Hard stays in (re)learning indefinitely, and the server grades a
+ * correct answer with one replay as Hard, so a learner who habitually replays
+ * met the same target every few minutes forever (#107). Without steps every
+ * rating moves the card to Review and spacing comes from FSRS stability alone.
+ * Changing these parameters changes every replayed schedule, so the server's
+ * schedulerConfigHash must change with them.
  */
 import { type Card, createEmptyCard, fsrs, generatorParameters, type Grade, Rating } from 'ts-fsrs'
 
 import type { ProgressProjection } from '../contracts/mandarin'
 
-export const SCHEDULER_VERSION = 'ts-fsrs-5.4.2'
+/**
+ * Names the library and the step policy, because changing the steps changes every
+ * replayed schedule. Must match `mandarin.events.scheduler_version` on the server.
+ */
+export const SCHEDULER_VERSION = 'ts-fsrs-5.4.2+steps-none'
 export const DESIRED_RETENTION = 0.9
 
 export interface GradedReview {
@@ -39,7 +50,15 @@ const RATINGS: Record<GradedReview['grade'], Grade> = {
   Easy: Rating.Easy,
 }
 
-const scheduler = fsrs(generatorParameters({ request_retention: DESIRED_RETENTION, enable_fuzz: false }))
+export const LEARNING_STEPS = [] as const
+export const RELEARNING_STEPS = [] as const
+
+const scheduler = fsrs(generatorParameters({
+  request_retention: DESIRED_RETENTION,
+  enable_fuzz: false,
+  learning_steps: [...LEARNING_STEPS],
+  relearning_steps: [...RELEARNING_STEPS],
+}))
 
 export function buildSchedules(reviews: readonly GradedReview[], windowMinutes: number): Map<string, TargetSchedule> {
   const ordered = [...reviews].sort((a, b) => a.sequence - b.sequence)

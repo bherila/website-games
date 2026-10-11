@@ -1,4 +1,6 @@
-import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview } from '../domain/scheduler'
+import { State } from 'ts-fsrs'
+
+import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview, LEARNING_STEPS, RELEARNING_STEPS, SCHEDULER_VERSION } from '../domain/scheduler'
 
 const t0 = new Date('2026-09-06T10:00:00.000Z')
 const at = (minutes: number): string => new Date(t0.getTime() + minutes * 60_000).toISOString()
@@ -18,11 +20,60 @@ describe('listening scheduler projection', () => {
   })
 
   it('never makes a target due before the end of its window', () => {
+    // A three-day window is longer than FSRS's first interval after Again, so the floor applies.
+    const window = 3 * 24 * 60
     const log = [review('hello', 'Again', 0, 1)]
+    const schedule = buildSchedules(log, window).get('hello')!
+    expect(schedule.card.due.getTime()).toBeLessThan(t0.getTime() + window * 60_000)
+    expect(schedule.effectiveDue.getTime()).toBe(t0.getTime() + window * 60_000)
+    expect(dueTargetIds(log, window, new Date(t0.getTime() + (window - 1) * 60_000))).toEqual([])
+    expect(dueTargetIds(log, window, new Date(t0.getTime() + (window + 1) * 60_000))).toEqual(['hello'])
+  })
+
+  // #107: with ts-fsrs's default learning steps, Hard kept a card in Learning every few minutes forever.
+  it('graduates a new card rated Hard repeatedly, with growing intervals', () => {
+    const day = 24 * 60
+    const log: GradedReview[] = []
+    let now = 0
+    let previousGap = 0
+    for (let i = 1; i <= 4; i++) {
+      log.push(review('hello', 'Hard', now, i))
+      const schedule = buildSchedules(log, 10).get('hello')!
+      expect(schedule.card.state).toBe(State.Review)
+      const gap = (schedule.effectiveDue.getTime() - (t0.getTime() + now * 60_000)) / 60_000
+      expect(gap).toBeGreaterThanOrEqual(day)
+      expect(gap).toBeGreaterThanOrEqual(previousGap)
+      previousGap = gap
+      now += gap
+    }
+  })
+
+  it('graduates a lapsed card rated Hard instead of looping in Relearning', () => {
+    const day = 24 * 60
+    const log = [review('hello', 'Good', 0, 1), review('hello', 'Good', 2 * day, 2), review('hello', 'Again', 13 * day, 3), review('hello', 'Hard', 15 * day, 4), review('hello', 'Hard', 19 * day, 5)]
     const schedule = buildSchedules(log, 10).get('hello')!
-    expect(schedule.effectiveDue.getTime()).toBeGreaterThanOrEqual(t0.getTime() + 10 * 60_000)
-    expect(dueTargetIds(log, 10, new Date(t0.getTime() + 5 * 60_000))).toEqual([])
-    expect(dueTargetIds(log, 10, new Date(t0.getTime() + 11 * 60_000))).toEqual(['hello'])
+    expect(schedule.card.state).toBe(State.Review)
+    expect(schedule.effectiveDue.getTime() - (t0.getTime() + 19 * day * 60_000)).toBeGreaterThanOrEqual(day * 60_000)
+  })
+
+  it('names the step policy in the scheduler version, so replays under different steps are distinguishable', () => {
+    const policy = LEARNING_STEPS.length === 0 && RELEARNING_STEPS.length === 0 ? 'steps-none' : 'steps-custom'
+    expect(SCHEDULER_VERSION).toBe(`ts-fsrs-5.4.2+${policy}`)
+  })
+
+  it('keeps the Good path: about 2, then 11, then 46 days', () => {
+    const day = 24 * 60
+    const log = [review('hello', 'Good', 0, 1)]
+    const gaps: number[] = []
+    let now = 0
+    for (let i = 2; i <= 4; i++) {
+      const due = buildSchedules(log, 10).get('hello')!.effectiveDue.getTime()
+      const gap = Math.round((due - (t0.getTime() + now * 60_000)) / 60_000 / day)
+      gaps.push(gap)
+      now += gap * day
+      log.push(review('hello', 'Good', now, i))
+    }
+    expect(gaps).toEqual([2, 11, 46])
   })
 
   it('orders due targets soonest first and a well-known card is due later than a lapsed one', () => {
@@ -35,7 +86,7 @@ describe('listening scheduler projection', () => {
 
   it('reads the server projection shape and tolerates unknown shapes', () => {
     const projection = { listeningCards: { kind: 'graded-review-log', windowMinutes: 10, reviews: [{ targetId: 'hello', grade: 'Again', acceptedAt: at(0), sequence: 1 }, { junk: true }] } }
-    expect(dueTargetIdsFromProjection(projection, new Date(t0.getTime() + 60 * 60_000))).toEqual(['hello'])
+    expect(dueTargetIdsFromProjection(projection, new Date(t0.getTime() + 2 * 24 * 60 * 60_000))).toEqual(['hello'])
     expect(dueTargetIdsFromProjection({ listeningCards: {} }, t0)).toEqual([])
     expect(dueTargetIdsFromProjection({ listeningCards: { kind: 'something-else' } }, t0)).toEqual([])
   })

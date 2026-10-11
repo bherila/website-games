@@ -68,7 +68,7 @@ class ProgressProjector
             'dueTargetIds' => [],
             'checkpointExposedIds' => array_keys($exposed),
             'schedulerVersion' => $schedulerVersion,
-            'schedulerConfigHash' => hash('sha256', $schedulerVersion.':retention=0.90:window='.$windowMinutes.':fuzz=off'),
+            'schedulerConfigHash' => hash('sha256', $schedulerVersion.':retention=0.90:window='.$windowMinutes.':fuzz=off:learning_steps=none:relearning_steps=none'),
             'listeningCards' => [
                 'kind' => 'graded-review-log',
                 'desiredRetention' => 0.9,

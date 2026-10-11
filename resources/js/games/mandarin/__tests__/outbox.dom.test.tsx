@@ -11,7 +11,7 @@ import { NULL_SFX_PLAYER } from '../audio/sfxRecipes'
 import type { PracticeEvent } from '../contracts/mandarin'
 import { loadCourse } from '../domain/course'
 import { teachingExposureEvent } from '../domain/events'
-import { chunkEvents, drainOutbox, MAX_EVENT_BATCH } from '../domain/outbox'
+import { chunkEvents, drainOutbox, drainOutboxUntilCaughtUp, MAX_EVENT_BATCH } from '../domain/outbox'
 import { MandarinGame } from '../MandarinGame'
 import { createPreviewRuntime } from '../runtime/previewRuntime'
 
@@ -76,6 +76,50 @@ describe('practice event outbox', () => {
 
     expect(outcome).toBe('sent')
     expect(held).toEqual([events[1]])
+  })
+
+  function acknowledge(batch: PracticeEvent[], rejectedIds: ReadonlySet<string> = new Set()) {
+    return {
+      lastSequence: batch.length,
+      acknowledgments: batch.map((event) => ({
+        clientEventId: event.clientEventId,
+        status: rejectedIds.has(event.clientEventId) ? 'rejected' as const : 'accepted' as const,
+        canonicalSequence: null,
+        serverAcceptedAt: null,
+        correctness: null,
+        grade: null,
+        reasonCode: rejectedIds.has(event.clientEventId) ? 'conflict' : null,
+      })),
+    }
+  }
+
+  it('also sends an answer appended while an upload was in flight', async () => {
+    // A review answer can be appended while the previous upload is still running; a
+    // single drain reads the outbox once and would leave it behind (#109 review).
+    const [first, appended] = strandedEvents(2)
+    let held = [first!]
+    const sent: string[] = []
+    const send = jest.fn((batch: PracticeEvent[]) => {
+      sent.push(...batch.map((event) => event.clientEventId))
+      if (send.mock.calls.length === 1) held = [...held, appended!]
+      return Promise.resolve(acknowledge(batch))
+    })
+    const outcome = await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, send, isCurrent: () => true })
+
+    expect(outcome).toBe('sent')
+    expect(held).toEqual([])
+    expect(sent).toEqual([first!.clientEventId, appended!.clientEventId])
+  })
+
+  it('does not loop on an event the server keeps rejecting', async () => {
+    const [refused] = strandedEvents(1)
+    let held = [refused!]
+    const send = jest.fn((batch: PracticeEvent[]) => Promise.resolve(acknowledge(batch, new Set([refused!.clientEventId]))))
+    const outcome = await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, send, isCurrent: () => true })
+
+    expect(outcome).toBe('sent')
+    expect(held).toEqual([refused])
+    expect(send).toHaveBeenCalledTimes(1)
   })
 
   it('stops the drain when the session has expired instead of retrying every batch', async () => {
