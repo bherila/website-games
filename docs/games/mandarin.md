@@ -205,6 +205,33 @@ reports `ready`, `missing`, and whether the exact revision mapping exists. Suppo
 glossary entries are included only with `--support`, so an ordinary full-course warm does
 not unexpectedly expand from the scored corpus to all 21 context entries.
 
+### Baseline report
+
+```bash
+php -d memory_limit=1G artisan mandarin:report:baseline [--since=2026-10-01] [--until=2026-10-31] [--course=mandarin-foundations] [--time-basis=accepted|client] [--json]
+```
+
+A read-only, anonymised snapshot of the practice log taken before mechanics change (issue #103, part of #58).
+It writes nothing and needs no migration. Learners are printed as "Learner 1..N" in order of first activity,
+plus an all-learners total; no user id, email, event id or session id appears in text or `--json` output.
+`preview` mode is excluded everywhere. `--since`/`--until` limit which events are counted; earlier history
+(prior exposure, previous scored response, an earlier Good) is still read from the whole log up to `--until`.
+
+Measures: (1) activity: distinct sessions, active days, first/last day, response events; (2) lesson/review
+comprehension correct rate split unaided (no text/pinyin help, at most one normal play, no slow play),
+replay-assisted (extra or slow plays, no text help) and text/pinyin-assisted, plus don't-know and skip counts;
+(3) checkpoint responses split first exposure (unaided, no response or `checkpoint_exposure` for that exercise
+in an earlier opportunity), replay-assisted, text-assisted and previously exposed (buckets are exclusive; previous
+exposure wins, then text, then replay). The client logs `checkpoint_exposure` when an item is shown, under the
+same opportunity as its answer, so that event does not make its own showing "previously exposed"; only the first
+answer per opportunity is classified; (4) delayed recall: unaided correct rate for scored responses whose previous scored
+response on the same target was 1 to under 7 days, or 7+ days, earlier; (5) help dependence: `help_revealed`
+per 100 responses and the share of responses with text or pinyin help; (6) lapses: targets answered incorrectly after
+an earlier Good (a correct answer with text or pinyin help is also graded Again, but is not counted as a lapse).
+
+Time defaults to `accepted_at`, which includes sync delay for offline sessions (an offline session is stamped
+when it uploads). `--time-basis=client` uses `clientOccurredAt`, labelled "client-reported, untrusted".
+
 ## Ship audio to production without a provider
 
 Production is meant to serve a fully generated course with `MANDARIN_SPEECH_PROVIDER=null`
