@@ -91,7 +91,15 @@ export function createLocalStore(storage: StorageLike | null, prefix: string): P
     },
     saveOutbox: (events) => writeJson(storage, KEYS.outbox, events),
     loadDeadLetters,
-    addDeadLetters: (entries) => writeJson(storage, KEYS.deadLetters, [...loadDeadLetters(), ...entries].slice(-DEAD_LETTER_LIMIT)),
+    // One entry per event: a second tab, or an outbox write lost after the set-aside,
+    // can reject the same event again, and a duplicate would inflate the count and
+    // crowd distinct events out of the cap.
+    addDeadLetters: (entries) => {
+      const existing = loadDeadLetters()
+      const seen = new Set(existing.map((entry) => entry.event.clientEventId))
+      const added = entries.filter((entry) => !seen.has(entry.event.clientEventId) && seen.add(entry.event.clientEventId))
+      return writeJson(storage, KEYS.deadLetters, [...existing, ...added].slice(-DEAD_LETTER_LIMIT))
+    },
     clientInstanceId: (create) => {
       const existing = readJson(storage, KEYS.client)
       if (typeof existing === 'string' && existing.length > 0) return existing

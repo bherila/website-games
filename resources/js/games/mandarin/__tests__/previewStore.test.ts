@@ -23,6 +23,15 @@ describe('preview store partition', () => {
     expect(createLocalPreviewStore(null).addDeadLetters([entry])).toBe(false)
   })
 
+  it('records an event set aside twice only once', () => {
+    // Two tabs, or an outbox write lost after the set-aside, reject the same event again (#111 review).
+    const store = createMemoryPreviewStore()
+    const entry = (id: string, rejectedAt: string): DeadLetter => ({ event: { clientEventId: id } as PracticeEvent, reasonCode: 'conflict', rejectedAt })
+    expect(store.addDeadLetters([entry('a', 't1'), entry('b', 't1')])).toBe(true)
+    expect(store.addDeadLetters([entry('a', 't2'), entry('c', 't2'), entry('c', 't2')])).toBe(true)
+    expect(store.loadDeadLetters().map((kept) => [kept.event.clientEventId, kept.rejectedAt])).toEqual([['a', 't1'], ['b', 't1'], ['c', 't2']])
+  })
+
   it('keeps only the newest dead letters, and clears them on reset', () => {
     const store = createMemoryPreviewStore()
     const entry = (n: number): DeadLetter => ({ event: { clientEventId: `e${n}` } as PracticeEvent, reasonCode: 'conflict', rejectedAt: '2026-10-10T00:00:00.000Z' })
