@@ -3,6 +3,9 @@
  * practice. Empty / loaded / completed / backlogged states. "Another session"
  * continues into the backlog: targets already presented during this visit are
  * left out, so a continuation never repeats the session just finished (#106).
+ * A scheduled visit first reads the schedule back (uploading queued answers),
+ * waiting at most REFRESH_WAIT_MS, so a plan is never frozen from a due list a
+ * refresh already in flight is about to replace.
  */
 import { type ReactElement, useEffect, useMemo, useState } from 'react'
 
@@ -19,6 +22,9 @@ import { Chip, Eyebrow, GameButton, MUTED, Panel, SectionTitle } from '../primit
 import { useRuntime } from '../RuntimeContext'
 import { useAssessment } from '../useAssessment'
 
+/** Longest a scheduled visit waits for a fresh schedule before using the one it has. */
+export const REFRESH_WAIT_MS = 3000
+
 export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactElement {
   const game = useGame()
   const { audio } = useRuntime()
@@ -26,12 +32,30 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   const [seed] = useState(() => `${Date.now()}`)
   // Targets already presented in earlier sessions of this visit; changes only on "Another session".
   const [presented, setPresented] = useState<ReadonlySet<string>>(() => new Set())
-  const plan = useMemo<ReviewPlan>(() => kind === 'scheduled'
-    ? buildScheduledReview(course, progress, (projection?.dueTargetIds ?? []).filter((targetId) => !presented.has(targetId)))
-    : buildExtraPractice(course, progress, seed),
-  // The plan is built once per session; later progress updates must not reshuffle it.
+  const [scheduleReady, setScheduleReady] = useState(kind !== 'scheduled')
+  useEffect(() => {
+    if (kind !== 'scheduled') return
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, REFRESH_WAIT_MS) })
+    void Promise.race([game.refreshProjection(), timeout]).then(() => {
+      if (active) setScheduleReady(true)
+    })
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind])
+  const plan = useMemo<ReviewPlan>(() => !scheduleReady
+    ? { kind: 'scheduled', items: [], backlog: 0 }
+    : kind === 'scheduled'
+      ? buildScheduledReview(course, progress, (projection?.dueTargetIds ?? []).filter((targetId) => !presented.has(targetId)))
+      : buildExtraPractice(course, progress, seed),
+  // The plan is built once per session, after the schedule is read back; later progress
+  // and projection updates must not reshuffle it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [kind, seed, presented])
+  [kind, seed, presented, scheduleReady])
   const [index, setIndex] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
   const done = index >= plan.items.length
@@ -57,7 +81,7 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   }, [done])
 
   const title = kind === 'scheduled' ? 'Review' : 'Extra practice'
-  const state = plan.items.length === 0 ? 'empty' : done ? 'completed' : plan.backlog > 0 ? 'backlogged' : 'loaded'
+  const state = !scheduleReady ? 'loading' : plan.items.length === 0 ? 'empty' : done ? 'completed' : plan.backlog > 0 ? 'backlogged' : 'loaded'
 
   return (
     <div className="flex flex-col gap-3" data-testid="review-screen" data-review-kind={kind} data-review-state={state}>
@@ -70,6 +94,10 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
           </div>
           <Chip tone={kind === 'scheduled' ? 'slate' : 'amber'}>{kind === 'scheduled' ? 'Review' : 'Extra practice'}</Chip>
         </div>
+
+        {state === 'loading' && (
+          <p className={cn('text-sm', MUTED)} data-testid="review-loading" aria-live="polite">Checking what is due…</p>
+        )}
 
         {state === 'empty' && (
           <div className="flex flex-col gap-2" data-testid="review-empty">

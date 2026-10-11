@@ -50,6 +50,7 @@ async function openReview() {
   render(<MandarinGame runtime={runtime} />)
   fireEvent.click(await screen.findByTestId('review-button'))
   const review = await screen.findByTestId('review-screen')
+  await waitFor(() => expect(review).not.toHaveAttribute('data-review-state', 'loading'))
   return { runtime, getProgress, review }
 }
 
@@ -75,6 +76,38 @@ describe('Mandarin review continuation (#106)', () => {
     const callsBefore = getProgress.mock.calls.length
     await runSession(10)
     await waitFor(() => expect(getProgress.mock.calls.length).toBeGreaterThan(callsBefore))
+    runtime.dispose()
+  })
+
+  it('builds the plan from the schedule read back on opening, not the stale one it had', async () => {
+    // #109 review: a refresh still in flight when Review opens must not be ignored.
+    const store = createMemoryPreviewStore()
+    store.saveSettings({ twoDMode: true, lowMotion: true })
+    const runtime = createPreviewRuntime({
+      scenario: findPreviewScenario('returning'),
+      store,
+      speechSynthesis: null,
+      sfx: NULL_SFX_PLAYER,
+      channelDeps: { simulatedDurationMs: () => 1 },
+      appendDelayMs: 0,
+    })
+    const original = runtime.gateway.getProgress.bind(runtime.gateway)
+    const getProgress = jest.spyOn(runtime.gateway, 'getProgress')
+    render(<MandarinGame runtime={runtime} />)
+    const button = await screen.findByTestId('review-button')
+    await waitFor(() => expect(getProgress.mock.calls.length).toBeGreaterThanOrEqual(2)) // load + Home refresh
+
+    // From now on the server answers slowly, and only three targets are still due.
+    getProgress.mockImplementation(async () => {
+      const projection = await original()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      return { ...projection, dueTargetIds: projection.dueTargetIds.slice(0, 3) }
+    })
+    fireEvent.click(button)
+    const review = await screen.findByTestId('review-screen')
+    await waitFor(() => expect(review).not.toHaveAttribute('data-review-state', 'loading'))
+    expect(review).toHaveAttribute('data-review-state', 'loaded')
+    expect(await runSession(3)).toHaveLength(3)
     runtime.dispose()
   })
 
