@@ -106,11 +106,14 @@ function isGradedReview(value: unknown): value is GradedReview {
 
 /**
  * True when the server names a different scheduler policy than the one this
- * bundle replays its log with, as in a tab left open across a deploy. Guest and preview
- * projections carry no graded log and name no real scheduler, so they never match.
+ * bundle replays its log with, as in a tab left open across a deploy. Only a
+ * signed-in account's projection names a real scheduler (guest and preview ones
+ * say `guest` or `mock-…`). The log's shape is deliberately not consulted: a deploy
+ * may change it along with the version, and an old bundle that cannot read the
+ * new shape is exactly the one that must reload.
  */
-export function isSchedulerOutdated(projection: Pick<ProgressProjection, 'schedulerVersion' | 'listeningCards'> | null): boolean {
-  return projection !== null && isGradedReviewLog(projection.listeningCards) && projection.schedulerVersion !== SCHEDULER_VERSION
+export function isSchedulerOutdated(projection: Pick<ProgressProjection, 'schedulerVersion'> | null, fromAccount: boolean): boolean {
+  return fromAccount && projection !== null && projection.schedulerVersion !== SCHEDULER_VERSION
 }
 
 /** Reads the server's `listeningCards` log and derives due targets; unknown shapes yield nothing due. */

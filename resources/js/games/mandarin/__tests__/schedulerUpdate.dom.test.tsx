@@ -14,17 +14,20 @@ import { createPreviewRuntime } from '../runtime/previewRuntime'
 
 jest.mock('../scene/webglSupport', () => ({ probeWebGl: () => false }))
 
-function start(schedulerVersion: string | null) {
+/** `listeningCards` stands in for whatever log shape the server sends. */
+function start(schedulerVersion: string | null, listeningCards: Record<string, unknown> = { kind: 'graded-review-log', windowMinutes: 10, reviews: [] }) {
   const store = createMemoryPreviewStore()
   store.saveSettings({ twoDMode: true, lowMotion: true })
   const runtime = createPreviewRuntime({ scenario: findPreviewScenario('returning'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER, appendDelayMs: 0 })
   if (schedulerVersion !== null) {
+    // A signed-in account on the live server, which names its real scheduler.
+    const bootstrap = runtime.gateway.bootstrap.bind(runtime.gateway)
+    jest.spyOn(runtime.gateway, 'bootstrap').mockImplementation(async () => {
+      const real = await bootstrap()
+      return { ...real, runtime: 'live', account: { signedIn: true, accountPartitionId: 'user:1' } }
+    })
     const original = runtime.gateway.getProgress.bind(runtime.gateway)
-    jest.spyOn(runtime.gateway, 'getProgress').mockImplementation(async () => ({
-      ...(await original()),
-      schedulerVersion,
-      listeningCards: { kind: 'graded-review-log', windowMinutes: 10, reviews: [] },
-    }))
+    jest.spyOn(runtime.gateway, 'getProgress').mockImplementation(async () => ({ ...(await original()), schedulerVersion, listeningCards }))
   }
   render(<MandarinGame runtime={runtime} />)
 
@@ -36,6 +39,14 @@ describe('scheduler version check', () => {
     const runtime = start('ts-fsrs-5.4.2')
     await screen.findByTestId('home-screen')
     expect(await screen.findByTestId('update-banner')).toHaveTextContent(/reload/i)
+    runtime.dispose()
+  })
+
+  it('asks for a reload even when this bundle cannot read the new log shape', async () => {
+    // A deploy may change the log along with the version; the old bundle is the one that must reload (#111 review).
+    const runtime = start('ts-fsrs-6.0.0', { kind: 'card-state-v2', cards: {} })
+    await screen.findByTestId('home-screen')
+    expect(await screen.findByTestId('update-banner')).toBeInTheDocument()
     runtime.dispose()
   })
 

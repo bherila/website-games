@@ -298,7 +298,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     settings,
     saveState,
     deadLetterCount,
-    schedulerOutdated: isSchedulerOutdated(loaded.projection),
+    schedulerOutdated: isSchedulerOutdated(loaded.projection, loaded.bootstrap.runtime === 'live' && loaded.bootstrap.account.signedIn),
     route,
     overlay,
     activeAssessment,

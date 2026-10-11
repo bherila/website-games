@@ -91,13 +91,12 @@ describe('listening scheduler projection', () => {
     expect(dueTargetIdsFromProjection({ listeningCards: { kind: 'something-else' } }, t0)).toEqual([])
   })
 
-  it('flags a server that names a different scheduler policy, and nothing else', () => {
-    const log = { kind: 'graded-review-log', windowMinutes: 10, reviews: [] }
-    expect(isSchedulerOutdated({ schedulerVersion: SCHEDULER_VERSION, listeningCards: log })).toBe(false)
-    expect(isSchedulerOutdated({ schedulerVersion: 'ts-fsrs-5.4.2', listeningCards: log })).toBe(true)
-    // Guest and preview projections carry no graded log and name no real scheduler.
-    expect(isSchedulerOutdated({ schedulerVersion: 'guest', listeningCards: {} })).toBe(false)
-    expect(isSchedulerOutdated({ schedulerVersion: 'mock-preview-0', listeningCards: {} })).toBe(false)
-    expect(isSchedulerOutdated(null)).toBe(false)
+  it('flags an account projection that names a different scheduler policy, and nothing else', () => {
+    expect(isSchedulerOutdated({ schedulerVersion: SCHEDULER_VERSION }, true)).toBe(false)
+    expect(isSchedulerOutdated({ schedulerVersion: 'ts-fsrs-5.4.2' }, true)).toBe(true)
+    expect(isSchedulerOutdated(null, true)).toBe(false)
+    // Guest and preview projections name no real scheduler.
+    expect(isSchedulerOutdated({ schedulerVersion: 'guest' }, false)).toBe(false)
+    expect(isSchedulerOutdated({ schedulerVersion: 'mock-preview-0' }, false)).toBe(false)
   })
 })
