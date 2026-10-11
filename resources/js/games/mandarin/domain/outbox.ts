@@ -72,3 +72,26 @@ export async function drainOutbox(options: DrainOptions): Promise<DrainOutcome> 
     return 'offline'
   }
 }
+
+/**
+ * Drains until no event appended during an upload is left behind. `drainOutbox`
+ * reads the outbox once, so an answer appended while a batch is in flight would
+ * wait for the next append, reconnect or load, and a caller that awaits the
+ * drain before reading progress back would read a stale schedule. Only events
+ * not yet attempted start another pass, so rejected events, which stay in the
+ * outbox, cannot make it loop.
+ */
+export async function drainOutboxUntilCaughtUp(options: DrainOptions): Promise<DrainOutcome> {
+  const attempted = new Set<string>()
+  const markAttempted = (): void => {
+    for (const event of options.read()) attempted.add(event.clientEventId)
+  }
+  markAttempted()
+  let outcome = await drainOutbox(options)
+  while (outcome === 'sent' && options.isCurrent() && options.read().some((event) => !attempted.has(event.clientEventId))) {
+    markAttempted()
+    outcome = await drainOutbox(options)
+  }
+
+  return outcome
+}

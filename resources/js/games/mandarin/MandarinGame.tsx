@@ -8,7 +8,7 @@ import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } 
 import type { Bootstrap, PracticeEvent, ProgressProjection, SaveState } from './contracts/mandarin'
 import type { Course } from './domain/courseSchema'
 import type { EventContext } from './domain/events'
-import { drainOutbox } from './domain/outbox'
+import { drainOutboxUntilCaughtUp } from './domain/outbox'
 import { createInitialProgress, parseStoredProgress, type PreviewProgress } from './domain/progress'
 import { DEFAULT_SETTINGS, type MandarinSettings, parseSettings } from './domain/settings'
 import type { MandarinRuntime } from './runtime/MandarinRuntime'
@@ -153,7 +153,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     if (canSave) setSaveState('saving')
     const generation = resetGenerationRef.current
     const idle = runtime.scenario?.saveState ?? 'local_preview'
-    const run = drainOutbox({
+    const run = drainOutboxUntilCaughtUp({
       read: () => outboxRef.current,
       write: (events) => {
         outboxRef.current = events
