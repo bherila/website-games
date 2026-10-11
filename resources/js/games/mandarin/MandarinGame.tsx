@@ -10,6 +10,7 @@ import type { Course } from './domain/courseSchema'
 import type { EventContext } from './domain/events'
 import { drainOutboxUntilCaughtUp } from './domain/outbox'
 import { createInitialProgress, parseStoredProgress, type PreviewProgress } from './domain/progress'
+import { newerProjection } from './domain/projection'
 import { DEFAULT_SETTINGS, type MandarinSettings, parseSettings } from './domain/settings'
 import type { MandarinRuntime } from './runtime/MandarinRuntime'
 import type { DioramaBeat } from './scene/sceneConfigs'
@@ -202,11 +203,15 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
 
   // Uploads queued answers first, so the projection read back includes them
   // and the due list reflects the session that just ended.
+  // Responses can arrive out of order, so an older read never replaces a newer
+  // one, and a read started before a preview reset is dropped.
   const refreshProjection = useCallback(async () => {
+    const generation = resetGenerationRef.current
     try {
       await drainNow()
       const projection = await gateway.getProgress()
-      setLoaded((current) => current ? { ...current, projection } : current)
+      if (generation !== resetGenerationRef.current) return
+      setLoaded((current) => current ? { ...current, projection: newerProjection(current.projection, projection) } : current)
     } catch {
       setSaveState('offline')
     }
