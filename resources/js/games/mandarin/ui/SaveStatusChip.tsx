@@ -17,8 +17,17 @@ export function saveStateLabel(state: SaveState, mock: boolean): { label: string
   }
 }
 
-export function SaveStatusChip({ state }: { state: SaveState }): ReactElement {
+export function SaveStatusChip({ state, notAccepted = 0 }: { state: SaveState; notAccepted?: number }): ReactElement {
   const { scenario } = useRuntime()
   const { label, tone } = saveStateLabel(state, scenario !== null)
-  return <Chip tone={tone} className="max-w-full truncate" data-testid="save-status">{label}</Chip>
+  return (
+    <span className="flex max-w-full flex-wrap items-center gap-1">
+      <Chip tone={tone} className="max-w-full truncate" data-testid="save-status">{label}</Chip>
+      {notAccepted > 0 && (
+        <Chip tone="rose" className="max-w-full truncate" data-testid="not-accepted" title="The server refused these answers. They are kept on this device and will not be sent again.">
+          {notAccepted === 1 ? '1 answer not accepted' : `${notAccepted} answers not accepted`}
+        </Chip>
+      )}
+    </span>
+  )
 }

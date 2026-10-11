@@ -19,7 +19,7 @@ import { DioramaCanvas } from '../scene/DioramaCanvas'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DialogueStage } from './DialogueStage'
 import { type GameApi, type Route, useGame } from './GameContext'
-import { GameButton } from './primitives'
+import { GameButton, MUTED, Panel } from './primitives'
 import { SaveStatusChip } from './SaveStatusChip'
 
 /** Where the learner is, with nothing in it that could answer the open question. */
@@ -96,7 +96,7 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
           </GameButton>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold leading-tight">{title ?? 'Mandarin Quest'}</p>
-            <div className="hidden sm:block"><SaveStatusChip state={game.saveState} /></div>
+            <div className="hidden sm:block"><SaveStatusChip state={game.saveState} notAccepted={game.deadLetterCount} /></div>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -190,7 +190,8 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
         >
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 lg:max-w-none">
-            <div className="sm:hidden"><SaveStatusChip state={game.saveState} /></div>
+            <div className="sm:hidden"><SaveStatusChip state={game.saveState} notAccepted={game.deadLetterCount} /></div>
+            {game.schedulerOutdated && <UpdateBanner />}
             {children}
           </div>
         </main>
@@ -211,5 +212,15 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
         />
       )}
     </div>
+  )
+}
+
+/** The server schedules with a newer policy than this page: reload to pick up the matching bundle. */
+function UpdateBanner(): ReactElement {
+  return (
+    <Panel className="flex flex-wrap items-center justify-between gap-2" role="status" data-testid="update-banner">
+      <p className={cn('text-sm', MUTED)}>Mandarin Quest has been updated. Reload so your review schedule matches your account.</p>
+      <GameButton variant="primary" onClick={() => window.location.reload()}>Reload</GameButton>
+    </Panel>
   )
 }

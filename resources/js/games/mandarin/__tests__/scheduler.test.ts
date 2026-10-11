@@ -1,6 +1,6 @@
 import { State } from 'ts-fsrs'
 
-import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview, LEARNING_STEPS, RELEARNING_STEPS, SCHEDULER_VERSION } from '../domain/scheduler'
+import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview, isSchedulerOutdated, LEARNING_STEPS, RELEARNING_STEPS, SCHEDULER_VERSION } from '../domain/scheduler'
 
 const t0 = new Date('2026-09-06T10:00:00.000Z')
 const at = (minutes: number): string => new Date(t0.getTime() + minutes * 60_000).toISOString()
@@ -89,5 +89,14 @@ describe('listening scheduler projection', () => {
     expect(dueTargetIdsFromProjection(projection, new Date(t0.getTime() + 2 * 24 * 60 * 60_000))).toEqual(['hello'])
     expect(dueTargetIdsFromProjection({ listeningCards: {} }, t0)).toEqual([])
     expect(dueTargetIdsFromProjection({ listeningCards: { kind: 'something-else' } }, t0)).toEqual([])
+  })
+
+  it('flags an account projection that names a different scheduler policy, and nothing else', () => {
+    expect(isSchedulerOutdated({ schedulerVersion: SCHEDULER_VERSION }, true)).toBe(false)
+    expect(isSchedulerOutdated({ schedulerVersion: 'ts-fsrs-5.4.2' }, true)).toBe(true)
+    expect(isSchedulerOutdated(null, true)).toBe(false)
+    // Guest and preview projections name no real scheduler.
+    expect(isSchedulerOutdated({ schedulerVersion: 'guest' }, false)).toBe(false)
+    expect(isSchedulerOutdated({ schedulerVersion: 'mock-preview-0' }, false)).toBe(false)
   })
 })

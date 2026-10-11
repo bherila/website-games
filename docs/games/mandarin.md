@@ -134,7 +134,18 @@ is replayed on the next load, on the next append, and on the browser's `online` 
 
 Replay is safe by construction: `(user_id, client_event_id)` is unique and an identical
 re-upload is answered `already_present`, which is not a rejection and so clears the entry.
-A different payload under the same id is rejected as `conflict` and kept.
+A different payload under the same id is rejected as `conflict`.
+
+A rejection that a resend can never fix (`PERMANENT_REJECTION_REASONS` in `domain/outbox.ts`:
+`conflict`, `invalid_*`, `unknown_*`) moves the event out of the outbox into a dead-letter
+list (`outbox-dead.v1`, newest 200 kept), and the save status shows how many answers were
+not accepted. Every other rejection, including `unsupported_schema`, `sign_in_required` and
+any reason code this client does not know, stays queued and is retried. See
+`mandarin-event-schema-v2.md`, "Rejections".
+
+The client also compares the server's `schedulerVersion` with its own `SCHEDULER_VERSION`.
+When they differ (a tab left open across a deploy that changed the scheduler), the page asks
+the learner to reload.
 
 Uploads are chunked at `MAX_EVENT_BATCH` (`domain/outbox.ts`) because the API caps a batch at
 `mandarin.events.max_batch`. An oversized replay is a permanent 422 — the backlog can only

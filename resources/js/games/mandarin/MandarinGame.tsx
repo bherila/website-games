@@ -11,6 +11,7 @@ import type { EventContext } from './domain/events'
 import { drainOutboxUntilCaughtUp } from './domain/outbox'
 import { createInitialProgress, parseStoredProgress, type PreviewProgress } from './domain/progress'
 import { newerProjection } from './domain/projection'
+import { isSchedulerOutdated } from './domain/scheduler'
 import { DEFAULT_SETTINGS, type MandarinSettings, parseSettings } from './domain/settings'
 import type { MandarinRuntime } from './runtime/MandarinRuntime'
 import type { DioramaBeat } from './scene/sceneConfigs'
@@ -81,6 +82,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
   const [reloadKey, setReloadKey] = useState(0)
   const prefersReduced = useReducedMotionPreference()
   const outboxRef = useRef<PracticeEvent[]>(store.loadOutbox())
+  const [deadLetterCount, setDeadLetterCount] = useState(() => store.loadDeadLetters().length)
   // Bumped on reset so acknowledgments from before the reset are ignored.
   const resetGenerationRef = useRef(0)
   const drainingRef = useRef(false)
@@ -160,6 +162,12 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
         outboxRef.current = events
         store.saveOutbox(events)
       },
+      deadLetter: (rejected) => {
+        const rejectedAt = runtime.now().toISOString()
+        const saved = store.addDeadLetters(rejected.map((entry) => ({ ...entry, rejectedAt })))
+        if (saved) setDeadLetterCount(store.loadDeadLetters().length)
+        return saved
+      },
       send: (events) => gateway.appendEvents(events),
       isCurrent: () => generation === resetGenerationRef.current,
     }).then((outcome) => {
@@ -173,7 +181,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     })
     drainPromiseRef.current = run
     return run
-  }, [gateway, loaded?.bootstrap.capabilities.canSaveToAccount, runtime.scenario?.saveState, store])
+  }, [gateway, loaded?.bootstrap.capabilities.canSaveToAccount, runtime, store])
 
   const flushOutbox = useCallback((): void => {
     void drainNow()
@@ -223,6 +231,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     store.clearAll()
     runtime.resetState?.()
     outboxRef.current = []
+    setDeadLetterCount(0)
     setSaveState(runtime.scenario?.saveState ?? 'local_preview')
     setSettings({ ...DEFAULT_SETTINGS })
     setRoute({ name: 'onboarding' })
@@ -288,6 +297,8 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     progress,
     settings,
     saveState,
+    deadLetterCount,
+    schedulerOutdated: isSchedulerOutdated(loaded.projection, loaded.bootstrap.runtime === 'live' && loaded.bootstrap.account.signedIn),
     route,
     overlay,
     activeAssessment,

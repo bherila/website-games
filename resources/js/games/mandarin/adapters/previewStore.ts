@@ -4,12 +4,21 @@
  * or promoted to a real account's learning history.
  */
 import type { PracticeEvent } from '../contracts/mandarin'
+import type { RejectedEvent } from '../domain/outbox'
+
+/** Permanently rejected events kept for inspection; the newest are kept. */
+export const DEAD_LETTER_LIMIT = 200
+
+export interface DeadLetter extends RejectedEvent {
+  rejectedAt: string
+}
 
 export const PREVIEW_STORAGE_PREFIX = 'mandarin.preview.'
 export const PREVIEW_KEYS = {
   progress: `${PREVIEW_STORAGE_PREFIX}progress.v1`,
   settings: `${PREVIEW_STORAGE_PREFIX}settings.v1`,
   outbox: `${PREVIEW_STORAGE_PREFIX}outbox.v1`,
+  deadLetters: `${PREVIEW_STORAGE_PREFIX}outbox-dead.v1`,
   client: `${PREVIEW_STORAGE_PREFIX}client.v1`,
 } as const
 
@@ -20,6 +29,10 @@ export interface PreviewStore {
   saveSettings(settings: unknown): void
   loadOutbox(): PracticeEvent[]
   saveOutbox(events: readonly PracticeEvent[]): void
+  /** Events the server refused for good. Never resent. */
+  loadDeadLetters(): DeadLetter[]
+  /** False when the list could not be persisted; the caller must keep the events queued. */
+  addDeadLetters(entries: readonly DeadLetter[]): boolean
   /** Stable per-browser identifier for `clientInstanceId`. */
   clientInstanceId(create: () => string): string
   /** Removes every `mandarin.preview.*` key. */
@@ -38,12 +51,15 @@ function readJson(storage: StorageLike | null, key: string): unknown | null {
   }
 }
 
-function writeJson(storage: StorageLike | null, key: string, value: unknown): void {
-  if (!storage) return
+/** Returns false when nothing was written (no storage, quota, private mode). */
+function writeJson(storage: StorageLike | null, key: string, value: unknown): boolean {
+  if (!storage) return false
   try {
     storage.setItem(key, JSON.stringify(value))
+    return true
   } catch {
     // Quota/private mode: the preview simply does not persist.
+    return false
   }
 }
 
@@ -57,7 +73,12 @@ export function createLocalStore(storage: StorageLike | null, prefix: string): P
     progress: `${prefix}progress.v1`,
     settings: `${prefix}settings.v1`,
     outbox: `${prefix}outbox.v1`,
+    deadLetters: `${prefix}outbox-dead.v1`,
     client: `${prefix}client.v1`,
+  }
+  const loadDeadLetters = (): DeadLetter[] => {
+    const value = readJson(storage, KEYS.deadLetters)
+    return Array.isArray(value) ? (value as DeadLetter[]) : []
   }
   return {
     loadProgress: () => readJson(storage, KEYS.progress),
@@ -69,6 +90,16 @@ export function createLocalStore(storage: StorageLike | null, prefix: string): P
       return Array.isArray(value) ? (value as PracticeEvent[]) : []
     },
     saveOutbox: (events) => writeJson(storage, KEYS.outbox, events),
+    loadDeadLetters,
+    // One entry per event: a second tab, or an outbox write lost after the set-aside,
+    // can reject the same event again, and a duplicate would inflate the count and
+    // crowd distinct events out of the cap.
+    addDeadLetters: (entries) => {
+      const existing = loadDeadLetters()
+      const seen = new Set(existing.map((entry) => entry.event.clientEventId))
+      const added = entries.filter((entry) => !seen.has(entry.event.clientEventId) && seen.add(entry.event.clientEventId))
+      return writeJson(storage, KEYS.deadLetters, [...existing, ...added].slice(-DEAD_LETTER_LIMIT))
+    },
     clientInstanceId: (create) => {
       const existing = readJson(storage, KEYS.client)
       if (typeof existing === 'string' && existing.length > 0) return existing
