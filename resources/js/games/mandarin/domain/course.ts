@@ -2,7 +2,7 @@
  * Typed, indexed view over the canonical course JSON. This is the only module
  * that imports the JSON file; everything else asks the index.
  */
-import courseJson from '../../../../data/mandarin/foundations.v1.json'
+import courseJson from '../../../../data/mandarin/foundations.v2.json'
 import type { AudioSourceRef, CourseIdentity } from '../contracts/mandarin'
 import {
   type ChoiceExercise,

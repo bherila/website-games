@@ -17,7 +17,7 @@ return [
 
     'course' => [
         'id' => 'mandarin-foundations',
-        'source' => resource_path('data/mandarin/foundations.v1.json'),
+        'source' => resource_path('data/mandarin/foundations.v2.json'),
     ],
 
     /*

@@ -25,6 +25,8 @@ abstract class MandarinTestCase extends TestCase
         $this->app->bind(AudioValidator::class, fn ($app): AudioValidator => new AudioValidator($app->make(ProcessRunner::class), null));
         Storage::fake('local');
         config()->set('mandarin.media_disk', 'local');
+        // Freeze legacy fixtures independently of the live course source.
+        config()->set('mandarin.course.source', resource_path('data/mandarin/foundations.v1.json'));
         config()->set('mandarin.speech.generation_enabled', true);
         config()->set('mandarin.speech.daily_character_budget', 5000);
         config()->set('queue.default', 'sync');

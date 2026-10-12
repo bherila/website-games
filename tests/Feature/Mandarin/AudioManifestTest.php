@@ -496,6 +496,7 @@ class AudioManifestTest extends MandarinTestCase
 
     public function test_deployment_requires_the_manifest_to_cover_the_configured_course(): void
     {
+        $this->app->make(CourseImporter::class)->importFile(resource_path('data/mandarin/foundations.v2.json'), false);
         $checkedIn = resource_path('data/mandarin/audio-manifest.json');
         $this->artisan("mandarin:audio:import {$checkedIn} --dry-run --require-configured-course")
             ->assertSuccessful();
