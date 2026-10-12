@@ -58,6 +58,11 @@ jobs:
       - name: Scan for sensitive data
         run: pnpm run scan-sensitive
 
+      # Keeps Mandarin separable (#94): nothing outside its folder imports from it
+      # except the allow-list in the script, and its routes stay out of the shared files.
+      - name: Check the Mandarin boundary
+        run: node scripts/check-mandarin-boundary.mjs
+
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-24.04-arm
