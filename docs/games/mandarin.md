@@ -31,9 +31,9 @@ Revision `1.1.0` shipped in [#54](https://github.com/bherila/website-games/pull/
 at `e7251b6`; its [deployment run](https://github.com/bherila/website-games/actions/runs/34186230928)
 completed successfully. It contains ten scenes, 20 nodes, 50 mastery targets,
 100 listening exercises, five constructions and 20 reserved checkpoint items.
-Revision `1.1.1` changes only the construction support chunk and its audio mappings;
-these learning counts and existing content IDs stay stable. Its release is pending
-until this change merges and the deployment gate verifies the corpus.
+Revision `1.1.1` shipped the dedicated construction support chunk in
+[#61](https://github.com/bherila/website-games/pull/61). Revision `1.2.0` adds five
+self-rated recall exercises while retaining those learning counts, Chinese and content IDs.
 
 Full-course Polly recordings and bucket-backed assets are shipped capabilities.
 Production stages the course, strictly imports/verifies its audio manifest, then activates
@@ -43,8 +43,6 @@ replay; it does not promise every unheard clip or a first visit will work offlin
 
 Remaining work:
 
-- [#55: live progress on the homepage card](https://github.com/bherila/website-games/issues/55).
-- [#56: dedicated construction chunk](https://github.com/bherila/website-games/issues/56), implemented in revision `1.1.1`, pending release verification.
 - [#57: fluent-speaker editorial and audio review](https://github.com/bherila/website-games/issues/57). Both course review flags remain false; asset/playback checks are not full language QA.
 - [#58: multi-session learner trial](https://github.com/bherila/website-games/issues/58), before further course expansion.
 - [#59: installed-iPhone OAuth verification](https://github.com/bherila/website-games/issues/59).
