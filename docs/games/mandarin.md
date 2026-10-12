@@ -426,3 +426,58 @@ MANDARIN_LIVE_E2E=1 E2E_AUTH_TOKEN=… pnpm run test:e2e:mandarin   # also the l
 
 The manual workflow `.github/workflows/mandarin-playwright.yml` runs the preview suites on
 Chromium and WebKit; CI has no speech provider, so the live spec skips there.
+
+## Boundary and splitting
+
+Mandarin is the only game with a backend of its own, and it lives in this repository for now.
+The rule that keeps a later split mechanical is: **Mandarin code may use shared code, but shared
+code must not reach into Mandarin** (issue [#94](https://github.com/bherila/website-games/issues/94)).
+
+### Mandarin-owned
+
+| Area | Where |
+|---|---|
+| Front end | `resources/js/games/mandarin/` (everything below it) |
+| Backend | `app/Services/Games/Mandarin/`, `app/Models/Mandarin/`, `app/Http/Controllers/Api/Mandarin/`, `app/Console/Commands/Mandarin/`, `MandarinQaController`, `MandarinAudioAdminController` |
+| Routes | `routes/mandarin.php`, loaded by `App\Providers\MandarinServiceProvider` (which also owns the container bindings). `routes/web.php` and `routes/api.php` hold no Mandarin lines |
+| Config and data | `config/mandarin.php`, `resources/data/mandarin/`, the `MANDARIN_*` variables in `.env.example` |
+| Tests | `tests/Feature/Mandarin/`, `tests/Unit/Mandarin/`, `resources/js/games/mandarin/__tests__/`, `tests/e2e/mandarin.*` |
+| Pipeline | `.github/workflows/mandarin-playwright.yml`, `scripts/deploy/activate-mandarin-course.sh`, and the `mandarin:*` commands in the `deploy` job of `ci.yml` |
+| Migrations | the `*mandarin*` files in `database/migrations/`. They stay in the shared folder (moving migration files under a live database needs its own plan); they are Mandarin-owned and the tables they create are `mandarin_*` |
+
+### Shared, and the seams into Mandarin
+
+- **Routes.** `routes/mandarin.php` sits outside the groups `bootstrap/app.php` gives the shared route files,
+  so it applies the same `web` group, and `api` group plus `/api` prefix, itself. Route names, URIs, middleware
+  and rate limits are pinned by `tests/Feature/Mandarin/MandarinRoutesTest.php`; change that test deliberately
+  or not at all.
+- **Game-select card.** `gameCatalog.ts` knows no game by name beyond its own list and exposes `registerGame()`.
+  `game-select/registerGames.ts` adds Mandarin's card, defined in `game-select/mandarinCatalogEntry.ts`, the
+  one game-select module that imports from `games/mandarin`.
+- **Service worker.** `pwa/serviceWorkerPolicy.ts` has no import from Mandarin. It matches the media URL shape
+  `/media/games/mandarin/{asset}/{hash}.{ext}` as a plain string pattern, which is a URL contract rather than a code dependency.
+- **Admin panel.** The audio dashboard still sits in `resources/js/admin/` and `AdminPanelController` delegates to
+  `MandarinAudioAdminController` (to be gathered under `resources/js/admin/mandarin/` behind one import, per #94).
+- **What Mandarin may use freely:** `@/lib/utils`, `games/_shared`, `App\Models\User`, `Controller`.
+
+### The CI guard
+
+`scripts/check-mandarin-boundary.mjs` runs in the Frontend Static Checks job. It fails when a file outside
+`resources/js/games/mandarin/` imports from it (static, dynamic, `require`, re-export or `jest.mock`
+specifiers, relative or `@/`), unless the file is in `ALLOWED_IMPORTERS` at the top of the script, and when
+`routes/web.php` or `routes/api.php` mention Mandarin. Its own tests are `tests-ts/mandarinBoundary.test.ts`.
+Run it locally with `node scripts/check-mandarin-boundary.mjs`. Widening the allow-list widens the coupling, so
+do it in a PR that says why.
+
+### Steps a split would take
+
+1. Copy the Mandarin-owned paths above into the new repository, along with the shared pieces Mandarin uses
+   (`games/_shared`, `@/lib/utils`, the `User` model, base `Controller`, the auth middleware setup).
+2. Carry the `*mandarin*` migrations over unchanged and keep the table names. A separate database needs the
+   existing rows copied; sharing the database means only one side may run the migrations.
+3. In this repository, delete `routes/mandarin.php`, `MandarinServiceProvider` (and its entry in
+   `bootstrap/providers.php`), `mandarinCatalogEntry.ts` and its `registerGames()` line. Replace the card with a
+   plain link entry to the new site, and drop the admin dashboard import and the allow-list.
+4. Re-point the service worker's media pattern if the media URL moves host, and move the Playwright workflow and the
+   `mandarin:*` deploy commands with the code.
+5. Delete `scripts/check-mandarin-boundary.mjs` and its CI step; the boundary no longer exists.

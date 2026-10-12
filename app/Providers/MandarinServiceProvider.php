@@ -26,4 +26,9 @@ class MandarinServiceProvider extends ServiceProvider
             (int) config('mandarin.speech.daily_character_budget', 20000),
         ));
     }
+
+    public function boot(): void
+    {
+        $this->loadRoutesFrom(base_path('routes/mandarin.php'));
+    }
 }
