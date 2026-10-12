@@ -55,11 +55,11 @@ if ($path === '/api/games/mandarin/bootstrap') {
         'runtime' => $scenario === 'preview_runtime' ? 'preview' : 'live',
         'course' => [
             'courseId' => 'mandarin-foundations',
-            'contentVersion' => $scenario === 'stale_course' ? '0.0.0' : '1.1.1',
+            'contentVersion' => $scenario === 'stale_course' ? '1.1.1' : '1.2.0',
         ],
         'audio' => [
             'courseId' => 'mandarin-foundations',
-            'contentVersion' => $scenario === 'stale_course' ? '0.0.0' : '1.1.1',
+            'contentVersion' => $scenario === 'stale_course' ? '1.1.1' : '1.2.0',
         ],
     ], JSON_THROW_ON_ERROR);
 
