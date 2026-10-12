@@ -1,9 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminPanelController;
-use App\Http\Controllers\Api\Mandarin\MandarinMediaController;
 use App\Http\Controllers\GamePwaController;
-use App\Http\Controllers\MandarinQaController;
 use App\Http\Controllers\OAuthLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,32 +63,11 @@ Route::get('/tower-throwback', function () {
     return view('games.tower-throwback');
 })->name('games.tower-throwback');
 
-Route::get('/mandarin', function () {
-    return view('games.mandarin', ['runtime' => config('mandarin.runtime', 'live')]);
-})->name('games.mandarin');
-
-// Mock-backed preview with the scenario selector. Never available in production.
-Route::get('/mandarin/preview', function () {
-    abort_if(app()->environment('production'), 404);
-
-    return view('games.mandarin', ['runtime' => 'preview']);
-})->name('games.mandarin.preview');
-
-// Audition sheet for the whole course. Operator tool: the controller 404s for anyone
-// who is not an application administrator, and in production unless MANDARIN_QA_ENABLED is set.
-Route::get('/mandarin/qa', MandarinQaController::class)
-    ->middleware(['web', 'auth'])
-    ->name('games.mandarin.qa');
-
 // Operator panel: application administrators only, in every environment. Guests are sent to
 // sign in; a signed-in account without the flag gets 403. Its JSON lives in routes/api.php.
 Route::get('/admin', AdminPanelController::class)
     ->middleware(['auth', 'can:administer'])
     ->name('admin.index');
-
-Route::get('/media/games/mandarin/{asset}/{hash}.{extension}', [MandarinMediaController::class, 'show'])
-    ->whereNumber('asset')->where(['hash' => '[a-f0-9]{64}', 'extension' => '(mp3|m4a|wav)'])
-    ->name('games.mandarin.media');
 
 Route::get('/2048', function () {
     return view('games.2048');
