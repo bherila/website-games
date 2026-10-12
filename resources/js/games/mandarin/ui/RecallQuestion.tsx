@@ -24,10 +24,16 @@ export function RecallQuestion({ exercise, mode, sessionKind, onDone }: {
   const [finished, setFinished] = useState(false)
   const finishedRef = useRef(false)
   const active = useRef(true)
+  const answerRef = useRef<HTMLDivElement>(null)
+  const continueRef = useRef<HTMLButtonElement>(null)
   const [evidence, setEvidence] = useState<AudioEvidence>({ status: 'not_required', normalPlayCount: 0, slowPlayCount: 0, interrupted: false })
   const source = useMemo(() => ({ sourceKind: 'utterance' as const, sourceId: exercise.sourceUtteranceId, variant: 'normal' as const }), [exercise.sourceUtteranceId])
   const utterance = game.course.utteranceById.get(exercise.sourceUtteranceId)!
   useEffect(() => { active.current = true; return () => { active.current = false; audio.stop() } }, [audio])
+  // The buttons that were focused unmount on reveal and on rating, which would
+  // drop keyboard focus to the page body; hand it to the content that replaced them.
+  useEffect(() => { if (revealed) answerRef.current?.focus() }, [revealed])
+  useEffect(() => { if (finished) continueRef.current?.focus() }, [finished])
   // The glossary can supply words for a spoken answer. Record it as a supported
   // attempt by committing to the answer reveal before opening the glossary.
   useEffect(() => game.registerAssessment({
@@ -74,9 +80,9 @@ export function RecallQuestion({ exercise, mode, sessionKind, onDone }: {
       </div>
     </>}
     {revealed && <>
-      <div data-testid="recall-answer" className="flex flex-col gap-1">
+      <div ref={answerRef} tabIndex={-1} role="region" aria-label="Answer" aria-live="polite" data-testid="recall-answer" className="flex flex-col gap-1 outline-none">
         <p lang="zh-CN" className="text-2xl font-bold">{utterance.zh}</p>
-        <p>{utterance.pinyin}</p>
+        <p lang="zh-Latn-pinyin">{utterance.pinyin}</p>
         <p className="text-sm">{exercise.explanation}</p>
       </div>
       <PromptPlayer source={source} slowSource={{ ...source, variant: 'slow' }} playLabel="Hear the answer" onPlayback={playback} disabled={finished} autoPlay />
@@ -91,7 +97,7 @@ export function RecallQuestion({ exercise, mode, sessionKind, onDone }: {
       </>}
       {finished && <>
         <p role="status" className="text-sm">{evidence.status === 'completed' ? 'Attempt recorded. Listening and speaking practice have separate review dates.' : 'Practice recorded without a score because the recording did not finish.'}</p>
-        <GameButton variant="primary" size="lg" onClick={onDone}>Continue</GameButton>
+        <GameButton ref={continueRef} variant="primary" size="lg" onClick={onDone}>Continue</GameButton>
       </>}
     </>}
   </div>
