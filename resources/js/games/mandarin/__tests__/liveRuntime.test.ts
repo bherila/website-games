@@ -4,16 +4,23 @@ import { createLocalStore, livePartitionPrefix, PREVIEW_STORAGE_PREFIX } from '.
 import { NULL_SFX_PLAYER } from '../audio/sfxRecipes'
 import { createLiveRuntime } from '../runtime/liveRuntime'
 
-function fetchFor(signedIn: boolean): typeof fetch {
+function fetchFor(signedIn: boolean, schemas?: number[]): typeof fetch {
   return async () => new Response(JSON.stringify({
     runtime: 'live', course: courseJson,
     account: { signedIn, accountPartitionId: signedIn ? 'user:42' : null },
-    capabilities: { canGenerateAudio: false, canSaveToAccount: signedIn, hasDistinctMandarinVoices: false },
+    capabilities: { canGenerateAudio: false, canSaveToAccount: signedIn, hasDistinctMandarinVoices: false, ...(schemas ? { practiceEventSchemas: schemas } : {}) },
     audio: { courseId: 'mandarin-foundations', contentVersion: '1.1.1', results: [] }, serverTime: 'x',
   }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
 describe('live runtime', () => {
+  it.each([[undefined, 1], [[1], 1], [[1, 2], 2], [[1, 3], 1]] as const)('negotiates supported event schemas %p as version %p', async (schemas, expected) => {
+    const gateway = new HttpMandarinGateway({ fetch: fetchFor(true, schemas ? [...schemas] : undefined), csrfToken: () => null })
+    const runtime = await createLiveRuntime({ gateway, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
+    expect(runtime.practiceEventSchema).toBe(expected)
+    runtime.dispose()
+  })
+
   it('bootstraps once, exposes no scenario, and partitions local state by account', async () => {
     let fetches = 0
     const fetchImpl: typeof fetch = async (input, init) => { fetches += 1; return fetchFor(true)(input, init) }

@@ -254,6 +254,7 @@ function GameProvider({ runtime }: { runtime: MandarinRuntime }): ReactElement {
     identity: course.identity,
     clientInstanceId: runtime.clientInstanceId,
     sessionId: runtime.sessionId,
+    schemaVersion: runtime.practiceEventSchema ?? 1,
     now: () => runtime.now().toISOString(),
   }), [course.identity, runtime])
 

@@ -37,6 +37,13 @@ export class GatewayHttpError extends Error {
   }
 }
 
+export class CourseUpdateRequiredError extends Error {
+  constructor() {
+    super('A course update is available. Reload to get the latest version.')
+    this.name = 'CourseUpdateRequiredError'
+  }
+}
+
 export interface HttpGatewayOptions {
   fetch?: typeof fetch
   /** Reads the CSRF token; defaults to the layout's meta tag. */
@@ -71,6 +78,10 @@ export class HttpMandarinGateway implements MandarinGateway<Course> {
     const response = await this.request('GET', MANDARIN_API.bootstrap, undefined, signal)
     if (!response.ok) throw new GatewayHttpError(response.status, `bootstrap failed (${response.status})`)
     const raw = (await response.json()) as Bootstrap<unknown>
+    if (typeof raw.course === 'object' && raw.course !== null && 'schemaVersion' in raw.course
+      && typeof raw.course.schemaVersion === 'number' && raw.course.schemaVersion > 1) {
+      throw new CourseUpdateRequiredError()
+    }
     const course = parseCourse(raw.course)
     const bootstrap: Bootstrap<Course> = { ...raw, course }
     this.bootstrapCache = bootstrap

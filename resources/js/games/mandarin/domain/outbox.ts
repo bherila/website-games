@@ -87,7 +87,19 @@ export async function drainOutbox(options: DrainOptions): Promise<DrainOutcome> 
   if (pending.length === 0) return 'empty'
 
   try {
-    for (const batch of chunkEvents(pending)) {
+    // Protect old servers too: they may reject the whole request before an
+    // invalid id reaches per-event validation. A missing/non-string id also
+    // cannot be matched to the server's string acknowledgment.
+    const invalid = pending.filter((event) => typeof event.clientEventId !== 'string' || event.clientEventId.length === 0 || event.clientEventId.length > 64)
+    if (invalid.length > 0) {
+      if (!options.isCurrent()) return 'sent'
+      if (options.deadLetter(invalid.map((event) => ({ event, reasonCode: 'invalid_event_id' })))) {
+        const invalidIds = new Set(invalid.map((event) => event.clientEventId))
+        options.write(options.read().filter((event) => !invalidIds.has(event.clientEventId)))
+      }
+    }
+    const valid = pending.filter((event) => !invalid.includes(event))
+    for (const batch of chunkEvents(valid)) {
       const result = await options.send(batch)
       if (!options.isCurrent()) return 'sent'
       const acknowledged = new Set(

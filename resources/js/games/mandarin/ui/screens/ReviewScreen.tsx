@@ -123,6 +123,7 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
               key={`${index}-${item.exercise.id}`}
               exercise={item.exercise}
               mode={kind === 'scheduled' ? 'review' : 'extra_practice'}
+              sessionKind={kind === 'extra' ? 'extra' : presented.size > 0 ? 'continuation' : 'scheduled'}
               onDone={(correct) => {
                 audio.stop()
                 if (correct) setCorrectCount((count) => count + 1)
@@ -152,9 +153,9 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   )
 }
 
-function ReviewQuestion({ exercise, mode, onDone }: { exercise: ChoiceExercise; mode: 'review' | 'extra_practice'; onDone: (correct: boolean) => void }): ReactElement {
+function ReviewQuestion({ exercise, mode, sessionKind, onDone }: { exercise: ChoiceExercise; mode: 'review' | 'extra_practice'; sessionKind: 'scheduled' | 'continuation' | 'extra'; onDone: (correct: boolean) => void }): ReactElement {
   const game = useGame()
-  const { state, dispatch } = useAssessment(exercise, mode, { sceneId: exercise.sceneId, nodeId: exercise.nodeId })
+  const { state, dispatch } = useAssessment(exercise, mode, { sceneId: exercise.sceneId, nodeId: exercise.nodeId }, sessionKind)
   return (
     <ListeningQuestion
       course={game.course}

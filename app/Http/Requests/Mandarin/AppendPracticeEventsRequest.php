@@ -19,7 +19,6 @@ class AppendPracticeEventsRequest extends FormRequest
         return [
             'events' => ['present', 'array', "max:{$max}"],
             'events.*' => ['array'],
-            'events.*.clientEventId' => ['required', 'string', 'max:64'],
         ];
     }
 

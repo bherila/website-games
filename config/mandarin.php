@@ -102,7 +102,9 @@ return [
 
     'events' => [
         'max_batch' => 64,
-        /* At most one schedule-changing result per target inside this window. */
+        /* Enable only after dual-accept server support has been deployed and verified. */
+        'advertise_v2' => (bool) env('MANDARIN_EVENTS_ADVERTISE_V2', false),
+        /* At most one schedule-changing result per card inside this window. */
         'schedule_window_minutes' => 10,
         /* Names the library and the step policy; must match SCHEDULER_VERSION in domain/scheduler.ts. */
         'scheduler_version' => 'ts-fsrs-5.4.2+steps-none',

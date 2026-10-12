@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { MandarinGame } from './MandarinGame'
 import { createLiveRuntime } from './runtime/liveRuntime'
 import { createPreviewRuntime } from './runtime/previewRuntime'
+import { renderLoadError } from './ui/renderLoadError'
 
 /**
  * The Blade shell stamps `data-runtime` from server config. Only an explicit
@@ -19,14 +20,7 @@ if (root) {
   } else {
     createLiveRuntime().then(
       (runtime) => reactRoot.render(<MandarinGame runtime={runtime} />),
-      (error: unknown) => {
-        root.innerHTML = ''
-        const message = document.createElement('p')
-        message.setAttribute('role', 'alert')
-        message.className = 'p-4 text-sm'
-        message.textContent = `Could not load the course. ${error instanceof Error ? error.message : ''} Reload to try again.`
-        root.appendChild(message)
-      },
+      (error: unknown) => renderLoadError(root, error),
     )
   }
 }

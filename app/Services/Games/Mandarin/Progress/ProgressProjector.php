@@ -21,7 +21,7 @@ class ProgressProjector
             ->where('user_id', $user->id)
             ->where('course_id', $course->courseId())
             ->orderBy('sequence')
-            ->get(['sequence', 'kind', 'mode', 'node_id', 'scene_id', 'exercise_id', 'target_id', 'grade', 'schedule_eligible', 'accepted_at', 'content_version']);
+            ->get(['sequence', 'kind', 'mode', 'node_id', 'scene_id', 'exercise_id', 'target_id', 'card_key', 'grade', 'schedule_eligible', 'accepted_at', 'content_version']);
 
         $completedNodes = [];
         $completedScenes = [];
@@ -40,6 +40,7 @@ class ProgressProjector
             if ($row->grade !== null && $row->target_id !== null) {
                 $reviews[] = [
                     'targetId' => $row->target_id,
+                    'cardKey' => $row->card_key ?? 'target:'.$row->target_id.'#listen.meaning',
                     'grade' => $row->grade,
                     'scheduleEligible' => (bool) $row->schedule_eligible,
                     'acceptedAt' => $row->accepted_at->toIso8601String(),

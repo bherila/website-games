@@ -2,8 +2,10 @@
 
 Design for [#100](https://github.com/bherila/website-games/issues/100), part of
 [#95](https://github.com/bherila/website-games/issues/95). It says what each activity measures,
-what a scheduled card is, and which evidence may move which card. Nothing here is built yet.
-The event changes it needs are in `mandarin-event-schema-v2.md` (#101). Code references are to
+what a scheduled card is, and which evidence may move which card. Legacy listening
+card keys and v2 event compatibility are implemented; the new recall activity remains
+a later content release. See implementation status in `mandarin-event-schema-v2.md`
+(#101). Original code references are to
 `main` at `5e6a72e`.
 
 Read with `mandarin-scheduler-audit.md` (card identity today, section 2) and

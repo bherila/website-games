@@ -15,7 +15,7 @@ export interface AssessmentHandle {
   dispatch: (action: AssessmentAction) => void
 }
 
-export function useAssessment(exercise: ChoiceExercise, mode: AssessmentMode, location: { sceneId: string | null; nodeId: string | null }): AssessmentHandle {
+export function useAssessment(exercise: ChoiceExercise, mode: AssessmentMode, location: { sceneId: string | null; nodeId: string | null }, sessionKind?: 'scheduled' | 'continuation' | 'extra'): AssessmentHandle {
   const game = useGame()
   const [state, setState] = useState<AssessmentState>(() => createAssessment(exercise, randomId('opp'), mode))
   const source = useMemo(() => {
@@ -31,13 +31,13 @@ export function useAssessment(exercise: ChoiceExercise, mode: AssessmentMode, lo
         game.appendEvents([helpRevealedEvent(game.eventContext, next, location)])
       }
       if (action.type === 'submit' || action.type === 'dontKnow' || action.type === 'skip') {
-        game.appendEvents([responseEvent(game.eventContext, next, location, source)])
+        game.appendEvents([responseEvent({ ...game.eventContext, ...(sessionKind ? { sessionKind } : {}) }, next, location, source)])
       }
       return next
     })
     // location is a plain object recreated by callers; its two ids are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exercise.correctOptionId, game.appendEvents, game.eventContext, location.sceneId, location.nodeId, source])
+  }, [exercise.correctOptionId, game.appendEvents, game.eventContext, location.sceneId, location.nodeId, source, sessionKind])
 
   // The header's glossary lists English meanings, so reaching it mid-question is
   // help. Publish this opportunity so the shell records it here instead of

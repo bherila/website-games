@@ -10,6 +10,7 @@ use App\Services\Games\Mandarin\Course\CourseValidator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Append-only practice log with server-side grading. The client never sends
@@ -33,7 +34,16 @@ class PracticeEventService
     {
         $acknowledgments = [];
         foreach ($events as $event) {
-            $acknowledgments[] = $this->appendOne($user, $event);
+            $ack = $this->appendOne($user, $event);
+            $acknowledgments[] = $ack;
+            if ($ack['status'] === 'rejected') {
+                // Only server-owned labels enter logs, never arbitrary client strings.
+                Log::notice('Mandarin practice event rejected', [
+                    'reason' => $ack['reasonCode'],
+                    'schemaVersion' => in_array($event['schemaVersion'] ?? null, [1, 2], true) ? $event['schemaVersion'] : null,
+                    'kind' => in_array($event['kind'] ?? null, self::KINDS, true) ? $event['kind'] : 'unsupported',
+                ]);
+            }
         }
 
         return ['acknowledgments' => $acknowledgments, 'lastSequence' => $this->lastSequence($user)];
@@ -73,14 +83,29 @@ class PracticeEventService
                 : $this->reject($clientEventId, 'conflict');
         }
 
-        [$correctness, $grade, $targetId] = $this->grade($course, $event);
+        // Preserve v1's grading exactly; v2 separates retries from text reveals.
+        [$correctness, $grade, $targetId] = $this->gradeV1($course, $event);
+        if ($event['schemaVersion'] === 2 && $event['kind'] === 'response' && $event['attemptIndex'] > 0) {
+            $grade = null;
+        }
+        $cardKey = $targetId === null ? null : 'target:'.$targetId.'#listen.meaning';
         $eligible = $grade !== null && $targetId !== null && in_array($event['mode'], ['lesson', 'review'], true);
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
-                $row = DB::transaction(function () use ($user, $event, $clientEventId, $payloadHash, $correctness, $grade, $targetId, $eligible): MandarinPracticeEvent {
+                $row = DB::transaction(function () use ($user, $event, $clientEventId, $payloadHash, $correctness, $grade, $targetId, $cardKey, $eligible): MandarinPracticeEvent {
                     $sequence = $this->lastSequence($user) + 1;
-                    $scheduleEligible = $eligible && ! $this->windowTaken($user, (string) $targetId);
+                    $scheduleEligible = $eligible && ! $this->windowTaken($user, (string) $cardKey, $targetId);
+                    if ($scheduleEligible && $event['schemaVersion'] === 2) {
+                        // A second upload for the same opportunity cannot become a
+                        // fresh review by claiming attemptIndex=0 after the window.
+                        $scheduleEligible = ! MandarinPracticeEvent::query()
+                            ->where('user_id', $user->id)
+                            ->where('course_id', $event['courseId'])
+                            ->where('opportunity_id', $event['opportunityId'])
+                            ->where('exercise_id', $event['exerciseId'])
+                            ->where('kind', 'response')->exists();
+                    }
 
                     return MandarinPracticeEvent::query()->create([
                         'user_id' => $user->id,
@@ -95,6 +120,8 @@ class PracticeEventService
                         'node_id' => $event['nodeId'] ?? null,
                         'exercise_id' => $event['exerciseId'] ?? null,
                         'target_id' => $targetId,
+                        'schema_version' => $event['schemaVersion'],
+                        'card_key' => $cardKey,
                         'correctness' => $correctness,
                         'grade' => $grade,
                         'schedule_eligible' => $scheduleEligible,
@@ -121,14 +148,23 @@ class PracticeEventService
         return $this->reject($clientEventId, 'conflict');
     }
 
-    /** At most one schedule-changing result per target inside the window. */
-    private function windowTaken(User $user, string $targetId): bool
+    /** At most one schedule-changing result per card inside the window. */
+    private function windowTaken(User $user, string $cardKey, ?string $legacyTargetId): bool
     {
         $minutes = (int) config('mandarin.events.schedule_window_minutes', 10);
 
         return MandarinPracticeEvent::query()
             ->where('user_id', $user->id)
-            ->where('target_id', $targetId)
+            ->where(function ($query) use ($cardKey, $legacyTargetId): void {
+                $query->where('card_key', $cardKey);
+                // A code rollback leaves the additive columns in place, but the
+                // old server writes null card keys. Respect those rows on redeploy.
+                if ($legacyTargetId !== null) {
+                    $query->orWhere(function ($legacy) use ($legacyTargetId): void {
+                        $legacy->whereNull('card_key')->where('target_id', $legacyTargetId);
+                    });
+                }
+            })
             ->where('schedule_eligible', true)
             ->where('accepted_at', '>', now()->subMinutes($minutes))
             ->exists();
@@ -139,16 +175,22 @@ class PracticeEventService
      */
     private function validate(CourseIndex $course, array $event): ?string
     {
-        if (($event['schemaVersion'] ?? null) !== 1) {
+        if (! in_array($event['schemaVersion'] ?? null, [1, 2], true)) {
             return 'unsupported_schema';
         }
-        if (! in_array($event['kind'] ?? null, self::KINDS, true) || ! in_array($event['mode'] ?? null, self::MODES, true)) {
+        if (! in_array($event['kind'] ?? null, self::KINDS, true)) {
+            return $event['schemaVersion'] === 2 && is_string($event['kind'] ?? null) ? 'unsupported_kind' : 'invalid_kind';
+        }
+        if (! in_array($event['mode'] ?? null, self::MODES, true)) {
             return 'invalid_kind';
         }
         foreach (['clientInstanceId', 'sessionId', 'clientOccurredAt'] as $field) {
             if (! is_string($event[$field] ?? null) || $event[$field] === '' || strlen($event[$field]) > 128) {
                 return 'invalid_payload';
             }
+        }
+        if ($event['schemaVersion'] === 2 && ($problem = $this->validateV2($event)) !== null) {
+            return $problem;
         }
         if (isset($event['sceneId']) && ! isset($course->scenes[$event['sceneId']])) {
             return 'unknown_scene';
@@ -205,7 +247,7 @@ class PracticeEventService
      * @param  array<string, mixed>  $event
      * @return array{0: string|null, 1: string|null, 2: string|null}
      */
-    private function grade(CourseIndex $course, array $event): array
+    private function gradeV1(CourseIndex $course, array $event): array
     {
         if ($event['kind'] !== 'response' || ! is_string($event['exerciseId'] ?? null)) {
             return [null, null, null];
@@ -252,6 +294,63 @@ class PracticeEventService
         return ['correct', 'Good', $targetId];
     }
 
+    /** @param array<string, mixed> $event */
+    private function validateV2(array $event): ?string
+    {
+        $time = $event['clientOccurredAt'];
+        // Require a real calendar date and an explicit offset, not Carbon's
+        // permissive parsing of relative dates or overflowing days.
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/D', $time)) {
+            return 'invalid_payload';
+        }
+        $parsed = date_parse($time);
+        if ($parsed['warning_count'] > 0 || $parsed['error_count'] > 0) {
+            return 'invalid_payload';
+        }
+        foreach (['sceneId' => 32, 'nodeId' => 32, 'exerciseId' => 32, 'opportunityId' => 64] as $field => $limit) {
+            if (isset($event[$field]) && (! is_string($event[$field]) || $event[$field] === '' || strlen($event[$field]) > $limit)) {
+                return 'invalid_payload';
+            }
+        }
+        foreach (['textHelpUsed', 'pinyinHelpUsed'] as $field) {
+            if (! is_bool($event[$field] ?? null)) {
+                return 'invalid_payload';
+            }
+        }
+        $audio = $event['audioEvidence'] ?? null;
+        if (! is_array($audio) || ! is_bool($audio['interrupted'] ?? null)) {
+            return 'invalid_payload';
+        }
+        foreach (['normalPlayCount', 'slowPlayCount'] as $field) {
+            if (! is_int($audio[$field] ?? null) || $audio[$field] < 0) {
+                return 'invalid_payload';
+            }
+        }
+        if ($event['kind'] === 'response') {
+            if (! is_int($event['attemptIndex'] ?? null) || $event['attemptIndex'] < 0 || ! isset($event['opportunityId'])) {
+                return 'invalid_payload';
+            }
+            $sessionKind = $event['sessionKind'] ?? null;
+            if (in_array($event['mode'], ['review', 'extra_practice'], true)) {
+                $allowed = $event['mode'] === 'review' ? ['scheduled', 'continuation'] : ['extra'];
+                if (! in_array($sessionKind, $allowed, true)) {
+                    return 'invalid_payload';
+                }
+            } elseif ($sessionKind !== null) {
+                return 'invalid_payload';
+            }
+            if (! in_array($event['responseAction'] ?? null, ['answer', 'dont_know', 'skip'], true)) {
+                // Recall content is a later rollout step; keep future actions queued.
+                return is_string($event['responseAction'] ?? null) ? 'unsupported_kind' : 'invalid_payload';
+            }
+            if (($event['selfRating'] ?? null) !== null) {
+                return 'invalid_payload';
+            }
+        }
+
+        return null;
+    }
+
     private function parseTime(mixed $value): ?Carbon
     {
         if (! is_string($value)) {
@@ -274,6 +373,7 @@ class PracticeEventService
             'serverAcceptedAt' => $row->accepted_at->toIso8601String(),
             'correctness' => $row->correctness,
             'grade' => $row->grade,
+            'cardKey' => $row->schedule_eligible ? $row->card_key : null,
             'reasonCode' => null,
         ];
     }
@@ -281,6 +381,6 @@ class PracticeEventService
     /** @return array<string, mixed> */
     private function reject(string $clientEventId, string $reason): array
     {
-        return ['clientEventId' => $clientEventId, 'status' => 'rejected', 'canonicalSequence' => null, 'serverAcceptedAt' => null, 'correctness' => null, 'grade' => null, 'reasonCode' => $reason];
+        return ['clientEventId' => $clientEventId, 'status' => 'rejected', 'canonicalSequence' => null, 'serverAcceptedAt' => null, 'correctness' => null, 'grade' => null, 'cardKey' => null, 'reasonCode' => $reason];
     }
 }

@@ -19,6 +19,8 @@ export interface MandarinRuntime {
   scenario: PreviewScenario | null
   clientInstanceId: string
   sessionId: string
+  /** Negotiated once per bootstrap; never changes already-built outbox events. */
+  practiceEventSchema?: 1 | 2
   now: () => Date
   /** Preview only: clears mock server state alongside the local partition. */
   resetState?: () => void

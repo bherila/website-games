@@ -1,6 +1,6 @@
 import { State } from 'ts-fsrs'
 
-import { buildSchedules, dueTargetIds, dueTargetIdsFromProjection, type GradedReview, isSchedulerOutdated, LEARNING_STEPS, RELEARNING_STEPS, SCHEDULER_VERSION } from '../domain/scheduler'
+import { buildCardSchedules, buildSchedules, dueCardKeys, dueTargetIds, dueTargetIdsFromProjection, type GradedReview, isSchedulerOutdated, LEARNING_STEPS, RELEARNING_STEPS, SCHEDULER_VERSION } from '../domain/scheduler'
 
 const t0 = new Date('2026-09-06T10:00:00.000Z')
 const at = (minutes: number): string => new Date(t0.getTime() + minutes * 60_000).toISOString()
@@ -10,6 +10,25 @@ function review(targetId: string, grade: GradedReview['grade'], minutes: number,
 }
 
 describe('listening scheduler projection', () => {
+  it('preserves legacy intervals when v1 and v2 reviews address the same card', () => {
+    const day = 24 * 60
+    const log = [review('hello', 'Good', 0, 1), { ...review('hello', 'Good', 2 * day, 2), cardKey: 'target:hello#listen.meaning' }, review('hello', 'Good', 13 * day, 3)]
+    const schedule = buildCardSchedules(log, 10).get('target:hello#listen.meaning')!
+    expect(schedule.reviews).toBe(3)
+    expect(schedule.effectiveDue.toISOString()).toBe(at(59 * day))
+    expect(buildCardSchedules(log.map((item) => ({ ...item, cardKey: 'target:hello#listen.meaning' })), 10).get('target:hello#listen.meaning')).toEqual(schedule)
+  })
+
+  it('keeps separate skill schedules and exposes only listening cards to the legacy UI', () => {
+    const log: GradedReview[] = [review('hello', 'Good', 0, 1), { ...review('hello', 'Again', 0, 2), targetId: null, cardKey: 'utterance:01a#form.recall' }]
+    const schedules = buildCardSchedules(log, 10)
+    expect(schedules.size).toBe(2)
+    expect(schedules.get('target:hello#listen.meaning')?.reviews).toBe(1)
+    expect(schedules.get('utterance:01a#form.recall')?.reviews).toBe(1)
+    expect(dueCardKeys(log, 10, new Date(at(30 * 24 * 60)))).toEqual(['utterance:01a#form.recall', 'target:hello#listen.meaning'])
+    expect(dueTargetIds(log, 10, new Date(at(30 * 24 * 60)))).toEqual(['hello'])
+  })
+
   it('is deterministic and ignores ineligible reviews', () => {
     const log = [review('hello', 'Good', 0, 1), review('hello', 'Good', 1, 2, false), review('be', 'Again', 2, 3)]
     const a = buildSchedules(log, 10)
