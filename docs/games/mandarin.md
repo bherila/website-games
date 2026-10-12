@@ -295,6 +295,7 @@ php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute        #
 php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json --disk=s3
 
 # In production (the objects are already in the bucket; the disk needs read access to verify):
+php -d memory_limit=1G artisan mandarin:course:import resources/data/mandarin/foundations.v1.json --stage
 php -d memory_limit=1G artisan mandarin:course:import --stage
 php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
 php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute --strict --require-configured-course

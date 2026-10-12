@@ -65,7 +65,8 @@ class ManifestDeploymentTest extends TestCase
 
         self::assertIsString($workflow);
         self::assertMatchesRegularExpression(
-            '/artisan-commands: \|\s+mandarin:course:import --stage\s+'
+            '/artisan-commands: \|\s+mandarin:course:import resources\/data\/mandarin\/foundations\.v1\.json --stage\s+'
+            .'mandarin:course:import --stage\s+'
             .'mandarin:audio:import resources\/data\/mandarin\/audio-manifest\.json --dry-run --verify-objects --strict --require-configured-course\s+'
             .'mandarin:audio:import resources\/data\/mandarin\/audio-manifest\.json --execute --verify-objects --strict --require-configured-course/',
             $workflow,

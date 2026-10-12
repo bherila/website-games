@@ -72,6 +72,10 @@ test.describe('Mandarin Quest visual harness', () => {
     }
     await construction.getByTestId('construction-check').click()
     await construction.getByTestId('continue').click()
+    await expect(page.getByTestId('recall-question')).toBeVisible()
+    await page.getByRole('button', { name: 'Show answer' }).click()
+    await page.getByRole('button', { name: 'Continue without rating' }).click()
+    await page.getByTestId('recall-question').getByRole('button', { name: 'Continue', exact: true }).click()
     await expect(page.getByTestId('scene-complete-screen')).toBeVisible()
     await page.waitForTimeout(1500)
     await capture(page, testInfo, 'scene-complete-reunion')

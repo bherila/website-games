@@ -7,6 +7,27 @@ use App\Services\Games\Mandarin\Course\CourseImporter;
 
 class RecallReleaseTest extends MandarinTestCase
 {
+    public function test_the_checked_in_deployment_sequence_imports_all_revisions_on_a_clean_database(): void
+    {
+        config()->set('mandarin.course.source', resource_path('data/mandarin/foundations.v2.json'));
+        $workflow = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
+        $this->assertSame(1, preg_match('/artisan-commands: \|\n((?: +mandarin:[^\n]+\n)+)/', $workflow, $matches));
+        $commands = array_map('trim', explode("\n", trim($matches[1])));
+        foreach ($commands as $command) {
+            if (! str_starts_with($command, 'mandarin:course:import ')) {
+                break;
+            }
+            $this->artisan($command)->assertSuccessful();
+        }
+        // Exercise the manifest preflight with the staged rows created by the
+        // actual workflow. Object checks are deployment's job; this verifies
+        // revision coverage without reading the real bucket from a test.
+        $this->artisan('mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --strict --require-configured-course')
+            ->assertSuccessful();
+        $this->artisan('mandarin:course:import --activate')->assertSuccessful();
+        $this->getJson('/api/games/mandarin/bootstrap')->assertJsonPath('course.contentVersion', '1.2.0');
+    }
+
     public function test_the_activated_revision_keeps_legacy_progress_and_serves_five_recall_activities(): void
     {
         $this->importCourse();
