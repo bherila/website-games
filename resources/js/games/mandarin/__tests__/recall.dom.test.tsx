@@ -24,6 +24,24 @@ async function openRecall(outcome: 'completed' | 'failed' | 'simulated' = 'compl
 }
 
 describe('say it, then check', () => {
+  it('can skip an unfinished model play without supplying a rating', async () => {
+    const { runtime, append } = await openRecall()
+    jest.spyOn(runtime.audio, 'isSpeaking').mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue without rating' }))
+    expect(await screen.findByRole('button', { name: 'Continue' })).toBeEnabled()
+    await waitFor(() => expect(append.mock.calls.flatMap(([events]) => events).some((event) => event.responseAction === 'skip')).toBe(true))
+    expect(append.mock.calls.flatMap(([events]) => events).find((event) => event.kind === 'response')?.selfRating).toBeNull()
+    runtime.dispose()
+  })
+
+  it('keeps the listening due count when a preview or older projection has only target ids', async () => {
+    const runtime = createPreviewRuntime({ course: recallCourse(), scenario: findPreviewScenario('returning'), speechSynthesis: null, sfx: NULL_SFX_PLAYER })
+    render(<MandarinGame runtime={runtime} />)
+    expect(await screen.findByTestId('review-button')).toHaveTextContent('12 due')
+    runtime.dispose()
+  })
+
   it('keeps text and audio hidden until commitment, then records a single self-rating', async () => {
     const { runtime, play, append } = await openRecall()
     const question = screen.getByTestId('recall-question')

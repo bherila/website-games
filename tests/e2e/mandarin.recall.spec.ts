@@ -4,6 +4,10 @@ import course from '../../resources/data/mandarin/foundations.v1.json' with { ty
 import recalls from '../../resources/data/mandarin/recall-exercises.v2.json' with { type: 'json' }
 import { capture } from './mandarin.helpers'
 
+// Network fixtures must remain visible to Playwright after reload; a service
+// worker would issue its own requests outside page.route interception.
+test.use({ serviceWorkers: 'block' })
+
 // A short silent WAV exercises actual media completion, not Mandarin pronunciation.
 function fixtureWav(): Buffer {
   const samples = 2400

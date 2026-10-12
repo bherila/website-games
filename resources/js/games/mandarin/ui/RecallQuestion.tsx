@@ -51,7 +51,7 @@ export function RecallQuestion({ exercise, mode, sessionKind, onDone }: {
   }
 
   function finish(selfRating: NonNullable<PracticeEvent['selfRating']> | null): void {
-    if (finishedRef.current || speaking) return
+    if (finishedRef.current || (selfRating !== null && speaking)) return
     finishedRef.current = true
     audio.stop()
     game.appendEvents([{ ...recallEvent({ ...game.eventContext, ...(sessionKind ? { sessionKind } : {}) }, exercise, opportunityId, mode,
@@ -86,7 +86,7 @@ export function RecallQuestion({ exercise, mode, sessionKind, onDone }: {
           {!dontKnow && <GameButton variant="primary" size="lg" disabled={speaking || evidence.status === 'not_required'} onClick={() => finish('said_it')}>Said it</GameButton>}
           {!dontKnow && <GameButton variant="secondary" size="lg" disabled={speaking || evidence.status === 'not_required'} onClick={() => finish('partly')}>Partly</GameButton>}
           <GameButton variant="secondary" size="lg" disabled={speaking || evidence.status === 'not_required'} onClick={() => finish('missed')}>{dontKnow ? 'Keep practising' : 'Missed'}</GameButton>
-          <GameButton variant="quiet" size="lg" disabled={speaking} onClick={() => finish(null)}>Continue without rating</GameButton>
+          <GameButton variant="quiet" size="lg" onClick={() => finish(null)}>Continue without rating</GameButton>
         </div>
       </>}
       {finished && <>

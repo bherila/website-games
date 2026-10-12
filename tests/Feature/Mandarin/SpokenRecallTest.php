@@ -100,6 +100,16 @@ class SpokenRecallTest extends MandarinTestCase
         $this->assertSame(['n' => 1, 'correct' => 0, 'rate' => 0.0], $report['spokenRecall']['afterEarlierGood']['oneToSevenDays']);
     }
 
+    public function test_v2_retries_are_not_unaided_comprehension_or_delayed_recall_evidence(): void
+    {
+        $first = $this->responseEvent(['schemaVersion' => 2, 'attemptIndex' => 0, 'selectedOptionId' => 'e001-o2']);
+        $retry = $this->responseEvent(['schemaVersion' => 2, 'attemptIndex' => 1]);
+        $this->actingAs(User::factory()->create())->postJson('/api/games/mandarin/events', ['events' => [$first, $retry]])->assertOk();
+        $report = $this->app->make(BaselineReport::class)->build('mandarin-foundations')['total'];
+        $this->assertSame(['n' => 1, 'correct' => 0, 'rate' => 0.0], $report['comprehension']['unaided']);
+        $this->assertSame(2, $report['activity']['responseEvents']);
+    }
+
     public function test_course_validation_requires_the_matching_skill_and_teaching_without_exposing_checkpoint_items(): void
     {
         $validator = $this->app->make(CourseValidator::class);

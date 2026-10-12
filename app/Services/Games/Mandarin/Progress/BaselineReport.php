@@ -146,7 +146,7 @@ class BaselineReport
             foreach ($events as $e) {
                 $counted = $e['in'];
                 $isResponse = $e['kind'] === 'response';
-                $scored = $isResponse && in_array($e['correctness'], ['correct', 'incorrect'], true);
+                $scored = $isResponse && $e['attemptIndex'] === 0 && in_array($e['correctness'], ['correct', 'incorrect'], true);
                 $correct = $e['correctness'] === 'correct';
                 $replay = ! $e['text'] && ($e['normal'] > 1 || $e['slow'] > 0);
                 $unaided = ! $e['text'] && $e['normal'] <= 1 && $e['slow'] === 0;
@@ -165,7 +165,7 @@ class BaselineReport
                     }
                 }
 
-                if ($isResponse && $counted && $e['recallCard'] === null && in_array($e['mode'], self::COMPREHENSION_MODES, true)) {
+                if ($isResponse && $counted && $e['attemptIndex'] === 0 && $e['recallCard'] === null && in_array($e['mode'], self::COMPREHENSION_MODES, true)) {
                     if ($e['action'] === 'dont_know') {
                         $dontKnow++;
                     } elseif ($e['action'] === 'skip') {
