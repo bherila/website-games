@@ -146,6 +146,10 @@ class BaselineReport
             foreach ($events as $e) {
                 $counted = $e['in'];
                 $isResponse = $e['kind'] === 'response';
+                // Only a first attempt is a measurement. A v2 retry (attemptIndex > 0) happens after the
+                // learner has been shown feedback or the answer, so counting it would inflate the
+                // delayed-recall rate and make it the "previous scored response" for later intervals.
+                // v1 events carry no attemptIndex and default to 0, so historical rows are unchanged.
                 $scored = $isResponse && $e['attemptIndex'] === 0 && in_array($e['correctness'], ['correct', 'incorrect'], true);
                 $correct = $e['correctness'] === 'correct';
                 $replay = ! $e['text'] && ($e['normal'] > 1 || $e['slow'] > 0);

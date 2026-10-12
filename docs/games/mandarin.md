@@ -256,6 +256,13 @@ response on the same target was 1 to under 7 days, or 7+ days, earlier; (5) help
 per 100 responses and the share of responses with text or pinyin help; (6) lapses: targets answered incorrectly after
 an earlier Good (a correct answer with text or pinyin help is also graded Again, but is not counted as a lapse).
 
+Metric change (recall release): only first attempts (`attemptIndex` 0) are scored. A v2 retry after feedback
+is excluded from the comprehension, checkpoint and delayed-recall rates, from a target's "previous scored
+response" (so it no longer shifts the 1 to under 7 day and 7+ day intervals), because the learner has
+already seen the answer. Lapses are unchanged: they read the server grade, which a retry never has. v1 events have no `attemptIndex`,
+read as 0, and are unchanged; so are totals for periods without v2 retries. Reports from before and after
+this release are comparable except where v2 retries were previously counted.
+
 Time defaults to `accepted_at`, which includes sync delay for offline sessions (an offline session is stamped
 when it uploads). `--time-basis=client` uses `clientOccurredAt`, labelled "client-reported, untrusted".
 
