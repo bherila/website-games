@@ -28,7 +28,7 @@ export type SaveState = 'local_preview' | 'guest_local' | 'saving' | 'saved' | '
 export type Bootstrap<TCourse> = {
   runtime: RuntimeMode; course: TCourse;
   account: { signedIn: boolean; accountPartitionId: string | null };
-  capabilities: { canGenerateAudio: boolean; canSaveToAccount: boolean; hasDistinctMandarinVoices: boolean };
+  capabilities: { canGenerateAudio: boolean; canSaveToAccount: boolean; hasDistinctMandarinVoices: boolean; practiceEventSchemas?: number[] };
   audio: AudioBatchResponse; serverTime: string;
 };
 export type AudioEvidence = {
@@ -37,7 +37,10 @@ export type AudioEvidence = {
 };
 /** The server validates fields by kind, resolves target IDs, and computes correctness. */
 export type PracticeEvent = CourseIdentity & {
-  schemaVersion: 1; clientEventId: string; clientInstanceId: string; sessionId: string;
+  schemaVersion: 1 | 2; clientEventId: string; clientInstanceId: string; sessionId: string;
+  /** Required on v2 responses. Absent on historical v1 payloads. */
+  attemptIndex?: number; selfRating?: 'said_it' | 'partly' | 'missed' | null;
+  sessionKind?: 'scheduled' | 'continuation' | 'extra' | null;
   clientOccurredAt: string; opportunityId: string | null;
   kind: 'response' | 'teaching_exposure' | 'help_revealed' | 'node_complete' | 'scene_complete' | 'checkpoint_exposure';
   mode: 'lesson' | 'review' | 'extra_practice' | 'checkpoint' | 'preview';
@@ -52,6 +55,7 @@ export type EventAcknowledgment = {
   canonicalSequence: number | null; serverAcceptedAt: string | null;
   correctness: 'correct' | 'incorrect' | 'unscored' | null;
   grade: 'Again' | 'Hard' | 'Good' | null;
+  cardKey?: string | null;
   reasonCode: string | null;
 };
 export type AppendResult = { acknowledgments: EventAcknowledgment[]; lastSequence: number };

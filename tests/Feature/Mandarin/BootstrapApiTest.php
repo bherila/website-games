@@ -7,6 +7,17 @@ use App\Models\User;
 
 class BootstrapApiTest extends MandarinTestCase
 {
+    public function test_event_schema_advertisement_is_off_by_default_and_can_be_rolled_back(): void
+    {
+        $this->importCourse();
+        $this->assertFalse(config('mandarin.events.advertise_v2'));
+        $this->getJson('/api/games/mandarin/bootstrap')->assertJsonPath('capabilities.practiceEventSchemas', [1]);
+        config()->set('mandarin.events.advertise_v2', true);
+        $this->getJson('/api/games/mandarin/bootstrap')->assertJsonPath('capabilities.practiceEventSchemas', [1, 2]);
+        config()->set('mandarin.events.advertise_v2', false);
+        $this->getJson('/api/games/mandarin/bootstrap')->assertJsonPath('capabilities.practiceEventSchemas', [1]);
+    }
+
     public function test_bootstrap_is_503_without_a_published_course(): void
     {
         $this->getJson('/api/games/mandarin/bootstrap')->assertStatus(503);

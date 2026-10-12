@@ -1,6 +1,7 @@
 import courseJson from '../../../../data/mandarin/foundations.v1.json'
-import { GatewayHttpError, HttpMandarinGateway, MANDARIN_API } from '../adapters/HttpMandarinGateway'
+import { CourseUpdateRequiredError, GatewayHttpError, HttpMandarinGateway, MANDARIN_API } from '../adapters/HttpMandarinGateway'
 import type { PracticeEvent } from '../contracts/mandarin'
+import { drainOutboxUntilCaughtUp } from '../domain/outbox'
 
 interface Call { url: string; init: RequestInit }
 
@@ -37,6 +38,42 @@ const event: PracticeEvent = {
 }
 
 describe('HttpMandarinGateway', () => {
+  it('requests a course update when the server publishes a newer course schema', async () => {
+    const { gateway } = gatewayWith(() => jsonResponse(200, { ...(bootstrapBody(false) as object), course: { ...courseJson, schemaVersion: 2 } }))
+    await expect(gateway.bootstrap()).rejects.toBeInstanceOf(CourseUpdateRequiredError)
+    expect(gateway.cachedBootstrap()).toBeNull()
+  })
+
+  it('drains mixed v1/v2 payloads unchanged and retains v2 when a rolled-back server refuses it', async () => {
+    const legacy = { ...event, clientEventId: 'legacy-queued' }
+    const v2: PracticeEvent = { ...event, schemaVersion: 2, clientEventId: 'v2-queued', attemptIndex: 0, selfRating: null, sessionKind: null }
+    let held = [legacy, v2]
+    let dualAccept = false
+    const original = held.map((item) => JSON.stringify(item))
+    const { gateway, calls } = gatewayWith((call) => {
+      const { events } = JSON.parse(String(call.init.body)) as { events: PracticeEvent[] }
+      return jsonResponse(200, { lastSequence: 1, acknowledgments: events.map((item) => ({
+        clientEventId: item.clientEventId,
+        status: item.schemaVersion === 2 && !dualAccept ? 'rejected' : 'accepted',
+        reasonCode: item.schemaVersion === 2 && !dualAccept ? 'unsupported_schema' : null,
+      })) })
+    })
+    const options = {
+      read: () => held,
+      write: (next: PracticeEvent[]) => { held = next },
+      deadLetter: () => { throw new Error('rollback rejections must remain queued') },
+      send: (batch: PracticeEvent[]) => gateway.appendEvents(batch),
+      isCurrent: () => true,
+    }
+    expect(await drainOutboxUntilCaughtUp(options)).toBe('sent')
+    expect(held).toEqual([v2])
+    expect((JSON.parse(String(calls[0]!.init.body)) as { events: PracticeEvent[] }).events.map((item) => JSON.stringify(item))).toEqual(original)
+    dualAccept = true
+    expect(await drainOutboxUntilCaughtUp(options)).toBe('sent')
+    expect(held).toEqual([])
+    expect((JSON.parse(String(calls[1]!.init.body)) as { events: PracticeEvent[] }).events).toEqual([v2])
+  })
+
   it('parses the bootstrap course, caches it, and gives guests an empty local projection without calling progress', async () => {
     const { gateway, calls } = gatewayWith(() => jsonResponse(200, bootstrapBody(false)))
     const bootstrap = await gateway.bootstrap()

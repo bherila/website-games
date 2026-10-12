@@ -41,6 +41,37 @@ function setup(pending: PracticeEvent[]) {
 }
 
 describe('practice event outbox', () => {
+  it.each(['x'.repeat(65), '', 42, null, undefined])('sets aside malformed event id %p before sending, and drains valid events', async (id) => {
+    const events = strandedEvents(55)
+    const malformed = { ...events[0]!, clientEventId: id } as PracticeEvent
+    let held = [malformed, ...events.slice(1)]
+    const deadLetters: RejectedEvent[] = []
+    const send = jest.fn((batch: PracticeEvent[]) => Promise.resolve(acknowledge(batch)))
+    const options = {
+      read: () => held,
+      write: (next: PracticeEvent[]) => { held = next },
+      deadLetter: (rejected: RejectedEvent[]) => { deadLetters.push(...rejected); return true },
+      send,
+      isCurrent: () => true,
+    }
+    expect(await drainOutboxUntilCaughtUp(options)).toBe('sent')
+    expect(held).toEqual([])
+    expect(deadLetters).toEqual([{ event: malformed, reasonCode: 'invalid_event_id' }])
+    expect(send.mock.calls.flatMap(([batch]) => batch)).toEqual(events.slice(1))
+    expect(await drainOutbox(options)).toBe('empty')
+  })
+
+  it('keeps a malformed event when set-aside storage fails, while sending the others', async () => {
+    const [bad, good] = strandedEvents(2)
+    const malformed = { ...bad!, clientEventId: 'x'.repeat(65) }
+    let held = [malformed, good!]
+    const send = jest.fn((batch: PracticeEvent[]) => Promise.resolve(acknowledge(batch)))
+    await drainOutboxUntilCaughtUp({ read: () => held, write: (next) => { held = next }, deadLetter: () => false, send, isCurrent: () => true })
+    expect(held).toEqual([malformed])
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send).toHaveBeenCalledWith([good])
+  })
+
   it('splits a backlog into batches the server will accept', () => {
     // The server caps a batch at `mandarin.events.max_batch` and answers an
     // oversized upload with a 422. For a replay that is permanent, so a long

@@ -16,6 +16,17 @@ and its rollout). Background: `mandarin-scheduler-audit.md`, `mandarin-pedagogy-
 
 ## Release status and follow-ups
 
+The teaching epic is [#95](https://github.com/bherila/website-games/issues/95).
+The baseline report, scheduler audit, pedagogy digest and curriculum map shipped
+in #108; review continuation and Hard-card graduation shipped in #109. Skill/card
+design and the event migration plan are recorded in
+[the skill contract](mandarin-skill-contract.md) and
+[the v2 rollout](mandarin-event-schema-v2.md). The v2 server/client compatibility
+work is implemented with `MANDARIN_EVENTS_ADVERTISE_V2=false` by default. It
+preserves historical event payloads and listening schedules; enabling advertisement
+after deployment is a separate rollout action. Recall content is the next code
+step, and the multi-session learner trial remains outstanding.
+
 Revision `1.1.0` shipped in [#54](https://github.com/bherila/website-games/pull/54)
 at `e7251b6`; its [deployment run](https://github.com/bherila/website-games/actions/runs/34186230928)
 completed successfully. It contains ten scenes, 20 nodes, 50 mastery targets,

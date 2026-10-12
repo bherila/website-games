@@ -7,6 +7,8 @@ export interface EventContext {
   identity: CourseIdentity
   clientInstanceId: string
   sessionId: string
+  schemaVersion?: 1 | 2
+  sessionKind?: 'scheduled' | 'continuation' | 'extra'
   now: () => string
 }
 
@@ -15,7 +17,7 @@ type Base = Pick<PracticeEvent, 'kind' | 'mode' | 'sceneId' | 'nodeId' | 'exerci
 function base(context: EventContext, fields: Base): PracticeEvent {
   return {
     ...context.identity,
-    schemaVersion: 1,
+    schemaVersion: context.schemaVersion ?? 1,
     clientEventId: uuid(),
     clientInstanceId: context.clientInstanceId,
     sessionId: context.sessionId,
@@ -38,6 +40,7 @@ export function responseEvent(
   source: AudioSourceRef | null,
 ): PracticeEvent {
   const attempt = lastAttempt(state)
+  const v2 = context.schemaVersion === 2
   return {
     ...base(context, {
       kind: 'response',
@@ -48,13 +51,18 @@ export function responseEvent(
       opportunityId: state.opportunityId,
     }),
     source,
+    ...(v2 ? {
+      attemptIndex: Math.max(0, state.attempts.length - 1),
+      selfRating: null,
+      sessionKind: state.mode === 'review' ? context.sessionKind ?? 'scheduled' : state.mode === 'extra_practice' ? 'extra' : null,
+    } : {}),
     responseAction: attempt?.action ?? null,
     selectedOptionId: attempt?.optionId ?? null,
-    // A retry after feedback has seen the correct answer: that is text help, never
-    // an unaided listen. Read that from the attempt, not from `state.answerDisclosed`
+    // V1 treats a retry after feedback as text help; v2 records attemptIndex
+    // separately. Read the retry from the attempt, not from `state.answerDisclosed`
     // — submitting sets that flag itself, so the post-action state reports every
     // first answer as assisted and the scheduler never sees an unaided success.
-    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || attempt?.isRetry === true,
+    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || (!v2 && attempt?.isRetry === true),
     pinyinHelpUsed: state.helpRevealed.includes('pinyin'),
     audioEvidence: audioEvidence(state),
   }
@@ -70,8 +78,8 @@ export function helpRevealedEvent(context: EventContext, state: AssessmentState,
       exerciseId: state.exerciseId,
       opportunityId: state.opportunityId,
     }),
-    // A retry after feedback has seen the correct answer: that is text help, never an unaided listen.
-    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || state.answerDisclosed,
+    // Keep v1's historical meaning; v2 counts only actual text reveals.
+    textHelpUsed: state.helpRevealed.includes('transcript') || state.helpRevealed.includes('meaning') || (context.schemaVersion !== 2 && state.answerDisclosed),
     pinyinHelpUsed: state.helpRevealed.includes('pinyin'),
     audioEvidence: audioEvidence(state),
   }
@@ -86,7 +94,8 @@ export function constructionEvent(
   assisted = false,
 ): PracticeEvent {
   return {
-    ...base(context, { kind: 'response', mode, ...location, opportunityId: null }),
+    ...base(context, { kind: 'response', mode, ...location, opportunityId: context.schemaVersion === 2 ? uuid() : null }),
+    ...(context.schemaVersion === 2 ? { attemptIndex: 0, selfRating: null, sessionKind: mode === 'review' ? context.sessionKind ?? 'scheduled' : mode === 'extra_practice' ? 'extra' : null } : {}),
     responseAction: 'answer',
     orderedTileIds,
     // Construction is excluded from listening scheduling either way, but the

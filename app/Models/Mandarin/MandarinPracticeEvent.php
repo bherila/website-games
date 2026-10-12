@@ -19,6 +19,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $node_id
  * @property string|null $exercise_id
  * @property string|null $target_id
+ * @property int $schema_version
+ * @property string|null $card_key
  * @property string|null $correctness
  * @property string|null $grade
  * @property bool $schedule_eligible
@@ -39,6 +41,7 @@ class MandarinPracticeEvent extends Model
     protected function casts(): array
     {
         return [
+            'schema_version' => 'integer',
             'schedule_eligible' => 'boolean',
             'client_occurred_at' => 'datetime',
             'accepted_at' => 'datetime',

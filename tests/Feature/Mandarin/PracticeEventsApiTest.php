@@ -19,6 +19,22 @@ class PracticeEventsApiTest extends MandarinTestCase
         return $this->actingAs($user)->postJson('/api/games/mandarin/events', ['events' => $events]);
     }
 
+    public function test_malformed_ids_are_rejected_individually_without_blocking_valid_events(): void
+    {
+        $user = User::factory()->create();
+        $bad = array_map(fn ($id): array => $this->responseEvent(['clientEventId' => $id]), [str_repeat('x', 65), '', 42, null]);
+        $missing = $this->responseEvent();
+        unset($missing['clientEventId']);
+        $response = $this->postEvents($user, [...$bad, $missing, $this->responseEvent(['clientEventId' => 'valid'])])->assertOk();
+        foreach (range(0, 4) as $index) {
+            $response->assertJsonPath("acknowledgments.{$index}.reasonCode", 'invalid_event_id');
+        }
+        $response->assertJsonPath('acknowledgments.5.status', 'accepted')->assertJsonPath('lastSequence', 1);
+        $this->assertSame(1, MandarinPracticeEvent::query()->count());
+        // Batch-level limits and shape validation still reject invalid requests.
+        $this->postEvents($user, ['not-an-event'])->assertUnprocessable();
+    }
+
     public function test_grades_by_policy_and_never_trusts_client_flags(): void
     {
         $user = User::factory()->create();

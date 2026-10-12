@@ -3,7 +3,7 @@
 Migration plan for [#101](https://github.com/bherila/website-games/issues/101), part of
 [#95](https://github.com/bherila/website-games/issues/95). It turns the audit's migration order
 (`mandarin-scheduler-audit.md`, section 4) into a contract, and carries the card key from
-`mandarin-skill-contract.md` (#100). Nothing here is built yet. Code references are to `main` at
+`mandarin-skill-contract.md` (#100). See implementation status below. Original code references are to `main` at
 `5e6a72e`.
 
 ## What needs a version, and what does not
@@ -20,6 +20,31 @@ v2 exists because of the first row: `textHelpUsed` changes meaning.
 These numbers are separate and never compared with each other: event `schemaVersion`, course
 `schemaVersion` (`courseSchema.ts:121`), `contentVersion`, the audio manifest `SCHEMA_VERSION`, the
 outbox storage key (`outbox.v1`), and `schedulerVersion` with its config hash.
+
+## Implementation status (2026-10-12)
+
+Step 0 shipped in #111. Steps 1–3 are implemented for the existing listening and
+construction activities, with v2 advertisement **off by default**. The additive
+migration backfills legacy listening card keys without changing event payloads,
+hashes, acceptance times or grades. The client keeps queued v1 events unchanged,
+negotiates v2 for new events only, and continues to expose the listening-only due
+list while replaying schedules by card key. Unknown v2 kinds/actions are retryable;
+`self_check` remains unsupported until the recall content step.
+
+The #112 fix rejects malformed IDs per event and sets them aside on the client
+before sending, so an older server cannot strand the rest of the batch. A failed
+dead-letter write keeps the malformed event queued while valid events still drain.
+
+After this server/client release has deployed and its checks pass, operators can
+set `MANDARIN_EVENTS_ADVERTISE_V2=true` and reload configuration using the normal
+deployment process. The bootstrap then advertises `[1, 2]`. Turning the flag off
+returns new bootstraps to v1; already-built v2 payloads retain their IDs and schema,
+and the dual-accept server continues to accept them. Do not roll back the additive
+migration during a code rollback.
+
+Step 4 remains a separate content release. The five-sentence recall activity,
+its grading and course schema 2 are not activated by this change. The learner
+trial (#58/#103) and fluent-speaker review (#57) remain open.
 
 ## Fields
 

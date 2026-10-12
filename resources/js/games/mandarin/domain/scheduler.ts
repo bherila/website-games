@@ -28,7 +28,8 @@ export const SCHEDULER_VERSION = 'ts-fsrs-5.4.2+steps-none'
 export const DESIRED_RETENTION = 0.9
 
 export interface GradedReview {
-  targetId: string
+  targetId: string | null
+  cardKey?: string | null
   grade: 'Again' | 'Hard' | 'Good' | 'Easy'
   scheduleEligible: boolean
   acceptedAt: string
@@ -41,6 +42,11 @@ export interface TargetSchedule {
   /** FSRS due, pushed out to the end of the review window when needed. */
   effectiveDue: Date
   reviews: number
+}
+
+export interface CardSchedule extends Omit<TargetSchedule, 'targetId'> {
+  cardKey: string
+  targetId: string | null
 }
 
 const RATINGS: Record<GradedReview['grade'], Grade> = {
@@ -60,21 +66,41 @@ const scheduler = fsrs(generatorParameters({
   relearning_steps: [...RELEARNING_STEPS],
 }))
 
-export function buildSchedules(reviews: readonly GradedReview[], windowMinutes: number): Map<string, TargetSchedule> {
+export function buildCardSchedules(reviews: readonly GradedReview[], windowMinutes: number): Map<string, CardSchedule> {
   const ordered = [...reviews].sort((a, b) => a.sequence - b.sequence)
-  const schedules = new Map<string, TargetSchedule>()
+  const schedules = new Map<string, CardSchedule>()
   for (const review of ordered) {
     if (!review.scheduleEligible) continue
+    const cardKey = review.cardKey ?? (review.targetId ? `target:${review.targetId}#listen.meaning` : null)
+    if (!cardKey) continue
     const at = new Date(review.acceptedAt)
     if (Number.isNaN(at.getTime())) continue
-    const existing = schedules.get(review.targetId)
+    const existing = schedules.get(cardKey)
     const card: Card = existing?.card ?? createEmptyCard<Card>(at)
     const { card: next } = scheduler.next(card, at, RATINGS[review.grade])
     const windowEnd = new Date(at.getTime() + windowMinutes * 60_000)
     const effectiveDue = next.due.getTime() < windowEnd.getTime() ? windowEnd : next.due
-    schedules.set(review.targetId, { targetId: review.targetId, card: next, effectiveDue, reviews: (existing?.reviews ?? 0) + 1 })
+    schedules.set(cardKey, { cardKey, targetId: review.targetId, card: next, effectiveDue, reviews: (existing?.reviews ?? 0) + 1 })
   }
   return schedules
+}
+
+/** Compatibility view for the existing listening-only UI and historical fixtures. */
+export function buildSchedules(reviews: readonly GradedReview[], windowMinutes: number): Map<string, TargetSchedule> {
+  const listening = new Map<string, TargetSchedule>()
+  for (const schedule of buildCardSchedules(reviews, windowMinutes).values()) {
+    if (schedule.targetId && schedule.cardKey === `target:${schedule.targetId}#listen.meaning`) {
+      listening.set(schedule.targetId, { targetId: schedule.targetId, card: schedule.card, effectiveDue: schedule.effectiveDue, reviews: schedule.reviews })
+    }
+  }
+  return listening
+}
+
+export function dueCardKeys(reviews: readonly GradedReview[], windowMinutes: number, now: Date): string[] {
+  return [...buildCardSchedules(reviews, windowMinutes).values()]
+    .filter((schedule) => schedule.effectiveDue.getTime() <= now.getTime())
+    .sort((a, b) => a.effectiveDue.getTime() - b.effectiveDue.getTime() || a.cardKey.localeCompare(b.cardKey))
+    .map((schedule) => schedule.cardKey)
 }
 
 /** Targets due at `now`, soonest first. */
@@ -98,7 +124,8 @@ function isGradedReviewLog(value: unknown): value is GradedReviewLog {
 function isGradedReview(value: unknown): value is GradedReview {
   if (typeof value !== 'object' || value === null) return false
   const record = value as Record<string, unknown>
-  return typeof record.targetId === 'string'
+  return (typeof record.targetId === 'string' || (record.targetId === null && typeof record.cardKey === 'string'))
+    && (record.cardKey === undefined || record.cardKey === null || typeof record.cardKey === 'string')
     && typeof record.grade === 'string' && record.grade in RATINGS
     && typeof record.acceptedAt === 'string'
     && typeof record.sequence === 'number'

@@ -35,7 +35,7 @@ async function runSession(size: number): Promise<string[]> {
   return ids
 }
 
-async function openReview() {
+async function openReview(schemaVersion: 1 | 2 = 1) {
   const store = createMemoryPreviewStore()
   store.saveSettings({ twoDMode: true, lowMotion: true })
   const runtime = createPreviewRuntime({
@@ -47,6 +47,7 @@ async function openReview() {
     appendDelayMs: 0,
   })
   const getProgress = jest.spyOn(runtime.gateway, 'getProgress')
+  runtime.practiceEventSchema = schemaVersion
   render(<MandarinGame runtime={runtime} />)
   fireEvent.click(await screen.findByTestId('review-button'))
   const review = await screen.findByTestId('review-screen')
@@ -55,6 +56,21 @@ async function openReview() {
 }
 
 describe('Mandarin review continuation (#106)', () => {
+  it('records v2 scheduled and continuation answers with distinct session kinds', async () => {
+    const { runtime } = await openReview(2)
+    const append = jest.spyOn(runtime.gateway, 'appendEvents')
+    await runSession(10)
+    await waitFor(() => expect(append.mock.calls.flatMap(([events]) => events).filter((event) => event.kind === 'response')).toHaveLength(10))
+    const first = append.mock.calls.flatMap(([events]) => events).filter((event) => event.kind === 'response')
+    expect(first.every((event) => event.schemaVersion === 2 && event.sessionKind === 'scheduled' && event.attemptIndex === 0)).toBe(true)
+    append.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: /another session/i }))
+    await runSession(2)
+    await waitFor(() => expect(append.mock.calls.flatMap(([events]) => events).filter((event) => event.kind === 'response')).toHaveLength(2))
+    expect(append.mock.calls.flatMap(([events]) => events).filter((event) => event.kind === 'response').every((event) => event.sessionKind === 'continuation')).toBe(true)
+    runtime.dispose()
+  })
+
   it('starts a backlogged session of 10, then continues with the 2 remaining distinct items', async () => {
     const { runtime, review } = await openReview()
     expect(review).toHaveAttribute('data-review-state', 'backlogged')

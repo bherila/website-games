@@ -51,6 +51,7 @@ export async function createLiveRuntime(options: LiveRuntimeOptions = {}): Promi
     scenario: null,
     clientInstanceId: store.clientInstanceId(() => randomId('client')),
     sessionId: randomId('session'),
+    practiceEventSchema: bootstrap.capabilities.practiceEventSchemas?.includes(2) ? 2 : 1,
     now,
     dispose() {
       audio.dispose()

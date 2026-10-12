@@ -33,6 +33,7 @@ class MandarinBootstrapController extends Controller
                 'canGenerateAudio' => $user !== null && Gate::forUser($user)->allows('administer') && $generationEnabled,
                 'canSaveToAccount' => $user !== null,
                 'hasDistinctMandarinVoices' => $speech->hasDistinctMandarinVoices(),
+                'practiceEventSchemas' => config('mandarin.events.advertise_v2') ? [1, 2] : [1],
             ],
             'audio' => ['courseId' => $course->courseId(), 'contentVersion' => $course->contentVersion(), 'results' => []],
             'serverTime' => now()->toIso8601String(),
