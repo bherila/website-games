@@ -11,7 +11,7 @@ import { seededShuffle } from './random'
 
 export type HelpKind = 'transcript' | 'pinyin' | 'meaning'
 export type PlaybackOutcome = 'completed' | 'interrupted' | 'failed' | 'blocked' | 'simulated' | 'unavailable'
-export type ResponseAction = NonNullable<PracticeEvent['responseAction']>
+export type ResponseAction = Exclude<NonNullable<PracticeEvent['responseAction']>, 'self_check'>
 export type AssessmentMode = PracticeEvent['mode']
 
 /**

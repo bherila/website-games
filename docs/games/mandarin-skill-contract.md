@@ -3,8 +3,8 @@
 Design for [#100](https://github.com/bherila/website-games/issues/100), part of
 [#95](https://github.com/bherila/website-games/issues/95). It says what each activity measures,
 what a scheduled card is, and which evidence may move which card. Legacy listening
-card keys and v2 event compatibility are implemented; the new recall activity remains
-a later content release. See implementation status in `mandarin-event-schema-v2.md`
+card keys, v2 event compatibility and the first recall activity are implemented.
+Course content activation follows the compatible client release. See implementation status in `mandarin-event-schema-v2.md`
 (#101). Original code references are to
 `main` at `5e6a72e`.
 
@@ -160,7 +160,9 @@ needs an explicit declaration, added so that existing content needs no edit:
 
 - `audio_choice` with `primaryTargetId` → `target:<primaryTargetId>#listen.meaning` (derived).
 - `chunk_order` → `utterance:<sourceUtteranceId>#form.reconstruct` (derived, not carded).
-- New exercise kinds declare `assesses: { kind, id, skill }` explicitly. The first is
+- New exercise kinds declare `assesses: { kind, id, skill }` explicitly. Course schema 2
+  keeps these in a separate `recallExercises` array, following the existing separate
+  construction collection. Each recall names its taught node and follows the matching construction. The first is
   `say_check`, with `sourceUtteranceId`, `cueEn`, `situation` and `explanation`.
 
 **Deploy order constraint.** The live client parses the served course with the strict schema
@@ -197,10 +199,10 @@ The six per-target sites from the audit (section 2), with what each becomes.
   showing a generic load error. Today `bootstrap()` simply throws (`HttpMandarinGateway.ts:74`),
   so this path is new, and it ships in the client release before any course schema 2 content.
 
-## Decisions to confirm
+## Adopted first-loop defaults
 
 1. **Self-rating as evidence for `form.recall`**, with the heard-the-model guard and #103
-   calibration above. The alternative, no `form.recall` card until a grader exists, leaves formulation
+   calibration above. Recall intervals are capped at seven days while calibration is pending. The alternative, no `form.recall` card until a grader exists, leaves formulation
    unscheduled indefinitely.
 2. **First loop on the five tile utterances**, not on single targets. Single-word recall
    ("say *friend*") is easier to build but is not the sentence-level skill #100 is after.

@@ -48,6 +48,8 @@ export interface PreviewProgress {
     results: CheckpointResult[]
   }
   reviewSessionsCompleted: number
+  /** A bounded set of the five recall exercises tried locally, including guest practice. */
+  recallExerciseIds: string[]
   updatedAt: string
 }
 
@@ -69,6 +71,7 @@ export function createInitialProgress(course: CourseIndex, now: () => string = i
     constructions: {},
     checkpoint: { exposedExerciseIds: [], results: [] },
     reviewSessionsCompleted: 0,
+    recallExerciseIds: [],
     updatedAt: now(),
   }
 }
@@ -327,6 +330,7 @@ export function parseStoredProgress(value: unknown, course: CourseIndex): Previe
         : [],
     },
     reviewSessionsCompleted: typeof record.reviewSessionsCompleted === 'number' ? record.reviewSessionsCompleted : 0,
+    recallExerciseIds: strings(record.recallExerciseIds).filter((id) => course.recallById.has(id)),
     updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : isoNow(),
   }
 }

@@ -33,6 +33,9 @@ class CourseIndex
     public readonly array $constructions;
 
     /** @var array<string, array<string, mixed>> */
+    public readonly array $recalls;
+
+    /** @var array<string, array<string, mixed>> */
     public readonly array $roles;
 
     /** @var array<string, array<string, mixed>> */
@@ -55,6 +58,7 @@ class CourseIndex
         $this->exercises = $by($course['exercises']);
         $this->checkpoints = $by($course['checkpointExercises']);
         $this->constructions = $by($course['constructionExercises']);
+        $this->recalls = $by($course['recallExercises'] ?? []);
         $this->roles = $by($course['roles']);
         $this->sfx = $by($course['sfx']);
         $scenes = $course['scenes'];

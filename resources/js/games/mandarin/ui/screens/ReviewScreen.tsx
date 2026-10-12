@@ -19,6 +19,7 @@ import { useGame } from '../GameContext'
 import { ListeningQuestion } from '../ListeningQuestion'
 import { PreviewBanner } from '../PreviewBanner'
 import { Chip, Eyebrow, GameButton, MUTED, Panel, SectionTitle } from '../primitives'
+import { RecallQuestion } from '../RecallQuestion'
 import { useRuntime } from '../RuntimeContext'
 import { useAssessment } from '../useAssessment'
 
@@ -50,7 +51,11 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   const plan = useMemo<ReviewPlan>(() => !scheduleReady
     ? { kind: 'scheduled', items: [], backlog: 0 }
     : kind === 'scheduled'
-      ? buildScheduledReview(course, progress, (projection?.dueTargetIds ?? []).filter((targetId) => !presented.has(targetId)))
+      ? buildScheduledReview(course, progress, (projection?.dueTargetIds ?? []).filter((id) => !presented.has(`target:${id}#listen.meaning`)), REVIEW_SESSION_LIMIT,
+        game.eventContext.schemaVersion === 2 && course.recallById.size > 0 ? {
+          dueCardKeys: projection?.dueCardKeys ?? (projection?.dueTargetIds ?? []).map((id) => `target:${id}#listen.meaning`),
+          reviewedCardKeys: projection?.reviewedCardKeys ?? [], presentedCardKeys: presented,
+        } : undefined)
       : buildExtraPractice(course, progress, seed),
   // The plan is built once per session, after the schedule is read back; later progress
   // and projection updates must not reshuffle it.
@@ -65,6 +70,7 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
   useEffect(() => {
     game.setBeat('idle')
     audio.ensure(plan.items.flatMap((entry) => {
+      if (entry.exercise.kind === 'say_check') return [{ sourceKind: 'utterance' as const, sourceId: entry.exercise.sourceUtteranceId, variant: 'normal' as const }]
       const ref = entry.exercise.promptAudio[0]
       return ref ? [{ ...ref }, { ...ref, variant: 'slow' as const }] : []
     }))
@@ -119,7 +125,11 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
                 <p className={cn('text-xs', MUTED)} data-testid="review-backlog">{plan.backlog} more due after this session (sessions stop at {REVIEW_SESSION_LIMIT}).</p>
               )}
             </div>
-            <ReviewQuestion
+            {item.exercise.kind === 'say_check' ? <RecallQuestion
+              key={`${index}-${item.exercise.id}`}
+              exercise={item.exercise} mode="review" sessionKind={presented.size > 0 ? 'continuation' : 'scheduled'}
+              onDone={() => { audio.stop(); setIndex(index + 1) }}
+            /> : <ReviewQuestion
               key={`${index}-${item.exercise.id}`}
               exercise={item.exercise}
               mode={kind === 'scheduled' ? 'review' : 'extra_practice'}
@@ -129,18 +139,18 @@ export function ReviewScreen({ kind }: { kind: 'scheduled' | 'extra' }): ReactEl
                 if (correct) setCorrectCount((count) => count + 1)
                 setIndex(index + 1)
               }}
-            />
+            />}
           </>
         )}
 
         {state === 'completed' && (
           <div className="flex flex-col gap-2" data-testid="review-complete">
             <p className="font-bold">Session finished.</p>
-            <p className={cn('text-sm', MUTED)}>{correctCount} of {plan.items.length} resolved correctly. {kind === 'scheduled' ? 'Your answers decide when each item comes back.' : 'Extra practice is logged but does not move any review dates.'}</p>
+            <p className={cn('text-sm', MUTED)}>{correctCount} of {plan.items.filter((entry) => entry.exercise.kind === 'audio_choice').length} listening questions resolved correctly. {kind === 'scheduled' ? 'Your answers decide when each item comes back. Speaking ratings are your own assessment.' : 'Extra practice is logged but does not move any review dates.'}</p>
             {plan.backlog > 0 && <p className={cn('text-sm', MUTED)}>{plan.backlog} items are still due.</p>}
             <div className="flex flex-wrap gap-2">
               {plan.backlog > 0 && <GameButton variant="primary" size="lg" onClick={() => {
-                setPresented((current) => new Set([...current, ...plan.items.map((entry) => entry.targetId)]))
+                setPresented((current) => new Set([...current, ...plan.items.map((entry) => entry.cardKey)]))
                 setIndex(0)
                 setCorrectCount(0)
               }}>Another session</GameButton>}

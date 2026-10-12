@@ -46,6 +46,17 @@ abstract class MandarinTestCase extends TestCase
     }
 
     /** @return array<string, mixed> */
+    protected function recallCourseJson(): array
+    {
+        $course = $this->courseJson();
+        $course['schemaVersion'] = 2;
+        $course['contentVersion'] = '1.2.0';
+        $course['recallExercises'] = json_decode((string) file_get_contents(resource_path('data/mandarin/recall-exercises.v2.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        return $course;
+    }
+
+    /** @return array<string, mixed> */
     protected function responseEvent(array $overrides = []): array
     {
         return array_merge([

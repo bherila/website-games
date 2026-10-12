@@ -1,6 +1,7 @@
 /** Builds contract-shaped practice events from UI state. The gateway decides correctness. */
-import type { AudioSourceRef, CourseIdentity, PracticeEvent } from '../contracts/mandarin'
+import type { AudioEvidence, AudioSourceRef, CourseIdentity, PracticeEvent } from '../contracts/mandarin'
 import { type AssessmentState, audioEvidence, lastAttempt } from './assessment'
+import type { RecallExercise } from './courseSchema'
 import { uuid } from './random'
 
 export interface EventContext {
@@ -118,4 +119,14 @@ export function sceneCompleteEvent(context: EventContext, sceneId: string): Prac
 
 export function checkpointExposureEvent(context: EventContext, exerciseId: string, opportunityId: string): PracticeEvent {
   return base(context, { kind: 'checkpoint_exposure', mode: 'checkpoint', sceneId: null, nodeId: null, exerciseId, opportunityId })
+}
+
+export function recallEvent(context: EventContext, exercise: RecallExercise, opportunityId: string, mode: 'lesson' | 'review',
+  responseAction: 'self_check' | 'dont_know' | 'skip', selfRating: PracticeEvent['selfRating'], audioEvidence: AudioEvidence): PracticeEvent {
+  return {
+    ...base(context, { kind: 'response', mode, sceneId: exercise.sceneId, nodeId: exercise.nodeId, exerciseId: exercise.id, opportunityId }),
+    schemaVersion: 2, attemptIndex: 0, sessionKind: mode === 'review' ? context.sessionKind ?? 'scheduled' : null,
+    responseAction, selfRating: selfRating ?? null, audioEvidence,
+    source: { sourceKind: 'utterance', sourceId: exercise.sourceUtteranceId, variant: 'normal' },
+  }
 }

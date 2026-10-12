@@ -11,12 +11,13 @@ import { createAudioManager } from '../audio/audioManager'
 import { browserSpeechSynthesis, type SpeechSynthesisLike } from '../audio/deviceVoice'
 import { createWebAudioSfxPlayer, NULL_SFX_PLAYER, type SfxPlayer } from '../audio/sfxRecipes'
 import { createSpeechChannel, type SpeechChannelDeps } from '../audio/speechChannel'
-import { loadCourse } from '../domain/course'
+import { type CourseIndex, loadCourse } from '../domain/course'
 import { randomId } from '../domain/random'
 import { parseSettings } from '../domain/settings'
 import type { MandarinRuntime } from './MandarinRuntime'
 
 export interface PreviewRuntimeOptions {
+  course?: CourseIndex
   search?: string
   scenario?: PreviewScenario
   store?: PreviewStore
@@ -31,7 +32,7 @@ export interface PreviewRuntimeOptions {
 }
 
 export function createPreviewRuntime(options: PreviewRuntimeOptions = {}): MandarinRuntime {
-  const course = loadCourse()
+  const course = options.course ?? loadCourse()
   const scenario = options.scenario ?? resolvePreviewScenarioFromSearch(options.search ?? (typeof window === 'undefined' ? '' : window.location.search))
   const store = options.store ?? createLocalPreviewStore(safeLocalStorage())
   const settings = parseSettings(store.loadSettings())
@@ -67,6 +68,7 @@ export function createPreviewRuntime(options: PreviewRuntimeOptions = {}): Manda
     scenario,
     clientInstanceId: store.clientInstanceId(() => randomId('client')),
     sessionId: randomId('session'),
+    practiceEventSchema: course.course.schemaVersion === 2 ? 2 : 1,
     now,
     resetState() {
       gateway.reset()

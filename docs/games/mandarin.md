@@ -22,10 +22,10 @@ in #108; review continuation and Hard-card graduation shipped in #109. Skill/car
 design and the event migration plan are recorded in
 [the skill contract](mandarin-skill-contract.md) and
 [the v2 rollout](mandarin-event-schema-v2.md). The v2 server/client compatibility
-work is implemented with `MANDARIN_EVENTS_ADVERTISE_V2=false` by default. It
-preserves historical event payloads and listening schedules; enabling advertisement
-after deployment is a separate rollout action. Recall content is the next code
-step, and the multi-session learner trial remains outstanding.
+work shipped in #114; the compatible recall release enables v2 by default, with
+`MANDARIN_EVENTS_ADVERTISE_V2=false` available for rollback. It
+preserves historical event payloads and listening schedules; the five-sentence self-rated recall loop is implemented, with content activation
+following the compatible client release. The multi-session learner trial remains outstanding.
 
 Revision `1.1.0` shipped in [#54](https://github.com/bherila/website-games/pull/54)
 at `e7251b6`; its [deployment run](https://github.com/bherila/website-games/actions/runs/34186230928)

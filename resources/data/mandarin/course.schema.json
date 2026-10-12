@@ -2,7 +2,10 @@
   "type": "object",
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "courseId": {
       "type": "string",
@@ -270,6 +273,12 @@
     },
     "synopsis": {
       "type": "string"
+    },
+    "recallExercises": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/recall"
+      }
     }
   },
   "required": [
@@ -814,6 +823,98 @@
         "unlockAfterSceneId"
       ],
       "additionalProperties": false
+    },
+    "recall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nodeId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sceneId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceUtteranceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cueEn": {
+          "type": "string",
+          "minLength": 1
+        },
+        "situation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "const": "say_check"
+        },
+        "assesses": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "utterance"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "skill": {
+              "const": "form.recall"
+            }
+          },
+          "required": [
+            "kind",
+            "id",
+            "skill"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "nodeId",
+        "sceneId",
+        "sourceUtteranceId",
+        "cueEn",
+        "situation",
+        "explanation",
+        "kind",
+        "assesses"
+      ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "recallExercises"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "recallExercises"
+          ]
+        }
+      }
+    }
+  ]
 }
