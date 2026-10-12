@@ -5,15 +5,16 @@
  * will later. The UI only decides which exercise to show for each due target.
  */
 import type { CourseIndex } from './course'
-import type { ChoiceExercise } from './courseSchema'
+import type { ChoiceExercise, RecallExercise } from './courseSchema'
 import type { PreviewProgress } from './progress'
 import { hashString } from './random'
 
 export const REVIEW_SESSION_LIMIT = 10
 
 export interface ReviewItem {
-  targetId: string
-  exercise: ChoiceExercise
+  targetId: string | null
+  cardKey: string
+  exercise: ChoiceExercise | RecallExercise
 }
 
 export interface ReviewPlan {
@@ -36,6 +37,7 @@ export function buildScheduledReview(
   progress: PreviewProgress,
   dueTargetIds: readonly string[],
   limit: number = REVIEW_SESSION_LIMIT,
+  cardState?: { dueCardKeys: readonly string[]; reviewedCardKeys: readonly string[]; presentedCardKeys?: ReadonlySet<string> },
 ): ReviewPlan {
   const taught = new Set(progress.completedNodeIds)
   const eligible = dueTargetIds.filter((targetId) => {
@@ -45,9 +47,30 @@ export function buildScheduledReview(
   const items: ReviewItem[] = []
   for (const targetId of eligible.slice(0, limit)) {
     const exercise = pickExercise(course, progress, targetId)
-    if (exercise) items.push({ targetId, exercise })
+    if (exercise) items.push({ targetId, cardKey: `target:${targetId}#listen.meaning`, exercise })
   }
-  return { kind: 'scheduled', items, backlog: Math.max(0, eligible.length - limit) }
+  if (!cardState) return { kind: 'scheduled', items, backlog: Math.max(0, eligible.length - limit) }
+  const presented = cardState.presentedCardKeys ?? new Set<string>()
+  const due: ReviewItem[] = []
+  for (const cardKey of cardState.dueCardKeys) {
+    if (presented.has(cardKey)) continue
+    const recall = [...course.recallById.values()].find((item) => `utterance:${item.assesses.id}#form.recall` === cardKey)
+    if (recall && taught.has(recall.nodeId)) due.push({ targetId: null, cardKey, exercise: recall })
+    else if (cardKey.startsWith('target:') && cardKey.endsWith('#listen.meaning')) {
+      const targetId = cardKey.slice(7, -15)
+      if (!eligible.includes(targetId)) continue
+      const exercise = pickExercise(course, progress, targetId)
+      if (exercise) due.push({ targetId, cardKey, exercise })
+    }
+  }
+  const reviewed = new Set(cardState.reviewedCardKeys)
+  const newItems = [...course.recallById.values()].filter((item) => taught.has(item.nodeId)
+    && !reviewed.has(`utterance:${item.assesses.id}#form.recall`)
+    && !presented.has(`utterance:${item.assesses.id}#form.recall`)
+    && !progress.recallExerciseIds.includes(item.id))
+    .slice(0, 2).map((exercise) => ({ targetId: null, cardKey: `utterance:${exercise.assesses.id}#form.recall`, exercise }))
+  const planned = [...due, ...newItems]
+  return { kind: 'scheduled', items: planned.slice(0, limit), backlog: Math.max(0, due.length - limit) }
 }
 
 /** Unscheduled practice drawn from completed nodes; visibly separate from scheduled review. */
@@ -63,7 +86,7 @@ export function buildExtraPractice(
     if (!node) continue
     for (const exerciseId of node.exerciseIds) {
       const exercise = course.exerciseById.get(exerciseId)
-      if (exercise && exercise.primaryTargetId) pool.push({ targetId: exercise.primaryTargetId, exercise })
+      if (exercise && exercise.primaryTargetId) pool.push({ targetId: exercise.primaryTargetId, cardKey: `target:${exercise.primaryTargetId}#listen.meaning`, exercise })
     }
   }
   if (pool.length === 0) return { kind: 'extra', items: [], backlog: 0 }
@@ -72,7 +95,7 @@ export function buildExtraPractice(
   const usedTargets = new Set<string>()
   for (let offset = 0; offset < pool.length && items.length < limit; offset += 1) {
     const item = pool[(start + offset) % pool.length]!
-    if (usedTargets.has(item.targetId)) continue
+    if (item.targetId === null || usedTargets.has(item.targetId)) continue
     usedTargets.add(item.targetId)
     items.push(item)
   }

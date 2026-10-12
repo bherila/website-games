@@ -42,7 +42,7 @@ class BaselineReport
             ->where('course_id', $courseId)
             ->where('mode', '!=', self::EXCLUDED_MODE)
             ->orderBy('user_id')->orderBy('sequence')
-            ->select(['user_id', 'sequence', 'kind', 'mode', 'opportunity_id', 'exercise_id', 'target_id', 'correctness', 'grade', 'payload', 'client_occurred_at', 'accepted_at']);
+            ->select(['user_id', 'sequence', 'kind', 'mode', 'opportunity_id', 'exercise_id', 'target_id', 'card_key', 'correctness', 'grade', 'payload', 'client_occurred_at', 'accepted_at']);
         foreach ($query->cursor() as $row) {
             $time = ($client ? $row->client_occurred_at : null) ?? $row->accepted_at;
             $ts = $time->getTimestamp();
@@ -59,6 +59,9 @@ class BaselineReport
                 'opportunity' => $row->opportunity_id,
                 'exercise' => $row->exercise_id,
                 'target' => $row->target_id,
+                'recallCard' => $row->card_key !== null && str_ends_with($row->card_key, '#form.recall') ? $row->card_key : null,
+                'selfRating' => $payload['selfRating'] ?? null,
+                'attemptIndex' => $payload['attemptIndex'] ?? 0,
                 'correctness' => $row->correctness,
                 'grade' => $row->grade,
                 'ts' => $ts,
@@ -124,6 +127,8 @@ class BaselineReport
         $helpRevealed = 0;
         $helped = 0;
         $lapsed = 0;
+        $spoken = ['said_it' => 0, 'partly' => 0, 'missed' => 0, 'dont_know' => 0, 'unscored' => 0];
+        $afterGood = ['oneToSevenDays' => [0, 0], 'sevenDaysPlus' => [0, 0]];
 
         foreach ($users as $u => $events) {
             /** @var array<string, array<string, true>> $seenExercises exercise => opportunities it was shown or answered in */
@@ -136,6 +141,7 @@ class BaselineReport
             $good = [];
             /** @var array<string, bool> $lapseCounted */
             $lapseCounted = [];
+            $recallGoodAt = [];
 
             foreach ($events as $e) {
                 $counted = $e['in'];
@@ -159,7 +165,7 @@ class BaselineReport
                     }
                 }
 
-                if ($isResponse && $counted && in_array($e['mode'], self::COMPREHENSION_MODES, true)) {
+                if ($isResponse && $counted && $e['recallCard'] === null && in_array($e['mode'], self::COMPREHENSION_MODES, true)) {
                     if ($e['action'] === 'dont_know') {
                         $dontKnow++;
                     } elseif ($e['action'] === 'skip') {
@@ -169,6 +175,28 @@ class BaselineReport
                         $bucket = $e['text'] ? 'textAssisted' : ($replay ? 'replayAssisted' : 'unaided');
                         $comp[$bucket][0]++;
                         $comp[$bucket][1] += $correct ? 1 : 0;
+                    }
+                }
+                if ($isResponse && is_string($e['recallCard']) && $e['attemptIndex'] === 0) {
+                    $key = $e['recallCard'];
+                    $rating = $e['action'] === 'dont_know' ? 'dont_know' : $e['selfRating'];
+                    if ($counted) {
+                        if ($e['grade'] === null) {
+                            $spoken['unscored']++;
+                        } elseif (is_string($rating) && array_key_exists($rating, $spoken)) {
+                            $spoken[$rating]++;
+                        }
+                        if (isset($recallGoodAt[$key]) && $e['grade'] !== null) {
+                            $gap = $e['ts'] - $recallGoodAt[$key];
+                            $bucket = $gap >= 7 * self::DAY ? 'sevenDaysPlus' : ($gap >= self::DAY ? 'oneToSevenDays' : null);
+                            if ($bucket !== null) {
+                                $afterGood[$bucket][0]++;
+                                $afterGood[$bucket][1] += $rating === 'said_it' ? 1 : 0;
+                            }
+                        }
+                    }
+                    if ($e['grade'] === 'Good') {
+                        $recallGoodAt[$key] = $e['ts'];
                     }
                 }
 
@@ -239,6 +267,7 @@ class BaselineReport
             ],
             'checkpoint' => array_map($rate, $checkpoint),
             'delayedRecall' => array_map($rate, $recall),
+            'spokenRecall' => ['basis' => 'learner self-report, not independently verified', 'ratings' => $spoken, 'afterEarlierGood' => array_map($rate, $afterGood)],
             'helpDependence' => [
                 'helpRevealedPer100Responses' => $per100($helpRevealed),
                 'textOrPinyinShare' => $responses > 0 ? round($helped / $responses, 4) : null,

@@ -37,7 +37,7 @@ class ProgressProjector
             } elseif ($row->kind === 'checkpoint_exposure' && $row->exercise_id !== null) {
                 $exposed[$row->exercise_id] = true;
             }
-            if ($row->grade !== null && $row->target_id !== null) {
+            if ($row->grade !== null && ($row->target_id !== null || $row->card_key !== null)) {
                 $reviews[] = [
                     'targetId' => $row->target_id,
                     'cardKey' => $row->card_key ?? 'target:'.$row->target_id.'#listen.meaning',
@@ -69,12 +69,13 @@ class ProgressProjector
             'dueTargetIds' => [],
             'checkpointExposedIds' => array_keys($exposed),
             'schedulerVersion' => $schedulerVersion,
-            'schedulerConfigHash' => hash('sha256', $schedulerVersion.':retention=0.90:window='.$windowMinutes.':fuzz=off:learning_steps=none:relearning_steps=none'),
+            'schedulerConfigHash' => hash('sha256', $schedulerVersion.':retention=0.90:window='.$windowMinutes.':fuzz=off:learning_steps=none:relearning_steps=none:recall_max_days=7'),
             'listeningCards' => [
                 'kind' => 'graded-review-log',
                 'desiredRetention' => 0.9,
                 'windowMinutes' => $windowMinutes,
                 'reviews' => $reviews,
+                'recallMaxIntervalDays' => 7,
             ],
         ];
     }

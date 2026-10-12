@@ -95,6 +95,13 @@ class ReportBaselineCommand extends Command
         $this->line('  Delayed recall (unaided correct rate by gap since previous scored response on the target):');
         $this->line('    1 to <7 days     '.$this->rate($b['delayedRecall']['oneToSevenDays']));
         $this->line('    7+ days          '.$this->rate($b['delayedRecall']['sevenDaysPlus']));
+        $spoken = $b['spokenRecall'];
+        $ratings = $spoken['ratings'];
+        $this->line('  Spoken recall (learner self-report, not independently verified):');
+        $this->line(sprintf('    said it: %d, partly: %d, missed: %d, did not try: %d, unscored: %d', $ratings['said_it'], $ratings['partly'], $ratings['missed'], $ratings['dont_know'], $ratings['unscored']));
+        $this->line('    Claimed success after an earlier Good:');
+        $this->line('    1 to <7 days     '.$this->rate($spoken['afterEarlierGood']['oneToSevenDays']));
+        $this->line('    7+ days          '.$this->rate($spoken['afterEarlierGood']['sevenDaysPlus']));
         $h = $b['helpDependence'];
         $this->line(sprintf('  Help: %s help_revealed per 100 responses; %s of responses used text or pinyin help', $h['helpRevealedPer100Responses'] ?? '-', $h['textOrPinyinShare'] === null ? '-' : round($h['textOrPinyinShare'] * 100, 1).'%'));
         $this->line("  Lapses: {$b['lapses']['targetsIncorrectAfterGood']} target(s) answered incorrectly after an earlier Good");

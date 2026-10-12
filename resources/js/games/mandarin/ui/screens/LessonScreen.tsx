@@ -13,10 +13,11 @@ import { useGame } from '../GameContext'
 import { ListeningQuestion } from '../ListeningQuestion'
 import { PreviewBanner } from '../PreviewBanner'
 import { Eyebrow, GameButton, MUTED, Panel } from '../primitives'
+import { RecallQuestion } from '../RecallQuestion'
 import { useRuntime } from '../RuntimeContext'
 import { useAssessment } from '../useAssessment'
 
-type Step = { kind: 'exercise'; id: string } | { kind: 'construction'; id: string }
+type Step = { kind: 'exercise'; id: string } | { kind: 'construction'; id: string } | { kind: 'recall'; id: string }
 
 export function LessonScreen({ nodeId }: { nodeId: string }): ReactElement {
   const game = useGame()
@@ -26,8 +27,11 @@ export function LessonScreen({ nodeId }: { nodeId: string }): ReactElement {
   const scene = course.sceneForNode(nodeId)
   const steps = useMemo<Step[]>(() => node ? [
     ...node.exerciseIds.map((id): Step => ({ kind: 'exercise', id })),
-    ...node.constructionIds.map((id): Step => ({ kind: 'construction', id })),
-  ] : [], [node])
+    ...node.constructionIds.flatMap((id): Step[] => [
+      { kind: 'construction', id },
+      ...(game.eventContext.schemaVersion === 2 ? [...course.recallById.values()].filter((recall) => recall.nodeId === nodeId && recall.sourceUtteranceId === course.constructionById.get(id)?.sourceUtteranceId).map((recall): Step => ({ kind: 'recall', id: recall.id })) : []),
+    ]),
+  ] : [], [node, course, nodeId, game.eventContext.schemaVersion])
   const [index, setIndex] = useState(0)
   const [runId, setRunId] = useState(0)
 
@@ -112,6 +116,7 @@ export function LessonScreen({ nodeId }: { nodeId: string }): ReactElement {
             />
           )
         })()}
+        {step?.kind === 'recall' && <RecallQuestion key={`${runId}-${step.id}`} exercise={course.recallById.get(step.id)!} mode="lesson" onDone={advance} />}
         {!step && (
           <GameButton variant="primary" size="lg" onClick={advance}>Finish</GameButton>
         )}

@@ -84,12 +84,15 @@ class PracticeEventService
         }
 
         // Preserve v1's grading exactly; v2 separates retries from text reveals.
-        [$correctness, $grade, $targetId] = $this->gradeV1($course, $event);
+        $recall = $course->recalls[$event['exerciseId'] ?? ''] ?? null;
+        [$correctness, $grade, $targetId] = $recall !== null && $event['kind'] === 'response'
+            ? $this->gradeRecall($event) : $this->gradeV1($course, $event);
         if ($event['schemaVersion'] === 2 && $event['kind'] === 'response' && $event['attemptIndex'] > 0) {
             $grade = null;
         }
-        $cardKey = $targetId === null ? null : 'target:'.$targetId.'#listen.meaning';
-        $eligible = $grade !== null && $targetId !== null && in_array($event['mode'], ['lesson', 'review'], true);
+        $cardKey = $recall !== null && $event['kind'] === 'response' ? 'utterance:'.$recall['assesses']['id'].'#form.recall'
+            : ($targetId === null ? null : 'target:'.$targetId.'#listen.meaning');
+        $eligible = $grade !== null && $cardKey !== null && in_array($event['mode'], ['lesson', 'review'], true);
 
         for ($attempt = 0; $attempt < 3; $attempt++) {
             try {
@@ -205,8 +208,22 @@ class PracticeEventService
             }
             $choice = $course->choiceExercise($exerciseId);
             $construction = $course->constructions[$exerciseId] ?? null;
-            if ($choice === null && $construction === null) {
+            $recall = $course->recalls[$exerciseId] ?? null;
+            if ($choice === null && $construction === null && $recall === null) {
                 return 'unknown_exercise';
+            }
+            if ($recall !== null) {
+                if ($event['schemaVersion'] !== 2) {
+                    return 'unsupported_schema';
+                }
+                if ($event['mode'] === 'checkpoint' || ($event['nodeId'] ?? null) !== $recall['nodeId'] || ($event['sceneId'] ?? null) !== $recall['sceneId']) {
+                    return 'invalid_payload';
+                }
+                if ($event['kind'] === 'response' && ! in_array($event['responseAction'], ['self_check', 'dont_know', 'skip'], true)) {
+                    return 'invalid_payload';
+                }
+            } elseif (($event['responseAction'] ?? null) === 'self_check') {
+                return 'invalid_payload';
             }
             $selected = $event['selectedOptionId'] ?? null;
             if ($selected !== null) {
@@ -234,7 +251,7 @@ class PracticeEventService
         if (! is_array($evidence) || ! in_array($evidence['status'] ?? null, ['completed', 'failed', 'skipped', 'not_required', 'simulated'], true)) {
             return 'invalid_payload';
         }
-        if ($event['kind'] === 'response' && ! in_array($event['responseAction'] ?? null, ['answer', 'dont_know', 'skip'], true)) {
+        if ($event['kind'] === 'response' && ! in_array($event['responseAction'] ?? null, ['answer', 'dont_know', 'skip', 'self_check'], true)) {
             return 'invalid_payload';
         }
 
@@ -339,11 +356,10 @@ class PracticeEventService
             } elseif ($sessionKind !== null) {
                 return 'invalid_payload';
             }
-            if (! in_array($event['responseAction'] ?? null, ['answer', 'dont_know', 'skip'], true)) {
-                // Recall content is a later rollout step; keep future actions queued.
+            if (! in_array($event['responseAction'] ?? null, ['answer', 'dont_know', 'skip', 'self_check'], true)) {
                 return is_string($event['responseAction'] ?? null) ? 'unsupported_kind' : 'invalid_payload';
             }
-            if (($event['selfRating'] ?? null) !== null) {
+            if ($event['responseAction'] === 'self_check' ? ! in_array($event['selfRating'] ?? null, ['said_it', 'partly', 'missed'], true) : ($event['selfRating'] ?? null) !== null) {
                 return 'invalid_payload';
             }
         }
@@ -361,6 +377,27 @@ class PracticeEventService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /** @param array<string, mixed> $event
+     * @return array{0: string|null, 1: string|null, 2: null}
+     */
+    private function gradeRecall(array $event): array
+    {
+        // This is the learner's claim, not machine-verified correctness.
+        // Keep correctness null so it cannot inflate listening comprehension.
+        if ($event['responseAction'] === 'skip' || $event['audioEvidence']['status'] !== 'completed') {
+            return ['unscored', null, null];
+        }
+        $rating = $event['responseAction'] === 'dont_know' ? 'missed' : $event['selfRating'];
+        $grade = match ($rating) {
+            'said_it' => 'Good', 'partly' => 'Hard', default => 'Again'
+        };
+        if ($grade === 'Good' && ($event['textHelpUsed'] || $event['pinyinHelpUsed'] || $event['audioEvidence']['normalPlayCount'] + $event['audioEvidence']['slowPlayCount'] < 1)) {
+            $grade = 'Hard';
+        }
+
+        return [null, $grade, null];
     }
 
     /** @return array<string, mixed> */

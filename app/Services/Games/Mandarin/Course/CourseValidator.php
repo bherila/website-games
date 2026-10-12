@@ -38,8 +38,38 @@ class CourseValidator
         if ($problems !== []) {
             return $problems;
         }
-        if (($course['schemaVersion'] ?? null) !== 1) {
-            $problems[] = 'schemaVersion must be 1';
+        if (! in_array($course['schemaVersion'], [1, 2], true)) {
+            $problems[] = 'schemaVersion must be 1 or 2';
+        }
+        if (($course['schemaVersion'] === 2) !== array_key_exists('recallExercises', $course)) {
+            $problems[] = 'recallExercises is required only in course schema 2';
+        }
+        if (array_key_exists('recallExercises', $course)) {
+            if (! is_array($course['recallExercises']) || ! array_is_list($course['recallExercises'])) {
+                $problems[] = 'recallExercises must be a list';
+            } else {
+                foreach ($course['recallExercises'] as $recall) {
+                    if (! is_array($recall)) {
+                        $problems[] = 'recall must be an object';
+
+                        continue;
+                    }
+                    foreach (['id', 'nodeId', 'sceneId', 'sourceUtteranceId', 'cueEn', 'situation', 'explanation'] as $field) {
+                        if (! is_string($recall[$field] ?? null) || $recall[$field] === '') {
+                            $problems[] = "recall {$field} must be a non-empty string";
+                        }
+                    }
+                    if (($recall['kind'] ?? null) !== 'say_check' || ! is_array($recall['assesses'] ?? null)
+                        || ($recall['assesses']['kind'] ?? null) !== 'utterance' || ($recall['assesses']['skill'] ?? null) !== 'form.recall'
+                        || ! is_string($recall['assesses']['id'] ?? null) || $recall['assesses']['id'] === '') {
+                        $problems[] = 'recall must declare an utterance form.recall skill';
+                    }
+                    if (array_diff(array_keys($recall), ['id', 'kind', 'nodeId', 'sceneId', 'sourceUtteranceId', 'cueEn', 'situation', 'explanation', 'assesses']) !== []
+                        || (is_array($recall['assesses'] ?? null) && array_diff(array_keys($recall['assesses']), ['kind', 'id', 'skill']) !== [])) {
+                        $problems[] = 'recall has unknown fields';
+                    }
+                }
+            }
         }
         foreach (['courseId', 'contentVersion', 'title'] as $key) {
             if (! is_string($course[$key]) || $course[$key] === '') {
@@ -140,6 +170,7 @@ class CourseValidator
         $constructions = $index($course['constructionExercises'], 'construction');
         $checkpoints = $index($course['checkpointExercises'], 'checkpoint');
         $roles = $index($course['roles'], 'role');
+        $recalls = $index($course['recallExercises'] ?? [], 'recall');
         $maxTargets = (int) $course['teachingPolicy']['maximumNewPrimaryTargetsPerNode'];
 
         foreach ($course['scenes'] as $scene) {
@@ -273,6 +304,38 @@ class CourseValidator
             if (count($construction['correctTileIds']) !== count($tileIds) || array_diff($construction['correctTileIds'], $tileIds) !== []) {
                 $problems[] = "construction {$construction['id']} answer does not use exactly its tiles";
             }
+        }
+        $recallUnits = [];
+        foreach ($recalls as $recall) {
+            $utterance = $utterances[$recall['sourceUtteranceId']] ?? null;
+            $node = $nodes[$recall['nodeId']] ?? null;
+            $taughtNodes = $node === null ? [] : array_merge([$node['id']], $node['prerequisites']);
+            if ($utterance === null || $utterance['usage'] === 'checkpoint_reserved' || ! in_array($utterance['nodeId'], $taughtNodes, true) || $utterance['sceneId'] !== $recall['sceneId']) {
+                $problems[] = "recall {$recall['id']} requires a taught, non-reserved utterance in its node";
+            }
+            $hasConstruction = false;
+            foreach ($constructions as $construction) {
+                if ($node !== null && in_array($construction['id'], $node['constructionIds'], true) && $construction['sourceUtteranceId'] === $recall['sourceUtteranceId']) {
+                    $hasConstruction = true;
+                }
+            }
+            $taught = false;
+            foreach ($taughtNodes as $nodeId) {
+                $taught = $taught || in_array($recall['sourceUtteranceId'], $nodes[$nodeId]['teachingUtteranceIds'] ?? [], true);
+            }
+            if ($node === null || $node['sceneId'] !== $recall['sceneId'] || ! $taught || ! $hasConstruction) {
+                $problems[] = "recall {$recall['id']} requires teaching and construction in its node";
+            }
+            if ($recall['assesses']['id'] !== $recall['sourceUtteranceId']) {
+                $problems[] = "recall {$recall['id']} assesses a different utterance";
+            }
+            if (isset($exercises[$recall['id']]) || isset($constructions[$recall['id']]) || isset($checkpoints[$recall['id']])) {
+                $problems[] = "recall id collides: {$recall['id']}";
+            }
+            if (isset($recallUnits[$recall['assesses']['id']])) {
+                $problems[] = 'duplicate recall knowledge unit';
+            }
+            $recallUnits[$recall['assesses']['id']] = true;
         }
         if (! isset($nodes[$course['checkpointPolicy']['unlockAfterNodeId']])) {
             $problems[] = "checkpoint unlocks after missing node {$course['checkpointPolicy']['unlockAfterNodeId']}";

@@ -18,7 +18,9 @@ export function HomeScreen(): ReactElement {
   const currentScene = currentNode ? course.sceneForNode(currentNode.id) : course.scenes[0]!
   const currentStatus = nodeStatus(progress, course, progress.currentNodeId)
   const allDone = course.nodes.every((node) => progress.completedNodeIds.includes(node.id))
-  const due = projection?.dueTargetIds.length ?? 0
+  const due = game.eventContext.schemaVersion === 2 && course.recallById.size > 0
+    ? (projection?.dueCardKeys ?? []).filter((key) => key.startsWith('target:') || [...course.recallById.values()].some((item) => key === `utterance:${item.assesses.id}#form.recall`)).length
+    : projection?.dueTargetIds.length ?? 0
   const checkpointOpen = isCheckpointUnlocked(progress, course)
   const { scenario } = useRuntime()
   const mock = scenario !== null

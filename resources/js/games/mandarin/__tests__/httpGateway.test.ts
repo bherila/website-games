@@ -39,7 +39,7 @@ const event: PracticeEvent = {
 
 describe('HttpMandarinGateway', () => {
   it('requests a course update when the server publishes a newer course schema', async () => {
-    const { gateway } = gatewayWith(() => jsonResponse(200, { ...(bootstrapBody(false) as object), course: { ...courseJson, schemaVersion: 2 } }))
+    const { gateway } = gatewayWith(() => jsonResponse(200, { ...(bootstrapBody(false) as object), course: { ...courseJson, schemaVersion: 3 } }))
     await expect(gateway.bootstrap()).rejects.toBeInstanceOf(CourseUpdateRequiredError)
     expect(gateway.cachedBootstrap()).toBeNull()
   })

@@ -20,7 +20,7 @@ import type {
 } from '../contracts/mandarin'
 import type { Course } from '../domain/courseSchema'
 import { parseCourse } from '../domain/courseSchema'
-import { dueTargetIdsFromProjection } from '../domain/scheduler'
+import { cardKeysFromProjection, dueTargetIdsFromProjection } from '../domain/scheduler'
 
 export const MANDARIN_API = {
   bootstrap: '/api/games/mandarin/bootstrap',
@@ -79,7 +79,7 @@ export class HttpMandarinGateway implements MandarinGateway<Course> {
     if (!response.ok) throw new GatewayHttpError(response.status, `bootstrap failed (${response.status})`)
     const raw = (await response.json()) as Bootstrap<unknown>
     if (typeof raw.course === 'object' && raw.course !== null && 'schemaVersion' in raw.course
-      && typeof raw.course.schemaVersion === 'number' && raw.course.schemaVersion > 1) {
+      && typeof raw.course.schemaVersion === 'number' && raw.course.schemaVersion > 2) {
       throw new CourseUpdateRequiredError()
     }
     const course = parseCourse(raw.course)
@@ -136,7 +136,7 @@ export class HttpMandarinGateway implements MandarinGateway<Course> {
     if (!response.ok) throw new GatewayHttpError(response.status, `progress failed (${response.status})`)
     const projection = (await response.json()) as ProgressProjection
     // The server owns grades; the pinned scheduler adapter derives what is due.
-    return { ...projection, dueTargetIds: dueTargetIdsFromProjection(projection, this.now()) }
+    return { ...projection, dueTargetIds: dueTargetIdsFromProjection(projection, this.now()), ...cardKeysFromProjection(projection, this.now()) }
   }
 
   async appendEvents(events: PracticeEvent[], signal?: AbortSignal): Promise<AppendResult> {

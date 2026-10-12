@@ -45,7 +45,7 @@ export type PracticeEvent = CourseIdentity & {
   kind: 'response' | 'teaching_exposure' | 'help_revealed' | 'node_complete' | 'scene_complete' | 'checkpoint_exposure';
   mode: 'lesson' | 'review' | 'extra_practice' | 'checkpoint' | 'preview';
   sceneId: string | null; nodeId: string | null; exerciseId: string | null;
-  source: AudioSourceRef | null; responseAction: 'answer' | 'dont_know' | 'skip' | null;
+  source: AudioSourceRef | null; responseAction: 'answer' | 'dont_know' | 'skip' | 'self_check' | null;
   selectedOptionId: string | null;
   orderedTileIds: string[] | null; textHelpUsed: boolean; pinyinHelpUsed: boolean;
   audioEvidence: AudioEvidence;
@@ -62,6 +62,7 @@ export type AppendResult = { acknowledgments: EventAcknowledgment[]; lastSequenc
 export type ProgressProjection = CourseIdentity & {
   lastSequence: number; completedNodeIds: string[]; completedSceneIds: string[];
   currentNodeId: string; dueTargetIds: string[]; checkpointExposedIds: string[];
+  dueCardKeys?: string[]; reviewedCardKeys?: string[];
   schedulerVersion: string; schedulerConfigHash: string;
   /** Exact card schema is defined by the pinned scheduler adapter, never by UI components. */
   listeningCards: Record<string, unknown>;

@@ -53,6 +53,12 @@ export const constructionExerciseSchema = z.object({
   explanation: z.string(),
 }).strict()
 
+export const recallExerciseSchema = z.object({
+  id, kind: z.literal('say_check'), nodeId: id, sceneId: id,
+  sourceUtteranceId: id, cueEn: z.string().min(1), situation: z.string().min(1), explanation: z.string().min(1),
+  assesses: z.object({ kind: z.literal('utterance'), id, skill: z.literal('form.recall') }).strict(),
+}).strict()
+
 export const targetSchema = z.object({
   id,
   zh: z.string(),
@@ -118,7 +124,7 @@ export const sceneSchema = z.object({
 }).strict()
 
 export const courseSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
   courseId: id,
   contentVersion: id,
   synopsis: z.string().optional(),
@@ -144,6 +150,7 @@ export const courseSchema = z.object({
   utterances: z.array(utteranceSchema),
   exercises: z.array(choiceExerciseSchema),
   constructionExercises: z.array(constructionExerciseSchema),
+  recallExercises: z.array(recallExerciseSchema).optional(),
   checkpointExercises: z.array(choiceExerciseSchema),
   checkpointPolicy: z.object({
     unlockAfterNodeId: id,
@@ -173,7 +180,11 @@ export const courseSchema = z.object({
     purpose: z.string(),
     maxDurationMs: z.number().int().min(1),
   }).strict()),
-}).strict()
+}).strict().superRefine((course, context) => {
+  if ((course.schemaVersion === 2) !== (course.recallExercises !== undefined)) {
+    context.addIssue({ code: 'custom', path: ['recallExercises'], message: 'recallExercises is required only in course schema 2' })
+  }
+})
 
 export type Course = z.infer<typeof courseSchema>
 export type CourseScene = z.infer<typeof sceneSchema>
@@ -183,6 +194,7 @@ export type CourseSupport = z.infer<typeof supportSchema>
 export type CourseUtterance = z.infer<typeof utteranceSchema>
 export type ChoiceExercise = z.infer<typeof choiceExerciseSchema>
 export type ConstructionExercise = z.infer<typeof constructionExerciseSchema>
+export type RecallExercise = z.infer<typeof recallExerciseSchema>
 export type CourseAudioRef = z.infer<typeof courseAudioRefSchema>
 export type SceneSetting = z.infer<typeof sceneSettingSchema>
 export type AudioVariant = z.infer<typeof audioVariantSchema>
@@ -228,6 +240,7 @@ export function validateCourseSemantics(course: Course): string[] {
   const exercises = ids(course.exercises, 'exercise')
   const constructions = ids(course.constructionExercises, 'construction')
   const checkpoints = ids(course.checkpointExercises, 'checkpoint')
+  const recalls = ids(course.recallExercises ?? [], 'recall')
   const roles = ids(course.roles, 'role')
 
   for (const scene of course.scenes) {
@@ -321,6 +334,21 @@ export function validateCourseSemantics(course: Course): string[] {
       problems.push(`construction ${construction.id} answer does not use exactly its tiles`)
     }
   }
+  for (const recall of recalls.values()) {
+    const utterance = utterances.get(recall.sourceUtteranceId)
+    const node = nodes.get(recall.nodeId)
+    const taughtNodes = node ? [node.id, ...node.prerequisites] : []
+    if (!utterance || utterance.usage === 'checkpoint_reserved' || !taughtNodes.includes(utterance.nodeId ?? '') || utterance.sceneId !== recall.sceneId) {
+      problems.push(`recall ${recall.id} requires a taught, non-reserved utterance in its node`)
+    }
+    if (!node || node.sceneId !== recall.sceneId || !taughtNodes.some((id) => nodes.get(id)?.teachingUtteranceIds.includes(recall.sourceUtteranceId))
+      || !course.constructionExercises.some((item) => node.constructionIds.includes(item.id) && item.sourceUtteranceId === recall.sourceUtteranceId)) {
+      problems.push(`recall ${recall.id} requires teaching and construction in its node`)
+    }
+    if (recall.assesses.id !== recall.sourceUtteranceId) problems.push(`recall ${recall.id} assesses a different utterance`)
+    if (exercises.has(recall.id) || constructions.has(recall.id) || checkpoints.has(recall.id)) problems.push(`recall id collides: ${recall.id}`)
+  }
+  if (new Set([...recalls.values()].map((item) => item.assesses.id)).size !== recalls.size) problems.push('duplicate recall knowledge unit')
   if (!nodes.has(course.checkpointPolicy.unlockAfterNodeId)) {
     problems.push(`checkpoint unlocks after missing node ${course.checkpointPolicy.unlockAfterNodeId}`)
   }

@@ -224,7 +224,7 @@ class BaselineReportTest extends MandarinTestCase
         $this->assertSame(2, $d['learnerCount']);
         $this->assertSame(['Learner 1', 'Learner 2'], array_column($d['learners'], 'label'));
         $this->assertSame('2026-10-01', $d['learners'][0]['activity']['firstActivity']);
-        $this->assertSame(['label', 'activity', 'comprehension', 'checkpoint', 'delayedRecall', 'helpDependence', 'lapses'], array_keys($d['total']));
+        $this->assertSame(['label', 'activity', 'comprehension', 'checkpoint', 'delayedRecall', 'spokenRecall', 'helpDependence', 'lapses'], array_keys($d['total']));
     }
 
     public function test_no_identifiers_in_either_format(): void

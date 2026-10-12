@@ -102,8 +102,8 @@ return [
 
     'events' => [
         'max_batch' => 64,
-        /* Enable only after dual-accept server support has been deployed and verified. */
-        'advertise_v2' => (bool) env('MANDARIN_EVENTS_ADVERTISE_V2', false),
+        /* Dual-accept shipped in #114. Explicit false returns new clients to v1. */
+        'advertise_v2' => (bool) env('MANDARIN_EVENTS_ADVERTISE_V2', true),
         /* At most one schedule-changing result per card inside this window. */
         'schedule_window_minutes' => 10,
         /* Names the library and the step policy; must match SCHEDULER_VERSION in domain/scheduler.ts. */

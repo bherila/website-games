@@ -26,6 +26,8 @@ import type { ProgressProjection } from '../contracts/mandarin'
  */
 export const SCHEDULER_VERSION = 'ts-fsrs-5.4.2+steps-none'
 export const DESIRED_RETENTION = 0.9
+/** Self-rating calibration is still pending (#103); bound recall-only intervals. */
+export const RECALL_MAX_INTERVAL_DAYS = 7
 
 export interface GradedReview {
   targetId: string | null
@@ -79,7 +81,9 @@ export function buildCardSchedules(reviews: readonly GradedReview[], windowMinut
     const card: Card = existing?.card ?? createEmptyCard<Card>(at)
     const { card: next } = scheduler.next(card, at, RATINGS[review.grade])
     const windowEnd = new Date(at.getTime() + windowMinutes * 60_000)
-    const effectiveDue = next.due.getTime() < windowEnd.getTime() ? windowEnd : next.due
+    const cappedDue = cardKey.endsWith('#form.recall')
+      ? new Date(Math.min(next.due.getTime(), at.getTime() + RECALL_MAX_INTERVAL_DAYS * 86_400_000)) : next.due
+    const effectiveDue = cappedDue.getTime() < windowEnd.getTime() ? windowEnd : cappedDue
     schedules.set(cardKey, { cardKey, targetId: review.targetId, card: next, effectiveDue, reviews: (existing?.reviews ?? 0) + 1 })
   }
   return schedules
@@ -149,4 +153,12 @@ export function dueTargetIdsFromProjection(projection: Pick<ProgressProjection, 
   if (!isGradedReviewLog(cards)) return []
   const reviews = (cards.reviews ?? []).filter(isGradedReview).map((review) => ({ ...review, scheduleEligible: (review as { scheduleEligible?: unknown }).scheduleEligible !== false }))
   return dueTargetIds(reviews, typeof cards.windowMinutes === 'number' ? cards.windowMinutes : 10, now)
+}
+
+export function cardKeysFromProjection(projection: Pick<ProgressProjection, 'listeningCards'>, now: Date): { dueCardKeys: string[]; reviewedCardKeys: string[] } {
+  const log = projection.listeningCards
+  if (!isGradedReviewLog(log)) return { dueCardKeys: [], reviewedCardKeys: [] }
+  const reviews = (log.reviews ?? []).filter(isGradedReview).map((review) => ({ ...review, scheduleEligible: review.scheduleEligible !== false }))
+  const window = typeof log.windowMinutes === 'number' ? log.windowMinutes : 10
+  return { dueCardKeys: dueCardKeys(reviews, window, now), reviewedCardKeys: [...buildCardSchedules(reviews, window).keys()] }
 }

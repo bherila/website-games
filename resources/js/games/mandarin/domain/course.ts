@@ -15,6 +15,7 @@ import {
   type CourseTarget,
   type CourseUtterance,
   parseCourse,
+  type RecallExercise,
 } from './courseSchema'
 
 export interface SpokenText {
@@ -38,6 +39,7 @@ export interface CourseIndex {
   utteranceById: ReadonlyMap<string, CourseUtterance>
   exerciseById: ReadonlyMap<string, ChoiceExercise>
   constructionById: ReadonlyMap<string, ConstructionExercise>
+  recallById: ReadonlyMap<string, RecallExercise>
   checkpointById: ReadonlyMap<string, ChoiceExercise>
   roleById: ReadonlyMap<string, Course['roles'][number]>
   /** Utterance IDs that must never be shown before the listening check. */
@@ -68,6 +70,7 @@ export function buildCourseIndex(course: Course): CourseIndex {
   const utteranceById = indexBy(course.utterances)
   const exerciseById = indexBy(course.exercises)
   const constructionById = indexBy(course.constructionExercises)
+  const recallById = indexBy(course.recallExercises ?? [])
   const checkpointById = indexBy(course.checkpointExercises)
   const roleById = indexBy(course.roles)
   const reservedUtteranceIds = new Set(course.utterances.filter((u) => u.usage === 'checkpoint_reserved').map((u) => u.id))
@@ -93,6 +96,7 @@ export function buildCourseIndex(course: Course): CourseIndex {
     utteranceById,
     exerciseById,
     constructionById,
+    recallById,
     checkpointById,
     roleById,
     reservedUtteranceIds,

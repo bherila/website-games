@@ -4,7 +4,7 @@
  * failed (explicit retry) or unavailable. Never claims real audio exists.
  */
 import { Play, RotateCcw, Snail } from 'lucide-react'
-import { type ReactElement, useState } from 'react'
+import { type ReactElement, useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -27,6 +27,8 @@ export interface PromptPlayerProps {
   autoRequest?: boolean
   className?: string
   disabled?: boolean
+  /** Try once when the source becomes playable; blocked playback keeps the Play control. */
+  autoPlay?: boolean
 }
 
 export function describeResolution(status: SourceStatus | null): { tone: 'preview' | 'pending' | 'failed' | 'unavailable' | 'ready' | 'idle'; label: string; retryable: boolean } {
@@ -56,7 +58,7 @@ export function describeResolution(status: SourceStatus | null): { tone: 'previe
   }
 }
 
-export function PromptPlayer({ source, slowSource = null, onPlayback, playLabel = 'Play', size = 'lg', className, disabled = false }: PromptPlayerProps): ReactElement {
+export function PromptPlayer({ source, slowSource = null, onPlayback, playLabel = 'Play', size = 'lg', className, disabled = false, autoPlay = false }: PromptPlayerProps): ReactElement {
   const { audio } = useRuntime()
   const status = useSourceStatus(source)
   const slowStatus = useSourceStatus(slowSource)
@@ -66,11 +68,22 @@ export function PromptPlayer({ source, slowSource = null, onPlayback, playLabel 
   const info = describeResolution(status)
   const playable = status?.effectiveDelivery !== null && status?.effectiveDelivery !== undefined
   const slowPlayable = !!slowSource && !!slowStatus && slowStatus.effectiveDelivery !== null
+  const autoAttempted = useRef(false)
+  useEffect(() => {
+    if (autoPlay && playable && !disabled && !autoAttempted.current) {
+      autoAttempted.current = true
+      void run('normal')
+    }
+    // Each player is mounted for one source; this is one automatic attempt,
+    // not another play every time its callback or status changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, playable, disabled])
 
   async function run(variant: 'normal' | 'slow'): Promise<void> {
     const ref = variant === 'slow' && slowSource ? slowSource : source
     audio.unlock()
-    const outcome = await audio.play(ref)
+    let outcome: PlaybackOutcome
+    try { outcome = await audio.play(ref) } catch { outcome = 'failed' }
     setLastOutcome(outcome)
     if (outcome === 'completed' || outcome === 'simulated') setPlayed(true)
     onPlayback?.(variant, outcome)

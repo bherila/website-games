@@ -1,0 +1,77 @@
+[
+  {
+    "id": "r01",
+    "kind": "say_check",
+    "nodeId": "s1n2",
+    "sceneId": "s1",
+    "sourceUtteranceId": "01f",
+    "cueEn": "He is my friend.",
+    "situation": "Introduce your friend to someone.",
+    "explanation": "Start with the person, then 是, then the identity.",
+    "assesses": {
+      "kind": "utterance",
+      "id": "01f",
+      "skill": "form.recall"
+    }
+  },
+  {
+    "id": "r02",
+    "kind": "say_check",
+    "nodeId": "s2n2",
+    "sceneId": "s2",
+    "sourceUtteranceId": "02c",
+    "cueEn": "Is he here?",
+    "situation": "Ask whether he is here.",
+    "explanation": "The yes/no question particle 吗 comes at the end.",
+    "assesses": {
+      "kind": "utterance",
+      "id": "02c",
+      "skill": "form.recall"
+    }
+  },
+  {
+    "id": "r03",
+    "kind": "say_check",
+    "nodeId": "s3n2",
+    "sceneId": "s3",
+    "sourceUtteranceId": "03f",
+    "cueEn": "Okay, I will wait for you here.",
+    "situation": "Tell your friend you will wait here.",
+    "explanation": "In this sentence the location comes before the waiting action.",
+    "assesses": {
+      "kind": "utterance",
+      "id": "03f",
+      "skill": "form.recall"
+    }
+  },
+  {
+    "id": "r04",
+    "kind": "say_check",
+    "nodeId": "s4n2",
+    "sceneId": "s4",
+    "sourceUtteranceId": "04d",
+    "cueEn": "Please say it again.",
+    "situation": "Ask someone to repeat what they said.",
+    "explanation": "请 makes the request polite; 再 and 一遍 frame the repetition.",
+    "assesses": {
+      "kind": "utterance",
+      "id": "04d",
+      "skill": "form.recall"
+    }
+  },
+  {
+    "id": "r05",
+    "kind": "say_check",
+    "nodeId": "s5n2",
+    "sceneId": "s5",
+    "sourceUtteranceId": "05e",
+    "cueEn": "Let us go together.",
+    "situation": "Suggest leaving together.",
+    "explanation": "我们 names the group; 一起 says together; 走吧 proposes going.",
+    "assesses": {
+      "kind": "utterance",
+      "id": "05e",
+      "skill": "form.recall"
+    }
+  }
+]

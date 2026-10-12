@@ -23,28 +23,31 @@ outbox storage key (`outbox.v1`), and `schedulerVersion` with its config hash.
 
 ## Implementation status (2026-10-12)
 
-Step 0 shipped in #111. Steps 1–3 are implemented for the existing listening and
-construction activities, with v2 advertisement **off by default**. The additive
-migration backfills legacy listening card keys without changing event payloads,
-hashes, acceptance times or grades. The client keeps queued v1 events unchanged,
-negotiates v2 for new events only, and continues to expose the listening-only due
-list while replaying schedules by card key. Unknown v2 kinds/actions are retryable;
-`self_check` remains unsupported until the recall content step.
+Steps 0–3 shipped in #111 and #114. Dual-accept support was deployed and verified
+before v2 advertisement became the default in the recall-compatible release.
+`MANDARIN_EVENTS_ADVERTISE_V2=false` remains an explicit rollback switch. A new
+bootstrap then selects v1 for new events; already-built v2 payloads keep their IDs
+and remain acceptable to the dual-accept server. Keep the additive migration in
+place during a code rollback.
+
+The recall-compatible release accepts course schemas 1 and 2 and implements
+`self_check` on allowlisted `say_check` activities. The five authored activities
+are in `resources/data/mandarin/recall-exercises.v2.json`; they are inactive until
+included in a separately activated course revision. The live source course remains
+1.1.1 in the compatibility release. Course 1.2.0 activation must follow its successful
+deployment, with fresh source mappings for the unchanged recordings. No new speech
+or Chinese sentences are needed.
+
+Recall correctness is null: a self-rating is a learner claim, not verified
+comprehension. Its grade moves only its utterance's `form.recall` card. These cards
+are capped at a seven-day effective interval until #103 provides calibration data;
+listening intervals and historical v1 grades remain unchanged. The baseline report
+separates self-reported recall ratings and subsequent delayed claims from listening
+accuracy. New catch-up cards follow due work, at most two per bounded review session.
 
 The #112 fix rejects malformed IDs per event and sets them aside on the client
-before sending, so an older server cannot strand the rest of the batch. A failed
-dead-letter write keeps the malformed event queued while valid events still drain.
-
-After this server/client release has deployed and its checks pass, operators can
-set `MANDARIN_EVENTS_ADVERTISE_V2=true` and reload configuration using the normal
-deployment process. The bootstrap then advertises `[1, 2]`. Turning the flag off
-returns new bootstraps to v1; already-built v2 payloads retain their IDs and schema,
-and the dual-accept server continues to accept them. Do not roll back the additive
-migration during a code rollback.
-
-Step 4 remains a separate content release. The five-sentence recall activity,
-its grading and course schema 2 are not activated by this change. The learner
-trial (#58/#103) and fluent-speaker review (#57) remain open.
+before sending. Failed dead-letter writes retain the malformed event while valid
+events drain. The learner trial (#58/#103) and fluent-speaker review (#57) remain open.
 
 ## Fields
 
