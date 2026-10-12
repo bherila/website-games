@@ -35,6 +35,9 @@ export const ALLOWED_IMPORTERS = new Set([
   'resources/js/admin/AdminPage.tsx',
 ])
 
+/** The guard's own test, whose fixtures quote violating imports as strings. Never scanned. */
+const SELF_TEST = 'tests-ts/mandarinBoundary.test.ts'
+
 /** Route files that must not mention Mandarin at all. */
 export const MANDARIN_FREE_FILES = ['routes/web.php', 'routes/api.php']
 
@@ -83,7 +86,7 @@ export function findViolations(root) {
   const violations = []
 
   for (const file of walk(root)) {
-    if (!SOURCE_EXT.test(file) || file.startsWith(`${MANDARIN_DIR}/`) || ALLOWED_IMPORTERS.has(file)) {
+    if (!SOURCE_EXT.test(file) || file.startsWith(`${MANDARIN_DIR}/`) || file === SELF_TEST || ALLOWED_IMPORTERS.has(file)) {
       continue
     }
     const source = readFileSync(path.join(root, file), 'utf8')
