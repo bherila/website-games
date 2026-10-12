@@ -9,7 +9,6 @@ import { loadProgress as loadChicksProgress } from '../chicks-challenge/gameProg
 import { TOTAL_LEVELS as CHICKS_TOTAL_LEVELS } from '../chicks-challenge/gameTypes'
 import { loadProgress as loadHoverProgress } from '../hover/gameProgress'
 import { TOTAL_LEVELS as HOVER_TOTAL_LEVELS } from '../hover/maps/maps'
-import { summarizeMandarinLive, summarizeMandarinPreview } from '../mandarin/previewSummary'
 import { loadProgress as loadMarbleSortProgress } from '../marble-sort/gameProgress'
 import { TOTAL_LEVELS as MARBLE_SORT_TOTAL_LEVELS } from '../marble-sort/levels'
 import { loadProgress as loadMarbleWorksProgress } from '../marble-works/gameProgress'
@@ -71,7 +70,7 @@ export interface GameScoreSummary {
 
 export type GameCardSummary = GameProgressSummary | GameScoreSummary
 
-export const GAME_CATALOG: readonly GameCatalogEntry[] = [
+const CATALOG: GameCatalogEntry[] = [
   {
     kind: 'levels',
     slug: 'math-horde',
@@ -161,16 +160,27 @@ export const GAME_CATALOG: readonly GameCatalogEntry[] = [
     href: '/2048',
     loadSummary: () => summarizeTwenty48(),
   },
-  {
-    kind: 'score',
-    slug: 'mandarin',
-    title: 'Mandarin Quest',
-    emoji: '🏮',
-    description: 'Join Xiaolin and an aspiring cook across ten scenes of sword-school adventure. Listen to Mandarin first, then recognize written Chinese.',
-    href: '/mandarin',
-    loadSummary: () => summarizeMandarin(),
-  },
 ]
+
+/**
+ * The cards shown on the game-select page, in display order. Games with their own
+ * backend or runtime add themselves through {@link registerGame} (see
+ * `registerGames.ts`) so this module never imports their internals.
+ */
+export const GAME_CATALOG: readonly GameCatalogEntry[] = CATALOG
+
+/**
+ * Appends a game's card to the catalog. Registering a slug that is already present
+ * replaces that entry in place, so repeated registration is harmless.
+ */
+export function registerGame(entry: GameCatalogEntry): void {
+  const existing = CATALOG.findIndex((candidate) => candidate.slug === entry.slug)
+  if (existing === -1) {
+    CATALOG.push(entry)
+  } else {
+    CATALOG[existing] = entry
+  }
+}
 
 /** Builds the card summary for either catalog variant. */
 export function summarizeEntry(entry: GameCatalogEntry): GameCardSummary {
@@ -217,39 +227,6 @@ function summarizeTwenty48(): GameScoreSummary {
       { label: 'Best', value: summary.bestScore.toLocaleString() },
       { label: 'Highest tile', value: summary.highestTile.toLocaleString() },
       { label: 'Games played', value: summary.gamesPlayed.toLocaleString() },
-    ],
-  }
-}
-
-/**
- * Which Mandarin runtime `/mandarin` mounts, as stamped by the game-select Blade
- * shell. Only an explicit `preview` selects the mock partition; anything else,
- * including a missing root, is live — matching the Mandarin entrypoint itself.
- */
-export function readMandarinRuntime(): 'preview' | 'live' {
-  if (typeof document === 'undefined') {
-    return 'live'
-  }
-  return document.getElementById('game-select-root')?.dataset.mandarinRuntime === 'preview' ? 'preview' : 'live'
-}
-
-export function summarizeMandarin(
-  storage?: Storage | null,
-  accountPartitionId?: string | null,
-  runtime: 'preview' | 'live' = readMandarinRuntime(),
-): GameScoreSummary {
-  const preview = runtime === 'preview'
-  const summary = preview ? summarizeMandarinPreview(storage) : summarizeMandarinLive(storage, accountPartitionId)
-
-  return {
-    kind: 'score',
-    started: summary.started,
-    emptyLabel: preview
-      ? 'Preview · progress stays in this browser'
-      : `${summary.totalScenes} scenes · not played yet`,
-    stats: [
-      { label: 'Scenes', value: `${summary.scenesCompleted}/${summary.totalScenes}` },
-      { label: 'Lessons', value: `${summary.nodesCompleted}/${summary.totalNodes}` },
     ],
   }
 }

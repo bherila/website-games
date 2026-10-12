@@ -1,5 +1,8 @@
 import { DATABASE_GAME_PROGRESS_DATA } from '../_shared/databaseGameData'
 import { mountPersistedGame } from '../_shared/mountPersistedGame'
 import { GameSelectPage } from './GameSelectPage'
+import { registerGames } from './registerGames'
+
+registerGames()
 
 mountPersistedGame('game-select-root', () => <GameSelectPage />, DATABASE_GAME_PROGRESS_DATA)

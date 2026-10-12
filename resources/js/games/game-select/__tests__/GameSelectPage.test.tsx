@@ -11,6 +11,9 @@ import { MARBLE_SORT_PROGRESS_STORAGE_KEY } from '../../marble-sort/gameTypes'
 import { TOTAL_LEVELS as MARBLE_SORT_TOTAL_LEVELS } from '../../marble-sort/levels'
 import { GAME_CATALOG } from '../gameCatalog'
 import { GameSelectPage } from '../GameSelectPage'
+import { registerGames } from '../registerGames'
+
+registerGames()
 
 function setInitialData(data: unknown | null): void {
   const existing = document.getElementById('app-initial-data')
