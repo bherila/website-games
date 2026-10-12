@@ -55,6 +55,12 @@ async function solveConstruction(): Promise<void> {
   click(within(construction).getByTestId('construction-check'))
   await within(construction).findByTestId('construction-feedback')
   click(within(construction).getByTestId('continue'))
+  if (screen.queryByTestId('recall-question')) {
+    click(screen.getByRole('button', { name: 'Show answer' }))
+    click(screen.getByRole('button', { name: 'Continue without rating' }))
+    expect(await screen.findByText(/without a score|Attempt recorded/)).toBeVisible()
+    click(screen.getByRole('button', { name: 'Continue' }))
+  }
 }
 
 describe('MandarinGame ten-scene preview', () => {
@@ -198,6 +204,7 @@ describe('MandarinGame ten-scene preview', () => {
   it('offers extra practice, visibly distinct, when nothing is due', async () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true })
+    store.saveProgress({ version: 1, ...course.identity, onboardingComplete: true, currentNodeId: 's3n1', completedNodeIds: course.nodes.slice(0, 4).map((node) => node.id), recallExerciseIds: ['r01', 'r02'] })
     const runtime = createPreviewRuntime({ scenario: findPreviewScenario('noDueReviews'), store, speechSynthesis: null, sfx: NULL_SFX_PLAYER })
     render(<MandarinGame runtime={runtime} />)
     await screen.findByTestId('home-screen')

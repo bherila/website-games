@@ -33,12 +33,12 @@ esac
 
 command -v curl >/dev/null || { echo "::error::curl is required." >&2; exit 2; }
 command -v jq >/dev/null || { echo "::error::jq is required." >&2; exit 2; }
-[ -f resources/data/mandarin/foundations.v1.json ] || {
+[ -f resources/data/mandarin/foundations.v2.json ] || {
     echo "::error::The checked-in Mandarin course is unavailable." >&2
     exit 2
 }
 
-expected_version=$(jq -er '.contentVersion' resources/data/mandarin/foundations.v1.json)
+expected_version=$(jq -er '.contentVersion' resources/data/mandarin/foundations.v2.json)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 retries=${DEPLOY_VERIFY_RETRIES:-3}

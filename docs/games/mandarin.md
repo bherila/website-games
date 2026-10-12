@@ -24,16 +24,16 @@ design and the event migration plan are recorded in
 [the v2 rollout](mandarin-event-schema-v2.md). The v2 server/client compatibility
 work shipped in #114; the compatible recall release enables v2 by default, with
 `MANDARIN_EVENTS_ADVERTISE_V2=false` available for rollback. It
-preserves historical event payloads and listening schedules; the five-sentence self-rated recall loop is implemented, with content activation
-following the compatible client release. The multi-session learner trial remains outstanding.
+preserves historical event payloads and listening schedules; the five-sentence self-rated recall loop ships in revision 1.2.0 after the compatible
+client release. The 1.1.1 source remains as a legacy validation fixture. The multi-session learner trial remains outstanding.
 
 Revision `1.1.0` shipped in [#54](https://github.com/bherila/website-games/pull/54)
 at `e7251b6`; its [deployment run](https://github.com/bherila/website-games/actions/runs/34186230928)
 completed successfully. It contains ten scenes, 20 nodes, 50 mastery targets,
 100 listening exercises, five constructions and 20 reserved checkpoint items.
-Revision `1.1.1` changes only the construction support chunk and its audio mappings;
-these learning counts and existing content IDs stay stable. Its release is pending
-until this change merges and the deployment gate verifies the corpus.
+Revision `1.1.1` shipped the dedicated construction support chunk in
+[#61](https://github.com/bherila/website-games/pull/61). Revision `1.2.0` adds five
+self-rated recall exercises while retaining those learning counts, Chinese and content IDs.
 
 Full-course Polly recordings and bucket-backed assets are shipped capabilities.
 Production stages the course, strictly imports/verifies its audio manifest, then activates
@@ -43,8 +43,6 @@ replay; it does not promise every unheard clip or a first visit will work offlin
 
 Remaining work:
 
-- [#55: live progress on the homepage card](https://github.com/bherila/website-games/issues/55).
-- [#56: dedicated construction chunk](https://github.com/bherila/website-games/issues/56), implemented in revision `1.1.1`, pending release verification.
 - [#57: fluent-speaker editorial and audio review](https://github.com/bherila/website-games/issues/57). Both course review flags remain false; asset/playback checks are not full language QA.
 - [#58: multi-session learner trial](https://github.com/bherila/website-games/issues/58), before further course expansion.
 - [#59: installed-iPhone OAuth verification](https://github.com/bherila/website-games/issues/59).
@@ -54,6 +52,22 @@ account’s partition, and `adapters/previewStore.ts` keeps guest and account st
 there is no import action in the current Mandarin runtime/API. This is an intentional
 scope limit, not a broken sync promise or a committed feature. Sign-in never reassigns
 guest events to an account. Any future deliberate import needs its own agreed design.
+
+## Spoken recall (revision 1.2.0)
+
+Five familiar construction sentences now have a “say it, then check” step. The cue
+shows an English situation and meaning; Mandarin text and model playback appear
+only after “Show answer” or “I don’t know”. The learner compares their attempt with
+the recording and self-rates. A skipped or unfinished recording supplies no score.
+This uses no microphone and makes no claim of machine-verified pronunciation.
+
+Recall has its own utterance cards and cannot refresh listening schedules. Due
+cards mix by due time; at most two new recall cards follow due work in a review
+session. Recall intervals stay within seven days pending learner calibration.
+The baseline report lists these claims separately from comprehension results and
+excludes v2 retries from unaided accuracy. Existing Chinese, recordings, target IDs
+and reserved checkpoint items are unchanged. The corpus retains all 314 assets
+and now has 316 mappings for each of 1.1.1 and 1.2.0.
 
 ## Runtimes
 
@@ -281,6 +295,7 @@ php -d memory_limit=1G artisan mandarin:audio:migrate --to=s3 --execute        #
 php -d memory_limit=1G artisan mandarin:audio:export resources/data/mandarin/audio-manifest.json --disk=s3
 
 # In production (the objects are already in the bucket; the disk needs read access to verify):
+php -d memory_limit=1G artisan mandarin:course:import resources/data/mandarin/foundations.v1.json --stage
 php -d memory_limit=1G artisan mandarin:course:import --stage
 php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course
 php -d memory_limit=1G artisan mandarin:audio:import resources/data/mandarin/audio-manifest.json --verify-objects --execute --strict --require-configured-course

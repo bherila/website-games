@@ -8,7 +8,7 @@ const rawCourse = (): Record<string, unknown> => JSON.parse(JSON.stringify(cours
 describe('canonical course data', () => {
   it('parses the shipped JSON with the expected shape', () => {
     const course = loadCourse()
-    expect(course.identity).toEqual({ courseId: 'mandarin-foundations', contentVersion: '1.1.1' })
+    expect(course.identity).toEqual({ courseId: 'mandarin-foundations', contentVersion: '1.2.0' })
     expect(course.scenes.map((scene) => scene.id)).toEqual(Array.from({ length: 10 }, (_, i) => `s${i + 1}`))
     expect(course.scenes.map((scene) => scene.setting)).toEqual(['gate', 'street', 'bridge', 'roadside', 'reunion', 'street', 'bridge', 'roadside', 'gate', 'reunion'])
     expect(course.nodes).toHaveLength(20)
@@ -17,6 +17,7 @@ describe('canonical course data', () => {
     expect(course.utteranceById.size).toBe(100)
     expect(course.exerciseById.size).toBe(100)
     expect(course.constructionById.size).toBe(5)
+    expect(course.recallById.size).toBe(5)
     expect(course.checkpointById.size).toBe(20)
   })
 

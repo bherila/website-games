@@ -5,16 +5,18 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
+import legacyCourse from '../../../../data/mandarin/foundations.v1.json'
 import { findPreviewScenario } from '../adapters/previewScenarios'
 import { createMemoryPreviewStore } from '../adapters/previewStore'
 import { NULL_SFX_PLAYER } from '../audio/sfxRecipes'
-import { loadCourse } from '../domain/course'
+import { buildCourseIndex } from '../domain/course'
+import { parseCourse } from '../domain/courseSchema'
 import { MandarinGame } from '../MandarinGame'
 import { createPreviewRuntime } from '../runtime/previewRuntime'
 
 jest.mock('../scene/webglSupport', () => ({ probeWebGl: () => false }))
 
-const course = loadCourse()
+const course = buildCourseIndex(parseCourse(legacyCourse))
 
 async function answerCurrent(): Promise<string> {
   const question = await screen.findByTestId('listening-question')
@@ -39,6 +41,7 @@ async function openReview(schemaVersion: 1 | 2 = 1) {
   const store = createMemoryPreviewStore()
   store.saveSettings({ twoDMode: true, lowMotion: true })
   const runtime = createPreviewRuntime({
+    course,
     scenario: findPreviewScenario('returning'),
     store,
     speechSynthesis: null,
@@ -100,6 +103,7 @@ describe('Mandarin review continuation (#106)', () => {
     const store = createMemoryPreviewStore()
     store.saveSettings({ twoDMode: true, lowMotion: true })
     const runtime = createPreviewRuntime({
+    course,
       scenario: findPreviewScenario('returning'),
       store,
       speechSynthesis: null,

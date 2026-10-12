@@ -1,15 +1,19 @@
 {
     "schemaVersion": 1,
-    "exportedAt": "2026-09-08T06:35:01+00:00",
+    "exportedAt": "2026-10-12T05:54:35.989525+00:00",
     "courses": [
         {
             "courseId": "mandarin-foundations",
             "contentVersion": "1.1.1"
+        },
+        {
+            "courseId": "mandarin-foundations",
+            "contentVersion": "1.2.0"
         }
     ],
     "counts": {
         "assets": 314,
-        "sources": 316
+        "sources": 632
     },
     "assetsHash": "4ac0d257d574efe5546ed9bd1fb1ba287c573037de4c298f2abfa81b821035f0",
     "assets": [
@@ -14110,6 +14114,2534 @@
         {
             "course_id": "mandarin-foundations",
             "content_version": "1.1.1",
+            "source_kind": "utterance",
+            "source_id": "v10",
+            "variant": "slow",
+            "recipe_hash": "07badd2ac9c74a81e2cdd5ae05e222ac6e0e24ec9d700b2bf269dea0dbf0c93f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "sfx",
+            "source_id": "answer-correct",
+            "variant": "default",
+            "recipe_hash": "4a72c725739575d907012991e282a579b2be17921e43dfef43d31f3f9ee4817d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "sfx",
+            "source_id": "answer-help",
+            "variant": "default",
+            "recipe_hash": "86c40a4e15de77746695f470bdf863567d8147d713ca615a6888749478554ce7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "sfx",
+            "source_id": "scene-complete",
+            "variant": "default",
+            "recipe_hash": "0b5f09d515f3569336462fb68ceb20d581412e22b8aeca1f1851db124c481f5e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "sfx",
+            "source_id": "ui-tap",
+            "variant": "default",
+            "recipe_hash": "0d793a787eb47b8b63d77f69aadbd80918f3bcce084ab78ad0f16122802b34e7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "again",
+            "variant": "normal",
+            "recipe_hash": "bb7c93835098dc24e00a2f405ca38d8fad4bf13a187c6391d3c5be59a7981675"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "again",
+            "variant": "slow",
+            "recipe_hash": "cbeaea313ac2e21f1e17bc6aac597910d484dd436281fec957433fff8a845afd"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "at-here",
+            "variant": "normal",
+            "recipe_hash": "e0e00222adfd4d86961ed3853782689055ebe744c741cdb29d044d11d71cf6ea"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "at-here",
+            "variant": "slow",
+            "recipe_hash": "5e7612ba3c1c1bd8d7d0a51efc7559d1697a15bf4d414e48adb88ddca5407a36"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "eat",
+            "variant": "normal",
+            "recipe_hash": "90fc8054af02732ffa29170c9b57332a0fc026bd3ad7adc61a4db4e91d6545c6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "eat",
+            "variant": "slow",
+            "recipe_hash": "66aa34d85cf978a98f1249010a98a7a0902ff7598bd3043b0b374475394da5e1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "one-time",
+            "variant": "normal",
+            "recipe_hash": "ce35608b0fcd71e28b506e56aaac48c3dfdd94b03733d93f5cb8c62653809951"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "one-time",
+            "variant": "slow",
+            "recipe_hash": "3e2fc17407a01485dddacd2cdd06f5fde12af68826d8a2186154db4b893662e1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "please",
+            "variant": "normal",
+            "recipe_hash": "d6ef8779e2193ea4ad5174eca48efe930ede78b951b84145dc2db6a9cf643565"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "please",
+            "variant": "slow",
+            "recipe_hash": "e0b90c9fd741955ea9ca4908cc96577a200b0122eaac2eb6fbb47ef8a88aa970"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "very",
+            "variant": "normal",
+            "recipe_hash": "b9cc2354c2d3e61dbacd5f3241810f00ef71a075f77adc39d00f34da54fe8064"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "support",
+            "source_id": "very",
+            "variant": "slow",
+            "recipe_hash": "7445381c55c63af64e6ff4e2b985b98d6640b4bc95a4a6468ff6d0386c04de5a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "arrived",
+            "variant": "normal",
+            "recipe_hash": "5e1f4d9d245e0883aa1eb16a3d8c737ddcbe849229ba00817ba14b58cfa8da88"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "arrived",
+            "variant": "slow",
+            "recipe_hash": "a8f6c4b128764b4a2ff5b7071a3c723c99c2f6d94f464336f20d3ba92e53d3bb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "at",
+            "variant": "normal",
+            "recipe_hash": "853e38a10f838e1c3d4f34cc1273b59a4bc61b40034207bb4b20f84eecab55d8"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "at",
+            "variant": "slow",
+            "recipe_hash": "c132a0557c5b50d01dd36e871595f5ebe94b9c5c93324962df51c1c587ba0509"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "be",
+            "variant": "normal",
+            "recipe_hash": "3d0556854e78d1a6209b980b0ff130324b12e6fb503f2201fdb84f42b2a09979"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "be",
+            "variant": "slow",
+            "recipe_hash": "03fdfa75ce05da2626bf6b8271f7853b54489d8b61505e6fbe4fbb52a80ab855"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "blue",
+            "variant": "normal",
+            "recipe_hash": "e777b8ba6dc4a6bf8d2eb6407892cafdd00c1f68183cfe10b47234e23e4a97f2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "blue",
+            "variant": "slow",
+            "recipe_hash": "60452498e2ea4339ba27eb65b6a0d464a8ac0c09f3043b3976b8686a042775c7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "bowl",
+            "variant": "normal",
+            "recipe_hash": "6cb1c46ddfce9d1b089e89ad68a4122a14b45a47f78f80318d388ba8cb6b790a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "bowl",
+            "variant": "slow",
+            "recipe_hash": "10445ee91b84e8ac3d0c802dc4b6ca39e60186b4df802dfa86ff014960291a71"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "bridge",
+            "variant": "normal",
+            "recipe_hash": "829fc84c95ee1075880dc3fdf2f5f17748e0afc03b99beff5bb700a585913d99"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "bridge",
+            "variant": "slow",
+            "recipe_hash": "8bcff68acc4b77d11b0c153a7eccc8710febd4b13b287d80f32e39bca635102b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "dont-know",
+            "variant": "normal",
+            "recipe_hash": "cd686664d59dd73108441c1e8fc5da2524f0e4ffe6141afe94bed60632cf39e1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "dont-know",
+            "variant": "slow",
+            "recipe_hash": "08c3da690eea54c40820d74a973765813b3f9dab47b70009f7466623789f6bde"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "dont-leave",
+            "variant": "normal",
+            "recipe_hash": "90a6078a94e89a25541dfe88b0993ca96e2711007510985869cfa76e06128e3a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "dont-leave",
+            "variant": "slow",
+            "recipe_hash": "a0521614056ef07e609355f075a07cd55b8ee7fdbd0049a4d3d7b7333fbb9cda"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "find",
+            "variant": "normal",
+            "recipe_hash": "81e927453d9baadc9a6d4458194ae775e9f0ef6f6cd53eab376972e052b46f2c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "find",
+            "variant": "slow",
+            "recipe_hash": "2fcd4c274d11030b39025e87f0afe6d96634fd4a8efadf9c2bc0e196ea7d80df"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "give",
+            "variant": "normal",
+            "recipe_hash": "16af33fc50f9eef0edc0355b156c0bc5703d006c8cda1f815047dbba3c89b8f8"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "give",
+            "variant": "slow",
+            "recipe_hash": "df6fe423281c32722b7b531a96caae870a9923fde473b7d4f1bbe9cbb1264101"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "go",
+            "variant": "normal",
+            "recipe_hash": "c9acbb8a9921dd3d2ff6f244079b88add81c9880ce1a1ec7061089e3435411bc"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "go",
+            "variant": "slow",
+            "recipe_hash": "bf3b5bdf6a19d049598aad385bd21170c0be54e3b6fd3c4bbdc93ba5370e5b3b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "have",
+            "variant": "normal",
+            "recipe_hash": "fffb35a97ceaafbb090ef4cd26b57ea46c218ab4e10925f6d3e2106bb4071f3d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "have",
+            "variant": "slow",
+            "recipe_hash": "b2d3f689cef7e28144fd820bc25b363640b02bb494317e6274b078b211fb8ece"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "he",
+            "variant": "normal",
+            "recipe_hash": "477b02b6b0eb058220d009e7eef9743a1cb464030e5a8c88e1603c507c7af05d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "he",
+            "variant": "slow",
+            "recipe_hash": "f4413473eb24ecec3e1f8916a0672f391233aee0a5c691edbc8023e67eabca1b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "hello",
+            "variant": "normal",
+            "recipe_hash": "26267ce13d2c7d5e2badfe6ec51e896ffefa26c9bfa9c449f8b54a3d6684a98c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "hello",
+            "variant": "slow",
+            "recipe_hash": "c693ca713230874306c6486845dcaf0f1f639b2ee7cfe4a46fcc06b78b0fbd01"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "help",
+            "variant": "normal",
+            "recipe_hash": "8f2e7f04b2679058ad521dd5ca2c95690fd19e28353a6f822dcafdbb0091279c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "help",
+            "variant": "slow",
+            "recipe_hash": "9d2d15b3d4685a55f6b7d168e8b0a5a969919ec48698b2bbc2f12d359f36f8fb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "here",
+            "variant": "normal",
+            "recipe_hash": "be959ca0e50b7ea51f6a4fb4e9d6436e3a5afc20847d2a9ffcf3241ed6e214f6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "here",
+            "variant": "slow",
+            "recipe_hash": "c14c7741057cb92333d9ccdd5acf08dd940e6657efdaf194cfac30c1308cfdfe"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "i",
+            "variant": "normal",
+            "recipe_hash": "98ff41dfa50af9f844492bacea506438a46da132fa50d090724fee54f6b0b6e0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "i",
+            "variant": "slow",
+            "recipe_hash": "b155166ecbde0a6fdcc766be36a123bbba86f7ed813676e86edcf11c1bc6311b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "inside",
+            "variant": "normal",
+            "recipe_hash": "3f1e864c38c3b503e346d41686254511f098603cc62f4794f5aeb5a23cb224b7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "inside",
+            "variant": "slow",
+            "recipe_hash": "8e56f40cc5c22157c086f29aad0cc956d9f5a5dda3d2635354f9ea432227439a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "left",
+            "variant": "normal",
+            "recipe_hash": "18cc36148640a6b5d662076d28a47e4eba577d888d8d215b5e2885d6c2cc57b0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "left",
+            "variant": "slow",
+            "recipe_hash": "98d37061c1506b8c4d826785d3ca498564482afc220c6e76b8711e1f93966d84"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "lets-go",
+            "variant": "normal",
+            "recipe_hash": "7edbb268512f3e8a0384eaabc59ce5c85705b64d9fa685e30c6cb7726755d247"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "lets-go",
+            "variant": "slow",
+            "recipe_hash": "a874802cda70e1e356a2d9f0973d46914c377e223bbe2c6c9f721c2112cb0a46"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "my-friend",
+            "variant": "normal",
+            "recipe_hash": "3f756c81054b39f989815ee6a14f616ff8e6dee6d90a1cad9ad46dbbe7596bfa"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "my-friend",
+            "variant": "slow",
+            "recipe_hash": "c721de0e523942b81d25fb3a553f7642df97c067defb07d78c65280d0be03259"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "noodles",
+            "variant": "normal",
+            "recipe_hash": "e601b6cb2e82a28c20ee48f20fdad0c875c2ef089df46e47201aed7a0c65da48"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "noodles",
+            "variant": "slow",
+            "recipe_hash": "a8f346542b7053be11b42e0c2ef91ab4eaaa1fcfdbb0bf41c5518a0c3d120636"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "not-have",
+            "variant": "normal",
+            "recipe_hash": "0649962ef5e67852b5c4935a472f9ff5127004ca58929126bbc9b2bde190df7e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "not-have",
+            "variant": "slow",
+            "recipe_hash": "4c6da37ca86043c02a21e92c8db5064894e591c5c3f12937ad5618c63693a153"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "not-present",
+            "variant": "normal",
+            "recipe_hash": "06f8b74d0aec5984b81804d72fda26fc9bee75814a1738df242ae4d0995f4353"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "not-present",
+            "variant": "slow",
+            "recipe_hash": "e31227d4c683a749367f4265c39318da3a09fdb47b97dc9cffa1f9def129eeee"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "not-understand",
+            "variant": "normal",
+            "recipe_hash": "bb381e3cfffe9f31dd6630912a655e35214535dec6eff33c202426d24fe93fd7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "not-understand",
+            "variant": "slow",
+            "recipe_hash": "933b94ed2b467eb1a18166a9ca80af83e8b9d53160bfdbb2bc43bd1244d349c0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "now",
+            "variant": "normal",
+            "recipe_hash": "edad946852b242a807ae9ab49a486de9ed974af50d254c6e157e90746244d4eb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "now",
+            "variant": "slow",
+            "recipe_hash": "2a4bb69171c3395d3ba95337d8d9e087c185357c46597d3952207004d92c434c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "okay",
+            "variant": "normal",
+            "recipe_hash": "050449ec6ac7faab467e01bd4457dc012d77b669c6efe8c4c96c191669233985"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "okay",
+            "variant": "slow",
+            "recipe_hash": "372bb744683e5a90002bb8d2c919d9b628ab838fa779f8e4b6c1235e4df03bbc"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "outside",
+            "variant": "normal",
+            "recipe_hash": "717412ef7797ca8fde27905b6b77971c2bce70c891d7bbcbb93c866383f22e3a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "outside",
+            "variant": "slow",
+            "recipe_hash": "2648e27b40c322350c3ba797a749103f57d17aef02c00d2df1d75631edd69c96"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "question-ma",
+            "variant": "normal",
+            "recipe_hash": "bb583b11c46253a89445dad96f6f7705c2aa986e469d07f8511b404773ac75aa"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "question-ma",
+            "variant": "slow",
+            "recipe_hash": "c644ff07c22c11407fb252bc3e56ff0567c980e8ccd55dd52d9c844a49c93438"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "red",
+            "variant": "normal",
+            "recipe_hash": "be3c89541bd99f1f3026982290c25717395dbbca16774c04bc036ab7f8960fe0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "red",
+            "variant": "slow",
+            "recipe_hash": "483bf10ae943f693f71792909a80d0615b6f9655584a51f7848e9a945baa1dc3"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "repeat",
+            "variant": "normal",
+            "recipe_hash": "a4919ce82b4168ebd8c5c5de5ef241fba11419b6afecbb05e900c457258cce2c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "repeat",
+            "variant": "slow",
+            "recipe_hash": "bfc32dae1580186966dcdfda362733af8f218c51d0c94266b5937d167476c99a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "right",
+            "variant": "normal",
+            "recipe_hash": "987c60e8df047c2271724d10121cac65a044348d3b02669ea5a8613ec604b398"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "right",
+            "variant": "slow",
+            "recipe_hash": "fff75750ffe57fc2266705caf16dbd1420849e55c24daf48b1686c9310bdbf04"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "say",
+            "variant": "normal",
+            "recipe_hash": "253b0842de482cb844f5c9305b6ecc5ac624b246593e74b922dd8f8e411d8fc2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "say",
+            "variant": "slow",
+            "recipe_hash": "e13dc7f0b5d3cbf1d8cda3cf72a08cbafc83a27311b26539168e78212ac37f77"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "see",
+            "variant": "normal",
+            "recipe_hash": "002a65b6e67e0c4b60be5e3d27e98370b481222068b00f693c9acc4f55ac438f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "see",
+            "variant": "slow",
+            "recipe_hash": "53a601dd975d1ec80ea4460fce14946f67a40e78bd8aea9aacad3eedb765e20a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "sorry",
+            "variant": "normal",
+            "recipe_hash": "e97a347001b938e918324e998b8ad5b7b90e0de0eb952366972b223737bcf348"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "sorry",
+            "variant": "slow",
+            "recipe_hash": "4e258f037e9fcbc1e7e12204cb9dba880b61d7a560fbd81d1a032ddceb350c94"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "start",
+            "variant": "normal",
+            "recipe_hash": "893edf5e33b9b6f52d786af97806abe76fcbb42f5ca033699de2cb8c38a7994d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "start",
+            "variant": "slow",
+            "recipe_hash": "ab5cd34f873b860040494d76004cd65182de67c9f5afad1072bef3774f0991c6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "tasty",
+            "variant": "normal",
+            "recipe_hash": "0110a67e458f13ae5b7161bf530edac516599e5af8de8fd2b1ec549dd7d80fae"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "tasty",
+            "variant": "slow",
+            "recipe_hash": "01e644bddda7ff9bef24986b017770a85021c171d3e3d151004dbf0d76f088f5"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "thanks",
+            "variant": "normal",
+            "recipe_hash": "d9a53fb42260653232edd0eca89533752d834a15c18faa26cb5780ffad093caf"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "thanks",
+            "variant": "slow",
+            "recipe_hash": "5610217a98e7096528fa123da0c0eef8417fcbc7ca5f455d6df35a037fa02823"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "there",
+            "variant": "normal",
+            "recipe_hash": "f27671643d996c21bee771f5e2cfe756c51542a3e40929db6f6ce148432e9592"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "there",
+            "variant": "slow",
+            "recipe_hash": "a39d371fe23b097f5a94b9487557218c4d15b91f714f711bb89243ae06fbe4a8"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "this",
+            "variant": "normal",
+            "recipe_hash": "d1ce3a982222d884c17d0215780d4318a877b9a6d1e2c1f0ca61f0bc04572af1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "this",
+            "variant": "slow",
+            "recipe_hash": "76da6cb6fb0c28be5933ad577aad026534a3f22fcc6bf1ddfc2e30008e846f4f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "together",
+            "variant": "normal",
+            "recipe_hash": "fdc2b8d9e51bbfaa3e8d897974faa5b5cf9d980d0eea9c5fa2cc7211e4cfbf77"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "together",
+            "variant": "slow",
+            "recipe_hash": "80aa3bbd3be135a4a2d111951095bcb73fba574bf67b1e3f03104cd986a17db1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "tomorrow",
+            "variant": "normal",
+            "recipe_hash": "12bc22d56ab4cf4b80f61634f3a1dbe5a3b9a88edaebdbd6cc1eb5a023fa78b7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "tomorrow",
+            "variant": "slow",
+            "recipe_hash": "14f2cf9b1db527ed5fdf04f8841c3249558c651ca99d5fc002518fb2bc7a25b6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "understand",
+            "variant": "normal",
+            "recipe_hash": "3a583c1fc58f0e973810cd4fbe2c761bfe0f70023bb5d44d1ed62f54e6820ff6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "understand",
+            "variant": "slow",
+            "recipe_hash": "99ba29601b504dfef3d8db7a707205b255602257348c70f6dd6325d9a74ed993"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "wait-moment",
+            "variant": "normal",
+            "recipe_hash": "7408b7877a22e1967513c55e6190eaf8f31c211f7b00e960848d23e4d0453e17"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "wait-moment",
+            "variant": "slow",
+            "recipe_hash": "5227f01bf4d5714905dc5f4ba3537b03a30c417506e6c4fb67c7f5e44613992c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "wait-you",
+            "variant": "normal",
+            "recipe_hash": "1481aa41ba14a901f07e3cf296b2803d4a871c99f6d938b4351a4f5fc343377c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "wait-you",
+            "variant": "slow",
+            "recipe_hash": "dc633220ddeed04083746193995763e4b1df25856a1c2d98d2963360ce7187d6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "we",
+            "variant": "normal",
+            "recipe_hash": "f5d2b42d6d2477885229b7242aaf65ffb3f72c321b36400972248ecabb8e2df7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "we",
+            "variant": "slow",
+            "recipe_hash": "d8259e42de3699a4762e3c8b20a53d6c194b35023e527cbe0a9982b77331005e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "where",
+            "variant": "normal",
+            "recipe_hash": "1d0bf477127920963b812e39b2ae5b50063ef9ccc7b4d264b600cc38309148cb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "where",
+            "variant": "slow",
+            "recipe_hash": "d7900f46cd7f530ae524f18147811edc338460d54acba3d76103d5645735113c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "who",
+            "variant": "normal",
+            "recipe_hash": "1db8637c8031701ca60f86353fe3843e2a987047bf85975855a9b454fbe1d5af"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "who",
+            "variant": "slow",
+            "recipe_hash": "200ab9eacd4b3920bdd591ae851d8730716ed4c00c07933bda53f5853f952002"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "why",
+            "variant": "normal",
+            "recipe_hash": "975799efd85f943f8dbd0aedcdb7e0cbd4588fce9fa61b7e7a64da505e7ccb4b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "why",
+            "variant": "slow",
+            "recipe_hash": "3ba0a003f3dbfda8c72a6ae04f89c224c5c8496d834ca0982b89dc1eb312baaf"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "you",
+            "variant": "normal",
+            "recipe_hash": "d34bb9d9980bb92341731c0da87de28ec73e5e9b81ebbf179b61531072f2a672"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "target",
+            "source_id": "you",
+            "variant": "slow",
+            "recipe_hash": "18d8af23ac063de6ed1914bf9b62a9a7a79ceefc10034796c1373b06edd42c5e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01a",
+            "variant": "normal",
+            "recipe_hash": "2126f3eada92e4ed012ec5570f2a984a0a129ffe979ae7f58c6e534a89e17209"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01a",
+            "variant": "slow",
+            "recipe_hash": "5384bbacf0e7382bbcb16014d92271f7c0202354bf7a912d0bfce56436883c07"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01b",
+            "variant": "normal",
+            "recipe_hash": "2126f3eada92e4ed012ec5570f2a984a0a129ffe979ae7f58c6e534a89e17209"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01b",
+            "variant": "slow",
+            "recipe_hash": "5384bbacf0e7382bbcb16014d92271f7c0202354bf7a912d0bfce56436883c07"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01c",
+            "variant": "normal",
+            "recipe_hash": "2ed3b0dfe7fe7fc2050bf3961d4cad787c2838a8af033b8a89afcd5dccf27164"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01c",
+            "variant": "slow",
+            "recipe_hash": "41923556b46cd55ca307a412ab9cc11fa5d52cf001ed89e86ba14ef5258ca044"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01d",
+            "variant": "normal",
+            "recipe_hash": "8b0578eb1f27ac86f682b5350ac375c1b4c108df4f67e950d827f47933cbbbe7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01d",
+            "variant": "slow",
+            "recipe_hash": "54fe441a752c25250b9138b4bf3f7a43664d4c7cc4d1bdbcb426ef7e34fb67e9"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01e",
+            "variant": "normal",
+            "recipe_hash": "0a184e33a06f125d86bdfdaa5656d2c31c91b6dca1a089c1a17c5677fe754405"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01e",
+            "variant": "slow",
+            "recipe_hash": "8c7012cf922fbd73017f809429ee34957fdc0f2dae689765e192202a1fd8d07f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01f",
+            "variant": "normal",
+            "recipe_hash": "d14556a7b5c647788efde0022e2fd2837c807e9d5141d88d5fd3eb33413a9bbd"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "01f",
+            "variant": "slow",
+            "recipe_hash": "2fd541392d866c4b7565b3c6b8ae2ff56beda06b503ddf376e394b6c7e63f068"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02a",
+            "variant": "normal",
+            "recipe_hash": "e5f145d3c980b335241c3e0aee0e3efc8340726d5e676eb986a1d161a622c388"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02a",
+            "variant": "slow",
+            "recipe_hash": "d77dd29980a605cf365a306500d89662b888b75428a73b08d66bb53dfaab3869"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02b",
+            "variant": "normal",
+            "recipe_hash": "aea03d3036e1263cd66d72354f3af545a1c39300c95d5d3b698f60d848016ab1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02b",
+            "variant": "slow",
+            "recipe_hash": "58eca66e2a343dffd47a0742d536de4833b34aaf0f865e85b3751694dfcee737"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02c",
+            "variant": "normal",
+            "recipe_hash": "efd31ca7552d3567b10e26cf47fdc9bf017e2a1ac2a68a248b3409eaef8a9634"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02c",
+            "variant": "slow",
+            "recipe_hash": "85d15be8ae1b3b903d5d4fbca5b5e95d5ecba6854eabe143665e7536e164cc26"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02d",
+            "variant": "normal",
+            "recipe_hash": "7e7d274296dda1673ff839eea64ff998d253b0d89ad5c22d708d634a81ddd3e9"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02d",
+            "variant": "slow",
+            "recipe_hash": "8d7ae000c40dc34fd59e0ae1982d669d64cc0b36099b9ab72596cd7bbf44bd89"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02e",
+            "variant": "normal",
+            "recipe_hash": "fcd88e3c1655e8c6dc571c3e26399d5dd06b90e438db6197837f7f44b4f4814a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02e",
+            "variant": "slow",
+            "recipe_hash": "c4bda5d889188b772d88c1982cf0edbabde28ddbe2839ed1b8f5a577893ae8ce"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02f",
+            "variant": "normal",
+            "recipe_hash": "d97bdf37d01c8fcd800d59bb77cc090e5e6426a1139b5891565862da32e2143e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "02f",
+            "variant": "slow",
+            "recipe_hash": "99eca285d56eaa98af4f096f0106eaacc92e8d9ab9d519edaf922f8529e3e5e4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03a",
+            "variant": "normal",
+            "recipe_hash": "4f015050af87138c5cc4582397c99eabdc54976b0be675d6dba59d64d2c299e4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03a",
+            "variant": "slow",
+            "recipe_hash": "e02e6a08188d2a1c163377e62bc463ecc0713574fa417d2a4d74ab5bf29c9965"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03b",
+            "variant": "normal",
+            "recipe_hash": "0bd2f92d9badbfd10608cf3134aa558599283d1280439a3fcb9843ee3fba47ab"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03b",
+            "variant": "slow",
+            "recipe_hash": "67c4c07984dd3da8b3857d72eba8d702976d0e10f13944898004fe9b5b19444a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03c",
+            "variant": "normal",
+            "recipe_hash": "48659186c3dd7f660c69bbd487ed70c06fe28b7414f32b79fc150fb893f0a8fb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03c",
+            "variant": "slow",
+            "recipe_hash": "d8312b3b0dcce983d4c5035f4d06e87cecfd86edc940876be0546f2412a4f88b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03d",
+            "variant": "normal",
+            "recipe_hash": "4858ec442be5edb6e191ed31263f7ad12e9c52fa9362df2c25ca0fd6fc63b7d7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03d",
+            "variant": "slow",
+            "recipe_hash": "d8ca7c8bdace2bd6a3cd1679c0e7f57a2cc9e8ed50bc8c308923a2af0b45be3c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03e",
+            "variant": "normal",
+            "recipe_hash": "516883364b6921afaa883d458a0d986ef0eb13a0ea1a02ce50b38dcea6b9353f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03e",
+            "variant": "slow",
+            "recipe_hash": "03f548ffed9bf97b64ca0984cf55a18a584e4afe8e1926a0f7cc7238c06d419a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03f",
+            "variant": "normal",
+            "recipe_hash": "db7faa8a6fda9f959010ed56a872452257ffe85be4ba74101eb1da7c8d20daf9"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "03f",
+            "variant": "slow",
+            "recipe_hash": "5be7d8683c97429f0e830d2fc9e620db10eabca6968ab41c94a014be45dc3e38"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04a",
+            "variant": "normal",
+            "recipe_hash": "4434a95f08362c12e3ec7d081d8a062addf70bad8b3371e66adced6e3a8daf8f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04a",
+            "variant": "slow",
+            "recipe_hash": "08bf716d73e1cc0d6abdac6949ad2ef75adc2b38fd6a43c8338e4a5951c9a66d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04b",
+            "variant": "normal",
+            "recipe_hash": "89a28496ae240f36253fdf6cb3d879ef58ab14fc82b5a5fcb936fe86cefb16f3"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04b",
+            "variant": "slow",
+            "recipe_hash": "6676b48df35a7d078e4dfd00ef68983b20d082dced8bb49e8b21e9fe1c03b496"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04c",
+            "variant": "normal",
+            "recipe_hash": "0d26c65188387c30047e4a83cdd41e66b8a65e3e16a23096382ebdba3609c3e6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04c",
+            "variant": "slow",
+            "recipe_hash": "525bd82545b7659a1e089e2a746ac5c4dc9a9dcec9414596748ec2dc0e26ed4a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04d",
+            "variant": "normal",
+            "recipe_hash": "8da8798c16d6e673a0f8eabb8859b6dfbfcf5b852b6c9d12bcdc22e7e2bb517a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04d",
+            "variant": "slow",
+            "recipe_hash": "8ec8cb48115e82fd9dcebe987aa0f6238852c3825bd0aec7cab672a927b4e785"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04e",
+            "variant": "normal",
+            "recipe_hash": "5da35e4c0e6112855ccc0ed395063d7c8bbc787d7a84ca9d788e97998d6ec18a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04e",
+            "variant": "slow",
+            "recipe_hash": "fdc4793bfbefc2d90949f60ce744ee8561de4779606cb4a6cdfa07141c9f2f24"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04f",
+            "variant": "normal",
+            "recipe_hash": "caaf8ae0135738dfab54e47412ed8b052e2b02045f3db18a903fbf92fa4d6cf3"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "04f",
+            "variant": "slow",
+            "recipe_hash": "dd883cd3a43a140e0fe997c8de25aa6265211d260820c00db0326005ebe1162d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05a",
+            "variant": "normal",
+            "recipe_hash": "353a1fcbcefd22b20b2228912f4aa05e83b65c5db0578712ab5b091004f07ddc"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05a",
+            "variant": "slow",
+            "recipe_hash": "fe0d4c72dfc9f2eec8045ac65091f8b3a8fc99697b46656fbc50a102946cf709"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05b",
+            "variant": "normal",
+            "recipe_hash": "3c4551c18413de3161590de109be61a7dc89bae53e9395a3bd8ed2dd37a378cc"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05b",
+            "variant": "slow",
+            "recipe_hash": "ffe18b9d76500f33d4e604b0c10c87f008e3780779ac3b3d17843031531c715b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05c",
+            "variant": "normal",
+            "recipe_hash": "1e079460ffe7d7af76834e0f6489892134b0baa6bc04e8911f8f8c9f2263e9ef"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05c",
+            "variant": "slow",
+            "recipe_hash": "317e959884fd8a1be4b35db5f62799577c46fe7365de151855f2a97765845676"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05d",
+            "variant": "normal",
+            "recipe_hash": "4a64b035d13a87336866a737facf91181073330a19f5b3c4146fd9fd8455812f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05d",
+            "variant": "slow",
+            "recipe_hash": "fbd5b85dad97755cb78d07f4666061e4f7437a5ab50ca8b29a6607c0677be9c2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05e",
+            "variant": "normal",
+            "recipe_hash": "ea658bc714bf9706dbb92749d2d7324391a24cb08efb21715ca5b4b76ec73481"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05e",
+            "variant": "slow",
+            "recipe_hash": "e22585d5014cdf9abde551b11ed89ec68e9b479f7418cf18b86cc4c0777187e0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05f",
+            "variant": "normal",
+            "recipe_hash": "3a32bcf3b0ae2c3c15c3e1c1ccefa0dd8f0f13fdf79504600ded23dc58097812"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "05f",
+            "variant": "slow",
+            "recipe_hash": "95397fa4fdb27b5a6f65525bcc778d5047079324a3b059aa207f54a5f337f3d0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06a",
+            "variant": "normal",
+            "recipe_hash": "b60407dc713d12aafcbe24d6401b278e1e9b9084e697047f7ed2c889407135cd"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06a",
+            "variant": "slow",
+            "recipe_hash": "7fc1cfa6f8fb9c9fdb07d938c44a854f6303822c21712c418611c4d7293bf64c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06b",
+            "variant": "normal",
+            "recipe_hash": "60561bd1ce28fbdaa1cd97d4cd8e7914e0fca1bf4ccf053a2484a292ab812f87"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06b",
+            "variant": "slow",
+            "recipe_hash": "a0c740aa1f3430823b0a3171ca1ae43ecb9df6367f9180694b7a29ecb4f79d22"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06c",
+            "variant": "normal",
+            "recipe_hash": "51e064392161b7befa1f9b98040e0784a5c0a057a6d5945d9e6d6ab4d386d365"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06c",
+            "variant": "slow",
+            "recipe_hash": "f2ec1a2c53c963fcc71181aecf6a623e6df3bacfa7642271fa3531c00aee30bf"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06d",
+            "variant": "normal",
+            "recipe_hash": "1680c497a77f5c0ed08a381cafa23be459998a6547969115fe4d15cd3a6a2361"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06d",
+            "variant": "slow",
+            "recipe_hash": "26a6b153e76c1af1dfc4fc706ef4ce4d4afa635ce58a59d73fb399abb3c58f7b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06e",
+            "variant": "normal",
+            "recipe_hash": "f8a3b72aead3785aa1c2d11228cb7c274155b85ba0bef5176b4964a3b6464bc5"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06e",
+            "variant": "slow",
+            "recipe_hash": "e4b802697ca212181a10cd2b6045ab9f48c0041ff0aca90cbbc81803db6105c1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06f",
+            "variant": "normal",
+            "recipe_hash": "1e0349a8998f8c0c76023238fa935d37e92e236e2d7df620dc3c6440da3aa27b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06f",
+            "variant": "slow",
+            "recipe_hash": "73218ee9b7de651c20d707ba64e5e05f78a506c34db0e310b487c8ad44cba66f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06g",
+            "variant": "normal",
+            "recipe_hash": "8dd792204b89caca2a986874a9110dcc247df470d25c12b96b7718d355ef8583"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06g",
+            "variant": "slow",
+            "recipe_hash": "0f86739915b232a0c27c2a45809023fbe2e1cc0ff9504c1b7ebae0c2359febc6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06h",
+            "variant": "normal",
+            "recipe_hash": "16ad8fec465d3db495c8ce22dce30f6b7af0cf75b5ec16c1531539c99e418022"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "06h",
+            "variant": "slow",
+            "recipe_hash": "16687f099a0eca4f7ab0bb649c9eecb24ca16e64029e192b62327b2041d8fbfb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07a",
+            "variant": "normal",
+            "recipe_hash": "3b18e63325e9d1506e28de0e245818fb8fa77dc0f21735b19e23dfcc388aba47"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07a",
+            "variant": "slow",
+            "recipe_hash": "ada81681f0535135a90762a10f300c2987ddf6a6170659927e736b959416adf7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07b",
+            "variant": "normal",
+            "recipe_hash": "a1a20e34a4e103860e9ab8da87d62d68dffcb1dcdf51fd1ed8b3cebf8ffde2d9"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07b",
+            "variant": "slow",
+            "recipe_hash": "420c67244c572bd6be5bd9f7f6b9e84933d954b836eaacbc039c0641aad10b0e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07c",
+            "variant": "normal",
+            "recipe_hash": "ef55e823293968b5efb9ac9a9c8ae8f1e89a4766b38a22d65203a64d684f1def"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07c",
+            "variant": "slow",
+            "recipe_hash": "1e0eaead330812dcc4f710dce3e861dc299448d086b5489b2a14f58feb894dc6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07d",
+            "variant": "normal",
+            "recipe_hash": "f8e285836395deccdf7ab8e211826ed285248ad1a794ea6f978dcb95d86b2f81"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07d",
+            "variant": "slow",
+            "recipe_hash": "c49d2f1eeb279611d2df08b536db04dd07e15b2a70776ff28618e684561e6e64"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07e",
+            "variant": "normal",
+            "recipe_hash": "0ea0662372a7215421126dba044d4985baef58080c6f2cfa88a7ba156c0e7f28"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07e",
+            "variant": "slow",
+            "recipe_hash": "138b0d2a789ebdb09734a568e5a122502e6b3fc982366362fff3c2fb5225bb1d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07f",
+            "variant": "normal",
+            "recipe_hash": "f112d4b7f7b8a46320b3b541afbf29ad86c7a849c9a4b82b4589d236aa8b577a"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07f",
+            "variant": "slow",
+            "recipe_hash": "7635b8ca8b0c47f4f7907e4c93b8425777a506244511abed7eb726a0900a17ef"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07g",
+            "variant": "normal",
+            "recipe_hash": "380a977f5190273de92f86ae1cf52652336c56948206920be25753c5b69a92e8"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07g",
+            "variant": "slow",
+            "recipe_hash": "52c90e844543d3e85736816e5485304576719c72bcbd8b4a53e89b0891e9f936"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07h",
+            "variant": "normal",
+            "recipe_hash": "08a05e889de25bdce7dcaaec5ba543cfb5b63da03e66351bdc3618edb39a9c8f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "07h",
+            "variant": "slow",
+            "recipe_hash": "8cd9c9da9329b1ffd708e5f0c2e674d8765baf1760d0dfe1615a07fa723d4119"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08a",
+            "variant": "normal",
+            "recipe_hash": "1364dd7186b99c045c71f8d9209e49c0c9e82a3f113b5ac64ad27f04108ff959"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08a",
+            "variant": "slow",
+            "recipe_hash": "ad7dedad0532e3cedf91360c39bd05c5bdf560094a086143e8adfbcf6dd0efee"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08b",
+            "variant": "normal",
+            "recipe_hash": "c2e05a1417547f0cdce11ef309b0601ce5c360f353a9ec0a258a7658a070a215"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08b",
+            "variant": "slow",
+            "recipe_hash": "ac3086e4a5b7fc9350b2dfaab2a5b1423078621872d06f40a7d02785e4acbc49"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08c",
+            "variant": "normal",
+            "recipe_hash": "f1a157cfdf13b2f0f343fe799bb8c785d6a856c92dcb889f03a2ec82bb21ab16"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08c",
+            "variant": "slow",
+            "recipe_hash": "93927320ebb6e5d87fe7c966cfc1b987f19527835a298811a3b6bf1f1b4349b1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08d",
+            "variant": "normal",
+            "recipe_hash": "d54d955acee315fab9216b6baeaeddf2f5452fbd94d3cae1e494a27f0140a884"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08d",
+            "variant": "slow",
+            "recipe_hash": "9dbb62b56346a730004a542761cc987a8e60a7adf44fb75e24d20af9e0775968"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08e",
+            "variant": "normal",
+            "recipe_hash": "380f7eef8791375f4d5a65f157776717bffd0d38fe5f023ae9f5d1ae83267730"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08e",
+            "variant": "slow",
+            "recipe_hash": "4557bc1b2d2f9401bf2c76603361213c7cdc54cbfa1d2076787b24ba48a38f6f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08f",
+            "variant": "normal",
+            "recipe_hash": "8d2641a9dcc6af8f46f9a326af46358c302d54a3db1921d172f2c3bf930fd5f4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08f",
+            "variant": "slow",
+            "recipe_hash": "735550ae2308716e14fe9b28814619241788b7b53459b1dacee6dcaf8c9c5e4e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08g",
+            "variant": "normal",
+            "recipe_hash": "ba247e39577a4c6a9a1eac00d651d7a1cba80f4f7996b823a83fb666ca0a813c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08g",
+            "variant": "slow",
+            "recipe_hash": "8d9c11cfa241966336157931e918a6fce394961ccf88620850ae4b7ddcf62704"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08h",
+            "variant": "normal",
+            "recipe_hash": "1d48a27cddda3d019c775dfb68c402f7f6a0095d949588d7300bff3d3e44c7ba"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "08h",
+            "variant": "slow",
+            "recipe_hash": "30abaa7b670e6adfba60a1f2ea049bfa9d27cf37afcbcde13c115bb67e4eb4b4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09a",
+            "variant": "normal",
+            "recipe_hash": "b6b3974761d888d0ce34b1d4a837c36f80af9b384813331b84c714768b138c78"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09a",
+            "variant": "slow",
+            "recipe_hash": "634f3609875175a9c1b26168d723537a7f2024bea17cf4a2da3e5cbf555b7937"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09b",
+            "variant": "normal",
+            "recipe_hash": "536ae8162a1f569789830fa5938bf13b59326dc4f32da00427210cb7f5371e98"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09b",
+            "variant": "slow",
+            "recipe_hash": "3ec983dc3dac269308e5a17d0d6952433b685eeedfe457cd74bb3c48d143471b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09c",
+            "variant": "normal",
+            "recipe_hash": "b9a3b2cce7d91b72b7b8f3c3c68f11e71775a09c4c2a12b4ee44697576bae0f2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09c",
+            "variant": "slow",
+            "recipe_hash": "31d0dc9533593411442690a51da06d5a4919d390efced94d1bc12a4963ebd3ed"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09d",
+            "variant": "normal",
+            "recipe_hash": "bb655b3f6861abf18097dda79872c71204c381c5d108b16e0e74852cfea6470f"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09d",
+            "variant": "slow",
+            "recipe_hash": "1cc902b82fae1af3ede0498f2ae6e868b03d75e432bdd562f28eafa777f913e7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09e",
+            "variant": "normal",
+            "recipe_hash": "8c3592cd0a8b584f288cb516fa3ea1feffa965e2c3c474bd63bdbd4cfea45d1b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09e",
+            "variant": "slow",
+            "recipe_hash": "d34a4d04072e543e25d342dda77557da8795a882fccb814e64b72a1c07f829cb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09f",
+            "variant": "normal",
+            "recipe_hash": "aeb6e4a9d5121b3d84f795c37c5fc456a30a350f8d6a05ebfde8b9bdba1fd220"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09f",
+            "variant": "slow",
+            "recipe_hash": "66b3176a88c05d154ba10f3c5f7c2076b948a5363e5064e6ef9891163d620049"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09g",
+            "variant": "normal",
+            "recipe_hash": "2d35b44146942b32a4709cb3d1ac00ca09c4c244e4933c8075816f269f4ea9fe"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09g",
+            "variant": "slow",
+            "recipe_hash": "0ce44bd7406d708a2900e5be30c2861dce88c8c9c6f483120ae4178362baad79"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09h",
+            "variant": "normal",
+            "recipe_hash": "4797ea56fff18515efce12ba57feb33cb7ab86bfe1db6abf7542fb1c6b856ea2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "09h",
+            "variant": "slow",
+            "recipe_hash": "d75dc5c8d7ff508904c348894372cef05208c62e65bb1d9cc6522146893b8675"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10a",
+            "variant": "normal",
+            "recipe_hash": "d19e8917bfc5412d6d6efe6c3705507c4228f520bca6d9d1ed1dd07cf1f10bc4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10a",
+            "variant": "slow",
+            "recipe_hash": "dd019706718004f6171742b79fc1d97367c69e56ca63492efbe915f94839c0de"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10b",
+            "variant": "normal",
+            "recipe_hash": "0f34ac14561254cd0be400d83fb02bf4060991714954169f05b2732f2367d0ef"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10b",
+            "variant": "slow",
+            "recipe_hash": "1127e8648f6f5bd8daf718e31ab0921c373586234991d112d651894ec4465f97"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10c",
+            "variant": "normal",
+            "recipe_hash": "523711f34ff49867db8321e01cd6d27b932c11f3eab2ff57c1e998b65ee01ce6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10c",
+            "variant": "slow",
+            "recipe_hash": "3bd4339b3885e9bbe803b061421fb574c8b3d9b87305fc386a979afc8ecdb86e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10d",
+            "variant": "normal",
+            "recipe_hash": "59603d54a0772c629ab5acae1c2805c0ea3c69d97a311493e4ce3a5ab8e10407"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10d",
+            "variant": "slow",
+            "recipe_hash": "2d60dc3b3501a63398cc813fe801783a7813eb51abc72e21bbfb9f713270b73c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10e",
+            "variant": "normal",
+            "recipe_hash": "39e3b81ec3db82ca8dcf8fa281d20caeaf3fb0474240cb14ca7713b9537e45fd"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10e",
+            "variant": "slow",
+            "recipe_hash": "24344ac088692c10239be99948c75f48250033aa0beec93c0a5d9a9cce8ff260"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10f",
+            "variant": "normal",
+            "recipe_hash": "74f7e3cefc42db2660b2d8530c4ad936067cf9ce391984c188df482936b3754b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10f",
+            "variant": "slow",
+            "recipe_hash": "9a71bc11d3ce462780edc8b683717979e45b73c4b14a4ddab108005465a2139c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10g",
+            "variant": "normal",
+            "recipe_hash": "6750b97c029ebd83b85808f4ecd0f34d16c4f1e9f8ae51271187a5bf44bd4338"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10g",
+            "variant": "slow",
+            "recipe_hash": "cffa7a813d621bfc8b80745c20b4f62f975fc390b5d832c22de4c5b698b3f15c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10h",
+            "variant": "normal",
+            "recipe_hash": "b4fac5d694b39f475c797019d46d0d282d060c4dd298215d8413961b5fee4861"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "10h",
+            "variant": "slow",
+            "recipe_hash": "387b0510d6c7f9050f8e0f0d6f7caa34fe785e0c227f82b3a3cb541c84e094d2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T01",
+            "variant": "normal",
+            "recipe_hash": "61b6caedd9d7a020f08147d0b192b497c5745edc1687c7b9f4efc316572a869b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T01",
+            "variant": "slow",
+            "recipe_hash": "d9235fd537db69d74267de7f2c9f3ef71428a6f0ced2bd2ba504ce970f21d6be"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T02",
+            "variant": "normal",
+            "recipe_hash": "9f92ef605661f003fa77dc88021c2af7bcfe0ca01b4be615fd06976700e5c9b0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T02",
+            "variant": "slow",
+            "recipe_hash": "9b71ce3e9f88c04af08bfbc91c7ab37edab098e2631ea1362861157bfb99a1a4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T03",
+            "variant": "normal",
+            "recipe_hash": "782209fa6e99dd951e93043f118002e08fd5ddf73ab40059b1bc92e89140a42c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T03",
+            "variant": "slow",
+            "recipe_hash": "6c9e97a4a19f4b54ac6795f8ee6ae6bbdd12a81c6a99824f033fb62e0de5da43"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T04",
+            "variant": "normal",
+            "recipe_hash": "ef8b13ae776742ec918f54f5ae988eb91abb0b20c2be0673b8eab382bf800a66"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T04",
+            "variant": "slow",
+            "recipe_hash": "cc0ec9b5a6c29109755eb76eda76d4accb792e7e1e0d4e37028d42fbf10d756e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T05",
+            "variant": "normal",
+            "recipe_hash": "68561e73fe62bb8972d3179e6d4891d6334e328b28ea271212630342153063a0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T05",
+            "variant": "slow",
+            "recipe_hash": "f558ff48f4b35aea617d433e3c64f70d7a8d48c94b2eba3729093ebb65587a7d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T06",
+            "variant": "normal",
+            "recipe_hash": "0da15103258e6f56f6a189a789777e60af6b0381c109ff27b724d052ac8dd4ad"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T06",
+            "variant": "slow",
+            "recipe_hash": "57573ec75df9f7dcaa8c565144be77b1d7bd1f2a7c221618309dd0f6fc342093"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T07",
+            "variant": "normal",
+            "recipe_hash": "1e4381cb4c27e94d6ab1402b5a412a8e4c6cf181dbf43764269ba7a85cb07c74"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T07",
+            "variant": "slow",
+            "recipe_hash": "08f5c5219f5c23d94b49a89a48b2b5c164e93420f027f9863c6520f6e6450462"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T08",
+            "variant": "normal",
+            "recipe_hash": "df53876a820e7ca78e5899bbb85e3720fb66ec6e26ca11c64c3d1bc7f53bf78c"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T08",
+            "variant": "slow",
+            "recipe_hash": "7b393a007858f1f7d534e5eabe92803aaead6143b9696a6d429fec57bd9abdb8"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T09",
+            "variant": "normal",
+            "recipe_hash": "60a28f813322cbfebd1d05f3aa19529480d52a200cf89f86c45258d9c54af8f5"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T09",
+            "variant": "slow",
+            "recipe_hash": "994f6be4787b11653acfdc2a7c73ef63964d041da61b00dd6fc25c7cbc816a92"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T10",
+            "variant": "normal",
+            "recipe_hash": "1e8a9467ffeec01bab0e59f5d47020ddbd9983b9e1142e9e635dc853f42b2963"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T10",
+            "variant": "slow",
+            "recipe_hash": "411035d72dcfae052ad3fa257c7975d698091989ae333b4d997df6751f180bdb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T11",
+            "variant": "normal",
+            "recipe_hash": "ac85b6893bdbdde76770b59c6642639c9b134002485c2781f9b08f17d140eaf1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T11",
+            "variant": "slow",
+            "recipe_hash": "9a0643be1e3be6e76403e96c53f188300b1d84980e1fa4df97e05172c370daf9"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T12",
+            "variant": "normal",
+            "recipe_hash": "93aa2c9955c0b31af534720194e7908cf86d51a0cdd1ccdd843cc420e6b2828e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T12",
+            "variant": "slow",
+            "recipe_hash": "29b14d3c3560e56bb7324f80a3997fbe72afc4e686ee8b1ebe408eaeda85b6e7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T13",
+            "variant": "normal",
+            "recipe_hash": "7cc14ada4a242f6e72d0127e8108708c1d0b419a7f97903f75765a4559c7bdf0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T13",
+            "variant": "slow",
+            "recipe_hash": "b34c782c021337a216f6c93d32b78d1e8d131b9d07039e299c63991b073cb3e2"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T14",
+            "variant": "normal",
+            "recipe_hash": "b97e697c689f8ea9004dc6f384485cc50174956fc3ab5ab3cc47908588076faf"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T14",
+            "variant": "slow",
+            "recipe_hash": "0e23b5e2c111d92780ac96516c1df2d280bbe63d3d19b4b564bbb7400adb2be6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T15",
+            "variant": "normal",
+            "recipe_hash": "b0a9f03f805ecbc7c81ccb0a5b203296783d0a74b29cc44c4349db2f7b89bfac"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T15",
+            "variant": "slow",
+            "recipe_hash": "9d5a1273b0c2cd76d73a7bf68607b001e43fae8df5c4bd1c68c5cff8bed3c280"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T16",
+            "variant": "normal",
+            "recipe_hash": "eb9a24554d187df377c85c6b885055ae8d17a49e664f0476aae3c14bffed940e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T16",
+            "variant": "slow",
+            "recipe_hash": "03d90191835a01647312840cc20d02ad2b4b6b460927e34bd3c77e340a293c58"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T17",
+            "variant": "normal",
+            "recipe_hash": "3f7992c11c618c2b3f5a55dffddc31593ae3946a53c87a1e7560065c29fbf70e"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T17",
+            "variant": "slow",
+            "recipe_hash": "1583cedbcbf403edef1808f2c364bd7875af32eb112111c28571ca6d12f80fbd"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T18",
+            "variant": "normal",
+            "recipe_hash": "688e90ced105d501601181839c50c7a9c028db6ec98f10da3da15037744dd938"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T18",
+            "variant": "slow",
+            "recipe_hash": "d70550ffad593dacd17ad110fa75f6d6dfafa3b89b04b41fd55eda6f970bdd4b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T19",
+            "variant": "normal",
+            "recipe_hash": "fa97b2f9c2445c1366b1e4cf9cb85daaf43df37fab2564454214ad7708aa33d0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T19",
+            "variant": "slow",
+            "recipe_hash": "93be44e1ff8defb4c3172ac37c35cbaf6d8b3e509e8179bde630c7fcfae1bce4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T20",
+            "variant": "normal",
+            "recipe_hash": "f1a6d68c4cf77a5ee2a6c78eaa2d5d11605ff7c3ce91f2e23a08aa4f4678606d"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "T20",
+            "variant": "slow",
+            "recipe_hash": "f65a2d60e0ad2e19b4d1a380ba5d7d091f8500ac749f4caa6e7d01206f8d73e6"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v01",
+            "variant": "normal",
+            "recipe_hash": "636934fce4a6ec8ea73b369e219ad05714d162612fe3d8bd729096b6dd40dcf4"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v01",
+            "variant": "slow",
+            "recipe_hash": "16e8bc0463499867662855aedfd4149d865a0845423cf5cafbc7c2d1307d91e1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v02",
+            "variant": "normal",
+            "recipe_hash": "a59c82abc273dff3f495598806e297bdc8b356f434a442eb2ecd3e07e07459db"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v02",
+            "variant": "slow",
+            "recipe_hash": "10f29c687996d8c6fc32e82ebbd00ad6d0cc0f3356dc9029182536bf0fd502eb"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v03",
+            "variant": "normal",
+            "recipe_hash": "1f2595a7f5567d51637343a56ee943d12daa5665284d16e1e9fecbcb9f86d1d0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v03",
+            "variant": "slow",
+            "recipe_hash": "9766034b97c68617681757e6f6e97be83d49463a5dd9656d4dca74275a4102c7"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v04",
+            "variant": "normal",
+            "recipe_hash": "f939d7922a693c7c7db586f9be3d8b462542cefcf66bc429b91b58b8f81c18d0"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v04",
+            "variant": "slow",
+            "recipe_hash": "0d7ba796cc2d3b5baf94b8d996b3803b967c631fa37f3bd3bda2415427f13166"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v05",
+            "variant": "normal",
+            "recipe_hash": "4b5380232c62ac4d4f32ad3c9225ce6add7dcead9d634cfcbec809be671e50de"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v05",
+            "variant": "slow",
+            "recipe_hash": "01a772b6cf7c540a8c08ba5f77bfa87a2c87d827276246fdf3ac244ede2fb696"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v06",
+            "variant": "normal",
+            "recipe_hash": "169b0125bfe7d8bcb60259edb575dee2acf92953c4951e0c04f9b89f55e1e229"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v06",
+            "variant": "slow",
+            "recipe_hash": "4cadd0d03317db7bc7e13272db3e445c3de49b5f477b539f6f08885331d77bba"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v07",
+            "variant": "normal",
+            "recipe_hash": "e07ed3d143c842930b2d1e1d301cd2308c28717846d20e9debfb1864e2d2b2df"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v07",
+            "variant": "slow",
+            "recipe_hash": "b0a12fa5f609a005731af3cdb22db661f8d8e12812dc4a21b219044f1a660367"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v08",
+            "variant": "normal",
+            "recipe_hash": "fe39af973cc86d723cc5fd1f46f9fd87fd16ee27a9c4f6751e4c935236f1a10b"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v08",
+            "variant": "slow",
+            "recipe_hash": "a267b6b5678bcf7096a1fcc468b363ae4d5cb5a4577ae6fcf0c77da525e8f0b1"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v09",
+            "variant": "normal",
+            "recipe_hash": "5eceaf21ee4f13fd6008f6f4484cd680e08177ebe3db7f754bd6eff35eeab2fa"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v09",
+            "variant": "slow",
+            "recipe_hash": "b04a671e9f92c8beb4b7316f46e19b4b646e92fa2dbaee4e0a262735badbeffe"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
+            "source_kind": "utterance",
+            "source_id": "v10",
+            "variant": "normal",
+            "recipe_hash": "9c35df3caffc314bb20e4c00c3e4282efd740fb64eb5d13cdc36716cbd90e222"
+        },
+        {
+            "course_id": "mandarin-foundations",
+            "content_version": "1.2.0",
             "source_kind": "utterance",
             "source_id": "v10",
             "variant": "slow",

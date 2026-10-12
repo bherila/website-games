@@ -33,9 +33,9 @@ place during a code rollback.
 The recall-compatible release accepts course schemas 1 and 2 and implements
 `self_check` on allowlisted `say_check` activities. The five authored activities
 are in `resources/data/mandarin/recall-exercises.v2.json`; they are inactive until
-included in a separately activated course revision. The live source course remains
-1.1.1 in the compatibility release. Course 1.2.0 activation must follow its successful
-deployment, with fresh source mappings for the unchanged recordings. No new speech
+included in a separately activated course revision. The compatibility release kept
+1.1.1 active. The following content release selects `foundations.v2.json` (1.2.0),
+after that client has deployed, and adds 316 fresh source mappings for the unchanged recordings. No new speech
 or Chinese sentences are needed.
 
 Recall correctness is null: a self-rating is a learner claim, not verified
