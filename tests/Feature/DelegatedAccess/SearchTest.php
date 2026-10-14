@@ -12,6 +12,19 @@ use BWH\Auth\OAuth\PendingAccount;
  */
 class SearchTest extends DelegatedAccessTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // The actor is searchable too: random factory names must not accidentally
+        // match a test's query and change its expected result.
+        $this->manager->forceFill(['name' => 'Search Operator', 'email' => 'operator@example.test'])->save();
+    }
+
+    public function test_a_matching_acting_administrator_is_included_in_search(): void
+    {
+        $this->assertSame([self::MANAGER], $this->search('OPERATOR'));
+    }
+
     public function test_a_search_matches_name_or_address_case_insensitively(): void
     {
         $this->named('by-name', 'Example Walker', 'w1@example.test');
