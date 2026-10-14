@@ -41,6 +41,51 @@ An expansion decision should prioritize the learner's actual failure mode:
 
 These are proposed decision rules, not claims that the small trial proves a causal effect.
 
+### A runnable trial protocol (#58 / #103)
+
+This is preparation for a real trial, not a completed trial or authorization to publish
+learner data. Keep individual observations in a private evaluation record; public issues
+receive only an anonymized coverage summary and product decisions. Never copy raw event
+logs, account identifiers or recordings into the repository.
+
+1. Record the deployed course revision, browser/device and whether practice was offline.
+   Before changing mechanics, save the read-only baseline report privately with a dated
+   window and the chosen time basis. Review eligible grade transitions, helped-correct
+   Again, never-Good cards and sync lag alongside the existing comprehension measures.
+2. Use ordinary short sessions, documenting actual practice time and material encountered.
+   Observe the five existing recall prompts without recording the learner's voice.
+   Self-rated “said it” is a claim to compare later, not a pronunciation result.
+3. Plan delayed observations at about one and seven days after the actual practice time.
+   If the learner practiced offline, record occurrence and synchronization separately;
+   server acceptance time alone cannot establish the delay. Mark missing or unreliable
+   timing explicitly instead of silently assigning a delayed-recall bucket.
+4. Within an observation, ask for formulation before a model or listening prompt exposes
+   the same sentence. For repeated familiar prompts, record all prior exposure and help.
+   The reserved twenty-item checkpoint is administered only after teaching and is never
+   used to prepare practice prompts or a public example sheet.
+5. Ask what was confusing, whether reviews felt manageable and whether the story motivated
+   another session. At the end, prioritize a specific observed problem and record the
+   retain/change/expand decision. New word-family activities (#122/#123) and s11 (#99)
+   remain candidates until the expansion decision and native review pass.
+
+Use one row per observation, with blank cells until evidence actually exists:
+
+| Field | What to record privately |
+|---|---|
+| Anonymous learner label / session | A study-local label, no account or contact identifier |
+| Revision / device / time | Course revision, browser/device, actual practice time and sync conditions |
+| Skill / prompt exposure | Listening or formulation; familiar versus previously unheard; prior reveals/replays |
+| Delay / time reliability | Time since actual learning; approximate 1-day / 7-day probe; any clock/sync uncertainty |
+| First attempt / help / later result | Unaided first response, voluntary replays/text help, then assisted result separately |
+| Recall calibration | Earlier self-rating and later result; production before revealing a same-target model |
+| Workload / confusion / motivation | Actual session length, review burden and the learner's concrete observations |
+| Decision / evidence limits | Next action and why; missing observations; no causal or cross-voice claim |
+
+No novel-sentence transfer or independent pronunciation assessment can be inferred from
+replaying familiar sentences with the same narrator. Those require separately reviewed,
+unexposed items and, for pronunciation, independent proficient-speaker ratings. Do not
+stretch intervals or call Gate C passed merely because the software report runs.
+
 ## Operational completion record
 
 Keep a short factual release note with: current course revision; generated image files; narrator/engine/region; ready/missing/failed audio assets; native review status; tested browser/device combinations; queue and storage topology; local/S3 verification; migration/import commands; and actual test results. Separate “implemented” from “executed and verified.”
