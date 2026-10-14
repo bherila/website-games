@@ -21,6 +21,17 @@ review taken at its effective due time.
 | Time basis | FSRS and the window run on `accepted_at`; `client_occurred_at` is stored, unused | known |
 | Outbox | Rejected events are kept and resent forever, so a v1 drop would strand them | migration risk |
 
+## Current implementation follow-through
+
+The audit below remains a historical snapshot, not a description of every current code path.
+Review continuation and Hard graduation shipped in #109; event-schema compatibility and
+outbox handling shipped in #111/#114; separate formulation cards and the five-sentence
+recall loop shipped in #117/#119. The baseline report now supplies read-only P1/P4/P6/P8
+counts, including skill-separated eligible histories and sync lag; see
+[the report contract](mandarin.md#baseline-report). Leech remediation, automatic Easy and
+longer self-rated recall intervals still await learner evidence. Tooling is not a completed
+learner trial (#58/#103).
+
 ## 1. Grading
 
 `PracticeEventService::grade()` (`app/Services/Games/Mandarin/Progress/PracticeEventService.php:208-253`)

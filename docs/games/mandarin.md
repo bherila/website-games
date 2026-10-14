@@ -270,6 +270,31 @@ response on the same target was 1 to under 7 days, or 7+ days, earlier; (5) help
 per 100 responses and the share of responses with text or pinyin help; (6) lapses: targets answered incorrectly after
 an earlier Good (a correct answer with text or pinyin help is also graded Again, but is not counted as a lapse).
 
+The additive `scheduler` block provides audit queries P1/P4/P6/P8 in both text and JSON:
+
+- Eligible grade counts and Again reasons, separated by `listen.meaning` and `form.recall`.
+  Incorrect listening answers are separate from helped-correct Again; recall misses are
+  labelled self-report. Only the first response in an opportunity, with attemptIndex 0,
+  server schedule eligibility and lesson/review mode enters these measures. Legacy v1
+  responses are deduplicated too. Construction, checkpoint and extra practice are excluded.
+- The next eligible response to the same learner's same skill/card, grouped by earlier
+  grade, gap and the later answer's assistance. It reports sample counts and next-Good /
+  next-Again rates. History before `--since` supplies the predecessor; the later response
+  must be in the window. Gaps are <1 day, 1 to <7 days or 7+ days; a backwards untrusted
+  client clock is a separate bucket, never delayed-recall evidence. Again does not always
+  mean forgetting, and these rates are exploratory, not validated interval calibration.
+- Counts of cards with at least four eligible first responses and no historical Good or
+  Easy through `--until`, touched by an eligible result in the window. These are a possible
+  re-teaching signal, not a leech diagnosis; recovered cards and different skills/learners
+  are not conflated. No automatic suspension or scheduler change is made.
+- Stored non-preview event-schema arrivals and accepted-minus-client sync lag: unparsed,
+  future clock, <1 minute, 1 minute to <1 hour, 1 hour to <1 day and 1+ days. These count all
+  stored events in the selected report window, not rejected requests or outbox retries.
+
+No target/card identifiers are printed. Producing the report is tooling; #103 and #58
+still require actual multi-session observations before deciding to stretch intervals or
+expand the curriculum.
+
 Time defaults to `accepted_at`, which includes sync delay for offline sessions (an offline session is stamped
 when it uploads). `--time-basis=client` uses `clientOccurredAt`, labelled "client-reported, untrusted".
 
