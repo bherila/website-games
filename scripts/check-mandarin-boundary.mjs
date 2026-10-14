@@ -31,8 +31,11 @@ export const ALLOWED_IMPORTERS = new Set([
   'resources/js/games/game-select/mandarinCatalogEntry.ts',
   // Tests that exercise the card against real Mandarin progress.
   'resources/js/games/game-select/__tests__/GameSelectPage.test.tsx',
-  // The audio dashboard enters the shared admin shell through one import.
-  'resources/js/admin/AdminPage.tsx',
+])
+
+/** Only the dashboard barrel is exposed to the shared admin shell. */
+const ALLOWED_IMPORT_PAIRS = new Map([
+  ['resources/js/admin/AdminPage.tsx', new Set(['resources/js/admin/mandarin'])],
 ])
 
 /** The guard's own test, whose fixtures quote violating imports as strings. Never scanned. */
@@ -98,7 +101,8 @@ export function findViolations(root) {
           continue
         }
         seen.add(spec)
-        if (pointsIntoMandarin(resolveSpecifier(spec, file))) {
+        const resolved = resolveSpecifier(spec, file)
+        if (pointsIntoMandarin(resolved) && !ALLOWED_IMPORT_PAIRS.get(file)?.has(resolved)) {
           violations.push(`${file}: imports '${spec}' from the Mandarin folder; register through a shared seam instead`)
         }
       }

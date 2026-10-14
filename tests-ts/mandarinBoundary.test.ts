@@ -68,6 +68,18 @@ describe('Mandarin boundary guard', () => {
     expect(output).toContain('resources/js/games/pwa/serviceWorkerPolicy.ts')
   })
 
+  it.each([
+    "import type { AudioApi } from './mandarin/audioApi'",
+    "import type { AudioState } from '@/admin/mandarin/types'",
+    "const m = import('./mandarin/MandarinAudioDashboard')",
+    "export { x } from './mandarin/types'",
+    "import { x } from '../games/mandarin/domain/course'",
+  ])('rejects AdminPage reaching past its barrel: %s', (source) => {
+    const result = run({ ...INSIDE, 'resources/js/admin/AdminPage.tsx': source })
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('resources/js/admin/AdminPage.tsx')
+  })
+
   it('does not flag a game whose name merely starts with mandarin', () => {
     expect(run({ ...INSIDE, 'resources/js/games/a/b.ts': "import x from '../mandarin-lite/x'\n" }).status).toBe(0)
   })

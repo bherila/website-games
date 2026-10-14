@@ -466,8 +466,9 @@ code must not reach into Mandarin** (issue [#94](https://github.com/bherila/webs
 
 `scripts/check-mandarin-boundary.mjs` runs in the Frontend Static Checks job. It fails when a file outside
 the game or admin Mandarin module imports from either module (static, dynamic, `require`, re-export or `jest.mock`
-specifiers, relative or `@/`), unless the file is in `ALLOWED_IMPORTERS` at the top of the script, and when
+specifiers, relative or `@/`), unless explicitly allow-listed at the top of the script, and when
 `routes/web.php` or `routes/api.php` mention Mandarin. Its own tests are `tests-ts/mandarinBoundary.test.ts`.
+The shared `AdminPage.tsx` exception allows only the `./mandarin` barrel, not its internals.
 Run it locally with `node scripts/check-mandarin-boundary.mjs`. Widening the allow-list widens the coupling, so
 do it in a PR that says why.
 
