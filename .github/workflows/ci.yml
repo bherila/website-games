@@ -157,6 +157,25 @@ jobs:
       - name: Run PHPUnit
         run: php -d memory_limit=1G artisan test --compact
 
+  browser-pwa:
+    name: PWA Browser Checks
+    needs: frontend-build
+    uses: ./.github/workflows/browser-checks.yml
+    with:
+      script: test:e2e:games-pwa
+      report_name: games-pwa-playwright-report
+      authenticated_fixture: true
+      reuse_frontend_build: true
+
+  browser-gameplay:
+    name: Gameplay Browser Checks
+    needs: frontend-build
+    uses: ./.github/workflows/browser-checks.yml
+    with:
+      script: test:e2e:gameplay
+      report_name: gameplay-playwright-report
+      reuse_frontend_build: true
+
   test:
     name: Run Tests
     needs:
@@ -165,6 +184,8 @@ jobs:
       - frontend-tests
       - backend-static
       - backend-tests
+      - browser-pwa
+      - browser-gameplay
     if: always()
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
@@ -184,6 +205,8 @@ jobs:
           check "frontend-tests" "${{ needs.frontend-tests.result }}"
           check "backend-static" "${{ needs.backend-static.result }}"
           check "backend-tests" "${{ needs.backend-tests.result }}"
+          check "browser-pwa" "${{ needs.browser-pwa.result }}"
+          check "browser-gameplay" "${{ needs.browser-gameplay.result }}"
 
   deploy:
     name: Deploy to Production

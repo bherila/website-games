@@ -1,0 +1,164 @@
+name: Browser Checks
+
+on:
+  workflow_call:
+    inputs:
+      script:
+        type: string
+        required: true
+      report_name:
+        type: string
+        required: true
+      base_url:
+        type: string
+        default: ''
+      authenticated_fixture:
+        type: boolean
+        default: false
+      reuse_frontend_build:
+        type: boolean
+        default: false
+      timeout_minutes:
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: ${{ inputs.report_name }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set Playwright target
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+          AUTHENTICATED_FIXTURE: ${{ inputs.authenticated_fixture }}
+        run: |
+          if [ -n "$INPUT_BASE_URL" ]; then
+            if [ "$AUTHENTICATED_FIXTURE" = 'true' ]; then
+              echo '::error::Authenticated fixtures require an isolated local app.'
+              exit 1
+            fi
+            echo "PLAYWRIGHT_BASE_URL=$INPUT_BASE_URL" >> "$GITHUB_ENV"
+            echo 'RUN_LOCAL_APP=false' >> "$GITHUB_ENV"
+          else
+            echo 'PLAYWRIGHT_BASE_URL=http://127.0.0.1:8000' >> "$GITHUB_ENV"
+            echo 'RUN_LOCAL_APP=true' >> "$GITHUB_ENV"
+          fi
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Check browser-test types
+        run: pnpm run type-check:e2e
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Setup PHP
+        if: env.RUN_LOCAL_APP == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, intl
+          coverage: none
+
+      - name: Cache Composer dependencies
+        if: env.RUN_LOCAL_APP == 'true'
+        uses: actions/cache@v6
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install Composer dependencies
+        if: env.RUN_LOCAL_APP == 'true'
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Download frontend build
+        if: env.RUN_LOCAL_APP == 'true' && inputs.reuse_frontend_build
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-build
+          path: public/build/
+
+      - name: Build frontend
+        if: env.RUN_LOCAL_APP == 'true' && !inputs.reuse_frontend_build
+        run: pnpm run build
+
+      - name: Create local app environment
+        if: env.RUN_LOCAL_APP == 'true'
+        env:
+          AUTHENTICATED_FIXTURE: ${{ inputs.authenticated_fixture }}
+        run: |
+          cp .env.example .env
+          {
+            echo 'APP_ENV=testing'
+            echo 'APP_URL=http://127.0.0.1:8000'
+            echo 'DB_CONNECTION=sqlite'
+            echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite"
+            # Anonymous browser checks do not need database-backed sessions/cache.
+            echo 'SESSION_DRIVER=file'
+            echo 'CACHE_STORE=file'
+          } >> .env
+          if [ "$AUTHENTICATED_FIXTURE" = 'true' ]; then
+            e2e_auth_token="$(openssl rand -hex 32)"
+            echo "::add-mask::$e2e_auth_token"
+            {
+              echo 'APP_ENV=e2e'
+              echo 'E2E_USER_ID=1'
+              echo "E2E_AUTH_TOKEN=$e2e_auth_token"
+            } >> .env
+            echo "E2E_AUTH_TOKEN=$e2e_auth_token" >> "$GITHUB_ENV"
+          fi
+          touch database/database.sqlite
+          php -d memory_limit=1G artisan key:generate --no-interaction --force
+
+      - name: Prepare isolated browser fixture
+        if: env.RUN_LOCAL_APP == 'true' && inputs.authenticated_fixture
+        run: |
+          php -d memory_limit=1G artisan migrate --database=sqlite --no-interaction
+          php -d memory_limit=1G artisan db:seed --database=sqlite --class=DatabaseSeeder --no-interaction
+
+      - name: Start local Laravel server
+        if: env.RUN_LOCAL_APP == 'true'
+        run: |
+          php -d memory_limit=1G artisan serve --host=127.0.0.1 --port=8000 > storage/logs/playwright-server.log 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/browser-checks-server.pid"
+          for attempt in {1..30}; do
+            if curl --silent --fail "$PLAYWRIGHT_BASE_URL/" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat storage/logs/playwright-server.log
+          exit 1
+
+      - name: Run browser checks
+        env:
+          BROWSER_SCRIPT: ${{ inputs.script }}
+        run: pnpm run "$BROWSER_SCRIPT"
+
+      - name: Stop local Laravel server
+        if: always() && env.RUN_LOCAL_APP == 'true'
+        run: |
+          if [ -f "$RUNNER_TEMP/browser-checks-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/browser-checks-server.pid")" || true
+          fi
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.report_name }}
+          path: |
+            playwright-report/
+            test-results/playwright/
+            test-results/tower-throwback/
+            storage/logs/playwright-server.log
+          if-no-files-found: ignore
+          retention-days: 7

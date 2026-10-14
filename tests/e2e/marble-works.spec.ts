@@ -17,7 +17,7 @@ async function cellPoint(page: Page, cols: number, rows: number, col: number, ro
 }
 
 test.describe('Marble Works', () => {
-  test('the tutorial level can be built, run and won, unlocking level 2', async ({ page }) => {
+  test('the tutorial win unlocks level 2 and keeps progress after reload', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(String(error)))
 
@@ -38,6 +38,12 @@ test.describe('Marble Works', () => {
 
     const saved = await page.evaluate(() => window.localStorage.getItem('bwh.marble-works.progress.v1'))
     expect(JSON.parse(saved ?? '{}')).toMatchObject({ unlockedLevel: 2, stars: { 1: 3 } })
+
+    await page.reload()
+    await expect(page.getByTestId('level-tile-1')).toHaveAttribute('aria-label', 'Level 1, 3 stars')
+    await expect(page.getByTestId('level-tile-2')).toBeEnabled()
+    await page.getByTestId('level-tile-2').click()
+    await expect(page.getByTestId('marble-works-canvas')).toBeVisible()
     expect(errors).toEqual([])
   })
 

@@ -70,9 +70,11 @@ Non-obvious, verified:
 - `Run Tests` is the aggregate gate in `.github/workflows/ci.yml`; it re-checks every job's
   result explicitly. A new CI job must be added to its `needs` *and* get a `check` line, or it
   can fail invisibly.
-- E2E (Playwright) specs are in `tests/e2e/` with `pnpm run test:e2e:*` scripts. They are not
-  part of the PR gate — trigger the per-game Playwright workflows manually when touching those
-  surfaces.
+- E2E (Playwright) specs are in `tests/e2e/` with `pnpm run test:e2e:*` scripts. CI gates on
+  `browser-pwa` and `browser-gameplay` through `Run Tests`; `Browser Regression` repeats them
+  weekly. The per-game Playwright workflows still support focused manual verification.
+  `.github/workflows/browser-checks.yml` owns isolated browser setup. Anonymous checks use
+  file sessions/cache; only PWA checks migrate and seed an isolated SQLite fixture.
 - CI runs on GitHub-hosted `ubuntu-24.04-arm`.
 
 ## Privacy

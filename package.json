@@ -21,7 +21,8 @@
         "type-check:e2e": "tsc --noEmit -p tsconfig.playwright.json",
         "lint": "eslint . --cache",
         "lint:fix": "eslint . --fix",
-        "postinstall": "node scripts/spotlight-noindex.mjs"
+        "postinstall": "node scripts/spotlight-noindex.mjs",
+        "test:e2e:gameplay": "playwright test tests/e2e/tower-throwback.visual.spec.ts tests/e2e/tower-throwback.drawcalls.spec.ts tests/e2e/tower-throwback.journey.spec.ts tests/e2e/parking-pickup.spec.ts tests/e2e/chicks-challenge.spec.ts tests/e2e/marble-works.spec.ts --project=chromium-desktop --project=chromium-mobile-375"
     },
     "devDependencies": {
         "@eslint-react/eslint-plugin": "^5.26.1",

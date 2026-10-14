@@ -133,6 +133,12 @@ test.describe("Chick's Challenge board layout", () => {
     await expect(page.locator(BOARD_ROTOR)).toHaveAttribute('data-quarter-turns', '0')
     await expect(page.getByTestId('orientation-toggle')).toHaveAttribute('data-orientation-preference', 'upright')
     await expectBoardInsideViewport(page)
+
+    await page.reload()
+    await waitForBoard(page)
+    await expect(page.getByTestId('orientation-toggle')).toHaveAttribute('data-orientation-preference', 'upright')
+    await expect(page.locator(BOARD_ROTOR)).toHaveAttribute('data-quarter-turns', '0')
+    await expectBoardInsideViewport(page)
   })
 
   test('shows the touch D-pad and accepts a step on a phone', async ({ page }, testInfo) => {
