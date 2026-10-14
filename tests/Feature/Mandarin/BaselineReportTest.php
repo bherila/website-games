@@ -21,6 +21,8 @@ class BaselineReportTest extends MandarinTestCase
         $payload = [
             'sessionId' => $o['session'] ?? 'secret-session-a',
             'responseAction' => $o['action'] ?? 'answer',
+            'attemptIndex' => $o['attempt'] ?? 0,
+            'selfRating' => $o['rating'] ?? null,
             'textHelpUsed' => $o['text'] ?? false,
             'pinyinHelpUsed' => $o['pinyin'] ?? false,
             'audioEvidence' => ['status' => 'completed', 'normalPlayCount' => $o['normal'] ?? 1, 'slowPlayCount' => $o['slow'] ?? 0, 'interrupted' => false],
@@ -41,10 +43,12 @@ class BaselineReportTest extends MandarinTestCase
             'target_id' => $o['target'] ?? 't1',
             'correctness' => array_key_exists('correctness', $o) ? $o['correctness'] : 'correct',
             'grade' => $o['grade'] ?? null,
-            'schedule_eligible' => false,
+            'schedule_eligible' => $o['eligible'] ?? false,
+            'schema_version' => $o['schema'] ?? 1,
+            'card_key' => $o['card'] ?? null,
             'payload_hash' => hash('sha256', (string) $this->seq),
             'payload' => json_encode($payload),
-            'client_occurred_at' => Carbon::parse($o['client'] ?? $o['at'] ?? self::T0),
+            'client_occurred_at' => array_key_exists('client', $o) && $o['client'] === null ? null : Carbon::parse($o['client'] ?? $o['at'] ?? self::T0),
             'accepted_at' => $at,
         ]);
     }
@@ -224,7 +228,7 @@ class BaselineReportTest extends MandarinTestCase
         $this->assertSame(2, $d['learnerCount']);
         $this->assertSame(['Learner 1', 'Learner 2'], array_column($d['learners'], 'label'));
         $this->assertSame('2026-10-01', $d['learners'][0]['activity']['firstActivity']);
-        $this->assertSame(['label', 'activity', 'comprehension', 'checkpoint', 'delayedRecall', 'spokenRecall', 'helpDependence', 'lapses'], array_keys($d['total']));
+        $this->assertSame(['label', 'activity', 'comprehension', 'checkpoint', 'delayedRecall', 'spokenRecall', 'helpDependence', 'lapses', 'scheduler'], array_keys($d['total']));
     }
 
     public function test_no_identifiers_in_either_format(): void
@@ -245,6 +249,109 @@ class BaselineReportTest extends MandarinTestCase
             }
             $this->assertDoesNotMatchRegularExpression('/"(user_?id|email|sessionId|clientEventId)"/i', $out);
         }
+    }
+
+    public function test_scheduler_transitions_keep_skills_separate_and_use_history_before_the_window(): void
+    {
+        $u = User::factory()->create();
+        $eligible = ['eligible' => true];
+        $this->event($u, $eligible + ['target' => 'a', 'grade' => 'Good', 'at' => '2026-09-30 12:00:00']);
+        $this->event($u, $eligible + ['target' => null, 'card' => 'utterance:a#form.recall', 'grade' => 'Hard', 'rating' => 'partly', 'at' => '2026-10-01 12:00:00']);
+        $this->event($u, $eligible + ['target' => 'a', 'grade' => 'Again', 'text' => true, 'at' => '2026-10-07 12:00:00']);
+        $this->event($u, $eligible + ['target' => null, 'card' => 'utterance:a#form.recall', 'grade' => 'Good', 'rating' => 'said_it', 'at' => '2026-10-08 12:00:00']);
+
+        $s = $this->report(['--since' => '2026-10-01'])['total']['scheduler'];
+        $this->assertSame(0, $s['eligibleGrades']['listen.meaning']['Good']);
+        $this->assertSame(1, $s['againReasons']['listen.meaning']['correctWithHelp']);
+        $this->assertSame([
+            ['skill' => 'form.recall', 'fromGrade' => 'Hard', 'gap' => 'sevenDaysPlus', 'nextEvidence' => 'selfReport', 'n' => 1, 'nextGood' => 1, 'nextAgain' => 0, 'nextGoodRate' => 1, 'nextAgainRate' => 0],
+            ['skill' => 'listen.meaning', 'fromGrade' => 'Good', 'gap' => 'sevenDaysPlus', 'nextEvidence' => 'textOrPinyin', 'n' => 1, 'nextGood' => 0, 'nextAgain' => 1, 'nextGoodRate' => 0, 'nextAgainRate' => 1],
+        ], $s['nextEligible']);
+    }
+
+    public function test_scheduler_counts_only_first_eligible_responses_and_separates_again_reasons(): void
+    {
+        $u = User::factory()->create();
+        $eligible = ['eligible' => true];
+        $this->event($u, $eligible + ['grade' => 'Again', 'correctness' => 'incorrect', 'opportunity' => 'same']);
+        $this->event($u, $eligible + ['grade' => 'Good', 'opportunity' => 'same']); // legacy retry
+        $this->event($u, $eligible + ['grade' => 'Good', 'attempt' => 1, 'schema' => 2]); // explicit retry
+        $this->event($u, $eligible + ['grade' => 'Again', 'text' => true]);
+        $this->event($u, $eligible + ['grade' => 'Again']); // neither incorrect nor helped correct
+        $this->event($u, ['grade' => 'Good']); // window-blocked
+        $this->event($u, $eligible + ['grade' => 'Good', 'mode' => 'extra_practice']);
+        $this->event($u, $eligible + ['grade' => 'Good', 'kind' => 'help_revealed']);
+        $this->event($u, $eligible + ['grade' => 'Good', 'mode' => 'checkpoint']);
+        $this->event($u, $eligible + ['grade' => 'Good', 'mode' => 'preview']);
+        $this->event($u, $eligible + ['grade' => 'Again', 'target' => null, 'card' => 'utterance:a#form.recall', 'rating' => 'missed', 'correctness' => 'incorrect']);
+        $this->event($u, $eligible + ['grade' => 'Again', 'target' => null, 'card' => 'utterance:a#form.recall', 'action' => 'dont_know', 'correctness' => 'incorrect']);
+
+        $s = $this->report()['total']['scheduler'];
+        $this->assertSame(['Again' => 3, 'Hard' => 0, 'Good' => 0, 'Easy' => 0], $s['eligibleGrades']['listen.meaning']);
+        $this->assertSame(['incorrect' => 1, 'correctWithHelp' => 1, 'other' => 1], $s['againReasons']['listen.meaning']);
+        $this->assertSame(['selfReportedMiss' => 1, 'didNotTry' => 1, 'other' => 0], $s['againReasons']['form.recall']);
+    }
+
+    public function test_stuck_cards_use_lifetime_eligible_history_and_do_not_merge_learners_or_skills(): void
+    {
+        $a = User::factory()->create();
+        $b = User::factory()->create();
+        foreach (range(1, 4) as $i) {
+            foreach ([$a, $b] as $user) {
+                $this->event($user, ['eligible' => true, 'target' => 'same', 'grade' => 'Hard', 'at' => "2026-09-{$i} 12:00:00"]);
+            }
+            $this->event($a, ['eligible' => true, 'target' => null, 'card' => 'utterance:same#form.recall', 'grade' => 'Again', 'at' => "2026-09-{$i} 12:00:00"]);
+            $this->event($a, ['target' => 'blocked', 'grade' => 'Again']);
+        }
+        $this->event($a, ['eligible' => true, 'target' => 'same', 'grade' => 'Hard']);
+        $this->event($a, ['eligible' => true, 'target' => null, 'card' => 'utterance:same#form.recall', 'grade' => 'Again']);
+        $this->event($b, ['eligible' => true, 'target' => 'same', 'grade' => 'Good']); // recovered
+        $s = $this->report(['--since' => '2026-10-01'])['total']['scheduler'];
+        $this->assertSame(['listen.meaning' => 1, 'form.recall' => 1], $s['neverGoodCards']);
+        $this->assertSame(['listen.meaning' => 0, 'form.recall' => 0], $this->report(['--since' => '2026-10-02'])['total']['scheduler']['neverGoodCards']);
+    }
+
+    public function test_sync_lag_and_event_schema_arrivals_have_explicit_boundaries(): void
+    {
+        $u = User::factory()->create();
+        $at = Carbon::parse(self::T0);
+        foreach ([59, 60, 3599, 3600, 86399, 86400] as $seconds) {
+            $this->event($u, ['schema' => 2, 'client' => $at->copy()->subSeconds($seconds)]);
+        }
+        $this->event($u, ['client' => null]);
+        $this->event($u, ['kind' => 'help_revealed', 'schema' => 3, 'client' => $at->copy()->addSecond()]);
+        $this->event($u, ['mode' => 'preview', 'schema' => 2]);
+        $s = $this->report()['total']['scheduler'];
+        $this->assertSame(['v1' => 1, 'v2' => 6, 'other' => 1], $s['eventSchemas']);
+        $this->assertSame(['unparsed' => 1, 'futureClock' => 1, 'underOneMinute' => 1, 'oneMinuteToHour' => 2, 'oneHourToDay' => 2, 'oneDayPlus' => 1], $s['syncLag']);
+    }
+
+    public function test_next_eligible_gap_boundaries_and_client_clock_reversal(): void
+    {
+        $u = User::factory()->create();
+        $at = Carbon::parse(self::T0);
+        foreach ([86399, 86400, 604799, 604800] as $gap) {
+            $this->event($u, ['eligible' => true, 'target' => 't'.$gap, 'grade' => 'Good', 'at' => $at]);
+            $this->event($u, ['eligible' => true, 'target' => 't'.$gap, 'grade' => 'Hard', 'normal' => 2, 'at' => $at->copy()->addSeconds($gap)]);
+        }
+        $rows = $this->report()['total']['scheduler']['nextEligible'];
+        $this->assertSame(['oneToSevenDays' => 2, 'sevenDaysPlus' => 1, 'underOneDay' => 1], array_column($rows, 'n', 'gap'));
+        $this->assertSame(['replayOrSlow'], array_values(array_unique(array_column($rows, 'nextEvidence'))));
+
+        $this->event($u, ['eligible' => true, 'target' => 'clock', 'grade' => 'Good', 'client' => $at]);
+        $this->event($u, ['eligible' => true, 'target' => 'clock', 'grade' => 'Again', 'correctness' => 'incorrect', 'client' => $at->copy()->subDay()]);
+        $rows = $this->report(['--time-basis' => 'client'])['total']['scheduler']['nextEligible'];
+        $this->assertContains('clockWentBack', array_column($rows, 'gap'));
+    }
+
+    public function test_scheduler_output_remains_anonymous_and_visible_in_text(): void
+    {
+        $u = User::factory()->create();
+        $this->event($u, ['eligible' => true, 'target' => 'secret-target', 'card' => 'target:secret-target#listen.meaning', 'grade' => 'Good']);
+        $this->event($u, ['eligible' => true, 'target' => 'secret-target', 'card' => 'target:secret-target#listen.meaning', 'grade' => 'Again', 'correctness' => 'incorrect', 'at' => '2026-10-03 12:00:00']);
+        $data = $this->report();
+        $this->assertStringNotContainsString('secret-target', json_encode($data, JSON_THROW_ON_ERROR));
+        $this->artisan('mandarin:report:baseline')->expectsOutputToContain('Scheduler diagnostics (first responses, server eligibility; self-report kept separate):')->expectsOutputToContain('Sync lag')->assertSuccessful();
     }
 
     public function test_command_performs_no_writes(): void

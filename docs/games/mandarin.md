@@ -270,6 +270,31 @@ response on the same target was 1 to under 7 days, or 7+ days, earlier; (5) help
 per 100 responses and the share of responses with text or pinyin help; (6) lapses: targets answered incorrectly after
 an earlier Good (a correct answer with text or pinyin help is also graded Again, but is not counted as a lapse).
 
+The additive `scheduler` block provides audit queries P1/P4/P6/P8 in both text and JSON:
+
+- Eligible grade counts and Again reasons, separated by `listen.meaning` and `form.recall`.
+  Incorrect listening answers are separate from helped-correct Again; recall misses are
+  labelled self-report. Only the first response in an opportunity, with attemptIndex 0,
+  server schedule eligibility and lesson/review mode enters these measures. Legacy v1
+  responses are deduplicated too. Construction, checkpoint and extra practice are excluded.
+- The next eligible response to the same learner's same skill/card, grouped by earlier
+  grade, gap and the later answer's assistance. It reports sample counts and next-Good /
+  next-Again rates. History before `--since` supplies the predecessor; the later response
+  must be in the window. Gaps are <1 day, 1 to <7 days or 7+ days; a backwards untrusted
+  client clock is a separate bucket, never delayed-recall evidence. Again does not always
+  mean forgetting, and these rates are exploratory, not validated interval calibration.
+- Counts of cards with at least four eligible first responses and no historical Good or
+  Easy through `--until`, touched by an eligible result in the window. These are a possible
+  re-teaching signal, not a leech diagnosis; recovered cards and different skills/learners
+  are not conflated. No automatic suspension or scheduler change is made.
+- Stored non-preview event-schema arrivals and accepted-minus-client sync lag: unparsed,
+  future clock, <1 minute, 1 minute to <1 hour, 1 hour to <1 day and 1+ days. These count all
+  stored events in the selected report window, not rejected requests or outbox retries.
+
+No target/card identifiers are printed. Producing the report is tooling; #103 and #58
+still require actual multi-session observations before deciding to stretch intervals or
+expand the curriculum.
+
 Time defaults to `accepted_at`, which includes sync delay for offline sessions (an offline session is stamped
 when it uploads). `--time-basis=client` uses `clientOccurredAt`, labelled "client-reported, untrusted".
 
@@ -437,11 +462,11 @@ code must not reach into Mandarin** (issue [#94](https://github.com/bherila/webs
 
 | Area | Where |
 |---|---|
-| Front end | `resources/js/games/mandarin/` (everything below it) |
+| Front end | `resources/js/games/mandarin/` and `resources/js/admin/mandarin/` (everything below them) |
 | Backend | `app/Services/Games/Mandarin/`, `app/Models/Mandarin/`, `app/Http/Controllers/Api/Mandarin/`, `app/Console/Commands/Mandarin/`, `MandarinQaController`, `MandarinAudioAdminController` |
 | Routes | `routes/mandarin.php`, loaded by `App\Providers\MandarinServiceProvider` (which also owns the container bindings). `routes/web.php` and `routes/api.php` hold no Mandarin lines |
 | Config and data | `config/mandarin.php`, `resources/data/mandarin/`, the `MANDARIN_*` variables in `.env.example` |
-| Tests | `tests/Feature/Mandarin/`, `tests/Unit/Mandarin/`, `resources/js/games/mandarin/__tests__/`, `tests/e2e/mandarin.*` |
+| Tests | `tests/Feature/Mandarin/`, `tests/Unit/Mandarin/`, `resources/js/games/mandarin/__tests__/`, `resources/js/admin/mandarin/__tests__/`, `tests/e2e/mandarin.*` |
 | Pipeline | `.github/workflows/mandarin-playwright.yml`, `scripts/deploy/activate-mandarin-course.sh`, and the `mandarin:*` commands in the `deploy` job of `ci.yml` |
 | Migrations | the `*mandarin*` files in `database/migrations/`. They stay in the shared folder (moving migration files under a live database needs its own plan); they are Mandarin-owned and the tables they create are `mandarin_*` |
 
@@ -456,16 +481,19 @@ code must not reach into Mandarin** (issue [#94](https://github.com/bherila/webs
   one game-select module that imports from `games/mandarin`.
 - **Service worker.** `pwa/serviceWorkerPolicy.ts` has no import from Mandarin. It matches the media URL shape
   `/media/games/mandarin/{asset}/{hash}.{ext}` as a plain string pattern, which is a URL contract rather than a code dependency.
-- **Admin panel.** The audio dashboard still sits in `resources/js/admin/` and `AdminPanelController` delegates to
-  `MandarinAudioAdminController` (to be gathered under `resources/js/admin/mandarin/` behind one import, per #94).
+- **Admin panel.** `AdminPage.tsx` has one import from `admin/mandarin/index.ts`. That module owns
+  the audio dashboard, HTTP adapter and audio contracts; the shared panel owns user management only.
+  The existing server payload and endpoints are unchanged. `AdminPanelController` delegates to
+  `MandarinAudioAdminController`.
 - **What Mandarin may use freely:** `@/lib/utils`, `games/_shared`, `App\Models\User`, `Controller`.
 
 ### The CI guard
 
 `scripts/check-mandarin-boundary.mjs` runs in the Frontend Static Checks job. It fails when a file outside
-`resources/js/games/mandarin/` imports from it (static, dynamic, `require`, re-export or `jest.mock`
-specifiers, relative or `@/`), unless the file is in `ALLOWED_IMPORTERS` at the top of the script, and when
+the game or admin Mandarin module imports from either module (static, dynamic, `require`, re-export or `jest.mock`
+specifiers, relative or `@/`), unless explicitly allow-listed at the top of the script, and when
 `routes/web.php` or `routes/api.php` mention Mandarin. Its own tests are `tests-ts/mandarinBoundary.test.ts`.
+The shared `AdminPage.tsx` exception allows only the `./mandarin` barrel, not its internals.
 Run it locally with `node scripts/check-mandarin-boundary.mjs`. Widening the allow-list widens the coupling, so
 do it in a PR that says why.
 

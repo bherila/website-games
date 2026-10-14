@@ -42,7 +42,7 @@ class BaselineReport
             ->where('course_id', $courseId)
             ->where('mode', '!=', self::EXCLUDED_MODE)
             ->orderBy('user_id')->orderBy('sequence')
-            ->select(['user_id', 'sequence', 'kind', 'mode', 'opportunity_id', 'exercise_id', 'target_id', 'card_key', 'correctness', 'grade', 'payload', 'client_occurred_at', 'accepted_at']);
+            ->select(['user_id', 'sequence', 'kind', 'mode', 'opportunity_id', 'exercise_id', 'target_id', 'card_key', 'schema_version', 'schedule_eligible', 'correctness', 'grade', 'payload', 'client_occurred_at', 'accepted_at']);
         foreach ($query->cursor() as $row) {
             $time = ($client ? $row->client_occurred_at : null) ?? $row->accepted_at;
             $ts = $time->getTimestamp();
@@ -59,6 +59,11 @@ class BaselineReport
                 'opportunity' => $row->opportunity_id,
                 'exercise' => $row->exercise_id,
                 'target' => $row->target_id,
+                'card' => $row->card_key ?? ($row->target_id !== null ? 'target:'.$row->target_id.'#listen.meaning' : null),
+                'schema' => $row->schema_version,
+                'eligible' => $row->schedule_eligible,
+                'acceptedTs' => $row->accepted_at->getTimestamp(),
+                'clientTs' => $row->client_occurred_at?->getTimestamp(),
                 'recallCard' => $row->card_key !== null && str_ends_with($row->card_key, '#form.recall') ? $row->card_key : null,
                 'selfRating' => $payload['selfRating'] ?? null,
                 'attemptIndex' => $payload['attemptIndex'] ?? 0,
@@ -273,6 +278,7 @@ class BaselineReport
                 'textOrPinyinShare' => $responses > 0 ? round($helped / $responses, 4) : null,
             ],
             'lapses' => ['targetsIncorrectAfterGood' => $lapsed],
+            'scheduler' => (new SchedulerDiagnostics)->build($users),
         ];
     }
 }

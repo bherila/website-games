@@ -5,7 +5,7 @@
  * Mandarin Quest is kept in this repository but must stay separable, so that a later
  * split is a mechanical move. Two rules keep the seam from eroding:
  *
- * 1. No source file outside `resources/js/games/mandarin/` may import from it, except
+ * 1. No source file outside the game and admin Mandarin modules may import from them, except
  *    the allow-list below (the game-select card registration and the tests that exercise
  *    it). This covers static imports, re-exports, dynamic `import()`, `require()` and
  *    `jest.mock()`/`jest.requireActual()` specifiers.
@@ -23,7 +23,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const MANDARIN_DIR = 'resources/js/games/mandarin'
+const MANDARIN_DIRS = ['resources/js/games/mandarin', 'resources/js/admin/mandarin']
 
 /** Files outside the Mandarin folder that may import from it. Paths are repo-relative. */
 export const ALLOWED_IMPORTERS = new Set([
@@ -31,8 +31,11 @@ export const ALLOWED_IMPORTERS = new Set([
   'resources/js/games/game-select/mandarinCatalogEntry.ts',
   // Tests that exercise the card against real Mandarin progress.
   'resources/js/games/game-select/__tests__/GameSelectPage.test.tsx',
-  // Step 3 of the plan: the audio dashboard enters through one import.
-  'resources/js/admin/AdminPage.tsx',
+])
+
+/** Only the dashboard barrel is exposed to the shared admin shell. */
+const ALLOWED_IMPORT_PAIRS = new Map([
+  ['resources/js/admin/AdminPage.tsx', new Set(['resources/js/admin/mandarin'])],
 ])
 
 /** The guard's own test, whose fixtures quote violating imports as strings. Never scanned. */
@@ -78,7 +81,7 @@ function resolveSpecifier(spec, fromFile) {
 }
 
 function pointsIntoMandarin(resolved) {
-  return resolved === MANDARIN_DIR || resolved.startsWith(`${MANDARIN_DIR}/`)
+  return MANDARIN_DIRS.some((dir) => resolved === dir || resolved.startsWith(`${dir}/`))
 }
 
 /** @returns {string[]} one human-readable line per violation */
@@ -86,7 +89,7 @@ export function findViolations(root) {
   const violations = []
 
   for (const file of walk(root)) {
-    if (!SOURCE_EXT.test(file) || file.startsWith(`${MANDARIN_DIR}/`) || file === SELF_TEST || ALLOWED_IMPORTERS.has(file)) {
+    if (!SOURCE_EXT.test(file) || MANDARIN_DIRS.some((dir) => file.startsWith(`${dir}/`)) || file === SELF_TEST || ALLOWED_IMPORTERS.has(file)) {
       continue
     }
     const source = readFileSync(path.join(root, file), 'utf8')
@@ -98,7 +101,8 @@ export function findViolations(root) {
           continue
         }
         seen.add(spec)
-        if (pointsIntoMandarin(resolveSpecifier(spec, file))) {
+        const resolved = resolveSpecifier(spec, file)
+        if (pointsIntoMandarin(resolved) && !ALLOWED_IMPORT_PAIRS.get(file)?.has(resolved)) {
           violations.push(`${file}: imports '${spec}' from the Mandarin folder; register through a shared seam instead`)
         }
       }

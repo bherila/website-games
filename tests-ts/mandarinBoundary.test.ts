@@ -68,8 +68,38 @@ describe('Mandarin boundary guard', () => {
     expect(output).toContain('resources/js/games/pwa/serviceWorkerPolicy.ts')
   })
 
+  it.each([
+    "import type { AudioApi } from './mandarin/audioApi'",
+    "import type { AudioState } from '@/admin/mandarin/types'",
+    "const m = import('./mandarin/MandarinAudioDashboard')",
+    "export { x } from './mandarin/types'",
+    "import { x } from '../games/mandarin/domain/course'",
+  ])('rejects AdminPage reaching past its barrel: %s', (source) => {
+    const result = run({ ...INSIDE, 'resources/js/admin/AdminPage.tsx': source })
+    expect(result.status).toBe(1)
+    expect(result.output).toContain('resources/js/admin/AdminPage.tsx')
+  })
+
   it('does not flag a game whose name merely starts with mandarin', () => {
     expect(run({ ...INSIDE, 'resources/js/games/a/b.ts': "import x from '../mandarin-lite/x'\n" }).status).toBe(0)
+  })
+
+  it('protects the admin module with a single shared AdminPage seam', () => {
+    const files = {
+      ...INSIDE,
+      'resources/js/admin/mandarin/index.ts': "export { MandarinAudioDashboard } from './MandarinAudioDashboard'\n",
+      'resources/js/admin/mandarin/MandarinAudioDashboard.tsx': "import type { AudioApi } from './audioApi'\n",
+      'resources/js/admin/mandarin/__tests__/dashboard.test.tsx': "import { MandarinAudioDashboard } from '../index'\n",
+      'resources/js/admin/AdminPage.tsx': "import { MandarinAudioDashboard } from './mandarin'\n",
+    }
+    expect(run(files).status).toBe(0)
+    for (const specifier of [
+      '../mandarin/audioApi', '@/admin/mandarin/types',
+    ]) {
+      const result = run({ ...files, 'resources/js/admin/shared/helper.ts': `import { x } from '${specifier}'\n` })
+      expect(result.status).toBe(1)
+      expect(result.output).toContain('resources/js/admin/shared/helper.ts')
+    }
   })
 
   it('fails when Mandarin routes return to the shared route files', () => {

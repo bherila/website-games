@@ -143,3 +143,86 @@ what learners actually struggle with.
   不够 in s11 or 什么 / 慢 in s13, rather than from a generic chart (digest decision 13).
 - **#103.** Learner-trial observations on repair (s4), arrival (s5) and having (s8)
   decide whether s12 or s16 comes before s13.
+
+
+## 5. Word-family mini-lessons (#121)
+
+This is a curriculum plan, not new course content. Every Chinese example below is a
+candidate awaiting fluent-speaker editorial and audio review (#57). Nothing here changes
+live revision 1.2.0, its target IDs, recordings, schedules or reserved checkpoint items.
+The audience remains an English-speaking adult beginner aiming to follow TV dialogue.
+
+**Purpose.** Help the learner notice reusable parts of words they have heard and understood.
+A shared character is a clue to a word's meaning, not a rule that generates arbitrary new
+words. English labels such as “-able”, “expert” and “member” are approximate memory aids.
+The Ministry of Education's [suffix definition](https://dict.revised.moe.edu.tw/dictView.jsp?ID=81485&la=0&powerMode=0)
+uses 化 and 性 as examples. Its [可 entry](https://dict.revised.moe.edu.tw/dictView.jsp?ID=4445&la=1&powerMode=0)
+shows why one English gloss cannot cover every usage. Middlebury's
+[teaching notes, page 11](https://bpb-us-e2.wpmucdn.com/sites.middlebury.edu/dist/5/3176/files/2013/07/Level2-final-review-IMC15-19-supplementary-jt-2016.pdf)
+distinguish occupational 家, role/member 员 and person-denoting 者.
+
+### Placement and prerequisites
+
+These are optional activities inside situations, not a new ordered sequence of scenes.
+The earliest permission anchor is the planned s15; other anchors are candidates for a
+later curriculum decision, not changes to s11–s16. Two or three whole words are enough
+for one noticing activity. Use simplified 学、员、无; traditional forms may be optional
+recognition support later, never new requirements for the foundation course.
+
+| Family | Candidate whole words and meanings (unreviewed) | Situation and prerequisites | Limit to teach |
+|---|---|---|---|
+| 家 | 回家 — go home; 家人 — family members; later 作家 — writer | Going home / talking about family; teach 回 and 人 before asking for a compositional inference | Home/family comes first. Occupational 家 is a later use, not the meaning of every 家 |
+| 学 | 学习 — study/learn; 学生 — student; 学校 — school | Meeting a learner / discussing school; teach the whole words before the shared-part reveal | 学 can suggest learning, but knowledge of 学 alone does not establish 生 or 校 |
+| 员 | 服务员 — server; 演员 — actor; 球员 — player | Asking a server for help or identifying roles in a show; require the situation and each base word first | A worker or role-holder as well as a member; not interchangeable with 家 or 者 |
+| 可 | 可以 — may/can; 不可以 — may not/cannot; later 可能 — possible | Planned s15 permission questions; revisit 不, 去, 今天/明天 and known actions | Teach 可以 as a whole expression. “-able” is not a universal reading of 可 |
+| 者 | 记者 — journalist; 读者 — reader; 作者 — author | Later people-and-roles situation; require the relevant actions and whole role words | Contrast actual role words, not free substitution of 者, 员 and 家 |
+| 性 | 可能性 — possibility; 安全性 — safety | Later discussion of possibility or safety, after 可能 and 安全 are known | A property-forming use in these words; 性 has other meanings and many words are more formal |
+| 化 | 简化 — simplify; 现代化 — modernize/modernization | Later discussion of change, after 简 and 现代 are taught and register is reviewed | A change/process pattern in reviewed examples; a character occurrence alone is not proof of a suffix |
+| 主义 | 个人主义 — individualism; 完美主义 — perfectionism | Later beliefs or character attitudes; only if useful to the chosen story and after the base expressions | A two-character element, often abstract; no foundation-course priority or vocabulary multiplier claim |
+| 非 | 非会员 — nonmember; 非法 — illegal | Later access/rules context; after 会员 and relevant rules are known | Establish everyday 不/没 first. 非常 must not be decoded mechanically as “non-…” |
+| 无 | 无糖 — sugar-free; 无线 — wireless | Later food labels or everyday objects; require 糖 and the meaning of the whole compound | Often lexical or formal; never teach replacing ordinary 没有 with 无 everywhere |
+
+Chinese, pinyin, glosses, register and normal/slow prosody all need review at authoring
+time. The examples are options, not a requirement to introduce every family. A learner
+trial may show that connected listening or ordinary function words deserve priority.
+
+### Teaching and delayed reuse
+
+1. Establish a communicative situation and teach each whole word with reviewed audio and
+   meaning. Mark known, new, support and pattern items honestly; the four-new-target limit
+   is not bypassed by hiding new learning in the support glossary.
+2. Offer an optional “notice the shared part” reveal after the teaching/answer. Show two or
+   three examples and one clear limit. No mandatory character matching, typing or handwriting.
+3. Ask for meaning or a fitting response from audio and context. Before the first answer,
+   hide Chinese/pinyin and any scene prop that discloses it. A transcript, gloss or
+   word-family explanation requested during assessment is recorded as help on that
+   opportunity, following the current shell's assessment rules.
+4. Revisit whole words in a later situation and in delayed mixed practice. Listening and
+   meaning-cued spoken recall keep their own card identities; the optional noticing
+   activity is uncarded and supplies no listening or formulation mastery credit.
+5. After prerequisites are known, use a separately authored, fluent-speaker-reviewed word
+   or sentence that the learner has not encountered. Test it before any reveal or related
+   model exposes the answer. Guessing a familiar word after a character highlight is not
+   evidence of transfer.
+
+### Authoring, evaluation and activation
+
+- [#122](https://github.com/bherila/website-games/issues/122) owns the everyday candidates
+  家、学、员、可. [#123](https://github.com/bherila/website-games/issues/123) owns later
+  者、性、化 and conditional 主义、非、无. They can ship in smaller reviewed sets.
+- Both depend on #57 and the #58 Gate C expansion decision. Planning and inactive
+  scaffolding may merge earlier; new learner-facing language may not activate earlier.
+  A new scheduled skill requires a separate cue → response and grading contract (#100).
+- Author new content under a new immutable contentVersion, keep existing target meanings
+  stable and the ten-scene checkpoint milestone in place. Generate/verify normal and slow
+  audio through the established workflow, stage the revision, import and strictly verify
+  the audio manifest, then activate only after the release gates pass. Paid generation
+  follows its existing authorization workflow.
+- For #103, record prior exposure, assistance and delay separately. Check unaided
+  whole-word listening after about one and seven days, and report unfamiliar-word or
+  sentence transfer separately from familiar practice. Self-rated recall remains
+  self-report. One narrator is not evidence of transfer across speakers.
+- Compare learner confusion, help dependence, manageable review load and whether the
+  shared-part explanation helps the later task. This small pilot is exploratory; it
+  supports no causal “10x vocabulary” claim. Retain, revise or drop a family based on
+  observations before expanding the strand.

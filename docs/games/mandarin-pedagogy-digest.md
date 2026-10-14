@@ -182,3 +182,44 @@ These are acceptable results, and none of them blocks exercise work.
 17. In product text and PRs, cite 59% (2010), and do not cite the 2004 50% figure,
     多认少写, Yanagisawa or the own-voice feedback study until they are verified (E3, E14,
     E16, E17; #105).
+
+
+## Current corpus prerequisites for a tone-perception pilot (#96)
+
+The 1.2.0 source has the same 50 targets and 21 support-glossary entries as the
+legacy 1.1.1 source. The shipped manifest maps 100 target, 200 utterance, 12 support
+and four SFX sources to 1.2.0 (normal and slow are playback variants, not tone contrasts).
+There is no dedicated isolated-tone source kind or reviewed tone-exercise set.
+
+A bounded inventory of **one-character target and support labels**, grouped by pinyin
+with tone marks removed, finds 16 target labels and 15 support labels. The only shared
+segment spelling is zài: 在 and 再, with the same labelled tone. The target 吗 is labelled
+neutral `ma`; the source does not supply a mā/má/mǎ/mà contrast set. This inventory uses
+the authored lexical labels. It is not an acoustic audition, a sandhi analysis or proof
+that fragments of a dialogue cannot contrast. Full utterances and reserved checkpoints
+were not cut up to invent isolated teaching recordings.
+
+Consequences for #96:
+
+- No tone-only minimal pair is established by the reusable isolated-word label inventory.
+  Having word recordings is insufficient evidence for an existing-recordings-only pilot.
+  A fluent speaker still needs to audition any candidate audio and review lexical versus
+  realized tones, neutral tone, register and contrast clarity.
+- Existing recordings may eventually support identification or contrastive work with
+  other segment differences, but that is a different task from isolating tone alone.
+  Specify discrimination, identification and sound-to-meaning separately, and never
+  claim one format measures all three.
+- A genuine minimal-pair pilot needs reviewed authoring/recording if no suitable current
+  material is found. That is an explicit audio/content scope decision; the existing issue's
+  “no pipeline changes beyond using existing recordings” acceptance cannot silently imply
+  that the missing set exists. Native/audio review and the expansion decision remain gates.
+- The current `audio_choice` contract still requires exactly three options in JSON schema,
+  TypeScript and PHP. Four-way identification needs coordinated schema, validators,
+  rendering and event changes. Those changes are deferred until the task and reviewed
+  contrast set are selected; loosening ordinary comprehension options is not a tone pilot.
+
+Audit method: compare `targets` and `supportGlossary` in `foundations.v1.json` and
+`foundations.v2.json`; select entries whose Chinese label is one character; group their
+case-folded pinyin after Unicode decomposition and removal of tone marks; inspect the
+1.2.0 mappings by `source_kind` in `audio-manifest.json`. No learner data or audio-generation
+operation is involved. The result is a prerequisite audit, not completed #96 drills.

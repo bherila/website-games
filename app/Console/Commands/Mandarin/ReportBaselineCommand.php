@@ -20,7 +20,7 @@ class ReportBaselineCommand extends Command
         {--time-basis=accepted : accepted (server accepted_at) or client (client-reported, untrusted)}
         {--json : Machine-readable output}';
 
-    protected $description = 'Read-only anonymised baseline of Mandarin practice: activity, comprehension, checkpoint, delayed recall, help dependence, lapses.';
+    protected $description = 'Read-only anonymised baseline of Mandarin practice: activity, comprehension, checkpoint, delayed recall, help dependence, lapses and scheduler diagnostics.';
 
     public function handle(BaselineReport $report): int
     {
@@ -105,6 +105,31 @@ class ReportBaselineCommand extends Command
         $h = $b['helpDependence'];
         $this->line(sprintf('  Help: %s help_revealed per 100 responses; %s of responses used text or pinyin help', $h['helpRevealedPer100Responses'] ?? '-', $h['textOrPinyinShare'] === null ? '-' : round($h['textOrPinyinShare'] * 100, 1).'%'));
         $this->line("  Lapses: {$b['lapses']['targetsIncorrectAfterGood']} target(s) answered incorrectly after an earlier Good");
+        $this->printScheduler($b['scheduler']);
+    }
+
+    /** @param array<string, mixed> $s */
+    private function printScheduler(array $s): void
+    {
+        $this->line('  Scheduler diagnostics (first responses, server eligibility; self-report kept separate):');
+        foreach ($s['eligibleGrades'] as $skill => $grades) {
+            $this->line(sprintf('    %s: Again %d, Hard %d, Good %d, Easy %d; 4+ eligible responses without Good/Easy: %d card(s)', $skill, $grades['Again'], $grades['Hard'], $grades['Good'], $grades['Easy'], $s['neverGoodCards'][$skill]));
+            $parts = [];
+            foreach ($s['againReasons'][$skill] as $reason => $n) {
+                $parts[] = $reason.' '.$n;
+            }
+            $this->line('      Again reasons: '.implode(', ', $parts));
+        }
+        $this->line('    Next eligible response by earlier grade, gap and next assistance:');
+        foreach ($s['nextEligible'] as $row) {
+            $this->line(sprintf('      %s / %s / %s / %s: n=%d, next Good %.1f%%, next Again %.1f%%', $row['skill'], $row['fromGrade'], $row['gap'], $row['nextEvidence'], $row['n'], $row['nextGoodRate'] * 100, $row['nextAgainRate'] * 100));
+        }
+        $versions = $s['eventSchemas'];
+        $this->line(sprintf('    Event schemas (all non-preview events in the window): v1 %d, v2 %d, other %d', $versions['v1'], $versions['v2'], $versions['other']));
+        $this->line('    Sync lag (accepted minus untrusted client time; no timestamp means unparsed):');
+        foreach ($s['syncLag'] as $bucket => $n) {
+            $this->line('      '.$bucket.': '.$n);
+        }
     }
 
     /** @param  array{n: int, correct: int, rate: float|null}  $r */
