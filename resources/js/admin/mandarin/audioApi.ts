@@ -1,6 +1,6 @@
 import { fetchWrapper } from '@/fetchWrapper'
 
-import type { AudioFilters, AudioPage, OperationResult, PanelData } from './types'
+import type { AudioEndpoints, AudioFilters, AudioPage, OperationResult } from './types'
 
 export function audioIndexUrl(base: string, filters: AudioFilters): string {
   const params = new URLSearchParams()
@@ -23,7 +23,7 @@ export interface AudioApi {
 }
 
 /** JSON over the session, with the CSRF token from the page's meta tag on every POST. */
-export function httpAudioApi(endpoints: PanelData['audio']): AudioApi {
+export function httpAudioApi(endpoints: AudioEndpoints): AudioApi {
   return {
     list: (filters) => fetchWrapper.get(audioIndexUrl(endpoints.index, filters)) as Promise<AudioPage>,
     request: (key) => fetchWrapper.post(endpoints.request, { source: key }) as Promise<OperationResult>,

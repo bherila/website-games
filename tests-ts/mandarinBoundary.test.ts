@@ -72,6 +72,24 @@ describe('Mandarin boundary guard', () => {
     expect(run({ ...INSIDE, 'resources/js/games/a/b.ts': "import x from '../mandarin-lite/x'\n" }).status).toBe(0)
   })
 
+  it('protects the admin module with a single shared AdminPage seam', () => {
+    const files = {
+      ...INSIDE,
+      'resources/js/admin/mandarin/index.ts': "export { MandarinAudioDashboard } from './MandarinAudioDashboard'\n",
+      'resources/js/admin/mandarin/MandarinAudioDashboard.tsx': "import type { AudioApi } from './audioApi'\n",
+      'resources/js/admin/mandarin/__tests__/dashboard.test.tsx': "import { MandarinAudioDashboard } from '../index'\n",
+      'resources/js/admin/AdminPage.tsx': "import { MandarinAudioDashboard } from './mandarin'\n",
+    }
+    expect(run(files).status).toBe(0)
+    for (const specifier of [
+      '../mandarin/audioApi', '@/admin/mandarin/types',
+    ]) {
+      const result = run({ ...files, 'resources/js/admin/shared/helper.ts': `import { x } from '${specifier}'\n` })
+      expect(result.status).toBe(1)
+      expect(result.output).toContain('resources/js/admin/shared/helper.ts')
+    }
+  })
+
   it('fails when Mandarin routes return to the shared route files', () => {
     for (const file of ['routes/web.php', 'routes/api.php']) {
       const { status, output } = run({ ...INSIDE, [file]: "<?php\nRoute::get('/mandarin', fn () => 1);\n" })

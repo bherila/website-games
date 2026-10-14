@@ -1,10 +1,13 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
-import { AdminPage, PENDING_POLL_MS } from '../AdminPage'
-import { type AudioApi, audioIndexUrl } from '../audioApi'
-import type { AudioEntry, AudioFilters, AudioPage, OperationResult, PanelData } from '../types'
+import { fetchWrapper } from '@/fetchWrapper'
 
-const PANEL: PanelData = {
+import { AdminPage, type AdminPageProps } from '../../AdminPage'
+import { type AudioApi, audioIndexUrl } from '../audioApi'
+import { PENDING_POLL_MS } from '../MandarinAudioDashboard'
+import type { AudioEntry, AudioFilters, AudioPage, OperationResult } from '../types'
+
+const PANEL: AdminPageProps['panel'] = {
   usersUrl: 'https://identity.example.test/applications/games/access',
   qaUrl: '/mandarin/qa',
   qaAvailable: true,
@@ -67,6 +70,28 @@ function fakeApi(pages: AudioPage[] = [page()]): jest.Mocked<AudioApi> {
 }
 
 describe('AdminPage', () => {
+  it('uses the server endpoints without generating audio until confirmation', async () => {
+    const get = jest.spyOn(fetchWrapper, 'get').mockResolvedValue(page())
+    const post = jest.spyOn(fetchWrapper, 'post').mockResolvedValue(OK)
+    try {
+      const { rerender } = render(<AdminPage panel={PANEL} />)
+      await screen.findByTestId('audio-summary')
+      expect(get).toHaveBeenCalledWith(PANEL.audio.index)
+      expect(post).not.toHaveBeenCalled()
+      rerender(<AdminPage panel={PANEL} />)
+      expect(get).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: /Regenerate utterance 01b normal/ }))
+      await screen.findByText('Regenerate this clip?')
+      expect(post).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByTestId('confirm-action'))
+      await waitFor(() => expect(post).toHaveBeenCalledWith(PANEL.audio.regenerate, { source: 'utterance:01b:normal', confirm: 1 }))
+      await waitFor(() => expect(get).toHaveBeenCalledTimes(2))
+    } finally {
+      get.mockRestore()
+      post.mockRestore()
+    }
+  })
+
   it('links to user management, or says it is not configured', async () => {
     const { unmount } = render(<AdminPage api={fakeApi()} panel={PANEL} />)
     expect(screen.getByTestId('users-link')).toHaveAttribute('href', PANEL.usersUrl)

@@ -437,11 +437,11 @@ code must not reach into Mandarin** (issue [#94](https://github.com/bherila/webs
 
 | Area | Where |
 |---|---|
-| Front end | `resources/js/games/mandarin/` (everything below it) |
+| Front end | `resources/js/games/mandarin/` and `resources/js/admin/mandarin/` (everything below them) |
 | Backend | `app/Services/Games/Mandarin/`, `app/Models/Mandarin/`, `app/Http/Controllers/Api/Mandarin/`, `app/Console/Commands/Mandarin/`, `MandarinQaController`, `MandarinAudioAdminController` |
 | Routes | `routes/mandarin.php`, loaded by `App\Providers\MandarinServiceProvider` (which also owns the container bindings). `routes/web.php` and `routes/api.php` hold no Mandarin lines |
 | Config and data | `config/mandarin.php`, `resources/data/mandarin/`, the `MANDARIN_*` variables in `.env.example` |
-| Tests | `tests/Feature/Mandarin/`, `tests/Unit/Mandarin/`, `resources/js/games/mandarin/__tests__/`, `tests/e2e/mandarin.*` |
+| Tests | `tests/Feature/Mandarin/`, `tests/Unit/Mandarin/`, `resources/js/games/mandarin/__tests__/`, `resources/js/admin/mandarin/__tests__/`, `tests/e2e/mandarin.*` |
 | Pipeline | `.github/workflows/mandarin-playwright.yml`, `scripts/deploy/activate-mandarin-course.sh`, and the `mandarin:*` commands in the `deploy` job of `ci.yml` |
 | Migrations | the `*mandarin*` files in `database/migrations/`. They stay in the shared folder (moving migration files under a live database needs its own plan); they are Mandarin-owned and the tables they create are `mandarin_*` |
 
@@ -456,14 +456,16 @@ code must not reach into Mandarin** (issue [#94](https://github.com/bherila/webs
   one game-select module that imports from `games/mandarin`.
 - **Service worker.** `pwa/serviceWorkerPolicy.ts` has no import from Mandarin. It matches the media URL shape
   `/media/games/mandarin/{asset}/{hash}.{ext}` as a plain string pattern, which is a URL contract rather than a code dependency.
-- **Admin panel.** The audio dashboard still sits in `resources/js/admin/` and `AdminPanelController` delegates to
-  `MandarinAudioAdminController` (to be gathered under `resources/js/admin/mandarin/` behind one import, per #94).
+- **Admin panel.** `AdminPage.tsx` has one import from `admin/mandarin/index.ts`. That module owns
+  the audio dashboard, HTTP adapter and audio contracts; the shared panel owns user management only.
+  The existing server payload and endpoints are unchanged. `AdminPanelController` delegates to
+  `MandarinAudioAdminController`.
 - **What Mandarin may use freely:** `@/lib/utils`, `games/_shared`, `App\Models\User`, `Controller`.
 
 ### The CI guard
 
 `scripts/check-mandarin-boundary.mjs` runs in the Frontend Static Checks job. It fails when a file outside
-`resources/js/games/mandarin/` imports from it (static, dynamic, `require`, re-export or `jest.mock`
+the game or admin Mandarin module imports from either module (static, dynamic, `require`, re-export or `jest.mock`
 specifiers, relative or `@/`), unless the file is in `ALLOWED_IMPORTERS` at the top of the script, and when
 `routes/web.php` or `routes/api.php` mention Mandarin. Its own tests are `tests-ts/mandarinBoundary.test.ts`.
 Run it locally with `node scripts/check-mandarin-boundary.mjs`. Widening the allow-list widens the coupling, so
