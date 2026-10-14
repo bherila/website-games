@@ -1,0 +1,27 @@
+name: Browser Regression
+
+on:
+  schedule:
+    - cron: '41 7 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: browser-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pwa:
+    uses: ./.github/workflows/browser-checks.yml
+    with:
+      script: test:e2e:games-pwa
+      report_name: games-pwa-playwright-report
+      authenticated_fixture: true
+
+  gameplay:
+    uses: ./.github/workflows/browser-checks.yml
+    with:
+      script: test:e2e:gameplay
+      report_name: gameplay-playwright-report

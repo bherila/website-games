@@ -1,6 +1,8 @@
 # Parking Pickup Playwright Checks
 
-These checks are intentionally ad-hoc. They do not run on every pull request.
+These checks run on every pull request and main push as part of the required
+`browser-gameplay` CI job, and weekly through `Browser Regression`. The focused
+Parking Pickup workflow remains available for manual and deployed-preview checks.
 
 ## Local
 
@@ -35,5 +37,10 @@ To check a deployed preview or another reachable URL, set `base_url` to that ori
 ```text
 https://example-preview.test
 ```
+
+The shared browser setup uses file sessions and file cache, so the anonymous
+Parking suite does not require migrations or a sessions table. The required gameplay
+job also runs Tower Throwback, Chick's Challenge, and Marble Works at desktop and
+phone viewports. It reuses CI's frontend build and checks the browser specs' types.
 
 The workflow uploads the Playwright HTML report, failure traces, screenshots, and the local Laravel server log as a `parking-pickup-playwright-report` artifact.

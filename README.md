@@ -213,9 +213,16 @@ php -d memory_limit=1G artisan test
 ```
 
 E2E (Playwright) specs live under `tests/e2e/`; see `package.json`'s `test:e2e:*`
-scripts. They are not part of the default PR gate — run them manually via the
-`Tower Throwback Playwright` / `Parking Pickup Playwright` / `BWH Games PWA Playwright`
-GitHub Actions workflows.
+scripts. CI requires the PWA offline/account-cache suite and the desktop/mobile gameplay
+suite (Tower Throwback, Parking Pickup, Chick's Challenge, and Marble Works). Both feed
+`Run Tests`, so a browser failure blocks deployment. `Browser Regression` also runs both
+suites weekly on Monday and supports manual dispatch.
+
+For focused or deployed-preview checks, use the `Tower Throwback Playwright`,
+`Parking Pickup Playwright`, and `BWH Games PWA Playwright` workflows. Every local
+browser server uses file sessions/cache. Only the PWA suite migrates and seeds its
+isolated SQLite fixture; it never targets a deployed database. Reports, traces,
+screenshots, and server logs are retained for seven days.
 
 ## Deployment
 

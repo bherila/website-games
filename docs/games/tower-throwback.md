@@ -460,8 +460,10 @@ the Tower page and save-slot feature tests. Both feed the `Run Tests` aggregate
 gate, so Tower failures block deployment. The required `frontend-static` job
 also runs type-checking, linting, and the tracked-tree sensitive-data scan.
 
-The manually dispatched `Tower Throwback Playwright` workflow runs the visual,
-draw-call-budget, and player-journey suites through
+The required `browser-gameplay` job runs the visual, draw-call-budget, and player-journey
+suites at desktop and phone viewports; its result also feeds `Run Tests`. `Browser
+Regression` repeats this coverage weekly. The manually dispatched
+`Tower Throwback Playwright` workflow runs the focused suites through
 `pnpm run test:e2e:tower-throwback` and uploads only short-lived test artifacts.
 Slow Jest soak tests run separately through `pnpm run test:slow` when
 `JEST_INCLUDE_SLOW_TESTS=1`.
