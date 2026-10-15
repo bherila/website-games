@@ -258,6 +258,15 @@ plus an all-learners total; no user id, email, event id or session id appears in
 `preview` mode is excluded everywhere. `--since`/`--until` limit which events are counted; earlier history
 (prior exposure, previous scored response, an earlier Good) is still read from the whole log up to `--until`.
 
+Learning measures use only the first response per learner/opportunity, with `attemptIndex` 0
+when present. Legacy v1 responses are deduplicated by opportunity too. An unscored first
+response still consumes the opportunity; retries cannot become comprehension, checkpoint,
+delayed-recall, self-rating or lapse evidence, or establish an earlier Good. Responses before
+`--since` still establish this history. Activity and help dependence count all responses,
+including retries; the report does not rewrite events or change scheduling.
+Legacy rows without an opportunity ID retain their existing counting rules; the report
+does not infer an opportunity from a target or exercise ID.
+
 Measures: (1) activity: distinct sessions, active days, first/last day, response events; (2) lesson/review
 comprehension correct rate split unaided (no text/pinyin help, at most one normal play, no slow play),
 replay-assisted (extra or slow plays, no text help) and text/pinyin-assisted, plus don't-know and skip counts;

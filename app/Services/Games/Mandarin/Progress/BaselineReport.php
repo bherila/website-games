@@ -138,8 +138,10 @@ class BaselineReport
         foreach ($users as $u => $events) {
             /** @var array<string, array<string, true>> $seenExercises exercise => opportunities it was shown or answered in */
             $seenExercises = [];
-            /** @var array<string, true> $classified checkpoint opportunities whose first answer is already bucketed */
+            /** @var array<string, true> $classified checkpoint exercise/opportunity pairs, including legacy rows without opportunity ids */
             $classified = [];
+            /** @var array<string, true> $responded opportunities with a response, scored or otherwise */
+            $responded = [];
             /** @var array<string, int> $prevScored target => ts of previous scored response */
             $prevScored = [];
             /** @var array<string, bool> $good */
@@ -151,7 +153,16 @@ class BaselineReport
             foreach ($events as $e) {
                 $counted = $e['in'];
                 $isResponse = $e['kind'] === 'response';
-                $scored = $isResponse && $e['attemptIndex'] === 0 && in_array($e['correctness'], ['correct', 'incorrect'], true);
+                // Legacy v1 has no attemptIndex. Keep all responses as activity, but
+                // only the first in an opportunity can supply learning evidence. Mark
+                // even unscored/out-of-window responses so a retry cannot replace them.
+                $opportunity = $e['opportunity'];
+                $firstResponse = $isResponse && $e['attemptIndex'] === 0
+                    && (! is_string($opportunity) || ! isset($responded[$opportunity]));
+                if ($isResponse && is_string($opportunity)) {
+                    $responded[$opportunity] = true;
+                }
+                $scored = $firstResponse && in_array($e['correctness'], ['correct', 'incorrect'], true);
                 $correct = $e['correctness'] === 'correct';
                 $replay = ! $e['text'] && ($e['normal'] > 1 || $e['slow'] > 0);
                 $unaided = ! $e['text'] && $e['normal'] <= 1 && $e['slow'] === 0;
@@ -170,7 +181,7 @@ class BaselineReport
                     }
                 }
 
-                if ($isResponse && $counted && $e['attemptIndex'] === 0 && $e['recallCard'] === null && in_array($e['mode'], self::COMPREHENSION_MODES, true)) {
+                if ($firstResponse && $counted && $e['recallCard'] === null && in_array($e['mode'], self::COMPREHENSION_MODES, true)) {
                     if ($e['action'] === 'dont_know') {
                         $dontKnow++;
                     } elseif ($e['action'] === 'skip') {
@@ -182,7 +193,7 @@ class BaselineReport
                         $comp[$bucket][1] += $correct ? 1 : 0;
                     }
                 }
-                if ($isResponse && is_string($e['recallCard']) && $e['attemptIndex'] === 0) {
+                if ($firstResponse && is_string($e['recallCard'])) {
                     $key = $e['recallCard'];
                     $rating = $e['action'] === 'dont_know' ? 'dont_know' : $e['selfRating'];
                     if ($counted) {
@@ -209,7 +220,7 @@ class BaselineReport
                 // same opportunity. Only events from an earlier opportunity are prior exposure, and only the
                 // first answer within an opportunity is classified.
                 $opportunity = (string) ($e['opportunity'] ?? '');
-                if ($isResponse && $counted && $e['mode'] === 'checkpoint' && $scored && is_string($e['exercise'])
+                if ($counted && $e['mode'] === 'checkpoint' && $scored && is_string($e['exercise'])
                     && ! isset($classified[$e['exercise'].'|'.$opportunity])) {
                     $classified[$e['exercise'].'|'.$opportunity] = true;
                     $earlier = array_diff_key($seenExercises[$e['exercise']] ?? [], [$opportunity => true]);
@@ -238,7 +249,7 @@ class BaselineReport
 
                 // The server also grades a help-assisted correct answer Again, which is not forgetting; a lapse
                 // here is an incorrect answer after an earlier Good.
-                if ($isResponse && is_string($e['target'])) {
+                if ($firstResponse && is_string($e['target'])) {
                     $key = $e['target'];
                     if ($e['grade'] === 'Good') {
                         $good[$key] = true;
