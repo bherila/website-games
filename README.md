@@ -214,7 +214,7 @@ php -d memory_limit=1G artisan test
 
 E2E (Playwright) specs live under `tests/e2e/`; see `package.json`'s `test:e2e:*`
 scripts. CI requires the PWA offline/account-cache suite and the desktop/mobile gameplay
-suite (Tower Throwback, Parking Pickup, Chick's Challenge, and Marble Works). Both feed
+suite (2048, Tower Throwback, Parking Pickup, Chick's Challenge, and Marble Works). Both feed
 `Run Tests`, so a browser failure blocks deployment. `Browser Regression` also runs both
 suites weekly on Monday and supports manual dispatch.
 

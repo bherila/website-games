@@ -494,6 +494,9 @@ the game or admin Mandarin module imports from either module (static, dynamic, `
 specifiers, relative or `@/`), unless explicitly allow-listed at the top of the script, and when
 `routes/web.php` or `routes/api.php` mention Mandarin. Its own tests are `tests-ts/mandarinBoundary.test.ts`.
 The shared `AdminPage.tsx` exception allows only the `./mandarin` barrel, not its internals.
+The catalog registration and its integration test may import only from the game Mandarin
+module, never the admin module. Exceptions are importer/target pairs; relative and alias
+paths are normalized before checking them, including any `..` segments.
 Run it locally with `node scripts/check-mandarin-boundary.mjs`. Widening the allow-list widens the coupling, so
 do it in a PR that says why.
 

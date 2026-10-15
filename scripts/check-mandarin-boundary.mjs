@@ -25,12 +25,12 @@ import { fileURLToPath } from 'node:url'
 
 const MANDARIN_DIRS = ['resources/js/games/mandarin', 'resources/js/admin/mandarin']
 
-/** Files outside the Mandarin folder that may import from it. Paths are repo-relative. */
-export const ALLOWED_IMPORTERS = new Set([
+/** Importer/protected-root pairs, including descendants of that root only. */
+const ALLOWED_IMPORT_ROOTS = new Map([
   // Registers Mandarin's card on the game-select page.
-  'resources/js/games/game-select/mandarinCatalogEntry.ts',
+  ['resources/js/games/game-select/mandarinCatalogEntry.ts', new Set(['resources/js/games/mandarin'])],
   // Tests that exercise the card against real Mandarin progress.
-  'resources/js/games/game-select/__tests__/GameSelectPage.test.tsx',
+  ['resources/js/games/game-select/__tests__/GameSelectPage.test.tsx', new Set(['resources/js/games/mandarin'])],
 ])
 
 /** Only the dashboard barrel is exposed to the shared admin shell. */
@@ -75,7 +75,7 @@ function resolveSpecifier(spec, fromFile) {
     return path.posix.normalize(path.posix.join(path.posix.dirname(fromFile), spec))
   }
   if (spec.startsWith('@/')) {
-    return `resources/js/${spec.slice(2)}`
+    return path.posix.normalize(`resources/js/${spec.slice(2)}`)
   }
   return spec
 }
@@ -84,12 +84,20 @@ function pointsIntoMandarin(resolved) {
   return MANDARIN_DIRS.some((dir) => resolved === dir || resolved.startsWith(`${dir}/`))
 }
 
+function isAllowedImport(file, resolved) {
+  if (ALLOWED_IMPORT_PAIRS.get(file)?.has(resolved)) {
+    return true
+  }
+  return [...(ALLOWED_IMPORT_ROOTS.get(file) ?? [])]
+    .some((root) => resolved === root || resolved.startsWith(`${root}/`))
+}
+
 /** @returns {string[]} one human-readable line per violation */
 export function findViolations(root) {
   const violations = []
 
   for (const file of walk(root)) {
-    if (!SOURCE_EXT.test(file) || MANDARIN_DIRS.some((dir) => file.startsWith(`${dir}/`)) || file === SELF_TEST || ALLOWED_IMPORTERS.has(file)) {
+    if (!SOURCE_EXT.test(file) || MANDARIN_DIRS.some((dir) => file.startsWith(`${dir}/`)) || file === SELF_TEST) {
       continue
     }
     const source = readFileSync(path.join(root, file), 'utf8')
@@ -102,7 +110,7 @@ export function findViolations(root) {
         }
         seen.add(spec)
         const resolved = resolveSpecifier(spec, file)
-        if (pointsIntoMandarin(resolved) && !ALLOWED_IMPORT_PAIRS.get(file)?.has(resolved)) {
+        if (pointsIntoMandarin(resolved) && !isAllowedImport(file, resolved)) {
           violations.push(`${file}: imports '${spec}' from the Mandarin folder; register through a shared seam instead`)
         }
       }
