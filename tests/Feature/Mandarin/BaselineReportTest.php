@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class BaselineReportTest extends MandarinTestCase
 {
@@ -21,12 +22,14 @@ class BaselineReportTest extends MandarinTestCase
         $payload = [
             'sessionId' => $o['session'] ?? 'secret-session-a',
             'responseAction' => $o['action'] ?? 'answer',
-            'attemptIndex' => $o['attempt'] ?? 0,
             'selfRating' => $o['rating'] ?? null,
             'textHelpUsed' => $o['text'] ?? false,
             'pinyinHelpUsed' => $o['pinyin'] ?? false,
             'audioEvidence' => ['status' => 'completed', 'normalPlayCount' => $o['normal'] ?? 1, 'slowPlayCount' => $o['slow'] ?? 0, 'interrupted' => false],
         ];
+        if (($o['schema'] ?? 1) >= 2) {
+            $payload['attemptIndex'] = $o['attempt'] ?? 0;
+        }
         $this->seq++;
 
         return MandarinPracticeEvent::query()->create([
@@ -38,9 +41,9 @@ class BaselineReportTest extends MandarinTestCase
             'kind' => $o['kind'] ?? 'response',
             'mode' => $o['mode'] ?? 'lesson',
             // Each event is its own showing unless a test shares an opportunity on purpose.
-            'opportunity_id' => $o['opportunity'] ?? 'opp-'.$this->seq,
+            'opportunity_id' => array_key_exists('opportunity', $o) ? $o['opportunity'] : 'opp-'.$this->seq,
             'exercise_id' => $o['exercise'] ?? 'e001',
-            'target_id' => $o['target'] ?? 't1',
+            'target_id' => array_key_exists('target', $o) ? $o['target'] : 't1',
             'correctness' => array_key_exists('correctness', $o) ? $o['correctness'] : 'correct',
             'grade' => $o['grade'] ?? null,
             'schedule_eligible' => $o['eligible'] ?? false,
@@ -124,6 +127,134 @@ class BaselineReportTest extends MandarinTestCase
         $this->assertSame(['n' => 1, 'correct' => 1, 'rate' => 1], $k['firstExposure']);
         $this->assertSame(['n' => 1, 'correct' => 1, 'rate' => 1], $k['previouslyExposed']);
         $this->assertSame(0, $k['replayAssisted']['n'] + $k['textAssisted']['n']);
+    }
+
+    /** @return array<string, array{int}> */
+    public static function eventSchemas(): array
+    {
+        return ['legacy without attemptIndex' => [1], 'v2 repeated attemptIndex zero' => [2]];
+    }
+
+    #[DataProvider('eventSchemas')]
+    public function test_retries_count_as_activity_and_help_but_not_comprehension(int $schema): void
+    {
+        $u = User::factory()->create();
+        $first = ['schema' => $schema, 'opportunity' => 'same', 'correctness' => 'incorrect', 'action' => 'dont_know'];
+        $this->event($u, $first);
+        $this->event($u, array_replace($first, ['correctness' => 'correct', 'action' => 'answer', 'text' => true]));
+        $this->event($u, array_replace($first, ['action' => 'skip']));
+
+        $d = $this->report()['total'];
+        $this->assertSame(3, $d['activity']['responseEvents']);
+        $this->assertSame(0.3333, $d['helpDependence']['textOrPinyinShare']);
+        $this->assertSame(['n' => 1, 'correct' => 0, 'rate' => 0], $d['comprehension']['unaided']);
+        $this->assertSame(0, $d['comprehension']['textAssisted']['n']);
+        $this->assertSame(1, $d['comprehension']['dontKnow']);
+        $this->assertSame(0, $d['comprehension']['skip']);
+    }
+
+    #[DataProvider('eventSchemas')]
+    public function test_an_unscored_first_response_cannot_be_replaced_by_a_scored_retry(int $schema): void
+    {
+        $u = User::factory()->create();
+        foreach (['lesson', 'checkpoint'] as $mode) {
+            $first = ['schema' => $schema, 'mode' => $mode, 'opportunity' => $mode, 'exercise' => $mode];
+            $this->event($u, $first + ['correctness' => null, 'action' => 'skip']);
+            $this->event($u, $first);
+        }
+        // A new checkpoint opportunity is still exposed, even though the first was unscored.
+        $this->event($u, ['mode' => 'checkpoint', 'exercise' => 'checkpoint']);
+
+        $d = $this->report()['total'];
+        $this->assertSame(5, $d['activity']['responseEvents']);
+        $this->assertSame(1, $d['comprehension']['skip']);
+        $this->assertSame(0, $d['comprehension']['unaided']['n']);
+        $this->assertSame(0, $d['checkpoint']['firstExposure']['n']);
+        $this->assertSame(1, $d['checkpoint']['previouslyExposed']['n']);
+    }
+
+    #[DataProvider('eventSchemas')]
+    public function test_retries_do_not_replace_delayed_recall_history_across_the_window(int $schema): void
+    {
+        $u = User::factory()->create();
+        $this->event($u, ['schema' => $schema, 'opportunity' => 'old', 'at' => '2026-09-30 12:00:00']);
+        $this->event($u, ['schema' => $schema, 'opportunity' => 'old', 'at' => '2026-10-02 12:00:00']);
+        $this->event($u, ['schema' => $schema, 'at' => '2026-10-07 12:00:00']);
+
+        $d = $this->report(['--since' => '2026-10-01'])['total'];
+        $this->assertSame(2, $d['activity']['responseEvents']);
+        $this->assertSame(1, $d['comprehension']['unaided']['n']);
+        $this->assertSame(0, $d['delayedRecall']['oneToSevenDays']['n']);
+        $this->assertSame(1, $d['delayedRecall']['sevenDaysPlus']['n']);
+    }
+
+    #[DataProvider('eventSchemas')]
+    public function test_retries_neither_establish_good_history_nor_count_as_lapses(int $schema): void
+    {
+        $u = User::factory()->create();
+        $this->event($u, ['schema' => $schema, 'target' => 'a', 'opportunity' => 'a', 'correctness' => null]);
+        $this->event($u, ['schema' => $schema, 'target' => 'a', 'opportunity' => 'a', 'grade' => 'Good']);
+        $this->event($u, ['schema' => $schema, 'target' => 'a', 'grade' => 'Again', 'correctness' => 'incorrect']);
+        $this->event($u, ['schema' => $schema, 'target' => 'b', 'opportunity' => 'b', 'grade' => 'Good']);
+        $this->event($u, ['schema' => $schema, 'target' => 'b', 'opportunity' => 'b', 'grade' => 'Again', 'correctness' => 'incorrect']);
+
+        $this->assertSame(0, $this->report()['total']['lapses']['targetsIncorrectAfterGood']);
+    }
+
+    public function test_explicit_v2_retries_cannot_establish_good_history_without_an_earlier_response(): void
+    {
+        $u = User::factory()->create();
+        $this->event($u, ['schema' => 2, 'attempt' => 1, 'grade' => 'Good']);
+        $this->event($u, ['schema' => 2, 'grade' => 'Again', 'correctness' => 'incorrect']);
+
+        $this->assertSame(0, $this->report()['total']['lapses']['targetsIncorrectAfterGood']);
+    }
+
+    public function test_first_response_deduplication_is_scoped_to_each_learner(): void
+    {
+        foreach ([User::factory()->create(), User::factory()->create()] as $u) {
+            $this->event($u, ['opportunity' => 'shared']);
+            $this->event($u, ['opportunity' => 'shared', 'correctness' => 'incorrect']);
+        }
+
+        $d = $this->report();
+        $this->assertSame(['n' => 2, 'correct' => 2, 'rate' => 1], $d['total']['comprehension']['unaided']);
+        foreach ($d['learners'] as $learner) {
+            $this->assertSame(['n' => 1, 'correct' => 1, 'rate' => 1], $learner['comprehension']['unaided']);
+        }
+    }
+
+    public function test_repeated_v2_recall_responses_do_not_inflate_ratings_or_good_history(): void
+    {
+        $u = User::factory()->create();
+        $recall = ['schema' => 2, 'target' => null, 'correctness' => null, 'card' => 'utterance:a#form.recall'];
+        $this->event($u, $recall + ['opportunity' => 'a', 'action' => 'skip']);
+        $this->event($u, $recall + ['opportunity' => 'a', 'rating' => 'said_it', 'grade' => 'Good']);
+        $this->event($u, $recall + ['at' => '2026-10-03 12:00:00', 'rating' => 'missed', 'grade' => 'Again']);
+        $recall['card'] = 'utterance:b#form.recall';
+        $this->event($u, $recall + ['opportunity' => 'b', 'rating' => 'said_it', 'grade' => 'Good']);
+        $this->event($u, $recall + ['opportunity' => 'b', 'rating' => 'partly', 'grade' => 'Hard']);
+        $this->event($u, $recall + ['at' => '2026-10-03 12:00:00', 'rating' => 'missed', 'grade' => 'Again']);
+
+        $d = $this->report()['total'];
+        $this->assertSame(6, $d['activity']['responseEvents']);
+        $this->assertSame(['said_it' => 1, 'partly' => 0, 'missed' => 2, 'dont_know' => 0, 'unscored' => 1], $d['spokenRecall']['ratings']);
+        $this->assertSame(['n' => 1, 'correct' => 0, 'rate' => 0], $d['spokenRecall']['afterEarlierGood']['oneToSevenDays']);
+    }
+
+    public function test_legacy_rows_without_opportunity_ids_keep_existing_counting_rules(): void
+    {
+        $u = User::factory()->create();
+        foreach (['lesson', 'checkpoint'] as $mode) {
+            $this->event($u, ['mode' => $mode, 'opportunity' => null]);
+            $this->event($u, ['mode' => $mode, 'opportunity' => null]);
+        }
+
+        $d = $this->report()['total'];
+        $this->assertSame(4, $d['activity']['responseEvents']);
+        $this->assertSame(2, $d['comprehension']['unaided']['n']);
+        $this->assertSame(1, $d['checkpoint']['firstExposure']['n']);
+        $this->assertSame(0, $d['checkpoint']['previouslyExposed']['n']);
     }
 
     public function test_delayed_recall_boundaries(): void
