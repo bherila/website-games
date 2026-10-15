@@ -42,7 +42,64 @@ function run(files: Record<string, string>): { status: number | null, output: st
 
 const INSIDE = { 'resources/js/games/mandarin/index.tsx': "import './ui/Thing'\n" }
 
+// Every exception has an intended target and an independently protected module
+// it must never expose. Exercise syntax and resolution together through the CLI.
+const EXCEPTIONS = [
+  {
+    file: 'resources/js/games/game-select/mandarinCatalogEntry.ts',
+    allowed: ['../mandarin/previewSummary', '@/games/mandarin'],
+    forbidden: ['../../admin/mandarin', '@/admin/mandarin'],
+  },
+  {
+    file: 'resources/js/games/game-select/__tests__/GameSelectPage.test.tsx',
+    allowed: ['../../mandarin/previewSummary', '@/games/mandarin'],
+    forbidden: ['../../../admin/mandarin', '@/admin/mandarin'],
+  },
+  {
+    file: 'resources/js/admin/AdminPage.tsx',
+    allowed: ['./mandarin', '@/admin/mandarin'],
+    forbidden: ['../games/mandarin/previewSummary', '@/games/mandarin/previewSummary'],
+  },
+]
+
+const IMPORT_FORMS = [
+  { name: 'static import', source: (spec: string) => `import { x } from '${spec}'` },
+  { name: 'dynamic import', source: (spec: string) => `const m = import('${spec}')` },
+  { name: 're-export', source: (spec: string) => `export { x } from '${spec}'` },
+  { name: 'side-effect import', source: (spec: string) => `import '${spec}'` },
+  { name: 'require', source: (spec: string) => `const m = require('${spec}')` },
+  { name: 'jest.mock', source: (spec: string) => `jest.mock('${spec}')` },
+]
+
 describe('Mandarin boundary guard', () => {
+  it.each(EXCEPTIONS)('permits the intended imports from $file', ({ allowed, file }) => {
+    for (const spec of allowed) {
+      for (const form of IMPORT_FORMS) {
+        expect(run({ ...INSIDE, [file]: form.source(spec) }).status).toBe(0)
+      }
+    }
+  })
+
+  it.each(EXCEPTIONS.flatMap(({ file, forbidden }) => forbidden.flatMap((spec) => (
+    IMPORT_FORMS.map((form) => [file, form.name, spec, form.source(spec)] as const)
+  ))))('rejects %s using %s into the other protected module: %s', (file, _form, _spec, source) => {
+    const result = run({ ...INSIDE, [file]: source })
+    expect(result.status).toBe(1)
+    expect(result.output).toContain(file)
+  })
+
+  it.each([
+    ['resources/js/games/game-select/mandarinCatalogEntry.ts', '../mandarin/../../admin/mandarin'],
+    ['resources/js/games/game-select/__tests__/GameSelectPage.test.tsx', '../../mandarin/../../admin/mandarin'],
+    ['resources/js/games/game-select/mandarinCatalogEntry.ts', '@/games/mandarin/../../admin/mandarin'],
+    ['resources/js/games/game-select/__tests__/GameSelectPage.test.tsx', '@/games/mandarin/../../admin/mandarin'],
+    ['resources/js/admin/shared/helper.ts', '@/games/../admin/mandarin/types'],
+  ])('normalizes traversal before checking %s importing %s', (file, spec) => {
+    const result = run({ ...INSIDE, [file]: `import { x } from '${spec}'` })
+    expect(result.status).toBe(1)
+    expect(result.output).toContain(file)
+  })
+
   it('passes when only Mandarin and allow-listed files touch the folder', () => {
     const { status } = run({
       ...INSIDE,
