@@ -289,7 +289,20 @@ test.describe('Hover gameplay', () => {
     await expect(page.getByTestId('level-select-2')).toBeDisabled()
     if (isMobile) await page.getByTestId('level-select-1').tap()
     else await page.getByTestId('level-select-1').click()
-    await expect(page.getByText('Future City', { exact: true })).toBeVisible()
+    // The intro can finish while a slow renderer presents the first frame.
+    // City's blue minimap walls persist; Castle has beige walls and only a
+    // handful of blue flag pixels, well below this broad coverage threshold.
+    await expect.poll(() => page.getByRole('img', { name: 'Minimap', exact: true }).evaluate((element) => {
+      const canvas = element as HTMLCanvasElement
+      const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+      let bluePixels = 0
+      for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index + 2]! > pixels[index]! + 50 && pixels[index + 2]! > pixels[index + 1]! + 20) {
+          bluePixels++
+        }
+      }
+      return bluePixels / (canvas.width * canvas.height)
+    }), { message: 'the unlocked City arena renders its blue walls', timeout: 15_000 }).toBeGreaterThan(0.1)
     await expect(page.getByTestId('score-value')).toHaveText('0')
     await expect(page.getByTestId('speed-value')).toHaveText('0')
     await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0)
