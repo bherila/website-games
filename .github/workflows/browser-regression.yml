@@ -13,6 +13,25 @@ permissions:
   contents: read
 
 jobs:
+  browser-selection:
+    name: Select Gameplay Checks
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+      shards: ${{ steps.select.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Test gameplay selection boundaries
+        run: node --test scripts/__tests__/select-gameplay-tests.test.mjs
+
+      - name: Select full gameplay groups
+        id: select
+        env:
+          GAMEPLAY_EVENT: ${{ github.event_name }}
+        run: node scripts/select-gameplay-tests.mjs
+
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-24.04-arm
@@ -43,15 +62,14 @@ jobs:
       reuse_frontend_build: true
 
   gameplay:
-    name: Gameplay Browser Checks (${{ matrix.shard }}/4)
-    needs: frontend-build
+    name: Gameplay Browser Checks (${{ matrix.shard }}/${{ needs.browser-selection.outputs.shards }})
+    needs: [frontend-build, browser-selection]
     strategy:
       fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4]
+      matrix: ${{ fromJSON(needs.browser-selection.outputs.matrix) }}
     uses: ./.github/workflows/browser-checks.yml
     with:
       script: test:e2e:gameplay
-      shard: ${{ matrix.shard }}/4
-      report_name: gameplay-playwright-report-${{ matrix.shard }}-of-4
+      grep: ${{ matrix.grep }}
+      report_name: gameplay-playwright-report-${{ matrix.shard }}-of-${{ needs.browser-selection.outputs.shards }}
       reuse_frontend_build: true
