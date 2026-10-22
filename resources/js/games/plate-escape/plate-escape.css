@@ -1,0 +1,13 @@
+.plate-escape { font-family: 'Atkinson Hyperlegible Next Variable', sans-serif; }
+.plate-escape canvas { display: block; width: 100%; height: 100%; }
+.plate-escape .screw-target { cursor: pointer; background: transparent; }
+.plate-escape .screw-target:hover { box-shadow: 0 0 0 2px rgb(255 255 255 / 75%); }
+.plate-screw-flight { position: fixed; z-index: 80; display: grid; width: 26px; height: 26px; margin: -13px; place-items: center; border-radius: 50%; color: white; box-shadow: 0 4px 8px #0002; pointer-events: none; animation: plate-screw-collect 650ms ease-in-out both; }
+@keyframes plate-screw-collect {
+  0%, 30% { opacity: 0; transform: scale(.8); }
+  40% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: translate(var(--fly-x), var(--fly-y)) scale(.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate-screw-flight { animation-duration: 1ms; }
+}

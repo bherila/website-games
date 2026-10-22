@@ -6,6 +6,7 @@ enum GameSlug: string
 {
     case ChicksChallenge = 'chicks-challenge';
     case BlockBlaster = 'block-blaster';
+    case PlateEscape = 'plate-escape';
     case MarbleSort = 'marble-sort';
     case ParkingPickup = 'parking-pickup';
     case Hover = 'hover';
@@ -51,6 +52,7 @@ enum GameSlug: string
         $level = (int) $slot;
         $maximum = match ($this) {
             self::ChicksChallenge => 40,
+            self::PlateEscape => 1,
             self::MathHorde, self::MarbleWorks => 12,
             default => 25,
         };

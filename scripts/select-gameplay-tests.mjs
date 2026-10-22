@@ -14,6 +14,7 @@ export const GAMEPLAY_GAMES = [
   { game: 'hover', ui: ['HoverGame.tsx', 'HoverScene.tsx'], specs: ['hover.spec.ts'] },
   { game: 'marble-sort', ui: ['MarbleSortGame.tsx', 'MarbleSortScene.tsx'], specs: ['marble-sort.spec.ts'] },
   { game: 'marble-works', ui: ['MarbleWorksGame.tsx', 'MarbleWorksScene.tsx'], specs: ['marble-works.spec.ts'] },
+  { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts'] },
   { game: 'math-horde', ui: ['MathHordeGame.tsx', 'MathHordeScene.tsx'], specs: ['math-horde.spec.ts'] },
   {
     game: 'tower-throwback',
@@ -28,7 +29,7 @@ export const GAMEPLAY_PROJECTS = [DESKTOP, MOBILE]
 
 // Measured on GitHub's ARM runners, then balanced by complete project/file
 // units. The baseline estimates are 171, 173, 175 and 173 seconds; retain every
-// unit, including the currently skipped mobile Tower journey. Shared by CI and
+// unit, including the native mobile Tower journey. Shared by CI and
 // weekly regression; update these assignments when measured durations drift.
 export const FULL_GAMEPLAY_GROUPS = [
   [
@@ -37,6 +38,7 @@ export const FULL_GAMEPLAY_GROUPS = [
     [DESKTOP, 'math-horde.spec.ts'],
     [MOBILE, 'chicks-challenge.spec.ts'],
     [MOBILE, 'tower-throwback.journey.spec.ts'],
+    [MOBILE, 'plate-escape.spec.ts'],
   ],
   [
     [MOBILE, 'tower-throwback.visual.spec.ts'],
@@ -60,6 +62,7 @@ export const FULL_GAMEPLAY_GROUPS = [
     [DESKTOP, 'marble-works.spec.ts'],
     [MOBILE, 'tower-throwback.drawcalls.spec.ts'],
     [DESKTOP, '2048.journey.spec.ts'],
+    [DESKTOP, 'plate-escape.spec.ts'],
   ],
 ]
 

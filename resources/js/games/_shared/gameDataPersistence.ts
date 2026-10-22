@@ -8,6 +8,7 @@ import { safeLocalStorage } from './progressParsers'
 export const DATABASE_GAME_SLUGS = [
   'chicks-challenge',
   'block-blaster',
+  'plate-escape',
   'marble-sort',
   'parking-pickup',
   'hover',

@@ -43,6 +43,8 @@ Route::get('/marble-works', function () {
     return view('games.marble-works');
 })->name('games.marble-works');
 
+Route::view('/plate-escape', 'games.plate-escape')->name('games.plate-escape');
+
 Route::get('/block-blaster', function () {
     return view('games.block-blaster');
 })->name('games.block-blaster');

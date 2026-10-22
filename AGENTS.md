@@ -6,7 +6,7 @@ source of truth and is harness-agnostic — do not add a `CLAUDE.md`; point othe
 ## What this repo is
 
 A small collection of browser games (2048, Block Blaster, Chick's Challenge, Hover,
-Marble Sort, Marble Works, Math Horde, Parking Pickup, Tower Throwback) served from
+Marble Sort, Marble Works, Math Horde, Parking Pickup, Plate Escape, Tower Throwback) served from
 `games.bherila.net`.
 Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud-save API.
 

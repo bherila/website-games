@@ -6,10 +6,12 @@ import { HOVER_GAME_DATA } from '../hover/gameProgress'
 import { MARBLE_SORT_CATALOG_GAME_DATA, MARBLE_SORT_GAME_DATA } from '../marble-sort/gameProgress'
 import { MARBLE_WORKS_GAME_DATA } from '../marble-works/gameProgress'
 import { MATH_HORDE_GAME_DATA } from '../math-horde/gameProgress'
+import { PLATE_ESCAPE_GAME_DATA } from '../plate-escape/gameProgress'
 
 export const DATABASE_GAME_PROGRESS_DATA = [
   CHICKS_GAME_DATA,
   BLOCK_BLASTER_GAME_DATA,
+  PLATE_ESCAPE_GAME_DATA,
   MARBLE_SORT_CATALOG_GAME_DATA,
   CARS_CATALOG_GAME_DATA,
   HOVER_GAME_DATA,
@@ -21,6 +23,7 @@ export const DATABASE_GAME_PROGRESS_DATA = [
 export const DATABASE_GAME_DATA = [
   CHICKS_GAME_DATA,
   BLOCK_BLASTER_GAME_DATA,
+  PLATE_ESCAPE_GAME_DATA,
   ...MARBLE_SORT_GAME_DATA,
   ...CARS_GAME_DATA,
   HOVER_GAME_DATA,
