@@ -139,10 +139,48 @@ Each power-up uses a confirmation dialog before spending inventory.
 - Anonymous/legacy progress key: `bwh.marble-sort.progress.v2`
 - Anonymous/legacy level snapshot key: `bwh.marble-sort.snapshot.v4`
 - Rendering uses Three.js through Vite.
+- The scene owns the PMREM environment render target, sun shadow target, and
+  cloud meshes. Leaving a level releases them along with the board; the temporary
+  `RoomEnvironment` and PMREM generator are released after environment generation.
+- The full-resolution sun shadow is reused while only clouds and conveyor
+  sockets move (neither casts a shadow). Board changes and moving marbles,
+  dispenser boxes, or sorting stacks refresh it, including each animation's
+  final frame. Shadow resolution, lighting, materials, and physics stay the same.
 - The first version uses automatic conveyor sorting rather than manual drag-and-drop.
+
+## Rendering Investigation
+
+An October 2026 local Chromium/SwiftShader probe used the first campaign board,
+a 1703 by 959 desktop viewport, and a 677 by 757 drawing buffer. It captured
+the scene's renderer in a temporary Playwright response override, rendered the
+same scene repeatedly, and read `renderer.info.render`. For elapsed time it
+called WebGL `readPixels` on one pixel after each render to wait for the GPU;
+timing `renderer.render` alone mostly measures command submission.
+
+Reusing the sun shadow removed 130 draw calls and 98,912 triangles per settled
+frame (373 calls / 228,718 triangles versus 243 / 129,806). This avoids rebuilding
+the unchanged 2048 by 2048 shadow map while retaining the same visible shadows.
+Three synchronized samples per condition had medians of 1.55 seconds with
+shadow updates and 1.65 seconds with the cached map: these noisy software-rendered
+samples do **not** demonstrate a frame-time improvement. A later diagnostic was
+stopped after exceeding its time budget on the shared host. The main rendering
+bottleneck remains unresolved; these results do not justify reducing visual
+quality or converting repeated marble meshes to instances yet.
 
 ## Open Questions
 
 - Final tuning for level difficulty, conveyor capacity, score penalties, and power-up award rates.
 - Whether later versions should support manual sorting gestures.
 - Whether to add sounds, haptics, or a more elaborate box-bust animation.
+
+## Browser Regression Coverage
+
+`pnpm run test:e2e:marble-sort` runs the desktop and mobile Chromium journeys in
+`tests/e2e/marble-sort.spec.ts`. They pop a real hinted box, verify its nine-marble
+payload and autosave, resume after a page reload, and reset the original board.
+Desktop also checks resuming through the level menu and completing all five
+tutorial steps; mobile checks advancing, dismissing, and reopening the tutorial.
+Mobile play uses touch input. The suite reads the game’s own autosave for assertions and does not
+inject a board or progress. It also runs in the shared gameplay browser gate.
+Functional journeys use a 1280 by 720 desktop viewport, the 375 by 812 touch
+viewport, and device scale factor 1 to bound software rendering cost.

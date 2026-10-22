@@ -29,7 +29,7 @@ Block Blaster is the third game in this repo and must mirror the existing two:
 - **Tests:** co-located `__tests__/` dir; `*.test.ts` runs in the node Jest project (no DOM,
   no `@testing-library` imports), `*.dom.test.ts` / `*.test.tsx` run in jsdom. Never instantiate
   `WebGLRenderer` in tests — test builders/engine logic directly (see `marble-sort/__tests__/physicsWorld.test.ts`).
-- **CI:** game tests run in their own job, excluded from the app suite via `JEST_EXCLUDE_GAME_TESTS`
+- **CI:** Jest runs with the full frontend suite; browser journeys run in the shared gameplay gate
   (see CI wiring section).
 - **Lint gotchas:** `simple-import-sort/imports` and `unused-imports/no-unused-imports` are errors.
 
@@ -340,6 +340,13 @@ monotonically raises stars and never lowers; `unlockedLevel` caps at 25.
 shows correct star count and advances unlock; retry restores ball count. `TutorialHint` disappears after
 first shot.
 
+**F2. Browser journeys (`tests/e2e/block-blaster.spec.ts`):** real mouse/touch input and WebGL physics
+cover the first tutorial win, three stars, next-level navigation, persisted unlocks after reload,
+retry/reset, abandoning unfinished attempts, and running out of balls. Run
+`pnpm run test:e2e:block-blaster` against a local Laravel server with built frontend assets.
+Both desktop and 375px touch viewports are covered. Unfinished attempts intentionally restart;
+only completed-level progress persists.
+
 **G. Wordless-tutorial acceptance (manual):** a new player who cannot read must be able to clear levels
 1–4 guided only by the hint ring/finger and layout. Levels 1–4 define `hint`; no level contains
 instructional text; the only strings on screen are numerals.
@@ -353,23 +360,18 @@ progress unlock still only advances by winning).
 allocations in the step loop, shadow map ≤ 1024², total added JS (gzipped) for the entry reasonable
 (three is chunk-split by existing vite config).
 
-## CI wiring (exact edits)
+## CI wiring
 
-1. `package.json`: add `"test:ci:block-blaster": "jest --passWithNoTests --maxWorkers=2 resources/js/games/block-blaster"`.
-2. `jest.config.cjs`: add `'/resources/js/games/block-blaster/'` to `gameTestPathIgnorePatterns`.
-3. `.github/workflows/ci.yml`:
-   - `changes` filter `block_blaster:` matching `resources/js/games/block-blaster/**`,
-     `resources/js/games/_shared/**`, `resources/js/games/PortraitGameShell.tsx`,
-     `resources/views/games/block-blaster.blade.php`, `tests/Feature/BlockBlasterGamePageTest.php`,
-     `package.json` (mirror the `marble_sort` filter), plus the job output line.
-   - `block-blaster-tests` job cloned from `marble-sort-tests`.
-   - Add the job to the final gate's `needs`/result checks (mirror `marble_sort_tests`).
-4. `vite.config.ts`: add `'resources/js/games/block-blaster/index.tsx'` to the `laravel({ input })` list.
+- `pnpm run test` includes Block Blaster's Jest tests in `frontend-tests`.
+- `pnpm run test:e2e:gameplay` includes its desktop and mobile browser journeys in `browser-gameplay`.
+- `.github/workflows/ci.yml` requires both jobs through `Run Tests`; the weekly Browser Regression
+  workflow also runs the same gameplay script through `.github/workflows/browser-checks.yml`.
+- `vite.config.ts` registers `resources/js/games/block-blaster/index.tsx` as a Laravel Vite input.
 
 ## Out of scope / follow-ups (do not build now)
 
 - Sound effects (cars has an `audio/` pattern to copy later).
-- Playwright E2E + visual harness (`docs/games/parking-pickup-visual-harness.md` pattern) — follow-up PR.
+- Screenshot visual harness (`docs/games/parking-pickup-visual-harness.md` pattern).
 - Power-ups (multi-ball, bomb ball), coins/economy, level editor.
 
 ## Implementation to-do list (handoff checklist)

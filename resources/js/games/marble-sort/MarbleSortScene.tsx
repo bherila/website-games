@@ -429,14 +429,27 @@ export function MarbleSortScene({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    // Clouds and belt sockets move without casting shadows. Keep the full
+    // resolution shadow map until a box, stack, or marble actually moves.
+    renderer.shadowMap.autoUpdate = false
+    renderer.shadowMap.needsUpdate = true
     renderer.toneMapping = THREE.NeutralToneMapping
     renderer.toneMappingExposure = 1.0
     rendererRef.current = renderer
     container.appendChild(renderer.domElement)
 
+    // Three restores the shadow update flags, but the old GPU map is lost.
+    const handleContextRestored = (): void => {
+      renderer.shadowMap.needsUpdate = true
+    }
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored)
+
     const pmrem = new THREE.PMREMGenerator(renderer)
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    const room = new RoomEnvironment()
+    const environment = pmrem.fromScene(room, 0.04)
+    scene.environment = environment.texture
     scene.environmentIntensity = 0.3
+    room.dispose()
     pmrem.dispose()
 
     const stackGroups = stackGroupsRef.current
@@ -579,6 +592,14 @@ export function MarbleSortScene({
       const now = performance.now() / 1000
       const phase = currentConveyorPhase(now)
 
+      // Test before advancing tweens: their final pose (or a removed marble)
+      // must also replace the previous frame's shadow.
+      if (marbleEntriesRef.current.size > 0
+        || boxPopTweensRef.current.length > 0
+        || stackTweensRef.current.length > 0) {
+        renderer.shadowMap.needsUpdate = true
+      }
+
       stepPhysics(physics.world, delta)
       animateConveyorBeltMarkers(beltMarkersRef.current, phase)
       updateMarbleMeshes(now, delta)
@@ -648,6 +669,7 @@ export function MarbleSortScene({
       timer.dispose()
       resizeObserver.disconnect()
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
+      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored)
       bodiesRef.current?.releaseAll()
       if (physicsRef.current) {
         disposePhysicsWorld(physicsRef.current)
@@ -668,6 +690,10 @@ export function MarbleSortScene({
         clearGroup(boardGroupRef.current)
       }
       skyTexture.dispose()
+      disposeObject(clouds.group)
+      scene.environment = null
+      environment.dispose()
+      sun.shadow.dispose()
       cloudFieldRef.current = null
       renderer.dispose()
       renderer.domElement.remove()
@@ -726,6 +752,9 @@ export function MarbleSortScene({
     )
 
     if (shouldRebuildDynamicObjects) {
+      if (rendererRef.current) {
+        rendererRef.current.shadowMap.needsUpdate = true
+      }
       clearGroup(dynamicGroup)
       clearGroup(boardDynamicGroup)
       stackGroupsRef.current.clear()

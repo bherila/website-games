@@ -111,6 +111,11 @@ export function MathHordeGame(): ReactElement {
       if (!gameState || showTutorial || (phase !== 'playing' && phase !== 'paused')) {
         return
       }
+      if (event.defaultPrevented || (event.target instanceof Element && event.target.closest(
+        'button, a[href], input, select, textarea, summary, [role="button"], [role="link"], [role="textbox"], [contenteditable]:not([contenteditable="false"])',
+      ))) {
+        return
+      }
       if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
         event.preventDefault()
         if (phase === 'playing') {
@@ -123,7 +128,9 @@ export function MathHordeGame(): ReactElement {
         }
       } else if (event.code === 'Space' || event.code === 'Escape') {
         event.preventDefault()
-        setPhase((current) => current === 'paused' ? 'playing' : 'paused')
+        if (!event.repeat) {
+          setPhase((current) => current === 'paused' ? 'playing' : 'paused')
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)

@@ -75,6 +75,18 @@ Non-obvious, verified:
   weekly. The per-game Playwright workflows still support focused manual verification.
   `.github/workflows/browser-checks.yml` owns isolated browser setup. Anonymous checks use
   file sessions/cache; only PWA checks migrate and seed an isolated SQLite fixture.
+  Full gameplay runs use four measured groups, each with one worker and complete project/file
+  isolation. CI and weekly share the selector's group assignments and unique report names.
+  Full groups use project/file grep filters; do not also apply Playwright's native `--shard`,
+  which would omit tests from each group. Selector tests enforce complete, nonduplicated
+  coverage of the gameplay package script's specs and projects; update both when adding coverage.
+  PRs touching only one game's exact audited UI/entrypoint files, Blade shell or registered
+  gameplay specs run that game in one group; multiple affected games retain all four groups.
+  `scripts/select-gameplay-tests.mjs` owns that allow-list. New or unknown paths,
+  engine/types/progress/levels/maps, shared code,
+  dependencies, deletions and renames retain the full run. Main and weekly always run all games,
+  and PWA checks always run. Selection failures fail `Run Tests`; no browser jobs are skipped.
+  `Run Tests` checks the aggregate gameplay matrix result, so every shard must succeed.
 - CI runs on GitHub-hosted `ubuntu-24.04-arm`.
 
 ## Privacy

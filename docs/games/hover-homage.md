@@ -32,13 +32,13 @@ future games. Sections are normative unless marked "tuning" or "future".
   `bwh.hover-game.settings.v1`.
 - **Game Select:** entry in `game-select/gameCatalog.ts`; endless games adapt to the level-grid contract
   (see "Catalog adapter").
-- **Tests:** colocated `__tests__/`, `.dom.test.ts(x)` (jsdom). Never instantiate `WebGLRenderer` in
-  tests — the engine layer is framework-free precisely so it tests headlessly.
-- **CI (checklist — Hover initially shipped missing half of this):** adding a game requires ALL of:
-  1. `jest.config.cjs` — add the game path to the `JEST_EXCLUDE_GAME_TESTS` ignore list
-  2. `package.json` — `test:ci:<slug>` script
-  3. `.github/workflows/ci.yml` — path filter under `changes`, an `outputs:` entry, a per-game test
-     job, and the `test` aggregator (needs list + result var + failure check + all-skipped check)
+- **Tests:** colocated `__tests__/`, `.dom.test.ts(x)` (jsdom). Unit tests never instantiate
+  `WebGLRenderer` — the engine layer is framework-free precisely so it tests headlessly. Browser
+  journeys in `tests/e2e/hover.spec.ts` exercise the real renderer and player inputs.
+- **CI:** the frontend job runs the complete Jest suite. Browser gameplay runs in four Playwright
+  shards with one worker and file-level isolation. Register new browser specs in
+  `test:e2e:gameplay`; keep the CI and weekly matrices aligned, report artifacts unique per shard,
+  and the required `Run Tests` aggregate gate checking the gameplay matrix result.
 - **Lint gotchas:** `simple-import-sort/imports` and unused-imports are errors — run
   `pnpm exec eslint --fix resources/js/games/hover/` before committing.
 
@@ -298,14 +298,22 @@ stay tolerant of absent keys or shipping a new map wipes everyone's progress (re
 `?visualTest=1&autoStart=1&seed=42&round=N` skips the attract screen, starts at round `N` (default 0 —
 this is how you screenshot a specific map: `round=3` = neon, `4` = glacier, `5` = garden, `6` = temple),
 seeds spawning deterministically (`seed + roundIndex`), and sets `window.__HOVER_VISUAL_READY__` after
-3 rendered frames — the hook a
-future Playwright visual spec (not yet written) will wait on. **Headless driving recipe used throughout
+3 rendered frames. `tests/e2e/hover.spec.ts` checks this readiness and selected map while verifying
+that previewing a locked arena does not save progression. **Headless driving recipe used throughout
 development:** build assets, `php artisan serve --port=8001` (8000 may be owned by another checkout),
 then a Playwright script from the repo root (so `node_modules` resolves) that clicks Start, holds
 `KeyW`, screenshots, and asserts on HUD testids (`speed-value`, `flag-dot-red[data-filled]`, …). Touch
 verification uses a `devices['iPhone 13 landscape']` context and CDP `Input.dispatchTouchEvent` for
 stick drags. Reading the screenshots caught every visual bug the test suite could not (cockpit
 placement, shadow acne, joystick/minimap overlap, mirror flicker).
+
+Run `PLAYWRIGHT_BASE_URL=http://127.0.0.1:8001 pnpm run test:e2e:hover` against built assets and a
+running server. Both desktop Chromium and a 375px touch project cover start/map locks, real driving,
+pause/resume and a fresh attempt after reload; desktop also checks mute persistence. Native CDP
+touch events exercise joystick capture and release. Functional journeys use device scale factor 1
+and a 1280×720 desktop viewport to keep software WebGL rendering bounded; the mobile project retains
+its 375×812 CSS viewport and touch profile. These journeys read the HUD and browser storage; they do
+not mutate the engine or replace the renderer.
 
 ## Test coverage map
 
@@ -377,8 +385,8 @@ world positions broke en masse when cellSize changed 4 → 5.
 
 ## Future (non-normative)
 
-- Playwright visual spec on top of `visualTestMode` (hook already ships; see the parking-pickup visual
-  harness docs for the pattern).
+- Pixel-level Playwright screenshot comparisons on top of `visualTestMode`; the gameplay suite
+  already checks real rendering readiness and seeded map selection.
 - Drone jump usage (it already banks charges conceptually — AI would need low-wall-aware pathing with a
   jump cost edge).
 - More arenas: the ASCII + theme + connectivity-test pipeline makes a new map roughly an afternoon.
