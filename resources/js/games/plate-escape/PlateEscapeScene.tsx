@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
 import type { PuzzleState } from './engine'
+import { createGarden, decoratePlate, plateOutline, plateQuaternion } from './houseGeometry'
 import { COLORS, PLATES, SCREWS } from './level'
 
 export interface ScrewTarget { id: string, x: number, y: number }
@@ -37,24 +38,31 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
     renderer.setClearColor(0, 0)
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.shadowMap.autoUpdate = false
     renderer.domElement.setAttribute('aria-label', 'Rotatable plate assembly. Drag to turn; use the labeled screw buttons to unscrew.')
     renderer.domElement.style.touchAction = 'none'
     container.appendChild(renderer.domElement)
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100)
-    camera.position.set(5.5, 3, 11)
+    camera.position.set(6.4, 4.2, 10)
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.target.set(0, -0.1, 0)
+    controls.target.set(0, 0.1, 0)
     controls.enablePan = false
     controls.enableDamping = true
     controls.rotateSpeed = 0.65
     controls.minDistance = 10
     controls.maxDistance = 16
     controls.minPolarAngle = 0.5
-    controls.maxPolarAngle = Math.PI - 0.5
+    controls.maxPolarAngle = Math.PI / 2 + 0.12
     controls.update()
     controls.saveState()
     commandRef.current = (action) => {
+      // Explicit view commands must stop the preceding drag's damping delta.
+      controls.enableDamping = false
+      controls.update()
+      controls.enableDamping = true
       if (action === 'reset') controls.reset()
       else {
         const offset = camera.position.clone().sub(controls.target)
@@ -66,6 +74,17 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     scene.add(new THREE.HemisphereLight(0xffffff, 0xa5a2b6, 2.4))
     const light = new THREE.DirectionalLight(0xffffff, 3)
     light.position.set(4, 8, 7)
+    light.castShadow = true
+    light.shadow.mapSize.set(512, 512)
+    light.shadow.camera.left = -6
+    light.shadow.camera.right = 6
+    light.shadow.camera.top = 6
+    light.shadow.camera.bottom = -6
+    light.shadow.camera.near = 1
+    light.shadow.camera.far = 24
+    light.shadow.camera.updateProjectionMatrix()
+    light.shadow.bias = -0.0008
+    light.shadow.normalBias = 0.03
     scene.add(light)
     const rim = new THREE.DirectionalLight(0xe1eaff, 2)
     rim.position.set(-5, 1, -5)
@@ -75,14 +94,17 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     scene.add(assembly)
     const plateGroups = new Map<string, THREE.Group>()
     const screwGroups = new Map<string, THREE.Group>()
-    const hitObjects: THREE.Object3D[] = []
+    const garden = createGarden()
+    scene.add(garden)
+    const hitObjects: THREE.Object3D[] = [garden]
+    const plateFrames = new Map(PLATES.map((plate) => [plate.id, plateQuaternion(plate)]))
     for (const plate of PLATES) {
       const group = new THREE.Group()
       group.position.fromArray(plate.position)
-      group.rotation.y = plate.back ? Math.PI : 0
+      group.quaternion.copy(plateFrames.get(plate.id)!)
       assembly.add(group)
       plateGroups.set(plate.id, group)
-      const shape = roundedPlate(plate.size[0], plate.size[1])
+      const shape = plateOutline(plate)
       const screws = SCREWS.filter((screw) => screw.plate === plate.id)
       for (const screw of screws) {
         const hole = new THREE.Path()
@@ -92,15 +114,17 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.04, bevelSegments: 2, steps: 1 })
       geometry.translate(0, 0, -0.09)
       const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: plate.color, metalness: 0.12, roughness: 0.45 }))
-      group.add(mesh)
-      hitObjects.push(mesh)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      group.add(mesh, decoratePlate(plate))
+      hitObjects.push(group)
       for (const screw of screws) {
         const screwGroup = makeScrew(COLORS[screw.color].hex, screw.color)
         screwGroup.position.set(screw.position[0], screw.position[1], 0.18)
         screwGroup.userData.screwId = screw.id
         group.add(screwGroup)
         screwGroups.set(screw.id, screwGroup)
-        hitObjects.push(screwGroup)
+
       }
     }
 
@@ -126,6 +150,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     const facing = new THREE.Vector3()
     const quaternion = new THREE.Quaternion()
     let previousRemoved: string[] = []
+    let lastMotionAt = performance.now() / 1000
     let frame = 0
     let lastTargets = -1
     let disposed = false
@@ -134,6 +159,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       frame = requestAnimationFrame(animate)
       const now = performance.now() / 1000
       const removed = latestRef.current.state.removed
+      if (previousRemoved.length !== removed.length || previousRemoved.some((id, index) => id !== removed[index])) lastMotionAt = now
       if (previousRemoved.some((id) => !removed.includes(id))) removedAt.clear()
       for (const id of removed) if (!removedAt.has(id)) removedAt.set(id, now)
       previousRemoved = removed
@@ -149,8 +175,8 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
         // the left or the right; the final fall keeps that direction.
         const swing = pivot && pivot.position[0] > 0 ? 1 : -1
         const angle = remaining.length === 0 ? swing * (0.3 + fall * 1.2)
-          : pivot ? swing * 0.3 * Math.min(1, Math.max(0, (now - latest - 0.3) * 3)) : 0
-        const base = new THREE.Quaternion().setFromAxisAngle(UP, plate.back ? Math.PI : 0)
+          : pivot && Number.isFinite(latest) ? swing * 0.3 * Math.min(1, Math.max(0, (now - latest - 0.3) * 3)) : 0
+        const base = plateFrames.get(plate.id)!
         group.quaternion.copy(base).multiply(quaternion.setFromAxisAngle(NORMAL, angle))
         group.position.fromArray(plate.position)
         if (pivot) {
@@ -172,6 +198,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       controls.update()
       scene.updateMatrixWorld(true)
       camera.updateMatrixWorld(true)
+      renderer.shadowMap.needsUpdate = now - lastMotionAt < 1.8
       renderer.render(scene, camera)
       if (now - lastTargets > 0.1) {
         lastTargets = now
@@ -207,30 +234,14 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       controls.dispose()
       commandRef.current = null
       renderer.domElement.removeEventListener('webglcontextlost', lost)
+      light.shadow.dispose()
       disposeObject(scene)
       renderer.dispose()
       renderer.forceContextLoss()
       renderer.domElement.remove()
     }
   }, [])
-  return <div ref={hostRef} className="absolute inset-0" data-testid="plate-escape-scene" />
-}
-
-function roundedPlate(width: number, height: number): THREE.Shape {
-  const x = -width / 2
-  const y = -height / 2
-  const radius = 0.18
-  const shape = new THREE.Shape()
-  shape.moveTo(x + radius, y)
-  shape.lineTo(x + width - radius, y)
-  shape.quadraticCurveTo(x + width, y, x + width, y + radius)
-  shape.lineTo(x + width, y + height - radius)
-  shape.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
-  shape.lineTo(x + radius, y + height)
-  shape.quadraticCurveTo(x, y + height, x, y + height - radius)
-  shape.lineTo(x, y + radius)
-  shape.quadraticCurveTo(x, y, x + radius, y)
-  return shape
+  return <div ref={hostRef} className="absolute inset-x-0 bottom-16 top-0" data-testid="plate-escape-scene" />
 }
 
 function makeScrew(color: string, kind: string): THREE.Group {
@@ -238,7 +249,11 @@ function makeScrew(color: string, kind: string): THREE.Group {
   const metal = new THREE.MeshStandardMaterial({ color, metalness: 0.45, roughness: 0.27 })
   const head = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.12, 24), metal)
   head.rotation.x = Math.PI / 2
+  head.castShadow = true
   group.add(head)
+  const washer = new THREE.Mesh(new THREE.TorusGeometry(0.265, 0.025, 6, 24), new THREE.MeshStandardMaterial({ color: '#f3e6cf', metalness: 0.45, roughness: 0.38 }))
+  washer.position.z = -0.035
+  group.add(washer)
   const inset = new THREE.MeshStandardMaterial({ color: '#263747', roughness: 0.8 })
   const horizontal = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.055, 0.02), inset)
   horizontal.position.z = 0.07
