@@ -2,6 +2,7 @@ import { type BrowserContext, expect, type Page, test } from '@playwright/test'
 
 const ALL_GAMES = [
   ['/math-horde', '#math-horde-root'],
+  ['/plate-escape', '#plate-escape-root'],
   ['/parking-pickup', '#cars-game-root'],
   ['/marble-sort', '#marble-sort-root'],
   ['/marble-works', '#marble-works-root'],

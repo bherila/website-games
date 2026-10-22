@@ -15,6 +15,7 @@ import { loadProgress as loadMarbleWorksProgress } from '../marble-works/gamePro
 import { TOTAL_LEVELS as MARBLE_WORKS_TOTAL_LEVELS } from '../marble-works/gameTypes'
 import { loadProgress as loadMathHordeProgress } from '../math-horde/gameProgress'
 import { TOTAL_LEVELS as MATH_HORDE_TOTAL_LEVELS } from '../math-horde/gameTypes'
+import { loadProgress as loadPlateEscapeProgress } from '../plate-escape/gameProgress'
 import { loadProgress as loadTowerProgress } from '../tower-throwback/gameProgress'
 import { TOTAL_MILESTONES as TOWER_TOTAL_LEVELS } from '../tower-throwback/gameTypes'
 
@@ -71,6 +72,16 @@ export interface GameScoreSummary {
 export type GameCardSummary = GameProgressSummary | GameScoreSummary
 
 const CATALOG: GameCatalogEntry[] = [
+  {
+    kind: 'levels',
+    slug: 'plate-escape',
+    title: 'Plate Escape',
+    emoji: '🔩',
+    description: 'Turn a 3D assembly, sort colorful screws, and free every plate in a gentle mechanical puzzle.',
+    href: '/plate-escape',
+    totalLevels: 1,
+    loadProgress: () => loadPlateEscapeProgress(),
+  },
   {
     kind: 'levels',
     slug: 'math-horde',

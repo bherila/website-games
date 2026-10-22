@@ -24,6 +24,7 @@ export default defineConfig({
         'resources/js/games/marble-sort/index.tsx',
         'resources/js/games/marble-works/index.tsx',
         'resources/js/games/block-blaster/index.tsx',
+        'resources/js/games/plate-escape/index.tsx',
         'resources/js/games/math-horde/index.tsx',
         'resources/js/games/hover/index.tsx',
         'resources/js/games/chicks-challenge/index.tsx',
