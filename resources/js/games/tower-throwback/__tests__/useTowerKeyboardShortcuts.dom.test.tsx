@@ -121,6 +121,37 @@ describe('useTowerKeyboardShortcuts', () => {
     expect(h.onToggleBuildMode).toHaveBeenCalledTimes(2)
   })
 
+  it('accepts shortcuts after losing window focus without receiving keyup', () => {
+    const h = handlers()
+    renderHook(() => useTowerKeyboardShortcuts(state(), h))
+
+    keydown('b', { code: 'KeyB' })
+    window.dispatchEvent(new Event('blur'))
+    window.dispatchEvent(new Event('focus'))
+    keydown('b', { code: 'KeyB' })
+
+    expect(h.onToggleBuildMode).toHaveBeenCalledTimes(2)
+  })
+
+  it('accepts shortcuts after the page is hidden without receiving keyup', () => {
+    const h = handlers()
+    renderHook(() => useTowerKeyboardShortcuts(state(), h))
+    const visibilityState = jest.spyOn(document, 'visibilityState', 'get')
+
+    try {
+      keydown(' ', { code: 'Space' })
+      visibilityState.mockReturnValue('hidden')
+      document.dispatchEvent(new Event('visibilitychange'))
+      visibilityState.mockReturnValue('visible')
+      document.dispatchEvent(new Event('visibilitychange'))
+      keydown(' ', { code: 'Space' })
+
+      expect(h.onSetSpeed.mock.calls).toEqual([[0], [0]])
+    } finally {
+      visibilityState.mockRestore()
+    }
+  })
+
   it('does nothing while an input or textarea has focus', () => {
     const h = handlers()
     renderHook(() => useTowerKeyboardShortcuts(state(), h))

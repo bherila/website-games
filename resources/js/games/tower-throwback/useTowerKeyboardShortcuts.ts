@@ -188,11 +188,23 @@ export function useTowerKeyboardShortcuts(state: TowerShortcutState, handlers: T
       pressedKeys.delete(isSpaceKey(event) ? 'Space' : event.code || event.key)
     }
 
+    // Releasing a key in another window can leave us without its keyup event.
+    const clearPressedKeys = (): void => pressedKeys.clear()
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === 'hidden') {
+        clearPressedKeys()
+      }
+    }
+
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', clearPressedKeys)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', clearPressedKeys)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       pressedKeys.clear()
     }
   }, [])
