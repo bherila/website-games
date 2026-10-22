@@ -520,7 +520,8 @@ export function BuildPalette({ maxStarReached, mapId, selectedTool, onSelectTool
         </div>
       )}
       {detailsEntry && !openFamilyDefinition && (
-        <div className="absolute left-0 top-14 z-20 w-56 rounded-xl border border-white/10 bg-slate-950/95 px-3 pb-3 shadow-2xl backdrop-blur-sm sm:left-full sm:top-0 sm:ml-2 sm:w-64">
+        // Focus can show this over the original touch target before its click fires.
+        <div className="pointer-events-none absolute left-0 top-14 z-20 w-56 rounded-xl border border-white/10 bg-slate-950/95 px-3 pb-3 shadow-2xl backdrop-blur-sm sm:left-full sm:top-0 sm:ml-2 sm:w-64">
           <PaletteDetails entry={detailsEntry} />
         </div>
       )}

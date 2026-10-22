@@ -769,7 +769,7 @@ export function TowerGame(): ReactElement {
             {!visualTestMode && <GettingStarted snapshot={snapshot} />}
             {!visualTestMode && <ObservationDeckHint snapshot={snapshot} />}
           </div>
-          <div className="pointer-events-auto flex w-full max-w-full flex-wrap items-start justify-start gap-2 sm:w-auto sm:justify-end">
+          <div className="pointer-events-none flex w-full max-w-full flex-wrap items-start justify-start gap-2 sm:w-auto sm:justify-end [&>*]:pointer-events-auto">
             <SpeedControls
               speed={snapshot.speed}
               fastMode={snapshot.fastMode}
