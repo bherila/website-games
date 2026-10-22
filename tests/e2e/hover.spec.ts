@@ -41,6 +41,7 @@ interface MinimapReading {
   width: number
   height: number
   speed: number
+  collected: number
   cleared: boolean
   lost: boolean
 }
@@ -48,7 +49,7 @@ interface MinimapReading {
 async function readMinimap(page: Page): Promise<MinimapReading> {
   return page.getByRole('img', { name: 'Minimap', exact: true }).evaluate(async (element, progressKey) => {
     // Observe real rendered frames without advancing or replacing game time.
-    for (let frame = 0; frame < 4; frame++) {
+    for (let frame = 0; frame < 2; frame++) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
     }
     const canvas = element as HTMLCanvasElement
@@ -65,10 +66,9 @@ async function readMinimap(page: Page): Promise<MinimapReading> {
     return {
       points, width: canvas.width, height: canvas.height,
       speed: Number(document.querySelector('[data-testid="speed-value"]')?.textContent ?? 0) / 3.6,
+      collected: document.querySelectorAll('[data-testid="flag-dot-blue"][data-filled="true"]').length,
       // A slow rendered frame can outlast the three-second clear banner.
-      // Observe the durable real win as well as the live collected flags.
-      cleared: document.querySelectorAll('[data-testid="flag-dot-blue"][data-filled="true"]').length === 3
-        || JSON.parse(localStorage.getItem(progressKey) ?? 'null')?.mapsCleared?.castle === 1,
+      cleared: JSON.parse(localStorage.getItem(progressKey) ?? 'null')?.mapsCleared?.castle === 1,
       lost: document.body.textContent?.includes('THE DRONE BEAT YOU!') ?? false,
     }
   }, PROGRESS_KEY)
@@ -77,7 +77,9 @@ async function readMinimap(page: Page): Promise<MinimapReading> {
 async function collectCastleFlags(page: Page, isMobile: boolean): Promise<void> {
   // Seed 1177 puts blue flags at (1,5), (5,2), (13,3). These waypoints avoid
   // arrow pads, traps and powerups; all three pickups still require real driving.
-  const route = [[9, 33], [15, 15], [45, 15], [45, 9], [81, 9], [81, 21]]
+  // The third column requires actual HUD pickups at flag positions; pixel
+  // proximity alone cannot prove the craft entered the 1.6-unit pickup radius.
+  const route = [[9, 33, 1], [15, 15, 0], [33, 15, 2], [45, 15, 0], [45, 9, 0], [81, 9, 0], [81, 21, 3]] as const
   const initial = await readMinimap(page)
   const scale = initial.width / 174
   const offsetY = (initial.height - 126 * scale) / 2
@@ -111,8 +113,31 @@ async function collectCastleFlags(page: Page, isMobile: boolean): Promise<void> 
     session = await page.context().newCDPSession(page)
     await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [stick] })
   }
+
+  const updateInput = async (thrust: number, strafe: number): Promise<void> => {
+    if (session && stick) {
+      // Exercise the real radial clamp/deadzone with native diagonal
+      // movement and pointer capture, just as a player uses the stick.
+      const axis = (value: number): number => Math.abs(value) < 8 ? 0 : Math.sign(value)
+      const a = axis(strafe)
+      const b = axis(thrust)
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove', touchPoints: [{ x: stick.x - a * 36, y: stick.y - b * 36 }],
+      })
+    } else {
+      const keys = new Set([
+        ...(thrust > 8 ? ['w'] : thrust < -8 ? ['s'] : []),
+        ...(strafe > 8 ? ['a'] : strafe < -8 ? ['d'] : []),
+      ])
+      await Promise.all([
+        ...[...held].filter((key) => !keys.has(key)).map((key) => page.keyboard.up(key)),
+        ...[...keys].filter((key) => !held.has(key)).map((key) => page.keyboard.down(key)),
+      ])
+      held = keys
+    }
+  }
   try {
-    for (const [x, z] of route) {
+    for (const [x, z, requiredFlags] of route) {
       if (process.env.HOVER_DRIVE_DEBUG) console.log('Castle waypoint', x, z)
       let arrived = false
       for (let attempt = 0; attempt < 200; attempt++) {
@@ -131,12 +156,16 @@ async function collectCastleFlags(page: Page, isMobile: boolean): Promise<void> 
         const vz = travel > 0.1 ? travelZ / travel * reading.speed : 0
         previous = current
         if (process.env.HOVER_DRIVE_DEBUG && attempt % 10 === 0) {
-          console.log('Castle position', { current, speed: reading.speed, vx, vz })
+          console.log('Castle position', { current, speed: reading.speed, vx, vz, collected: reading.collected })
         }
         const dx = x! - current.x
         const dz = z! - current.z
         const distance = Math.hypot(dx, dz)
-        if (distance < 1.5 && reading.speed < 6) {
+        const checkpointReached = requiredFlags > 0
+          ? requiredFlags < 3 && reading.collected >= requiredFlags
+          : distance < 1.5 && reading.speed < 6
+        if (checkpointReached) {
+          await updateInput(0, 0)
           arrived = true
           break
         }
@@ -145,29 +174,11 @@ async function collectCastleFlags(page: Page, isMobile: boolean): Promise<void> 
         const az = (dz * speed - vz) * 4
         const thrust = ax * forward.x + az * forward.z
         const strafe = ax * left.x + az * left.z
-        if (session && stick) {
-          // Exercise the real radial clamp/deadzone with native diagonal
-          // movement and pointer capture, just as a player uses the stick.
-          const axis = (value: number): number => Math.abs(value) < 8 ? 0 : Math.sign(value)
-          const a = axis(strafe)
-          const b = axis(thrust)
-          await session.send('Input.dispatchTouchEvent', {
-            type: 'touchMove', touchPoints: [{ x: stick.x - a * 36, y: stick.y - b * 36 }],
-          })
-        } else {
-          const keys = new Set([
-            ...(thrust > 8 ? ['w'] : thrust < -8 ? ['s'] : []),
-            ...(strafe > 8 ? ['a'] : strafe < -8 ? ['d'] : []),
-          ])
-          await Promise.all([
-            ...[...held].filter((key) => !keys.has(key)).map((key) => page.keyboard.up(key)),
-            ...[...keys].filter((key) => !held.has(key)).map((key) => page.keyboard.down(key)),
-          ])
-          held = keys
-        }
+        await updateInput(thrust, strafe)
       }
       expect(arrived, `drive to Castle waypoint (${x}, ${z})`).toBe(true)
     }
+    throw new Error('Castle driving ended without a saved victory')
   } finally {
     for (const key of held) await page.keyboard.up(key)
     if (session) {
