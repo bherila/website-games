@@ -69,7 +69,7 @@ export function PlateEscapeGame(): ReactElement {
     setPuzzle(next)
     if (hasWon(next)) setPreviouslyCleared(true)
     setBusy(true)
-    setMessage(`${COLORS[screw.color].name} screw collected. ${next.removed.length} of 9 screws removed; ${freedPlates(next)} of 3 plates released.`)
+    setMessage(`${COLORS[screw.color].name} screw collected. ${next.removed.length} of 9 screws removed; ${freedPlates(next)} of ${PLATES.length} plates released.`)
     moveTimerRef.current = setTimeout(() => { setBusy(false); setFly(null) }, 650)
   }
   const undo = (): void => {
@@ -92,7 +92,7 @@ export function PlateEscapeGame(): ReactElement {
         </div>
         <div className="text-right text-xs font-semibold text-slate-500">
           <div>LEVEL 01</div>
-          <div className="mt-1 text-emerald-700">{previouslyCleared || won ? 'Cleared' : 'First light'}</div>
+          <div className="mt-1 text-emerald-700">{previouslyCleared || won ? 'Cleared' : 'Little Cottage'}</div>
         </div>
       </header>
       <section aria-label="Collection trays" className="mx-4 rounded-3xl border border-white/80 bg-white/75 p-3 shadow-sm">
@@ -134,7 +134,7 @@ export function PlateEscapeGame(): ReactElement {
               onClick={(event) => { if (event.detail === 0 || !contactRef.current.dragged) unscrew(target.id, event.currentTarget) }} />
           )
         })}
-        <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs font-semibold text-slate-500" data-testid="plate-progress">{freedPlates(puzzle)} / 3 plates released</div>
+        <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs font-semibold text-slate-500" data-testid="plate-progress">{freedPlates(puzzle)} / {PLATES.length} plates released</div>
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2 rounded-full border border-white/80 bg-white/80 p-1 shadow-sm">
           <button type="button" aria-label="Rotate left" onClick={() => turn('left')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100"><RotateCcw size={20} aria-hidden="true" /></button>
           <button type="button" onClick={() => turn('reset')} className="whitespace-nowrap px-2 text-xs font-semibold text-slate-600">Reset view</button>

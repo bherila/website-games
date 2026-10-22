@@ -18,16 +18,20 @@ test.describe('Plate Escape real puzzle', () => {
     }
     await page.goto('/plate-escape')
     await expect(page.getByRole('heading', { name: 'Plate Escape.' })).toBeVisible()
-    await expect(page.locator('[data-screw-id="bridge-1"]')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('[data-screw-id="front-1"]')).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
-    await expect(page.locator('[data-screw-id^="wing-"]')).toHaveCount(0)
-    // The front bridge covers these two lower-panel screw heads.
-    await expect(page.locator('[data-screw-id="panel-1"]')).toHaveCount(0)
-    await expect(page.locator('[data-screw-id="panel-2"]')).toHaveCount(0)
-    await page.screenshot({ path: testInfo.outputPath('first-light.png') })
+    await expect(page.locator('[data-screw-id^="back-"]')).toHaveCount(0)
+    await expect(page.locator('[data-screw-id="right-roof-1"]')).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('little-cottage.png') })
+    for (let turn = 0; turn < 4; turn++) await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+    await expect(page.locator('[data-screw-id="back-1"]')).toBeVisible()
+    await expect(page.locator('[data-screw-id="front-1"]')).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('cottage-back.png') })
+    await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
+    await expect(page.locator('[data-screw-id="front-1"]')).toBeVisible()
 
     // A drag that begins on a screw must not become an accidental unscrew.
-    const target = page.locator('[data-screw-id="bridge-1"]')
+    const target = page.locator('[data-screw-id="front-1"]')
     const bounds = await target.boundingBox()
     expect(bounds).not.toBeNull()
     await drag(page, isMobile, bounds!.x + 22, bounds!.y + 22, bounds!.x + 60, bounds!.y + 40)
@@ -39,7 +43,7 @@ test.describe('Plate Escape real puzzle', () => {
     await drag(page, isMobile, scene!.x + scene!.width * 0.15, scene!.y + scene!.height * 0.3, scene!.x + scene!.width * 0.8, scene!.y + scene!.height * 0.35)
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
     await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
-    await activate(page.locator('[data-screw-id="bridge-3"]'))
+    await activate(page.locator('[data-screw-id="right-roof-1"]'))
     await expect(page.getByLabel('Spare storage: 1 of 4', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Undo', exact: false })).toBeEnabled()
     await activate(page.getByRole('button', { name: 'Undo', exact: false }))
@@ -49,7 +53,7 @@ test.describe('Plate Escape real puzzle', () => {
     let removed = 0
     // Only tap visible, raycast-confirmed screw heads. Turn the assembly when
     // the remaining heads face away; no renderer hooks or board/storage injection.
-    for (let attempt = 0; attempt < 35 && removed < 9; attempt++) {
+    for (let attempt = 0; attempt < 45 && removed < 9; attempt++) {
       const visible = page.locator('[data-screw-id]:enabled')
       if (await visible.count() === 0) {
         await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
@@ -64,17 +68,17 @@ test.describe('Plate Escape real puzzle', () => {
     expect(removed).toBe(9)
     await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
     await expect(page.getByRole('img', { name: '3 of 3 stars', exact: true })).toBeVisible()
-    await expect(page.getByTestId('plate-progress')).toHaveText('3 / 3 plates released')
+    await expect(page.getByTestId('plate-progress')).toHaveText('6 / 6 plates released')
     await expect(page.getByText('3 / 3 collected', { exact: true })).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath('all-plates-free.png') })
     await activate(page.getByRole('button', { name: 'Play again', exact: true }))
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
     await expect(page.getByText('Cleared', { exact: true })).toBeVisible()
-    await activate(page.locator('[data-screw-id="bridge-1"]'))
+    await activate(page.locator('[data-screw-id="front-1"]'))
     await expect(page.getByTestId('screw-progress')).toHaveText('1 / 9 screws')
     await activate(page.getByRole('button', { name: 'Restart', exact: true }))
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
-    await expect(page.locator('[data-screw-id="bridge-1"]')).toBeVisible()
+    await expect(page.locator('[data-screw-id="front-1"]')).toBeVisible()
     await page.reload()
     await expect(page.getByText('Cleared', { exact: true })).toBeVisible()
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')

@@ -12,7 +12,10 @@ export interface Plate {
   name: string
   position: Point3
   size: readonly [number, number]
-  back: boolean
+  normal: Point3
+  up: Point3
+  gableRise?: number
+  finish: 'front' | 'back' | 'side' | 'roof'
   color: string
 }
 
@@ -23,22 +26,30 @@ export interface Screw {
   position: readonly [number, number]
 }
 
+const roofLength = Math.hypot(2.1, 1.35)
+const roofSin = 1.35 / roofLength
+const roofCos = 2.1 / roofLength
+
+/** Local X/Y describe each panel; its normal points toward the screw heads. */
 export const PLATES: readonly Plate[] = [
-  { id: 'bridge', name: 'Front bridge', position: [0, 1, 0.65], size: [4.6, 1.35], back: false, color: '#f1ddba' },
-  { id: 'panel', name: 'Lower panel', position: [0, -0.25, 0.2], size: [3.2, 3.4], back: false, color: '#d3e4e7' },
-  { id: 'wing', name: 'Back panel', position: [0.5, 0.3, -0.4], size: [3.4, 2.8], back: true, color: '#e3d7ef' },
+  { id: 'front', name: 'Front gable wall', position: [0, -0.25, 1.25], size: [3.6, 2.6], normal: [0, 0, 1], up: [0, 1, 0], gableRise: 1.15, finish: 'front', color: '#f2dfbc' },
+  { id: 'back', name: 'Back gable wall', position: [0, -0.25, -1.25], size: [3.6, 2.6], normal: [0, 0, -1], up: [0, 1, 0], gableRise: 1.15, finish: 'back', color: '#efdbb7' },
+  { id: 'left', name: 'Left wall', position: [-1.8, -0.25, 0], size: [2.5, 2.6], normal: [-1, 0, 0], up: [0, 1, 0], finish: 'side', color: '#e9d3ad' },
+  { id: 'right', name: 'Right wall', position: [1.8, -0.25, 0], size: [2.5, 2.6], normal: [1, 0, 0], up: [0, 1, 0], finish: 'side', color: '#f2dfbc' },
+  { id: 'left-roof', name: 'Left roof slope', position: [-1.05, 1.6, 0], size: [3.05, roofLength], normal: [-roofSin, roofCos, 0], up: [roofCos, roofSin, 0], finish: 'roof', color: '#a95145' },
+  { id: 'right-roof', name: 'Right roof slope', position: [1.05, 1.6, 0], size: [3.05, roofLength], normal: [roofSin, roofCos, 0], up: [-roofCos, roofSin, 0], finish: 'roof', color: '#b6614e' },
 ]
 
 export const SCREWS: readonly Screw[] = [
-  { id: 'bridge-1', plate: 'bridge', color: 'coral', position: [-1.6, 0] },
-  { id: 'bridge-2', plate: 'bridge', color: 'mint', position: [0, 0] },
-  { id: 'bridge-3', plate: 'bridge', color: 'blue', position: [1.6, 0] },
-  { id: 'panel-1', plate: 'panel', color: 'blue', position: [-0.8, 0.9] },
-  { id: 'panel-2', plate: 'panel', color: 'mint', position: [0.8, 0.9] },
-  { id: 'panel-3', plate: 'panel', color: 'coral', position: [0, -1.1] },
-  { id: 'wing-1', plate: 'wing', color: 'coral', position: [-1, 0.6] },
-  { id: 'wing-2', plate: 'wing', color: 'mint', position: [1, 0.6] },
-  { id: 'wing-3', plate: 'wing', color: 'blue', position: [0, -0.75] },
+  { id: 'front-1', plate: 'front', color: 'coral', position: [-1.28, 0.82] },
+  { id: 'front-2', plate: 'front', color: 'mint', position: [1.28, 0.82] },
+  { id: 'back-1', plate: 'back', color: 'blue', position: [0, 0.75] },
+  { id: 'left-1', plate: 'left', color: 'coral', position: [-0.7, 0.65] },
+  { id: 'right-1', plate: 'right', color: 'mint', position: [-0.7, 0.65] },
+  { id: 'left-roof-1', plate: 'left-roof', color: 'mint', position: [-0.65, -0.25] },
+  { id: 'left-roof-2', plate: 'left-roof', color: 'blue', position: [0.65, 0.35] },
+  { id: 'right-roof-1', plate: 'right-roof', color: 'blue', position: [-0.65, -0.25] },
+  { id: 'right-roof-2', plate: 'right-roof', color: 'coral', position: [0.65, 0.35] },
 ]
 
 export const SPARE_CAPACITY = 4
