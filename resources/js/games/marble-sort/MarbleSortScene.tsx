@@ -438,6 +438,12 @@ export function MarbleSortScene({
     rendererRef.current = renderer
     container.appendChild(renderer.domElement)
 
+    // Three restores the shadow update flags, but the old GPU map is lost.
+    const handleContextRestored = (): void => {
+      renderer.shadowMap.needsUpdate = true
+    }
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored)
+
     const pmrem = new THREE.PMREMGenerator(renderer)
     const room = new RoomEnvironment()
     const environment = pmrem.fromScene(room, 0.04)
@@ -663,6 +669,7 @@ export function MarbleSortScene({
       timer.dispose()
       resizeObserver.disconnect()
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
+      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored)
       bodiesRef.current?.releaseAll()
       if (physicsRef.current) {
         disposePhysicsWorld(physicsRef.current)

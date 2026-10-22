@@ -25,6 +25,7 @@ jest.mock('three', () => {
 })
 
 interface RendererStub {
+  domElement: HTMLCanvasElement
   shadowMap: { autoUpdate: boolean, needsUpdate: boolean }
   render: jest.Mock<void, [THREE.Scene, THREE.Camera]>
   dispose: jest.Mock
@@ -99,6 +100,28 @@ it('refreshes shadows while boxes and marbles move, then reuses the settled map'
   advanceFrame()
   expect(updates.slice(-2)).toEqual([true, false])
   view.unmount()
+})
+
+it('rebuilds an idle shadow map after context restoration and removes the listener on unmount', () => {
+  const view = render(<MarbleSortScene state={generateLevel(1, 41_004)} colorblindMode={false} onBoxClick={jest.fn()} onMarbleArrived={jest.fn()} />)
+  const current = renderer()
+  const updates: boolean[] = []
+  current.render.mockImplementation(() => {
+    updates.push(current.shadowMap.needsUpdate)
+    current.shadowMap.needsUpdate = false
+  })
+  advanceFrame()
+  advanceFrame()
+  expect(updates).toEqual([true, false])
+
+  act(() => current.domElement.dispatchEvent(new Event('webglcontextrestored')))
+  advanceFrame()
+  advanceFrame()
+  expect(updates.slice(-2)).toEqual([true, false])
+
+  view.unmount()
+  current.domElement.dispatchEvent(new Event('webglcontextrestored'))
+  expect(current.shadowMap.needsUpdate).toBe(false)
 })
 
 it('releases the environment, shadow map, and every scene resource when leaving a level', () => {
