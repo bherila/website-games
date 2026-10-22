@@ -75,6 +75,9 @@ Non-obvious, verified:
   weekly. The per-game Playwright workflows still support focused manual verification.
   `.github/workflows/browser-checks.yml` owns isolated browser setup. Anonymous checks use
   file sessions/cache; only PWA checks migrate and seed an isolated SQLite fixture.
+  Gameplay uses four Playwright shards, each with one worker and file-level isolation;
+  keep CI and weekly shard matrices aligned and give each report artifact a unique name.
+  `Run Tests` checks the aggregate gameplay matrix result, so every shard must succeed.
 - CI runs on GitHub-hosted `ubuntu-24.04-arm`.
 
 ## Privacy

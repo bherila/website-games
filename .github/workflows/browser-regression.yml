@@ -13,15 +13,45 @@ permissions:
   contents: read
 
 jobs:
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-build
+          path: public/build/
+          retention-days: 2
+
   pwa:
+    needs: frontend-build
     uses: ./.github/workflows/browser-checks.yml
     with:
       script: test:e2e:games-pwa
       report_name: games-pwa-playwright-report
       authenticated_fixture: true
+      reuse_frontend_build: true
 
   gameplay:
+    name: Gameplay Browser Checks (${{ matrix.shard }}/4)
+    needs: frontend-build
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     uses: ./.github/workflows/browser-checks.yml
     with:
       script: test:e2e:gameplay
-      report_name: gameplay-playwright-report
+      shard: ${{ matrix.shard }}/4
+      report_name: gameplay-playwright-report-${{ matrix.shard }}-of-4
+      reuse_frontend_build: true

@@ -168,12 +168,18 @@ jobs:
       reuse_frontend_build: true
 
   browser-gameplay:
-    name: Gameplay Browser Checks
+    name: Gameplay Browser Checks (${{ matrix.shard }}/4)
     needs: frontend-build
+    strategy:
+      # Finish every shard so failures retain the other runners' reports.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     uses: ./.github/workflows/browser-checks.yml
     with:
       script: test:e2e:gameplay
-      report_name: gameplay-playwright-report
+      shard: ${{ matrix.shard }}/4
+      report_name: gameplay-playwright-report-${{ matrix.shard }}-of-4
       reuse_frontend_build: true
 
   test:
@@ -206,6 +212,7 @@ jobs:
           check "backend-static" "${{ needs.backend-static.result }}"
           check "backend-tests" "${{ needs.backend-tests.result }}"
           check "browser-pwa" "${{ needs.browser-pwa.result }}"
+          # The matrix result is successful only when all gameplay shards succeed.
           check "browser-gameplay" "${{ needs.browser-gameplay.result }}"
 
   deploy:
