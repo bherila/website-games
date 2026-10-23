@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { disposeObject } from '../_shared/three/threeUtils'
 import type { PuzzleState } from './engine'
 import { createGarden, decoratePlate, plateOutline, plateQuaternion } from './houseGeometry'
-import { COLORS, PLATES, SCREWS } from './level'
+import { COLORS, getLevel } from './level'
 
 export interface ScrewTarget { id: string, x: number, y: number }
 export interface ViewCommand { action: 'left' | 'right' | 'reset', sequence: number }
@@ -20,6 +20,8 @@ const UP = new THREE.Vector3(0, 1, 0)
 const NORMAL = new THREE.Vector3(0, 0, 1)
 
 export function PlateEscapeScene({ state, view, onTargets, onError }: Props): ReactElement {
+  const level = getLevel(state.level)
+  const { plates: PLATES, screws: SCREWS } = level
   const hostRef = useRef<HTMLDivElement>(null)
   const latestRef = useRef({ state, onTargets, onError })
   const commandRef = useRef<((action: ViewCommand['action']) => void) | null>(null)
@@ -240,7 +242,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       renderer.forceContextLoss()
       renderer.domElement.remove()
     }
-  }, [])
+  }, [level, PLATES, SCREWS])
   return <div ref={hostRef} className="absolute inset-x-0 bottom-16 top-0" data-testid="plate-escape-scene" />
 }
 
@@ -257,9 +259,10 @@ function makeScrew(color: string, kind: string): THREE.Group {
   const inset = new THREE.MeshStandardMaterial({ color: '#263747', roughness: 0.8 })
   const horizontal = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.055, 0.02), inset)
   horizontal.position.z = 0.07
+  if (kind === 'amber') horizontal.rotation.z = Math.PI / 2
   if (kind === 'mint') horizontal.rotation.z = Math.PI / 4
   group.add(horizontal)
-  if (kind !== 'blue') {
+  if (kind !== 'blue' && kind !== 'amber') {
     const vertical = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.29, 0.02), inset.clone())
     vertical.position.z = 0.07
     if (kind === 'mint') vertical.rotation.z = Math.PI / 4

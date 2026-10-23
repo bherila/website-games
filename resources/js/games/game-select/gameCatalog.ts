@@ -79,7 +79,7 @@ const CATALOG: GameCatalogEntry[] = [
     emoji: '🔩',
     description: 'Turn a 3D assembly, sort colorful screws, and free every plate in a gentle mechanical puzzle.',
     href: '/plate-escape',
-    totalLevels: 1,
+    totalLevels: 2,
     loadProgress: () => loadPlateEscapeProgress(),
   },
   {

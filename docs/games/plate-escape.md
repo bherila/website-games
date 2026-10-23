@@ -1,11 +1,14 @@
 # Plate Escape
 
-Plate Escape is a rotatable 3D screw puzzle at `/plate-escape`. The first release contains one
-introductory level, Little Cottage: four walls, two pitched roof panels, nine screws in three
-colors, two trays of three,
-and four spare slots. There is no timer or move limit. Storage is forgiving enough to accept
-every possible color order; plates still constrain which screw heads are exposed. Future levels
-can introduce tighter storage and more complicated arrangements.
+Plate Escape is a rotatable 3D screw puzzle at `/plate-escape`. The campaign starts with
+Little Cottage: four walls, two pitched roof panels, nine screws in three colors, two trays of
+three, and four spare slots. There is no timer or move limit. Storage is forgiving enough to accept
+every possible color order; plates still constrain which screw heads are exposed.
+
+Level 2, Garden Workshop, adds two removable timber braces covering wall screws, twelve screws
+in four colors, and only two spare slots. Removing an unmatched screw when both spares are full
+ends the attempt; matching a tray remains legal with full storage. Unlimited undo restores the
+overflowing screw and the entire previous board, and Retry starts fresh. There is no lives system.
 
 ## Play
 
@@ -21,7 +24,8 @@ can introduce tighter storage and more complicated arrangements.
   remain as a permanent base.
 - Undo restores the last screw, tray state and plate. Restart resets the puzzle and view.
 - Clearing all plates and sorting all screws awards three stars. Reload starts a fresh puzzle
-  and retains the clear. There is one playable level; no unfinished-board autosave is promised.
+  and retains the clear. Clearing level 1 unlocks level 2. Level buttons allow replay; no
+  unfinished-board autosave is promised.
 
 ## Implementation
 
@@ -42,18 +46,21 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Only level 1 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–2 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
 
 - Pure model tests cover all 1,680 possible color orders, tray cascades, capacity, duplicate taps,
-  immutable undo snapshots, support removal and completion.
+  immutable undo snapshots, support removal, workshop overflow, recovery and a winning order.
 - Geometry tests verify outward panel frames, screw clearance and a shared roof ridge above both gables.
 - `tests/e2e/plate-escape.spec.ts` covers actual desktop input and native Chromium touch: hidden
   heads, drag/tap separation, rotation, spare storage, undo, full completion, reload and catalog.
+  The same journey unlocks the workshop, deliberately loses, undoes, retries and wins through
+  actual visible heads.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the one-level boundary and monotonic star saves.
+  Page and API tests cover public access, the two-level boundary and monotonic star saves.
 
-Future work: additional authored levels, more color patterns, a clearer level progression, sound and
-haptics, and representative phone testing before making rendering-performance claims.
+Earlier one-level saves retain their stars and unlock the workshop from the existing cottage clear.
+
+Future work: additional authored levels, sound and haptics, and representative phone testing before making rendering-performance claims.
