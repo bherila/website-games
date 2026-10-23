@@ -4,6 +4,7 @@ import { Minus, Plus, RotateCcw, RotateCw, Undo2, X } from 'lucide-react'
 import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { FullscreenIconButton } from '../_shared/FullscreenButton'
+import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { StarRow } from '../_shared/StarRow'
 import { PortraitGameShell } from '../PortraitGameShell'
 import { createPuzzle, freedPlates, hasWon, type PuzzleState, removeScrew } from './engine'
@@ -14,11 +15,32 @@ import { PlateEscapeScene, type ScrewTarget, type ViewCommand } from './PlateEsc
 interface FlyingScrew { color: ScrewColor, x: number, y: number, dx: number, dy: number }
 
 export function PlateEscapeGame(): ReactElement {
-  const [levelId, setLevelId] = useState(1)
-  return <LevelSession key={levelId} level={getLevel(levelId)} onSelect={setLevelId} />
+  const [levelId, setLevelId] = useState<number | null>(null)
+  const [progress, setProgress] = useState(loadProgress)
+  const recordClear = (id: number): void => {
+    const next = recordWin(progress, id, 3)
+    saveProgress(next)
+    setProgress(next)
+  }
+  if (levelId === null) {
+    return (
+      <PortraitGameShell className="bg-[#e9edf0] text-slate-800" contentClassName="plate-escape">
+        <LevelSelectGrid emoji="🔩" title="Plate Escape" levelIds={LEVELS.map((level) => level.id)} progress={progress} exitHref="/" footer="Turn the house. Match three. Free every plate." onSelectLevel={setLevelId} />
+      </PortraitGameShell>
+    )
+  }
+  return <LevelSession key={levelId} level={getLevel(levelId)} cleared={(progress.stars[levelId] ?? 0) > 0} onSelect={setLevelId} onLevels={() => setLevelId(null)} onWin={recordClear} />
 }
 
-function LevelSession({ level, onSelect }: { level: PuzzleLevel, onSelect: (id: number) => void }): ReactElement {
+interface LevelSessionProps {
+  level: PuzzleLevel
+  cleared: boolean
+  onSelect: (id: number) => void
+  onLevels: () => void
+  onWin: (id: number) => void
+}
+
+function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessionProps): ReactElement {
   const { plates: PLATES, screws: SCREWS, spareCapacity: SPARE_CAPACITY } = level
   const [puzzle, setPuzzle] = useState(() => createPuzzle(level.id))
   const [history, setHistory] = useState<PuzzleState[]>([])
@@ -30,20 +52,17 @@ function LevelSession({ level, onSelect }: { level: PuzzleLevel, onSelect: (id: 
   const [error, setError] = useState('')
   const [message, setMessage] = useState('Drag to turn the assembly. Tap an exposed screw to collect it.')
   const [fly, setFly] = useState<FlyingScrew | null>(null)
-  const [previouslyCleared, setPreviouslyCleared] = useState(() => (loadProgress().stars[level.id] ?? 0) > 0)
   const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const contactRef = useRef({ x: 0, y: 0, dragged: false })
   const won = hasWon(puzzle)
   const lost = puzzle.overflow !== null
   const storageFull = puzzle.spare.length === SPARE_CAPACITY
-  const unlocked = loadProgress().unlockedLevel
   useEffect(() => () => { if (moveTimerRef.current) clearTimeout(moveTimerRef.current) }, [])
   useEffect(() => {
     if (!won) return
-    saveProgress(recordWin(loadProgress(), level.id, 3))
     const timer = setTimeout(() => setFinished(true), 1500)
     return () => clearTimeout(timer)
-  }, [won, level.id])
+  }, [won])
 
   const turn = (action: ViewCommand['action']): void => {
     setView((current) => ({ action, sequence: current.sequence + 1 }))
@@ -82,7 +101,7 @@ function LevelSession({ level, onSelect }: { level: PuzzleLevel, onSelect: (id: 
     setFly({ color: screw.color, x, y, dx: (tray ? tray.x + tray.width / 2 : x) - x, dy: (tray ? tray.y + tray.height / 2 : y) - y })
     setHistory((previous) => [...previous, puzzle])
     setPuzzle(next)
-    if (hasWon(next)) setPreviouslyCleared(true)
+    if (hasWon(next)) onWin(level.id)
     setBusy(true)
     setMessage(`${COLORS[screw.color].name} screw collected. ${next.removed.length} of ${SCREWS.length} screws removed; ${freedPlates(next)} of ${PLATES.length} plates released.`)
     moveTimerRef.current = setTimeout(() => { setBusy(false); setFly(null) }, 650)
@@ -102,17 +121,14 @@ function LevelSession({ level, onSelect }: { level: PuzzleLevel, onSelect: (id: 
     <PortraitGameShell className="bg-[#e9edf0] text-slate-800" contentClassName="plate-escape">
       <header className="flex items-center justify-between gap-2 px-5 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
         <div>
-          <a href="/" className="text-xs font-semibold text-slate-500 hover:text-slate-900">← All games</a>
+          <button type="button" onClick={onLevels} className="min-h-11 text-xs font-semibold text-slate-500 hover:text-slate-900">← Levels</button>
           <h1 className="text-2xl font-bold tracking-tight">Plate Escape<span className="text-orange-500">.</span></h1>
         </div>
         <div className="text-right text-xs font-semibold text-slate-500">
           <div>LEVEL {String(level.id).padStart(2, '0')}</div>
-          <div className="mt-1 text-emerald-700">{previouslyCleared || won ? 'Cleared' : level.name}</div>
+          <div className="mt-1 text-emerald-700">{cleared || won ? 'Cleared' : level.name}</div>
         </div>
       </header>
-      <nav aria-label="Levels" className="mx-4 mb-2 flex gap-2">
-        {LEVELS.map((item) => <button key={item.id} type="button" disabled={item.id > unlocked} aria-current={item.id === level.id ? 'step' : undefined} onClick={() => onSelect(item.id)} className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold disabled:opacity-40 ${item.id === level.id ? 'bg-slate-700 text-white' : 'bg-white/65 text-slate-600'}`}>Level {item.id}{item.id > unlocked ? ' · Locked' : ''}</button>)}
-      </nav>
       <section aria-label="Collection trays" className="mx-4 rounded-3xl border border-white/80 bg-white/75 p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
           <span>Match three</span><span>{puzzle.completed.length} / {level.trayColors.length} collected</span>

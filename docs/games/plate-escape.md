@@ -24,7 +24,7 @@ overflowing screw and the entire previous board, and Retry starts fresh. There i
   remain as a permanent base.
 - Undo restores the last screw, tray state and plate. Restart resets the puzzle and view.
 - Clearing all plates and sorting all screws awards three stars. Reload starts a fresh puzzle
-  and retains the clear. Clearing level 1 unlocks level 2. Level buttons allow replay; no
+  and retains the clear. Clearing level 1 unlocks level 2. The shared level grid allows replay; no
   unfinished-board autosave is promised.
 
 ## Implementation
@@ -37,7 +37,10 @@ panel rather than left floating when it falls.
 fall animations rather than a general rigid-body simulation. A nearest-hit raycast against plates
 and screw meshes determines which heads can be selected. The view owns no progression state.
 `PlateEscapeGame.tsx` owns undo snapshots, controls, collection UI and completion. Panel totals
-come from the level definition. Existing level-1 stars are retained after the cottage redesign.
+come from the level definition. The campaign uses the shared `LevelSelectGrid` for locks, stars,
+next-level highlighting and the All Games link. The Levels control unmounts the active scene
+and returns to that grid; choosing a level starts a fresh attempt. Existing level-1 stars are
+retained after the cottage redesign.
 
 The React scene disposes geometry, materials, controls, WebGL resources, animation frames, resize
 observers, shadow maps and listeners on restart/unmount. The 512px sun shadow is refreshed
@@ -56,8 +59,8 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
 - Geometry tests verify outward panel frames, screw clearance and a shared roof ridge above both gables.
 - `tests/e2e/plate-escape.spec.ts` covers actual desktop input and native Chromium touch: hidden
   heads, drag/tap separation, rotation, spare storage, undo, full completion, reload and catalog.
-  The same journey unlocks the workshop, deliberately loses, undoes, retries and wins through
-  actual visible heads.
+  The same journey checks the shared picker’s locked and starred tiles, unlocks the workshop,
+  deliberately loses, undoes, retries and wins through actual visible heads.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
   Page and API tests cover public access, the two-level boundary and monotonic star saves.
 

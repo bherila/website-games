@@ -50,7 +50,7 @@ export function LevelSelectGrid({ emoji, title, levelIds, progress, exitHref, fo
         </div>
         <span aria-hidden="true" className="text-4xl">{emoji}</span>
         <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-50">{title}</h1>
-        <div className="grid grid-cols-5 gap-2 sm:gap-3">
+        <div className="grid gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(5, Math.max(1, levelIds.length))}, minmax(0, 1fr))` }}>
           {levelIds.map((levelId) => (
             <LevelTile
               key={levelId}
