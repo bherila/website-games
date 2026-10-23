@@ -46,7 +46,19 @@ composer run dev                 # serve + queue + pail + vite concurrently
 
 **Claude Code cloud sessions:** the `SessionStart` hook in `.claude/settings.json` runs `cloud-repo-bootstrap` (installed by the cloud environment's setup script). It seeds `.env`, installs `vendor/` from this repo's prebuilt bundle (`.github/workflows/cloud-vendor.yml` uploads one per `composer.lock` to the `cloud-vendor` draft release), sets `APP_KEY`, runs pnpm, and prints a `[cloud-repo-bootstrap]` status report. Trust that report. In the cloud never run `composer install`/`update` against the network and never call `add_repo` for a dependency repository: the cloud GitHub proxy refuses GitHub archive downloads for repositories not attached to the session, and each `add_repo` is a manual permission grant. If the report says there is no bundle for this lock, push `composer.lock` (the workflow runs on it) and rerun `cloud-repo-bootstrap --force`. Keep the `cloud-vendor` release a draft: publishing it would create a tag and fire release workflows.
 
-## Validation (all must pass before committing)
+## Validation (focused locally, full gate in CI)
+
+Use CI for heavy validation: full test suites, PHPStan, mutation and coverage runs. Run these
+locally only when the user explicitly requests local execution. This user preference was
+confirmed on 2026-10-23 and supersedes older guidance requiring heavy local runs before committing.
+
+Keep local checks focused: small relevant tests, formatting, linting and targeted browser
+verification. Push a focused candidate promptly so CI can run the expensive jobs. All required
+CI checks must pass on the exact candidate commit before merging. When an advisory mutation
+job can be green despite escaped mutations, inspect its actual artifacts; do not weaken checks
+or deadlines to make a candidate pass.
+
+The full validation commands below are a CI reference, not a local checklist to run by default:
 
 ```bash
 pnpm run type-check
@@ -62,9 +74,10 @@ php -d memory_limit=1G artisan test --compact
 
 Non-obvious, verified:
 
-- **`pnpm run build` before PHPUnit is required here.** Several page tests render a real
+- **A frontend build artifact before PHPUnit is required here.** Several page tests render a real
   Blade view *without* `->withoutVite()`, so they need an actual `public/build/manifest.json`.
-  CI encodes this: `backend-tests` `needs: frontend-build` and downloads its artifact.
+  CI encodes this: `backend-tests` `needs: frontend-build` and downloads its artifact. Reuse
+  that artifact for focused local page checks rather than rebuilding the full app unnecessarily.
   (This is the opposite of the sibling `bwh-php` repo — do not copy that rule over.)
 - Always run PHP CLI with `-d memory_limit=1G`; the 128 MB default OOMs on PHPStan.
 - `Run Tests` is the aggregate gate in `.github/workflows/ci.yml`; it re-checks every job's
