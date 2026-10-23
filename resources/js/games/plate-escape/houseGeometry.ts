@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import type { Plate } from './level'
+import type { Plate, Screw } from './level'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
 export function plateQuaternion(plate: Plate): THREE.Quaternion {
@@ -57,6 +57,49 @@ export function decoratePlate(plate: Plate): THREE.Group {
   const details = new THREE.Group()
   const [width, height] = plate.size
   const cream = '#fff2d7'
+  if (plate.finish === 'sign') {
+    for (const y of [-0.34, 0.34]) box(details, [width - 0.04, 0.06, 0.05], [0, y, 0.14], cream)
+    const canvas = document.createElement('canvas')
+    canvas.width = 512
+    canvas.height = 128
+    const context = canvas.getContext('2d')
+    if (context) {
+      context.fillStyle = cream
+      context.font = 'bold 78px sans-serif'
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      context.fillText('C A F É', 256, 68)
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.52), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true }))
+      label.position.z = 0.15
+      label.raycast = () => {}
+      details.add(label)
+    }
+    return details
+  }
+  if (plate.finish === 'sail') {
+    for (const x of [-width / 2 + 0.05, width / 2 - 0.05]) box(details, [0.07, height, 0.045], [x, 0, 0.14], '#986e45')
+    for (const y of [-0.8, -0.4, 0, 0.4, 0.8]) box(details, [width - 0.04, 0.045, 0.045], [0, y, 0.14], '#c19b6c')
+    return details
+  }
+  if (plate.translucent) {
+    const frame = '#e3e6c6'
+    for (const x of [-width / 2 + 0.04, width / 2 - 0.04]) box(details, [0.08, height, 0.10], [x, 0, 0.14], frame)
+    for (const y of [-height / 2 + 0.04, height / 2 - 0.04]) box(details, [width, 0.08, 0.10], [0, y, 0.14], frame)
+    if (plate.gableRise) {
+      const span = Math.hypot(width / 2, plate.gableRise)
+      for (const side of [-1, 1]) {
+        const trim = box(details, [span, 0.07, 0.10], [side * width / 4, height / 2 + plate.gableRise / 2, 0.14], frame)
+        trim.rotation.z = -side * Math.atan2(plate.gableRise, width / 2)
+      }
+    }
+    if (plate.finish === 'awning') {
+      for (const x of [-1.5, -0.9, -0.3, 0.3, 0.9, 1.5]) box(details, [0.20, height - 0.08, 0.025], [x, 0, 0.14], '#c46e5b')
+    } else if (plate.finish !== 'glass') {
+      box(details, [0.045, height - 0.08, 0.045], [0, 0, 0.14], frame)
+      box(details, [width - 0.08, 0.045, 0.045], [0, -0.25, 0.14], frame)
+    }
+    return details
+  }
   if (plate.finish === 'brace') {
     for (const y of [-0.3, 0, 0.3]) box(details, [width - 0.1, 0.025, 0.03], [0, y, 0.13], '#94653e')
     const diagonal = box(details, [width - 0.24, 0.10, 0.07], [0, 0, 0.16], '#d0a876')
@@ -115,7 +158,7 @@ export function decoratePlate(plate: Plate): THREE.Group {
 }
 
 /** A permanent garden plinth grounds the removable house panels. */
-export function createGarden(): THREE.Group {
+export function createGarden(theme?: 'windmill' | 'glasshouse' | 'cafe'): THREE.Group {
   const garden = new THREE.Group()
   const grass = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.84, 0.24, 64), new THREE.MeshStandardMaterial({ color: '#b7ca97', roughness: 1 }))
   grass.position.y = -1.88
@@ -142,5 +185,31 @@ export function createGarden(): THREE.Group {
     flower.position.set(-1.52 + x!, -1.45 + y!, 1.73)
     garden.add(flower)
   }
+  if (theme === 'glasshouse') {
+    for (const x of [-1.2, 1.2]) for (const z of [-0.75, 0, 0.75]) {
+      box(garden, [0.38, 0.25, 0.38], [x, -1.35, z], '#b47d60')
+      const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 1), new THREE.MeshStandardMaterial({ color: '#679b70', flatShading: true }))
+      foliage.position.set(x, -1.02, z)
+      garden.add(foliage)
+    }
+  }
   return garden
+}
+
+
+/** The same panel body is used for rendering and geometry/access verification. */
+export function createPlateMesh(plate: Plate, screws: readonly Screw[]): THREE.Mesh {
+  const shape = plateOutline(plate)
+  for (const screw of screws) {
+    const hole = new THREE.Path()
+    hole.absarc(screw.position[0], screw.position[1], 0.14, 0, Math.PI * 2, true)
+    shape.holes.push(hole)
+  }
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.04, bevelSegments: 2, steps: 1 })
+  geometry.translate(0, 0, -0.09)
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: plate.color, metalness: plate.translucent ? 0 : 0.12, roughness: plate.translucent ? 0.12 : 0.45, transparent: Boolean(plate.translucent), opacity: plate.translucent ? 0.22 : 1, depthWrite: !plate.translucent, side: plate.translucent ? THREE.DoubleSide : THREE.FrontSide }))
+  mesh.castShadow = !plate.translucent
+  mesh.receiveShadow = true
+  if (plate.translucent) mesh.userData.glassPlateName = plate.name
+  return mesh
 }

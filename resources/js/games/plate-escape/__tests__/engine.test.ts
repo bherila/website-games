@@ -104,5 +104,5 @@ test('each authored level has complete color sets and a support for every panel'
     for (const plate of level.plates) expect(level.screws.some((screw) => screw.plate === plate.id)).toBe(true)
     for (const screw of level.screws) expect(level.plates.some((plate) => plate.id === screw.plate)).toBe(true)
   }
-  expect(() => getLevel(3)).toThrow('Unknown Plate Escape level')
+  expect(() => getLevel(6)).toThrow('Unknown Plate Escape level')
 })

@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
+import { VILLAGE_TRACES } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
 
@@ -13,8 +15,8 @@ test.describe('Plate Escape real puzzle', () => {
       if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()) && request.url().includes('/api/games/')) cloudWrites.push(request.url())
     })
     const activate = async (locator: Locator): Promise<void> => {
-      if (isMobile) await locator.tap()
-      else await locator.click()
+      if (isMobile) await locator.tap({ timeout: 15_000 })
+      else await locator.click({ timeout: 15_000 })
     }
     await page.goto('/plate-escape')
     await expect(page.getByRole('heading', { name: 'Plate Escape', exact: true })).toBeVisible()
@@ -148,6 +150,77 @@ test.describe('Plate Escape real puzzle', () => {
     expect(cloudWrites).toEqual([])
     expect(errors).toEqual([])
   })
+
+  test('upgrades a two-level save and plays the windmill, glasshouse and café', async ({ page, isMobile }, testInfo) => {
+    test.setTimeout(480_000)
+    if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+    // A historical released save exercises upgrade compatibility. New-level
+    // boards and wins are reached exclusively through actual pointer/touch input.
+    await page.addInitScript(() => {
+      const key = 'bwh.plate-escape.progress.v1'
+      if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ version: 1, unlockedLevel: 2, stars: { 1: 3, 2: 3 } }))
+    })
+    const errors: string[] = []
+    const cloudWrites: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    page.on('request', (request) => {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()) && request.url().includes('/api/games/')) cloudWrites.push(request.url())
+    })
+    const activate = async (locator: Locator): Promise<void> => {
+      if (isMobile) await locator.tap({ timeout: 15_000 })
+      else await locator.click({ timeout: 15_000 })
+    }
+    await page.goto('/plate-escape')
+    await expect(page.getByRole('button', { name: 'Level 3, 0 stars', exact: true })).toBeVisible()
+    await expect(page.getByTestId('level-tile-4')).toHaveAttribute('data-unlocked', 'false')
+    await activate(page.getByRole('button', { name: 'Level 3, 0 stars', exact: true }))
+    for (const trace of VILLAGE_TRACES) {
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await activate(page.getByRole('button', { name: "Let's play", exact: true }))
+      await expect(page.getByLabel('Upcoming trays: Blue, Amber', { exact: true })).toBeVisible()
+      await expect(page.locator('[data-screw-id]:enabled').first()).toBeVisible()
+      await expect(page.locator('[data-screw-id="front-1"]')).toHaveCount(0)
+      await page.screenshot({ path: testInfo.outputPath(`level-${trace.level}.png`) })
+      const removeVisible = async (id: string): Promise<void> => {
+        const head = page.locator(`[data-screw-id="${id}"]`)
+        for (let turn = 0; turn < 12 && !await head.isVisible(); turn++) {
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+          await page.waitForTimeout(250)
+        }
+        await expect(head).toBeVisible({ timeout: 10_000 })
+        await activate(head)
+        await expect.poll(async () => await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled() || await page.getByRole('alertdialog').isVisible() || await page.getByTestId('screw-progress').textContent() === '12 / 12 screws').toBe(true)
+      }
+      if (trace.level === 4) {
+        for (let turn = 0; turn < 12 && !await page.locator('[data-covered-screw-id="front-1"]').isVisible(); turn++) {
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+          await page.waitForTimeout(250)
+        }
+        await expect(page.locator('[data-covered-screw-id="front-1"]')).toBeVisible()
+        await expect(page.locator('[data-screw-id="front-1"]')).toHaveCount(0)
+        await page.screenshot({ path: testInfo.outputPath('glass-heads-locked.png') })
+      }
+      for (const id of trace.lose) await removeVisible(id)
+      await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
+      await activate(page.getByRole('button', { name: 'Undo last move', exact: true }))
+      await expect(page.getByRole('alertdialog')).toHaveCount(0)
+      await expect(page.getByTestId('screw-progress')).toHaveText(`${trace.lose.length - 1} / 12 screws`)
+      await removeVisible(trace.lose.at(-1)!)
+      await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
+      await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+      for (const id of trace.win) await removeVisible(id)
+      await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
+      await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
+      await expect(page.getByRole('img', { name: '3 of 3 stars', exact: true })).toBeVisible()
+      if (trace.level < 5) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
+      else await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
+    }
+    await page.reload()
+    for (const id of [1, 2, 3, 4, 5]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
+    expect(cloudWrites).toEqual([])
+    expect(errors).toEqual([])
+  })
+
 })
 
 async function drag(page: Page, mobile: boolean, x: number, y: number, endX: number, endY: number): Promise<void> {

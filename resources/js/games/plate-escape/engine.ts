@@ -1,4 +1,4 @@
-import { getLevel, type ScrewColor, TRAY_CAPACITY } from './level'
+import { getLevel, type Screw, type ScrewColor, TRAY_CAPACITY } from './level'
 
 export interface Tray { id: 'left' | 'right', color: ScrewColor | null, count: number }
 export interface PuzzleState {
@@ -25,7 +25,7 @@ export function removeScrew(state: PuzzleState, id: string): PuzzleState {
   if (state.overflow !== null || hasWon(state)) return state
   const level = getLevel(state.level)
   const screw = level.screws.find((candidate) => candidate.id === id)
-  if (!screw || state.removed.includes(id)) return state
+  if (!screw || state.removed.includes(id) || blockingPlates(state, screw).length > 0) return state
   const next: PuzzleState = {
     ...state, removed: [...state.removed, id], trays: state.trays.map((tray) => ({ ...tray })),
     spare: [...state.spare], queue: [...state.queue], completed: [...state.completed],
@@ -74,4 +74,10 @@ export function freedPlates(state: PuzzleState): number {
 export function hasWon(state: PuzzleState): boolean {
   const level = getLevel(state.level)
   return state.overflow === null && state.removed.length === level.screws.length && state.completed.length === level.trayColors.length
+}
+
+
+/** Covers block axial access even when a head can be glimpsed from an oblique angle. */
+export function blockingPlates(state: PuzzleState, screw: Screw): string[] {
+  return (screw.blockedBy ?? []).filter((id) => remainingScrews(state, id) > 0)
 }

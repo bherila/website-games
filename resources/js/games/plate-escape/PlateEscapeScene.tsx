@@ -3,11 +3,12 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
-import type { PuzzleState } from './engine'
-import { createGarden, decoratePlate, plateOutline, plateQuaternion } from './houseGeometry'
+import { blockingPlates, type PuzzleState } from './engine'
+import { createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
 import { COLORS, getLevel } from './level'
+import { traceScrew } from './screwVisibility'
 
-export interface ScrewTarget { id: string, x: number, y: number }
+export interface ScrewTarget { id: string, x: number, y: number, coveredBy?: string | undefined }
 export interface ViewCommand { action: 'left' | 'right' | 'reset', sequence: number }
 interface Props {
   state: PuzzleState
@@ -96,7 +97,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     scene.add(assembly)
     const plateGroups = new Map<string, THREE.Group>()
     const screwGroups = new Map<string, THREE.Group>()
-    const garden = createGarden()
+    const garden = createGarden(level.theme)
     scene.add(garden)
     const hitObjects: THREE.Object3D[] = [garden]
     const plateFrames = new Map(PLATES.map((plate) => [plate.id, plateQuaternion(plate)]))
@@ -106,18 +107,8 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       group.quaternion.copy(plateFrames.get(plate.id)!)
       assembly.add(group)
       plateGroups.set(plate.id, group)
-      const shape = plateOutline(plate)
       const screws = SCREWS.filter((screw) => screw.plate === plate.id)
-      for (const screw of screws) {
-        const hole = new THREE.Path()
-        hole.absarc(screw.position[0], screw.position[1], 0.14, 0, Math.PI * 2, true)
-        shape.holes.push(hole)
-      }
-      const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.04, bevelSegments: 2, steps: 1 })
-      geometry.translate(0, 0, -0.09)
-      const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: plate.color, metalness: 0.12, roughness: 0.45 }))
-      mesh.castShadow = true
-      mesh.receiveShadow = true
+      const mesh = createPlateMesh(plate, screws)
       group.add(mesh, decoratePlate(plate))
       hitObjects.push(group)
       for (const screw of screws) {
@@ -162,7 +153,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       const now = performance.now() / 1000
       const removed = latestRef.current.state.removed
       if (previousRemoved.length !== removed.length || previousRemoved.some((id, index) => id !== removed[index])) lastMotionAt = now
-      if (previousRemoved.some((id) => !removed.includes(id))) removedAt.clear()
+      for (const id of previousRemoved) if (!removed.includes(id)) removedAt.delete(id)
       for (const id of removed) if (!removedAt.has(id)) removedAt.set(id, now)
       previousRemoved = removed
       for (const plate of PLATES) {
@@ -215,15 +206,11 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
           const projected = world.clone().project(camera)
           if (Math.abs(projected.x) > 0.92 || Math.abs(projected.y) > 0.92 || projected.z > 1) continue
           ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera)
-          const hit = ray.intersectObjects(hitObjects, true).find((entry) => {
-            let object: THREE.Object3D | null = entry.object
-            while (object) { if (!object.visible) return false; object = object.parent }
-            return true
-          })
-          let object: THREE.Object3D | null = hit?.object ?? null
-          while (object && object.userData.screwId === undefined) object = object.parent
-          if (object?.userData.screwId !== screw.id) continue
-          targets.push({ id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2 })
+          const sight = traceScrew(ray, hitObjects)
+          if (sight?.screwId !== screw.id) continue
+          const covers = blockingPlates(latestRef.current.state, screw)
+          const cover = PLATES.find((plate) => plate.id === covers[0])
+          targets.push({ id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2, coveredBy: cover?.name ?? sight.coveredBy })
         }
         latestRef.current.onTargets(targets)
       }

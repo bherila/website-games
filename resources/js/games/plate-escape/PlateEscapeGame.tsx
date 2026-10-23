@@ -1,7 +1,9 @@
 import './plate-escape.css'
 
-import { Minus, Plus, RotateCcw, RotateCw, Undo2, X } from 'lucide-react'
+import { LockKeyhole, Minus, Plus, RotateCcw, RotateCw, Undo2, X } from 'lucide-react'
 import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
+
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
@@ -50,6 +52,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
   const [busy, setBusy] = useState(false)
   const [finished, setFinished] = useState(false)
   const [error, setError] = useState('')
+  const [help, setHelp] = useState(Boolean(level.introduction) && !cleared)
   const [message, setMessage] = useState('Drag to turn the assembly. Tap an exposed screw to collect it.')
   const [fly, setFly] = useState<FlyingScrew | null>(null)
   const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -83,7 +86,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
     if (busy || won || lost || error) return
     const next = removeScrew(puzzle, id)
     if (next === puzzle) {
-      setMessage('Spare slots are full. Collect a matching color, or undo your last move.')
+      setMessage('That screw is covered or storage cannot accept it. Release its cover, collect a matching color, or undo.')
       return
     }
     const screw = SCREWS.find((candidate) => candidate.id === id)!
@@ -127,11 +130,16 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
         <div className="text-right text-xs font-semibold text-slate-500">
           <div>LEVEL {String(level.id).padStart(2, '0')}</div>
           <div className="mt-1 text-emerald-700">{cleared || won ? 'Cleared' : level.name}</div>
+          {level.introduction && <button type="button" className="min-h-11 text-xs text-slate-600 underline" onClick={() => setHelp(true)}>Level guide</button>}
         </div>
       </header>
       <section aria-label="Collection trays" className="mx-4 rounded-3xl border border-white/80 bg-white/75 p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
           <span>Match three</span><span>{puzzle.completed.length} / {level.trayColors.length} collected</span>
+        </div>
+        <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold text-slate-500" aria-label={`Upcoming trays: ${puzzle.queue.length ? puzzle.queue.map((color) => COLORS[color].name).join(', ') : 'none'}`}>
+          <span className="uppercase tracking-wider">Up next</span>
+          {puzzle.queue.length ? puzzle.queue.map((color) => <span key={color} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1"><span style={{ color: COLORS[color].hex }}><ScrewMark color={color} /></span>{COLORS[color].name}</span>) : <span>All colors open</span>}
         </div>
         <div className="flex gap-3">
           {puzzle.trays.map((tray) => (
@@ -156,6 +164,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
         <PlateEscapeScene key={sceneKey} state={puzzle} view={view} onTargets={setTargets} onError={reportError} />
         {targets.map((target) => {
           const screw = SCREWS.find((candidate) => candidate.id === target.id)!
+          if (target.coveredBy) return <span key={target.id} role="img" aria-label={`${COLORS[screw.color].name} screw covered by ${target.coveredBy.toLowerCase()}`} data-covered-screw-id={screw.id} className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-slate-700 shadow-sm" style={{ left: target.x, top: target.y }}><LockKeyhole size={13} aria-hidden="true" /></span>
           return (
             <button key={target.id} type="button" className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" style={{ left: target.x, top: target.y, touchAction: 'none' }} disabled={busy || won || lost || Boolean(error)} aria-label={`Unscrew ${COLORS[screw.color].name.toLowerCase()} screw on ${PLATES.find((plate) => plate.id === screw.plate)!.name.toLowerCase()}`} data-screw-id={screw.id}
               onPointerDown={(event) => {
@@ -176,7 +185,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
         </div>
         {lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl">
           <h2 id="storage-full-title" className="text-2xl font-bold">No room for that screw</h2>
-          <p id="storage-full-help" className="mt-3 text-sm text-slate-600">Both spare slots are full, and the {COLORS[puzzle.overflow!].name.toLowerCase()} screw has no matching tray. Try a different order.</p>
+          <p id="storage-full-help" className="mt-3 text-sm text-slate-600">All {SPARE_CAPACITY} spare slots are full, and the {COLORS[puzzle.overflow!].name.toLowerCase()} screw has no matching tray. Try a different order.</p>
           <button autoFocus type="button" onClick={undo} className="mt-5 rounded-full bg-slate-800 px-5 py-3 font-semibold text-white">Undo last move</button>
           <button type="button" onClick={restart} className="mt-2 rounded-full bg-white px-5 py-3 font-semibold">Retry level</button>
         </div>}
@@ -186,13 +195,13 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
             <StarRow stars={3} />
             <h2 className="mt-3 text-3xl font-bold">All plates free!</h2>
             <p className="mt-2 text-sm text-slate-500">{SCREWS.length} screws sorted. A little room to breathe.</p>
-            {level.id === 1 && <button type="button" onClick={() => onSelect(2)} className="mt-5 rounded-full bg-emerald-700 px-6 py-3 font-semibold text-white">Next level</button>}
+            {level.id < LEVELS.length && <button type="button" onClick={() => onSelect(level.id + 1)} className="mt-5 rounded-full bg-emerald-700 px-6 py-3 font-semibold text-white">Next level</button>}
             <button type="button" onClick={restart} className="mt-3 rounded-full bg-slate-800 px-6 py-3 font-semibold text-white">Play again</button>
           </div>
         )}
       </main>
       <footer className="px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
-        <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800' : 'text-slate-500'}`}>{level.overflowLoses ? storageFull ? 'Storage full · Match a tray or the next screw will overflow' : 'Two spare slots · An unmatched screw with no room ends the attempt' : 'Drag to turn · Tap a screw · Look around the back'}</p>
+        <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800' : 'text-slate-500'}`}>{level.overflowLoses ? storageFull ? 'Storage full · Match a tray or the next screw will overflow' : `${SPARE_CAPACITY} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · Look around the back'}</p>
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white/65 p-2">
           <button type="button" onClick={undo} disabled={history.length === 0 || busy || won} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-35"><Undo2 size={16} aria-hidden="true" />Undo</button>
           <span className="text-xs tabular-nums text-slate-500" data-testid="screw-progress">{puzzle.removed.length} / {SCREWS.length} screws</span>
@@ -200,6 +209,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
           <FullscreenIconButton className="text-slate-600" />
         </div>
       </footer>
+      {level.introduction && <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>{level.name}</DialogTitle><DialogDescription>{level.introduction}</DialogDescription></DialogHeader><button type="button" onClick={() => setHelp(false)} className="rounded-full bg-slate-800 px-6 py-3 font-semibold text-white">Let's play</button></DialogContent></Dialog>}
       <p className="sr-only" role="status" aria-live="polite">{message}</p>
       {fly && <span aria-hidden="true" className="plate-screw-flight" style={{ left: fly.x, top: fly.y, background: COLORS[fly.color].hex, '--fly-x': `${fly.dx}px`, '--fly-y': `${fly.dy}px` } as CSSProperties}><ScrewMark color={fly.color} /></span>}
     </PortraitGameShell>

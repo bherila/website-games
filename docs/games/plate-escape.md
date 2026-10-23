@@ -10,6 +10,12 @@ in four colors, and only two spare slots. Removing an unmatched screw when both 
 ends the attempt; matching a tray remains legal with full storage. Unlimited undo restores the
 overflowing screw and the entire previous board, and Retry starts fresh. There is no lives system.
 
+The first expansion adds Village Windmill (diagonal sails covering a hub), Glasshouse
+(transparent but solid covers, with three teaching spare slots), and Corner Café (a sign
+covering the glass awning’s fastener). Each has twelve screws in four colors. Introductions
+open on uncleared levels and can be reopened from Level guide. The visible upcoming-tray
+queue helps players plan which colors to collect next.
+
 ## Play
 
 - Drag the assembly to orbit the view. Rotation buttons and Reset view also work with a keyboard.
@@ -17,7 +23,9 @@ overflowing screw and the entire previous board, and Retry starts fresh. There i
 - Select an exposed screw head. Heads behind a plate or facing away are unavailable. Visible
   heads have labeled, focusable 44px buttons over their projected positions.
 - Screws turn and lift from their holes, then move into a matching collection tray or spare slot.
-  Finishing a tray opens the next color and automatically collects matching stored screws.
+  Finishing a tray opens the next queued color and automatically collects matching stored screws.
+  A lock marks a head visible through glass but still covered. Remove its cover or turn to an
+  unobstructed face; covered heads cannot be unscrewed or consume storage.
 - Removing all but one screw lets a panel pivot around its last support. With none, it drops out of the
   house. Screw heads face outward from all four walls and both roof slopes; walls and roof
   occlude the heads behind them, so turning the view is required. The garden and wooden floor
@@ -29,8 +37,12 @@ overflowing screw and the entire previous board, and Retry starts fresh. There i
 
 ## Implementation
 
-`level.ts` owns the authored panels, outward normals, local up vectors and palette; `engine.ts`
-is a pure immutable puzzle model. `houseGeometry.ts` builds the gabled outlines, panel frames,
+`level.ts` owns the released registry, outward normals, local up vectors and palette;
+`villageLevels.ts` authors levels 3–5. `engine.ts`
+is a pure immutable puzzle model. Authored cover prerequisites prevent axial access through
+attached panels, including heads glimpsed at an oblique angle. `screwVisibility.ts` traces
+nearest physical hits: glass can reveal a head visually while keeping it locked; opaque
+frames and decorations still occlude it. `houseGeometry.ts` builds the gabled outlines, panel frames,
 windows, door, tiled roof, trim and garden. Architectural details are attached to their removable
 panel rather than left floating when it falls.
 `PlateEscapeScene.tsx` uses Three.js and OrbitControls, with authored support pivots and gravity-like
@@ -49,7 +61,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–2 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–5 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -59,19 +71,23 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
 - Geometry tests verify outward panel frames, screw clearance and a shared roof ridge above both gables.
 - `tests/e2e/plate-escape.spec.ts` covers actual desktop input and native Chromium touch: hidden
   heads, drag/tap separation, rotation, spare storage, undo, full completion, reload and catalog.
-  The same journey checks the shared picker’s locked and starred tiles, unlocks the workshop,
-  deliberately loses, undoes, retries and wins through actual visible heads.
+  The first journey checks the shared picker’s locked and starred tiles, unlocks the workshop,
+  deliberately loses, undoes, retries and wins through actual visible heads. A second journey
+  starts from a historical two-level save and earns the three new clears through actual input,
+  checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the two-level boundary and monotonic star saves.
+  Page and API tests cover public access, the five-level boundary and monotonic star saves.
 
-Earlier one-level saves retain their stars and unlock the workshop from the existing cottage clear.
+Earlier one- and two-level saves retain their stars and infer the next released level from
+their recorded clears. Frontend progress and catalog totals derive from the released registry;
+the API accepts slots 1–5 and rejects unreleased level 6.
 
 Future work: additional authored levels, sound and haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–2 are released. Levels 3–30 below are a design plan, not playable content. The
+Levels 1–5 are released. Levels 6–30 below are a design plan, not playable content. The
 campaign expands from a tiny village into mills, a harbor, a railway, clockworks and a festival.
 Each group of five has a teaching level, practice and a final combination puzzle. Geometry
 and panel arrangement provide variation between new mechanics.
@@ -108,9 +124,9 @@ and panel arrangement provide variation between new mechanics.
 | --- | --- | --- |
 | 1 | Little Cottage — released | Learn orbiting, color trays and falling walls with forgiving storage: 3 colors, 9 screws, 4 spares. |
 | 2 | Garden Workshop — released | Timber braces hide wall screws; 4 colors, 12 screws and 2 spares introduce overflow, undo and retry. |
-| 3 | Village Windmill | Diagonal blades overlap the central housing. Choose which blade to remove to expose a needed color; retain level 2’s rules. |
-| 4 | Glasshouse | Introduce transparent covers: screws can be seen through glass but remain covered until the glass panel is released. Show a clear blocked-head cue. |
-| 5 | Corner Café | A roof, sign and glass awning combine opaque and transparent layers. First assessment of planning reveals around the whole building. |
+| 3 | Village Windmill — released | Diagonal blades overlap the central housing. Choose which blade to remove to expose a needed color; retain level 2’s rules. |
+| 4 | Glasshouse — released | Introduce transparent covers: screws can be seen through glass but remain covered until the glass panel is released. Show a clear blocked-head cue. |
+| 5 | Corner Café — released | A roof, sign and glass awning combine opaque and transparent layers. First assessment of planning reveals around the whole building. |
 | 6 | Waterwheel | Introduce shared screws: one clearly marked fastener supports two aligned plates. Its removal can release both. |
 | 7 | Barn Doors | Shared fasteners cross an outer frame and inner door. Choose a door to open while preserving access to useful colors. |
 | 8 | Sawmill | Several shared supports create a short release chain. Predict which panels will leave after the last common fastener. |
@@ -139,8 +155,8 @@ and panel arrangement provide variation between new mechanics.
 
 ### Mechanic contracts and implementation order
 
-1. **Before levels 3–5:** add the visible tray queue, data-driven introductions and a level
-   definition suitable for themed structures. Keep locks, stars and navigation in the shared
+1. **Implemented for levels 3–5:** the visible tray queue, data-driven introductions and a level
+   definition suitable for themed structures. Locks, stars and navigation stay in the shared
    `LevelSelectGrid`. Transparent covers need to distinguish seeing a head from being able
    to reach it; decorative transparency must not make the selection ray pass through it.
 2. **Before level 6:** replace the one-screw/one-plate relationship with a support graph.
