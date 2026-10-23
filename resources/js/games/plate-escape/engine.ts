@@ -1,7 +1,9 @@
-import { PLATES, type ScrewColor, SCREWS, SPARE_CAPACITY, TRAY_CAPACITY } from './level'
+import { getLevel, type ScrewColor, TRAY_CAPACITY } from './level'
 
 export interface Tray { id: 'left' | 'right', color: ScrewColor | null, count: number }
 export interface PuzzleState {
+  level: number
+  overflow: ScrewColor | null
   removed: string[]
   trays: Tray[]
   spare: ScrewColor[]
@@ -9,25 +11,32 @@ export interface PuzzleState {
   completed: ScrewColor[]
 }
 
-export function createPuzzle(): PuzzleState {
+export function createPuzzle(levelId = 1): PuzzleState {
+  const level = getLevel(levelId)
   return {
-    removed: [], trays: [{ id: 'left', color: 'coral', count: 0 }, { id: 'right', color: 'mint', count: 0 }],
-    spare: [], queue: ['blue'], completed: [],
+    level: levelId, overflow: null,
+    removed: [], trays: [{ id: 'left', color: level.trayColors[0]!, count: 0 }, { id: 'right', color: level.trayColors[1]!, count: 0 }],
+    spare: [], queue: level.trayColors.slice(2), completed: [],
   }
 }
 
-/** Returns the same state when a move cannot be accepted; never discards a screw. */
+/** Overflow is an undoable move; the unsorted screw is retained in the loss state. */
 export function removeScrew(state: PuzzleState, id: string): PuzzleState {
-  const screw = SCREWS.find((candidate) => candidate.id === id)
+  if (state.overflow !== null || hasWon(state)) return state
+  const level = getLevel(state.level)
+  const screw = level.screws.find((candidate) => candidate.id === id)
   if (!screw || state.removed.includes(id)) return state
   const next: PuzzleState = {
-    removed: [...state.removed, id], trays: state.trays.map((tray) => ({ ...tray })),
+    ...state, removed: [...state.removed, id], trays: state.trays.map((tray) => ({ ...tray })),
     spare: [...state.spare], queue: [...state.queue], completed: [...state.completed],
   }
   const tray = next.trays.find((candidate) => candidate.color === screw.color)
   if (tray) tray.count++
-  else if (next.spare.length < SPARE_CAPACITY) next.spare.push(screw.color)
-  else return state
+  else if (next.spare.length < level.spareCapacity) next.spare.push(screw.color)
+  else if (level.overflowLoses) {
+    next.overflow = screw.color
+    return next
+  } else return state
 
   // Completing a tray can open a color already held in spare storage. Drain it
   // immediately, including another completion, without depending on animations.
@@ -55,13 +64,14 @@ export function removeScrew(state: PuzzleState, id: string): PuzzleState {
 }
 
 export function remainingScrews(state: PuzzleState, plateId: string): number {
-  return SCREWS.filter((screw) => screw.plate === plateId && !state.removed.includes(screw.id)).length
+  return getLevel(state.level).screws.filter((screw) => screw.plate === plateId && !state.removed.includes(screw.id)).length
 }
 
 export function freedPlates(state: PuzzleState): number {
-  return PLATES.filter((plate) => remainingScrews(state, plate.id) === 0).length
+  return getLevel(state.level).plates.filter((plate) => remainingScrews(state, plate.id) === 0).length
 }
 
 export function hasWon(state: PuzzleState): boolean {
-  return state.removed.length === SCREWS.length && state.completed.length === 3
+  const level = getLevel(state.level)
+  return state.overflow === null && state.removed.length === level.screws.length && state.completed.length === level.trayColors.length
 }

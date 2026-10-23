@@ -4,7 +4,7 @@ test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
 
   test('rotates, reveals screws, undoes, sorts every color and remembers a clear', async ({ page, isMobile }, testInfo) => {
-    test.setTimeout(180_000)
+    test.setTimeout(360_000)
     if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
     const errors: string[] = []
     const cloudWrites: string[] = []
@@ -19,6 +19,7 @@ test.describe('Plate Escape real puzzle', () => {
     await page.goto('/plate-escape')
     await expect(page.getByRole('heading', { name: 'Plate Escape.' })).toBeVisible()
     await expect(page.locator('[data-screw-id="front-1"]')).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('button', { name: 'Level 2 · Locked', exact: true })).toBeDisabled()
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
     await expect(page.locator('[data-screw-id^="back-"]')).toHaveCount(0)
     await expect(page.locator('[data-screw-id="right-roof-1"]')).toBeVisible()
@@ -82,6 +83,49 @@ test.describe('Plate Escape real puzzle', () => {
     await page.reload()
     await expect(page.getByText('Cleared', { exact: true })).toBeVisible()
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
+    // The real tutorial win unlocks level two; no save or renderer state is injected.
+    await activate(page.getByRole('button', { name: 'Level 2', exact: true }))
+    await expect(page.getByText('Garden Workshop', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+    await expect(page.getByLabel('Spare storage: 0 of 2', { exact: true })).toBeVisible()
+    await expect(page.locator('[data-screw-id="front-brace-1"]')).toBeVisible()
+    await expect(page.locator('[data-screw-id="front-1"]')).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('garden-workshop.png') })
+    const removeVisible = async (id: string): Promise<void> => {
+      const head = page.locator(`[data-screw-id="${id}"]`)
+      for (let turn = 0; turn < 9 && !await head.isVisible(); turn++) {
+        await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+        await page.waitForTimeout(250)
+      }
+      await activate(head)
+      await expect.poll(async () => await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled() || await page.getByRole('alertdialog').isVisible() || await page.getByTestId('screw-progress').textContent() === '12 / 12 screws').toBe(true)
+    }
+    await removeVisible('right-roof-1')
+    await removeVisible('right-roof-2')
+    await expect(page.getByText('Storage full · Match a tray or the next screw will overflow', { exact: true })).toBeVisible()
+    // Full storage is recoverable: matching screws are still accepted.
+    await removeVisible('front-brace-1')
+    await expect(page.getByLabel('Coral tray: 1 of 3', { exact: true })).toBeVisible()
+    await removeVisible('left-roof-2')
+    await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath('workshop-overflow.png') })
+    await activate(page.getByRole('button', { name: 'Undo last move', exact: true }))
+    await expect(page.getByRole('alertdialog')).toHaveCount(0)
+    await expect(page.getByTestId('screw-progress')).toHaveText('3 / 12 screws')
+    await expect(page.getByLabel('Spare storage: 2 of 2', { exact: true })).toBeVisible()
+    await removeVisible('left-roof-2')
+    await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
+    await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+    await expect(page.getByLabel('Spare storage: 0 of 2', { exact: true })).toBeVisible()
+    for (const id of ['front-brace-1', 'back-brace-1', 'left-1', 'front-brace-2', 'right-1', 'left-roof-1', 'front-1', 'back-1', 'right-roof-1', 'front-2', 'left-roof-2', 'right-roof-2']) await removeVisible(id)
+    await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
+    await expect(page.getByTestId('plate-progress')).toHaveText('8 / 8 plates released')
+    await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
+    await expect(page.getByRole('img', { name: '3 of 3 stars', exact: true })).toBeVisible()
+    await page.reload()
+    await activate(page.getByRole('button', { name: 'Level 2', exact: true }))
+    await expect(page.getByText('Cleared', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
     await activate(page.getByRole('link', { name: 'All games', exact: false }))
     await expect(page.getByTestId('game-card-plate-escape')).toBeVisible()
     expect(cloudWrites).toEqual([])

@@ -57,6 +57,12 @@ export function decoratePlate(plate: Plate): THREE.Group {
   const details = new THREE.Group()
   const [width, height] = plate.size
   const cream = '#fff2d7'
+  if (plate.finish === 'brace') {
+    for (const y of [-0.3, 0, 0.3]) box(details, [width - 0.1, 0.025, 0.03], [0, y, 0.13], '#94653e')
+    const diagonal = box(details, [width - 0.24, 0.10, 0.07], [0, 0, 0.16], '#d0a876')
+    diagonal.rotation.z = 0.15
+    return details
+  }
   if (plate.finish === 'roof') {
     // Raised tile courses and staggered etched joints read at phone size.
     const vertices: number[] = []

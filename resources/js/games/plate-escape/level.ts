@@ -1,10 +1,11 @@
-export type ScrewColor = 'coral' | 'mint' | 'blue'
+export type ScrewColor = 'coral' | 'mint' | 'blue' | 'amber'
 export type Point3 = readonly [number, number, number]
 
 export const COLORS: Record<ScrewColor, { name: string, hex: string }> = {
   coral: { name: 'Coral', hex: '#ed775c' },
   mint: { name: 'Mint', hex: '#50b49b' },
   blue: { name: 'Blue', hex: '#598dda' },
+  amber: { name: 'Amber', hex: '#d9a132' },
 }
 
 export interface Plate {
@@ -15,7 +16,7 @@ export interface Plate {
   normal: Point3
   up: Point3
   gableRise?: number
-  finish: 'front' | 'back' | 'side' | 'roof'
+  finish: 'front' | 'back' | 'side' | 'roof' | 'brace'
   color: string
 }
 
@@ -54,3 +55,38 @@ export const SCREWS: readonly Screw[] = [
 
 export const SPARE_CAPACITY = 4
 export const TRAY_CAPACITY = 3
+
+export interface PuzzleLevel {
+  id: number
+  name: string
+  plates: readonly Plate[]
+  screws: readonly Screw[]
+  trayColors: readonly ScrewColor[]
+  spareCapacity: number
+  overflowLoses: boolean
+}
+
+export const LEVELS: readonly PuzzleLevel[] = [
+  { id: 1, name: 'Little Cottage', plates: PLATES, screws: SCREWS, trayColors: ['coral', 'mint', 'blue'], spareCapacity: SPARE_CAPACITY, overflowLoses: false },
+  {
+    id: 2, name: 'Garden Workshop', spareCapacity: 2, overflowLoses: true,
+    trayColors: ['coral', 'mint', 'blue', 'amber'],
+    plates: [
+      ...PLATES.map((plate) => ({ ...plate, color: plate.finish === 'roof' ? '#728e8b' : '#efd9b6' })),
+      { id: 'front-brace', name: 'Front timber brace', position: [0, 0.56, 1.85], size: [3.6, 1.05], normal: [0, 0, 1], up: [0, 1, 0], finish: 'brace', color: '#b98958' },
+      { id: 'back-brace', name: 'Back timber brace', position: [0, 0.56, -1.85], size: [3.6, 1.05], normal: [0, 0, -1], up: [0, 1, 0], finish: 'brace', color: '#b98958' },
+    ],
+    screws: [
+      ...SCREWS.map((screw): Screw => ({ ...screw, color: ({ 'front-1': 'blue', 'front-2': 'amber', 'left-roof-2': 'amber', 'right-roof-2': 'amber' } as Record<string, ScrewColor>)[screw.id] ?? screw.color })),
+      { id: 'front-brace-1', plate: 'front-brace', color: 'coral', position: [-1.15, 0] },
+      { id: 'front-brace-2', plate: 'front-brace', color: 'mint', position: [1.15, 0] },
+      { id: 'back-brace-1', plate: 'back-brace', color: 'coral', position: [0, 0] },
+    ],
+  },
+]
+
+export function getLevel(id: number): PuzzleLevel {
+  const level = LEVELS.find((candidate) => candidate.id === id)
+  if (!level) throw new Error(`Unknown Plate Escape level: ${id}`)
+  return level
+}
