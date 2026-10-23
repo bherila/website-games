@@ -1,3 +1,5 @@
+import { createVillageLevels } from './villageLevels'
+
 export type ScrewColor = 'coral' | 'mint' | 'blue' | 'amber'
 export type Point3 = readonly [number, number, number]
 
@@ -15,8 +17,9 @@ export interface Plate {
   size: readonly [number, number]
   normal: Point3
   up: Point3
+  translucent?: boolean
   gableRise?: number
-  finish: 'front' | 'back' | 'side' | 'roof' | 'brace'
+  finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
   color: string
 }
 
@@ -24,6 +27,7 @@ export interface Screw {
   id: string
   plate: string
   color: ScrewColor
+  blockedBy?: readonly string[]
   position: readonly [number, number]
 }
 
@@ -64,9 +68,11 @@ export interface PuzzleLevel {
   trayColors: readonly ScrewColor[]
   spareCapacity: number
   overflowLoses: boolean
+  theme?: 'windmill' | 'glasshouse' | 'cafe'
+  introduction?: string
 }
 
-export const LEVELS: readonly PuzzleLevel[] = [
+const introductoryLevels: readonly PuzzleLevel[] = [
   { id: 1, name: 'Little Cottage', plates: PLATES, screws: SCREWS, trayColors: ['coral', 'mint', 'blue'], spareCapacity: SPARE_CAPACITY, overflowLoses: false },
   {
     id: 2, name: 'Garden Workshop', spareCapacity: 2, overflowLoses: true,
@@ -84,6 +90,8 @@ export const LEVELS: readonly PuzzleLevel[] = [
     ],
   },
 ]
+
+export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!)]
 
 export function getLevel(id: number): PuzzleLevel {
   const level = LEVELS.find((candidate) => candidate.id === id)

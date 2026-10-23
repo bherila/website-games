@@ -17,7 +17,7 @@ class PlateEscapeGamePageTest extends TestCase
             ->assertDontSee('id="navbar"', false);
     }
 
-    public function test_both_released_levels_can_be_saved_and_stars_do_not_regress(): void
+    public function test_all_released_levels_can_be_saved_and_stars_do_not_regress(): void
     {
         $this->actingAs(User::factory()->create());
         $this->putJson('/api/games/plate-escape/data/level/1', ['data' => ['version' => 1, 'stars' => 3]])->assertSuccessful();
@@ -27,7 +27,11 @@ class PlateEscapeGamePageTest extends TestCase
         $this->putJson('/api/games/plate-escape/data/level/2', ['data' => ['version' => 1, 'stars' => 3]])->assertSuccessful()->assertJsonPath('data.slot', '2');
         $this->putJson('/api/games/plate-escape/data/level/2', ['data' => ['version' => 1, 'stars' => 1]])->assertSuccessful()->assertJsonPath('data.data.stars', 3);
         $this->getJson('/api/games/data?games[]=plate-escape')->assertSuccessful()->assertJsonCount(2, 'data');
-        $this->putJson('/api/games/plate-escape/data/level/3', ['data' => ['version' => 1, 'stars' => 3]])->assertUnprocessable();
+        foreach ([3, 4, 5] as $level) {
+            $this->putJson("/api/games/plate-escape/data/level/{$level}", ['data' => ['version' => 1, 'stars' => 3]])->assertSuccessful();
+        }
+        $this->getJson('/api/games/data?games[]=plate-escape')->assertSuccessful()->assertJsonCount(5, 'data');
+        $this->putJson('/api/games/plate-escape/data/level/6', ['data' => ['version' => 1, 'stars' => 3]])->assertUnprocessable();
         $this->putJson('/api/games/plate-escape/data/save/autosave', ['data' => ['version' => 1]])->assertUnprocessable();
     }
 }

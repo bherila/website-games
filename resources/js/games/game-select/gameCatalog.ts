@@ -16,6 +16,7 @@ import { TOTAL_LEVELS as MARBLE_WORKS_TOTAL_LEVELS } from '../marble-works/gameT
 import { loadProgress as loadMathHordeProgress } from '../math-horde/gameProgress'
 import { TOTAL_LEVELS as MATH_HORDE_TOTAL_LEVELS } from '../math-horde/gameTypes'
 import { loadProgress as loadPlateEscapeProgress } from '../plate-escape/gameProgress'
+import { LEVELS as PLATE_ESCAPE_LEVELS } from '../plate-escape/level'
 import { loadProgress as loadTowerProgress } from '../tower-throwback/gameProgress'
 import { TOTAL_MILESTONES as TOWER_TOTAL_LEVELS } from '../tower-throwback/gameTypes'
 
@@ -79,7 +80,7 @@ const CATALOG: GameCatalogEntry[] = [
     emoji: '🔩',
     description: 'Turn a 3D assembly, sort colorful screws, and free every plate in a gentle mechanical puzzle.',
     href: '/plate-escape',
-    totalLevels: 2,
+    totalLevels: PLATE_ESCAPE_LEVELS.length,
     loadProgress: () => loadPlateEscapeProgress(),
   },
   {
