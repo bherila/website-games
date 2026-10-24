@@ -1,6 +1,6 @@
 import './plate-escape.css'
 
-import { LockKeyhole, Minus, Plus, RotateCcw, RotateCw, Undo2, X } from 'lucide-react'
+import { ArrowLeft, Check, CircleHelp, LockKeyhole, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
 import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -9,6 +9,7 @@ import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { StarRow } from '../_shared/StarRow'
 import { PortraitGameShell } from '../PortraitGameShell'
+import { CollectionTrays, ScrewHead } from './CollectionTrays'
 import { createPuzzle, freedPlates, hasWon, type PuzzleState, removeScrew } from './engine'
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
 import { COLORS, getLevel, LEVELS, type PuzzleLevel, type ScrewColor } from './level'
@@ -97,7 +98,8 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
       return
     }
     const bounds = button.getBoundingClientRect()
-    const destination = document.querySelector(`[data-tray-color="${screw.color}"]`) ?? document.querySelector('[data-spare-slots]')
+    const activeTray = puzzle.trays.find((tray) => tray.color === screw.color)
+    const destination = activeTray ? document.querySelector(`[data-tray-color="${screw.color}"] [data-tray-slot="${activeTray.count}"]`) : document.querySelector(`[data-spare-slot="${puzzle.spare.length}"]`)
     const tray = destination?.getBoundingClientRect()
     const x = bounds.x + bounds.width / 2
     const y = bounds.y + bounds.height / 2
@@ -122,43 +124,15 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
 
   return (
     <PortraitGameShell className="bg-[#e9edf0] text-slate-800" contentClassName="plate-escape">
-      <header className="flex items-center justify-between gap-2 px-5 pb-3 pt-[max(16px,env(safe-area-inset-top))]">
-        <div>
-          <button type="button" onClick={onLevels} className="min-h-11 text-xs font-semibold text-slate-500 hover:text-slate-900">← Levels</button>
-          <h1 className="text-2xl font-bold tracking-tight">Plate Escape<span className="text-orange-500">.</span></h1>
-        </div>
-        <div className="text-right text-xs font-semibold text-slate-500">
-          <div>LEVEL {String(level.id).padStart(2, '0')}</div>
-          <div className="mt-1 text-emerald-700">{cleared || won ? 'Cleared' : level.name}</div>
-          {level.introduction && <button type="button" className="min-h-11 text-xs text-slate-600 underline" onClick={() => setHelp(true)}>Level guide</button>}
-        </div>
+      <header className="flex items-center gap-2 px-4 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
+        <button type="button" onClick={onLevels} aria-label="Levels" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-white/70"><ArrowLeft size={20} aria-hidden="true" /></button>
+        <h1 className="min-w-0 flex-1 whitespace-nowrap text-lg font-bold tracking-tight">Plate Escape<span className="text-orange-500">.</span></h1>
+        <span role="img" aria-label={`Level ${level.id}: ${level.name}${cleared || won ? ', cleared' : ''}`} className={`flex h-9 shrink-0 items-center gap-1 rounded-full bg-white/65 px-3 text-xs font-bold tabular-nums ${cleared || won ? 'text-emerald-700' : 'text-slate-500'}`}>
+          {String(level.id).padStart(2, '0')}{(cleared || won) && <Check size={13} aria-hidden="true" />}
+        </span>
+        {level.introduction && <button type="button" aria-label="Level guide" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-white/70" onClick={() => setHelp(true)}><CircleHelp size={20} aria-hidden="true" /></button>}
       </header>
-      <section aria-label="Collection trays" className="mx-4 rounded-3xl border border-white/80 bg-white/75 p-3 shadow-sm">
-        <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-          <span>Match three</span><span>{puzzle.completed.length} / {level.trayColors.length} collected</span>
-        </div>
-        <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold text-slate-500" aria-label={`Upcoming trays: ${puzzle.queue.length ? puzzle.queue.map((color) => COLORS[color].name).join(', ') : 'none'}`}>
-          <span className="uppercase tracking-wider">Up next</span>
-          {puzzle.queue.length ? puzzle.queue.map((color) => <span key={color} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1"><span style={{ color: COLORS[color].hex }}><ScrewMark color={color} /></span>{COLORS[color].name}</span>) : <span>All colors open</span>}
-        </div>
-        <div className="flex gap-3">
-          {puzzle.trays.map((tray) => (
-            <div key={tray.id} data-tray-color={tray.color ?? ''} className="flex flex-1 items-center justify-between gap-2 rounded-2xl bg-slate-100 px-3 py-2" aria-label={tray.color ? `${COLORS[tray.color].name} tray: ${tray.count} of 3` : 'Tray complete'}>
-              <span className="text-[11px] font-bold text-slate-600">{tray.color ? COLORS[tray.color].name : 'Done ✓'}</span>
-              <span className="flex gap-1">
-                {[0, 1, 2].map((slot) => <span key={slot} className="grid h-5 w-5 place-items-center rounded-full bg-white text-xs shadow-inner" style={{ color: tray.color ? COLORS[tray.color].hex : '#a0aaa7' }}>{slot < tray.count && tray.color ? <ScrewMark color={tray.color} /> : '·'}</span>)}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div data-spare-slots className="mt-3 flex items-center justify-center gap-2" aria-label={`Spare storage: ${puzzle.spare.length} of ${SPARE_CAPACITY}`}>
-          <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Spare</span>
-          {Array.from({ length: SPARE_CAPACITY }, (_, slot) => {
-            const color = puzzle.spare[slot]
-            return <span key={slot} className="grid h-6 w-6 place-items-center rounded-lg border border-dashed border-slate-300 text-sm" style={{ color: color ? COLORS[color].hex : '#cbd5e1' }}>{color ? <ScrewMark color={color} /> : '+'}</span>
-          })}
-        </div>
-      </section>
+      <CollectionTrays state={busy && fly ? history.at(-1) ?? puzzle : puzzle} />
       <main className="relative min-h-0 flex-1" aria-label="Plate puzzle">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#fff9ed_0%,transparent_70%)]" />
         <PlateEscapeScene key={sceneKey} state={puzzle} view={view} onTargets={setTargets} onError={reportError} />
@@ -184,8 +158,9 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
           <button type="button" aria-label="Rotate right" onClick={() => turn('right')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100"><RotateCw size={20} aria-hidden="true" /></button>
         </div>
         {lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl">
+          <div className="mb-3 flex justify-center"><ScrewHead color={puzzle.overflow!} size={48} /></div>
           <h2 id="storage-full-title" className="text-2xl font-bold">No room for that screw</h2>
-          <p id="storage-full-help" className="mt-3 text-sm text-slate-600">All {SPARE_CAPACITY} spare slots are full, and the {COLORS[puzzle.overflow!].name.toLowerCase()} screw has no matching tray. Try a different order.</p>
+          <p id="storage-full-help" className="mt-3 text-sm text-slate-600">All {SPARE_CAPACITY} spare slots are full, and this <span className="sr-only">{COLORS[puzzle.overflow!].name.toLowerCase()} </span>screw has no matching tray. Try a different order.</p>
           <button autoFocus type="button" onClick={undo} className="mt-5 rounded-full bg-slate-800 px-5 py-3 font-semibold text-white">Undo last move</button>
           <button type="button" onClick={restart} className="mt-2 rounded-full bg-white px-5 py-3 font-semibold">Retry level</button>
         </div>}
@@ -211,12 +186,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
       </footer>
       {level.introduction && <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>{level.name}</DialogTitle><DialogDescription>{level.introduction}</DialogDescription></DialogHeader><button type="button" onClick={() => setHelp(false)} className="rounded-full bg-slate-800 px-6 py-3 font-semibold text-white">Let's play</button></DialogContent></Dialog>}
       <p className="sr-only" role="status" aria-live="polite">{message}</p>
-      {fly && <span aria-hidden="true" className="plate-screw-flight" style={{ left: fly.x, top: fly.y, background: COLORS[fly.color].hex, '--fly-x': `${fly.dx}px`, '--fly-y': `${fly.dy}px` } as CSSProperties}><ScrewMark color={fly.color} /></span>}
+      {fly && <span aria-hidden="true" className="plate-screw-flight" style={{ left: fly.x, top: fly.y, '--fly-x': `${fly.dx}px`, '--fly-y': `${fly.dy}px` } as CSSProperties}><ScrewHead color={fly.color} size={30} /></span>}
     </PortraitGameShell>
   )
-}
-
-function ScrewMark({ color }: { color: ScrewColor }): ReactElement {
-  const Icon = color === 'coral' ? Plus : color === 'mint' ? X : Minus
-  return <Icon className={color === 'amber' ? 'rotate-90' : undefined} size={14} strokeWidth={3} aria-hidden="true" />
 }
