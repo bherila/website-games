@@ -14,7 +14,10 @@ The first expansion adds Village Windmill (diagonal sails covering a hub), Glass
 (transparent but solid covers, with three teaching spare slots), and Corner Café (a sign
 covering the glass awning’s fastener). Each has twelve screws in four colors. Introductions
 open on uncleared levels and can be reopened from Level guide. The visible upcoming-tray
-queue helps players plan which colors to collect next.
+queue helps players plan which colors to collect next. Matching is graphical: colored triangular
+trays have one screw socket at each corner, with the same head marks used on the 3D screws.
+Queued and stored screws use the same colored head icons. Color names remain in accessible
+labels, and the title, level badge and navigation share one compact header row.
 
 ## Play
 

@@ -68,7 +68,7 @@ test.describe('Tower Throwback real player journey', () => {
       await activate(page.getByRole('button', { name: 'Done' }))
       await activate(page.getByTestId('zoom-in'))
       await activate(page.getByTestId('zoom-in'))
-      await touchPanLeft(touch)
+      await touchPanLeft(touch, canvas)
       await activate(page.getByRole('button', { name: 'Build' }))
       await activate(page.getByTestId('tool-slab'))
       await touchPlacement(touch, canvas, { floor: 1, x: 196 }, { floor: 1, x: 201 })
@@ -79,7 +79,7 @@ test.describe('Tower Throwback real player journey', () => {
       await expect(page.getByTestId('funds')).toHaveText('$1,977,300')
       await activate(page.getByRole('button', { name: 'Done' }))
       await activate(page.getByTestId('zoom-in'))
-      await touchPanLeft(touch)
+      await touchPanLeft(touch, canvas)
       await activate(page.getByRole('button', { name: 'Build' }))
       await activate(page.getByTestId('family-elevators'))
       await activate(page.getByTestId('tool-standard'))
@@ -229,9 +229,18 @@ async function touchAt(touch: CDPSession, point: ScreenPoint, type: 'touchStart'
   })
 }
 
-async function touchPanLeft(touch: CDPSession): Promise<void> {
-  await touchAt(touch, { x: 245, y: 450 }, 'touchStart')
-  await touchAt(touch, { x: 365, y: 450 }, 'touchMove')
+async function touchPanLeft(touch: CDPSession, canvas: Locator): Promise<void> {
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  // The zoom controls can occupy the old swipe's right-edge endpoint. Keep
+  // the whole gesture below the HUD and inside the exposed canvas instead.
+  const start = { x: bounds!.x + bounds!.width * 0.48, y: bounds!.y + bounds!.height * 0.74 }
+  const end = { x: bounds!.x + bounds!.width * 0.80, y: start.y }
+  for (const point of [start, end]) {
+    expect(await canvas.evaluate((element, position) => document.elementFromPoint(position.x, position.y) === element, point), 'Pan contacts must reach exposed canvas').toBe(true)
+  }
+  await touchAt(touch, start, 'touchStart')
+  await touchAt(touch, end, 'touchMove')
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
 }
 
