@@ -31,7 +31,8 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
   at sign-in. Mail goes through Brevo (`MAIL_MAILER=brevo`, `MAILER_DSN`). See README "Account email".
   It also deletes the account (`AccountDeletion`). A new table with a `user_id` column needs a
   deletion decision in `tests/Feature/Account/AccountDeletionTest.php`. `/privacy` is the public
-  privacy page.
+  privacy page. Confirming an address another confirmed account holds offers a merge
+  (`AccountMerge`, also `php artisan users:merge`); see README "Merging accounts".
 - Application administrator is `users.is_admin` (never set by sign-in), checked through the
   `administer` gate and changed only through `App\Services\Admin\ApplicationAdministrators`,
   which owns the last-administrator rule. See README for `php artisan users:admin`.

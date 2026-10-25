@@ -66,6 +66,12 @@ final class AccessAudit
      */
     public const ACCOUNT_DELETED = 'account_deleted';
 
+    /**
+     * Another account was merged into this one (auth_method `session` from the account page,
+     * `console` from users:merge). Metadata carries the absorbed row id.
+     */
+    public const ACCOUNTS_MERGED = 'accounts_merged';
+
     public const METHOD_CONSOLE = 'console';
 
     public const METHOD_DELEGATED = 'delegated';
