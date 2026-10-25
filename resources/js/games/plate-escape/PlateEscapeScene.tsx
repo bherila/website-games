@@ -3,30 +3,41 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
-import { blockingPlates, type PuzzleState } from './engine'
-import { createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
+import { bearingLock, type PuzzleState, screwLock } from './engine'
+import { coverStandoff, createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
 import { COLORS, getLevel } from './level'
+import { FADE_SECONDS, FALL_SECONDS, fallPose } from './plateMotion'
 import { traceScrew } from './screwVisibility'
 
-export interface ScrewTarget { id: string, x: number, y: number, coveredBy?: string | undefined }
+export interface ScrewTarget {
+  id: string
+  x: number
+  y: number
+  coveredBy?: string | undefined
+  /** The part resting on this plate, which keeps its last screw in place. */
+  holdsUp?: string | undefined
+}
 export interface ViewCommand { action: 'left' | 'right' | 'reset', sequence: number }
+/** A released part starts to fall, or hits the deck or lawn. */
+export type PlateEvent = 'fall' | 'land'
 interface Props {
   state: PuzzleState
   view: ViewCommand
   onTargets: (targets: ScrewTarget[]) => void
   onError: (message: string) => void
+  onPlateEvent?: (event: PlateEvent) => void
 }
 
 const UP = new THREE.Vector3(0, 1, 0)
 const NORMAL = new THREE.Vector3(0, 0, 1)
 
-export function PlateEscapeScene({ state, view, onTargets, onError }: Props): ReactElement {
+export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent }: Props): ReactElement {
   const level = getLevel(state.level)
   const { plates: PLATES, screws: SCREWS } = level
   const hostRef = useRef<HTMLDivElement>(null)
-  const latestRef = useRef({ state, onTargets, onError })
+  const latestRef = useRef({ state, onTargets, onError, onPlateEvent })
   const commandRef = useRef<((action: ViewCommand['action']) => void) | null>(null)
-  useEffect(() => { latestRef.current = { state, onTargets, onError } }, [state, onTargets, onError])
+  useEffect(() => { latestRef.current = { state, onTargets, onError, onPlateEvent } }, [state, onTargets, onError, onPlateEvent])
   useEffect(() => { commandRef.current?.(view.action) }, [view])
 
   useEffect(() => {
@@ -109,7 +120,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       plateGroups.set(plate.id, group)
       const screws = SCREWS.filter((screw) => screw.plate === plate.id)
       const mesh = createPlateMesh(plate, screws)
-      group.add(mesh, decoratePlate(plate))
+      group.add(mesh, decoratePlate(plate, coverStandoff(plate, PLATES)))
       hitObjects.push(group)
       for (const screw of screws) {
         const screwGroup = makeScrew(COLORS[screw.color].hex, screw.color)
@@ -138,6 +149,29 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     }
     renderer.domElement.addEventListener('webglcontextlost', lost)
     const removedAt = new Map<string, number>()
+    // A bearing wall stays square on its last screw; it starts to hang only once its load has gone.
+    const heldPlates = new Set<string>()
+    const loadReleasedAt = new Map<string, number>()
+    const falling = new Set<string>()
+    const landed = new Set<string>()
+    const faded = new Map<string, number>()
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    // Materials are created per panel, so fading one part never touches another.
+    const setOpacity = (group: THREE.Group, id: string, opacity: number): void => {
+      if ((faded.get(id) ?? 1) === opacity) return
+      faded.set(id, opacity)
+      group.traverse((object) => {
+        if (!(object instanceof THREE.Mesh || object instanceof THREE.LineSegments)) return
+        for (const material of [object.material].flat() as THREE.Material[]) {
+          material.userData.opacity ??= material.opacity
+          material.userData.transparent ??= material.transparent
+          const transparent = opacity < 1 || (material.userData.transparent as boolean)
+          if (material.transparent !== transparent) material.needsUpdate = true
+          material.transparent = transparent
+          material.opacity = (material.userData.opacity as number) * opacity
+        }
+      })
+    }
     const ray = new THREE.Raycaster()
     const world = new THREE.Vector3()
     const facing = new THREE.Vector3()
@@ -162,13 +196,16 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
         const remaining = screws.filter((screw) => !removed.includes(screw.id))
         const latest = Math.max(...screws.map((screw) => removedAt.get(screw.id) ?? -Infinity))
         const fall = remaining.length === 0 ? Math.max(0, now - latest - 0.45) : 0
-        const pivot = remaining.length === 1 ? remaining[0]
+        const held = remaining.length === 1 && bearingLock(latestRef.current.state, plate.id) !== null
+        if (held) heldPlates.add(plate.id)
+        else if (heldPlates.delete(plate.id)) loadReleasedAt.set(plate.id, now)
+        const hangFrom = Math.max(latest, loadReleasedAt.get(plate.id) ?? -Infinity)
+        const pivot = held ? undefined : remaining.length === 1 ? remaining[0]
           : remaining.length === 0 ? screws.find((screw) => removedAt.get(screw.id) === latest) : undefined
-        // The unsupported side swings downward whether the last screw is on
-        // the left or the right; the final fall keeps that direction.
+        // The unsupported side swings downward around the last screw, whichever
+        // side it is on; a released plate keeps that tilt as it falls.
         const swing = pivot && pivot.position[0] > 0 ? 1 : -1
-        const angle = remaining.length === 0 ? swing * (0.3 + fall * 1.2)
-          : pivot && Number.isFinite(latest) ? swing * 0.3 * Math.min(1, Math.max(0, (now - latest - 0.3) * 3)) : 0
+        const angle = pivot && Number.isFinite(hangFrom) ? swing * 0.3 * Math.min(1, Math.max(0, (now - hangFrom - 0.3) * 3)) : 0
         const base = plateFrames.get(plate.id)!
         group.quaternion.copy(base).multiply(quaternion.setFromAxisAngle(NORMAL, angle))
         group.position.fromArray(plate.position)
@@ -176,8 +213,33 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
           const anchor = new THREE.Vector3(pivot.position[0], pivot.position[1], 0)
           group.position.add(anchor.clone().applyQuaternion(base)).sub(anchor.applyQuaternion(group.quaternion))
         }
-        group.position.y -= 6 * fall * fall
-        group.visible = fall < 1.1
+        if (fall > 0) {
+          if (!falling.has(plate.id)) {
+            falling.add(plate.id)
+            latestRef.current.onPlateEvent?.('fall')
+          }
+          const lasts = reduceMotion ? FADE_SECONDS : FALL_SECONDS
+          // A part that has faded away needs no simulation, and its shadow stops refreshing.
+          if (fall >= lasts) {
+            group.visible = false
+            continue
+          }
+          const pose = fallPose(plate, group.position, group.quaternion, reduceMotion ? 0 : fall)
+          group.position.copy(pose.position)
+          group.quaternion.copy(pose.quaternion)
+          if (pose.grounded && !landed.has(plate.id)) {
+            landed.add(plate.id)
+            latestRef.current.onPlateEvent?.('land')
+          }
+          setOpacity(group, plate.id, Math.min(1, (lasts - fall) / FADE_SECONDS))
+          group.visible = true
+          lastMotionAt = now
+        } else {
+          falling.delete(plate.id)
+          landed.delete(plate.id)
+          setOpacity(group, plate.id, 1)
+          group.visible = true
+        }
       }
       for (const screw of SCREWS) {
         const group = screwGroups.get(screw.id)!
@@ -208,9 +270,13 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
           ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera)
           const sight = traceScrew(ray, hitObjects)
           if (sight?.screwId !== screw.id) continue
-          const covers = blockingPlates(latestRef.current.state, screw)
-          const cover = PLATES.find((plate) => plate.id === covers[0])
-          targets.push({ id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2, coveredBy: cover?.name ?? sight.coveredBy })
+          const lock = screwLock(latestRef.current.state, screw)
+          const locker = PLATES.find((plate) => plate.id === lock?.plate)
+          targets.push({
+            id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2,
+            coveredBy: lock?.kind === 'cover' ? locker?.name : sight.coveredBy,
+            holdsUp: lock?.kind === 'bearing' ? locker?.name : undefined,
+          })
         }
         latestRef.current.onTargets(targets)
       }

@@ -2,10 +2,11 @@
 
 Plate Escape is a rotatable 3D screw puzzle at `/plate-escape`. The campaign starts with
 Little Cottage: four walls, two pitched roof panels, nine screws in three colors, two trays of
-three, and four spare slots. There is no timer or move limit. Storage is forgiving enough to accept
-every possible color order; plates still constrain which screw heads are exposed.
+three, and four spare slots. There is no timer or move limit. Storage is forgiving enough that
+every legal removal order wins; plates still constrain which screw heads are exposed.
 
-Level 2, Garden Workshop, adds two removable timber braces covering wall screws, twelve screws
+Level 2, Garden Workshop, adds two removable timber braces, bolted to the gable walls on spacer
+blocks and covering the wall screws behind them, twelve screws
 in four colors, and only two spare slots. Removing an unmatched screw when both spares are full
 ends the attempt; matching a tray remains legal with full storage. Unlimited undo restores the
 overflowing screw and the entire previous board, and Retry starts fresh. There is no lives system.
@@ -31,10 +32,19 @@ labels, and the title, level badge and navigation share one compact header row.
   Finishing a tray opens the next queued color and automatically collects matching stored screws.
   A lock marks a head visible through glass but still covered. Remove its cover or turn to an
   unobstructed face; covered heads cannot be unscrewed or consume storage.
-- Removing all but one screw lets a panel pivot around its last support. With none, it drops out of the
-  house. Screw heads face outward from all four walls and both roof slopes; walls and roof
-  occlude the heads behind them, so turning the view is required. The garden and wooden floor
-  remain as a permanent base.
+- The front and back gable walls carry the roof. A gable's last screw stays in place while either
+  roof slope is attached; the head shows a small roof badge, stays square rather than hanging,
+  and tapping it explains why in a short hint above the rotate controls. Side walls bear nothing.
+  Refused taps on covered heads and full storage use the same visible hint.
+- Removing all but one screw lets a panel pivot around its last support. With none, it falls:
+  walls tip outward about their bottom edge, roof slopes slide down the pitch and off the eave,
+  and raised covers drop. Parts land on the deck or lawn rather than passing through it, slide
+  off the garden's edge and fade. Screw heads face outward from all four walls and both roof
+  slopes; walls and roof occlude the heads behind them, so turning the view is required. The
+  garden and wooden floor remain as a permanent base.
+- Synthesized sounds mark unscrewing, a screw seating in a tray or spare slot, a filled tray, a
+  locked head, a part letting go and landing, overflow, undo and a win. The footer's sound toggle
+  persists (`bwh.plate-escape.muted.v1`). The chrome follows the site's light and dark theme.
 - Undo restores the last screw, tray state and plate. Restart resets the puzzle and view.
 - Clearing all plates and sorting all screws awards three stars. Reload starts a fresh puzzle
   and retains the clear. Clearing level 1 unlocks level 2. The shared level grid allows replay; no
@@ -44,14 +54,18 @@ labels, and the title, level badge and navigation share one compact header row.
 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
 `villageLevels.ts` authors levels 3–5. `engine.ts`
-is a pure immutable puzzle model. Authored cover prerequisites prevent axial access through
-attached panels, including heads glimpsed at an oblique angle. `screwVisibility.ts` traces
+is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
+cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
+oblique angle, and a plate's `restsOn` supports keep their last screw while it is attached. This
+is the first part of the support graph planned below; shared screws are still future work. `screwVisibility.ts` traces
 nearest physical hits: glass can reveal a head visually while keeping it locked; opaque
 frames and decorations still occlude it. `houseGeometry.ts` builds the gabled outlines, panel frames,
 windows, door, tiled roof, trim and garden. Architectural details are attached to their removable
 panel rather than left floating when it falls.
-`PlateEscapeScene.tsx` uses Three.js and OrbitControls, with authored support pivots and gravity-like
-fall animations rather than a general rigid-body simulation. A nearest-hit raycast against plates
+`PlateEscapeScene.tsx` uses Three.js and OrbitControls, with authored support pivots. Falls come
+from `plateMotion.ts`, a pure function of time since release that integrates gravity in fixed
+1/120 s substeps against the deck and lawn heights, rather than a general rigid-body simulation;
+the scene reports fall and landing events for sound. A nearest-hit raycast against plates
 and screw meshes determines which heads can be selected. The view owns no progression state.
 `PlateEscapeGame.tsx` owns undo snapshots, controls, collection UI and completion. Panel totals
 come from the level definition. The campaign uses the shared `LevelSelectGrid` for locks, stars,
@@ -71,13 +85,24 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
 
 ## Validation
 
-- Pure model tests cover all 1,680 possible color orders, tray cascades, capacity, duplicate taps,
-  immutable undo snapshots, support removal, workshop overflow, recovery and a winning order.
-- Geometry tests verify outward panel frames, screw clearance and a shared roof ridge above both gables.
+- An exhaustive solver (`__tests__/puzzleSolver.ts`) explores every reachable board of each
+  released level through the real engine. It proves each level winnable with no soft-locks,
+  keeps each within an authored difficulty band (the chance that uniformly random legal play
+  wins), proves that every legal order wins the tutorial, that no board leaves a roof over a
+  released gable, and that the bearing rule constrains every level. The authored win and
+  overflow traces in `campaignFixtures.ts` were generated from it. The solver assumes every
+  uncovered head is reachable by orbiting; geometry tests and browser journeys check access.
+- Pure model tests cover tray cascades, capacity, duplicate taps, immutable undo snapshots,
+  support removal, bearing locks, workshop overflow, recovery and a winning order.
+- Geometry tests verify outward panel frames, screw clearance, a shared roof ridge above both
+  gables, that every authored cover intersects its screw's access ray, and that cover spacers reach
+  the wall without crossing any head's access ray. Motion tests check that every part lands without
+  passing through the garden, never jumps between frames, and leaves the garden.
 - `tests/e2e/plate-escape.spec.ts` covers actual desktop input and native Chromium touch: hidden
   heads, drag/tap separation, rotation, spare storage, undo, full completion, reload and catalog.
   The first journey checks the shared picker’s locked and starred tiles, unlocks the workshop,
-  deliberately loses, undoes, retries and wins through actual visible heads. A second journey
+  deliberately loses, undoes, retries and wins through actual visible heads, tapping the front
+  gable's bearing screw on the way to check its hint. A second journey
   starts from a historical two-level save and earns the three new clears through actual input,
   checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
@@ -87,7 +112,7 @@ Earlier one- and two-level saves retain their stars and infer the next released 
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
 the API accepts slots 1–5 and rejects unreleased level 6.
 
-Future work: additional authored levels, sound and haptics, and representative phone testing before making rendering-performance claims.
+Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels

@@ -30,7 +30,7 @@ function ColorTray({ tray, inverted }: { tray: Tray, inverted: boolean }): React
   const maskId = useId()
   const holeId = useId()
   const color = tray.color
-  const fill = color ? COLORS[color].hex : '#cbd5d6'
+  const fill = color ? COLORS[color].hex : 'var(--plate-tray-empty)'
   const outline = inverted ? INVERTED_TRIANGLE : TRIANGLE
   const sockets = SOCKETS.map(([x, y]) => [x, inverted ? 120 - y : y])
   return (
@@ -66,13 +66,13 @@ function ColorTray({ tray, inverted }: { tray: Tray, inverted: boolean }): React
 export function CollectionTrays({ state }: { state: PuzzleState }): ReactElement {
   const level = getLevel(state.level)
   return (
-    <section aria-label="Collection trays" className="mx-4 rounded-3xl border border-white/80 bg-white/75 px-3 py-2 shadow-sm">
+    <section aria-label="Collection trays" className="mx-4 rounded-3xl border border-white/80 bg-white/75 px-3 py-2 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
       <div className="flex items-center justify-between gap-2">
         <div role="group" className="flex items-center gap-1" aria-label={`Upcoming trays: ${state.queue.length ? state.queue.map((color) => COLORS[color].name).join(', ') : 'none'}`}>
-          <ChevronRight size={16} className="text-slate-400" aria-hidden="true" />
-          {state.queue.length ? state.queue.map((color) => <ScrewHead key={color} color={color} size={23} />) : <Check size={20} className="text-emerald-600" aria-hidden="true" />}
+          <ChevronRight size={16} className="text-slate-400 dark:text-slate-500" aria-hidden="true" />
+          {state.queue.length ? state.queue.map((color) => <ScrewHead key={color} color={color} size={23} />) : <Check size={20} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />}
         </div>
-        <span className="text-[10px] font-bold tabular-nums text-slate-500">{state.completed.length} / {level.trayColors.length} collected</span>
+        <span className="text-[10px] font-bold tabular-nums text-slate-500 dark:text-slate-400">{state.completed.length} / {level.trayColors.length} collected</span>
       </div>
       <div className="plate-tray-row" style={{ '--tray-count': state.trays.length } as CSSProperties}>
         {state.trays.map((tray, index) => <ColorTray key={tray.id} tray={tray} inverted={index % 2 === 1} />)}
@@ -80,7 +80,7 @@ export function CollectionTrays({ state }: { state: PuzzleState }): ReactElement
       <div role="group" data-spare-slots className="flex items-center justify-center gap-2" aria-label={`Spare storage: ${state.spare.length} of ${level.spareCapacity}`}>
         {Array.from({ length: level.spareCapacity }, (_, slot) => {
           const color = state.spare[slot]
-          return <span key={slot} data-spare-slot={slot} role="img" aria-label={color ? `${COLORS[color].name} screw in spare slot ${slot + 1}` : `Spare slot ${slot + 1} empty`} className="grid h-7 w-7 place-items-center rounded-full border border-dashed border-slate-300 bg-slate-100/70">{color ? <ScrewHead color={color} size={28} /> : <Plus size={12} className="text-slate-300" aria-hidden="true" />}</span>
+          return <span key={slot} data-spare-slot={slot} role="img" aria-label={color ? `${COLORS[color].name} screw in spare slot ${slot + 1}` : `Spare slot ${slot + 1} empty`} className="grid h-7 w-7 place-items-center rounded-full border border-dashed border-slate-300 bg-slate-100/70 dark:border-slate-600 dark:bg-slate-800/70">{color ? <ScrewHead color={color} size={28} /> : <Plus size={12} className="text-slate-300 dark:text-slate-600" aria-hidden="true" />}</span>
         })}
       </div>
     </section>

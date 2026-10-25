@@ -19,6 +19,8 @@ export interface Plate {
   up: Point3
   translucent?: boolean
   gableRise?: number
+  /** Plates this one rests on; their last screw stays locked while this plate is attached. */
+  restsOn?: readonly string[]
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
   color: string
 }
@@ -35,14 +37,17 @@ const roofLength = Math.hypot(2.1, 1.35)
 const roofSin = 1.35 / roofLength
 const roofCos = 2.1 / roofLength
 
+/** The gable walls carry the roof; the side walls are infill and bear nothing. */
+const GABLES = ['front', 'back'] as const
+
 /** Local X/Y describe each panel; its normal points toward the screw heads. */
 export const PLATES: readonly Plate[] = [
   { id: 'front', name: 'Front gable wall', position: [0, -0.25, 1.25], size: [3.6, 2.6], normal: [0, 0, 1], up: [0, 1, 0], gableRise: 1.15, finish: 'front', color: '#f2dfbc' },
   { id: 'back', name: 'Back gable wall', position: [0, -0.25, -1.25], size: [3.6, 2.6], normal: [0, 0, -1], up: [0, 1, 0], gableRise: 1.15, finish: 'back', color: '#efdbb7' },
   { id: 'left', name: 'Left wall', position: [-1.8, -0.25, 0], size: [2.5, 2.6], normal: [-1, 0, 0], up: [0, 1, 0], finish: 'side', color: '#e9d3ad' },
   { id: 'right', name: 'Right wall', position: [1.8, -0.25, 0], size: [2.5, 2.6], normal: [1, 0, 0], up: [0, 1, 0], finish: 'side', color: '#f2dfbc' },
-  { id: 'left-roof', name: 'Left roof slope', position: [-1.05, 1.6, 0], size: [3.05, roofLength], normal: [-roofSin, roofCos, 0], up: [roofCos, roofSin, 0], finish: 'roof', color: '#a95145' },
-  { id: 'right-roof', name: 'Right roof slope', position: [1.05, 1.6, 0], size: [3.05, roofLength], normal: [roofSin, roofCos, 0], up: [-roofCos, roofSin, 0], finish: 'roof', color: '#b6614e' },
+  { id: 'left-roof', name: 'Left roof slope', position: [-1.05, 1.6, 0], size: [3.05, roofLength], normal: [-roofSin, roofCos, 0], up: [roofCos, roofSin, 0], restsOn: GABLES, finish: 'roof', color: '#a95145' },
+  { id: 'right-roof', name: 'Right roof slope', position: [1.05, 1.6, 0], size: [3.05, roofLength], normal: [roofSin, roofCos, 0], up: [-roofCos, roofSin, 0], restsOn: GABLES, finish: 'roof', color: '#b6614e' },
 ]
 
 export const SCREWS: readonly Screw[] = [
@@ -83,10 +88,14 @@ const introductoryLevels: readonly PuzzleLevel[] = [
       { id: 'back-brace', name: 'Back timber brace', position: [0, 0.56, -1.85], size: [3.6, 1.05], normal: [0, 0, -1], up: [0, 1, 0], finish: 'brace', color: '#b98958' },
     ],
     screws: [
-      ...SCREWS.map((screw): Screw => ({ ...screw, color: ({ 'front-1': 'blue', 'front-2': 'amber', 'left-roof-2': 'amber', 'right-roof-2': 'amber' } as Record<string, ScrewColor>)[screw.id] ?? screw.color })),
+      ...SCREWS.map((screw): Screw => ({
+        ...screw,
+        color: ({ 'front-1': 'blue', 'front-2': 'amber', 'left-roof-2': 'amber', 'right-roof-2': 'amber' } as Record<string, ScrewColor>)[screw.id] ?? screw.color,
+        ...(['front-1', 'front-2'].includes(screw.id) ? { blockedBy: ['front-brace'] } : screw.id === 'back-1' ? { blockedBy: ['back-brace'] } : {}),
+      })),
       { id: 'front-brace-1', plate: 'front-brace', color: 'coral', position: [-1.15, 0] },
       { id: 'front-brace-2', plate: 'front-brace', color: 'mint', position: [1.15, 0] },
-      { id: 'back-brace-1', plate: 'back-brace', color: 'coral', position: [0, 0] },
+      { id: 'back-brace-1', plate: 'back-brace', color: 'coral', position: [1.1, 0] },
     ],
   },
 ]

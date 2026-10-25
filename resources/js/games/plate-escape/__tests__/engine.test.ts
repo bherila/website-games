@@ -1,5 +1,6 @@
-import { createPuzzle, freedPlates, hasWon, remainingScrews, removeScrew } from '../engine'
-import { getLevel, LEVELS, type ScrewColor,SCREWS } from '../level'
+import { createPuzzle, freedPlates, hasWon, remainingScrews, removeScrew, screwLock } from '../engine'
+import { getLevel, LEVELS, type ScrewColor, SCREWS } from '../level'
+import { WORKSHOP_TRACE } from './campaignFixtures'
 
 test('collects matching colors directly and holds unopened colors in spare storage', () => {
   const initial = createPuzzle()
@@ -12,26 +13,50 @@ test('collects matching colors directly and holds unopened colors in spare stora
   expect(blue.removed).toEqual(['front-1', 'right-roof-1'])
 })
 
-test('opening the blue tray drains stored screws and completes it without another tap', () => {
+test('opening the blue tray drains stored screws into it', () => {
   let state = createPuzzle()
-  for (const id of ['right-roof-1', 'left-roof-2', 'back-1', 'front-1', 'left-1', 'right-roof-2']) state = removeScrew(state, id)
-  expect(state.completed).toEqual(['coral', 'blue'])
+  for (const id of ['right-roof-1', 'left-roof-2', 'left-roof-1', 'front-1', 'left-1', 'right-roof-2']) state = removeScrew(state, id)
+  expect(state.completed).toEqual(['coral'])
   expect(state.spare).toEqual([])
+  expect(state.trays[0]).toEqual({ id: 'left', color: 'blue', count: 2 })
+  state = removeScrew(state, 'back-1')
+  expect(state.completed).toEqual(['coral', 'blue'])
   expect(state.trays[0]).toEqual({ id: 'left', color: null, count: 0 })
   expect(hasWon(state)).toBe(false)
 })
 
 test('the last support releases a plate, while all nine screws are required for victory', () => {
   let state = createPuzzle()
-  state = removeScrew(state, 'front-1')
-  expect(remainingScrews(state, 'front')).toBe(1)
+  state = removeScrew(state, 'right-roof-1')
+  expect(remainingScrews(state, 'right-roof')).toBe(1)
   expect(freedPlates(state)).toBe(0)
-  state = removeScrew(state, 'front-2')
+  state = removeScrew(state, 'right-roof-2')
   expect(freedPlates(state)).toBe(1)
-  for (const screw of SCREWS) state = removeScrew(state, screw.id)
+  // Gables wait for the roof, so a second pass collects what the first could not.
+  for (let pass = 0; pass < 2; pass++) for (const screw of SCREWS) state = removeScrew(state, screw.id)
   expect(freedPlates(state)).toBe(6)
   expect(hasWon(state)).toBe(true)
   expect(state.spare).toEqual([])
+})
+
+test('a gable wall keeps its last screw while either roof slope rests on it', () => {
+  let state = removeScrew(createPuzzle(), 'front-1')
+  const last = SCREWS.find((screw) => screw.id === 'front-2')!
+  expect(screwLock(state, last)).toEqual({ kind: 'bearing', plate: 'left-roof' })
+  expect(removeScrew(state, 'front-2')).toBe(state)
+  // Side walls are infill: their only screw is free from the start.
+  expect(screwLock(createPuzzle(), SCREWS.find((screw) => screw.id === 'left-1')!)).toBeNull()
+  for (const id of ['left-roof-1', 'left-roof-2', 'right-roof-1']) state = removeScrew(state, id)
+  expect(screwLock(state, last)).toEqual({ kind: 'bearing', plate: 'right-roof' })
+  state = removeScrew(state, 'right-roof-2')
+  expect(screwLock(state, last)).toBeNull()
+  expect(removeScrew(state, 'front-2').removed).toContain('front-2')
+})
+
+test('a cover outranks the bearing lock, so a head is never reported for the wrong reason', () => {
+  const state = createPuzzle(3)
+  // The windmill's only front screw is behind the sails and also under the roof.
+  expect(screwLock(state, getLevel(3).screws.find((screw) => screw.id === 'front-1')!)).toEqual({ kind: 'cover', plate: 'sail-coral' })
 })
 
 test('duplicate and unknown taps do not consume storage or change the undo snapshot', () => {
@@ -40,29 +65,6 @@ test('duplicate and unknown taps do not consume storage or change the undo snaps
   expect(removeScrew(state, 'unknown')).toBe(state)
   const full = { ...state, spare: ['blue', 'blue', 'blue', 'blue'] as ScrewColor[] }
   expect(removeScrew(full, 'right-roof-1')).toBe(full)
-})
-
-test('every color order in the introductory level is solvable with the forgiving storage', () => {
-  let checked = 0
-  const walk = (order: ScrewColor[], counts: Record<ScrewColor, number>): void => {
-    if (order.length < 9) {
-      for (const color of ['coral', 'mint', 'blue'] as const) {
-        if (counts[color] < 3) walk([...order, color], { ...counts, [color]: counts[color] + 1 })
-      }
-      return
-    }
-    let state = createPuzzle()
-    for (const color of order) {
-      const screw = SCREWS.find((candidate) => candidate.color === color && !state.removed.includes(candidate.id))!
-      const next = removeScrew(state, screw.id)
-      if (next === state || next.spare.length > 4) throw new Error(`Unsolvable tutorial order: ${order.join(',')}`)
-      state = next
-    }
-    if (!hasWon(state) || state.spare.length !== 0) throw new Error(`Incomplete tutorial: ${order.join(',')}`)
-    checked++
-  }
-  walk([], { coral: 0, mint: 0, blue: 0, amber: 0 })
-  expect(checked).toBe(1680)
 })
 
 
@@ -86,7 +88,7 @@ test('workshop overflow loses an undoable attempt without discarding the unmatch
 
 test('the workshop has a winning order that opens the timber braces before the hidden heads', () => {
   let state = createPuzzle(2)
-  for (const id of ['front-brace-1', 'back-brace-1', 'left-1', 'front-brace-2', 'right-1', 'left-roof-1', 'front-1', 'back-1', 'right-roof-1', 'front-2', 'left-roof-2', 'right-roof-2']) {
+  for (const id of WORKSHOP_TRACE.win) {
     state = removeScrew(state, id)
     expect(state.overflow).toBeNull()
   }
@@ -103,6 +105,9 @@ test('each authored level has complete color sets and a support for every panel'
     for (const color of level.trayColors) expect(level.screws.filter((screw) => screw.color === color)).toHaveLength(3)
     for (const plate of level.plates) expect(level.screws.some((screw) => screw.plate === plate.id)).toBe(true)
     for (const screw of level.screws) expect(level.plates.some((plate) => plate.id === screw.plate)).toBe(true)
+    const ids = level.plates.map((plate) => plate.id)
+    for (const screw of level.screws) for (const cover of screw.blockedBy ?? []) expect(ids).toContain(cover)
+    for (const plate of level.plates) for (const support of plate.restsOn ?? []) expect(ids).toContain(support)
   }
   expect(() => getLevel(6)).toThrow('Unknown Plate Escape level')
 })

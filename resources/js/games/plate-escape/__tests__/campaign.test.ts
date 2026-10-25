@@ -1,17 +1,17 @@
 import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
-import { blockingPlates, createPuzzle, hasWon, removeScrew } from '../engine'
+import { createPuzzle, hasWon, removeScrew, screwLock } from '../engine'
 import { createPlateMesh, plateQuaternion } from '../houseGeometry'
 import { getLevel } from '../level'
 import { traceScrew } from '../screwVisibility'
-import { VILLAGE_TRACES } from './campaignFixtures'
+import { VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
 
-test.each(VILLAGE_TRACES)('level $level has reachable authored win and overflow traces', ({ level, win, lose }) => {
+test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES])('level $level has reachable authored win and overflow traces', ({ level, win, lose }) => {
   let state = createPuzzle(level)
   for (const id of win) {
     const screw = getLevel(level).screws.find((candidate) => candidate.id === id)!
-    expect(blockingPlates(state, screw)).toEqual([])
+    expect(screwLock(state, screw)).toBeNull()
     const next = removeScrew(state, id)
     expect(next).not.toBe(state)
     expect(next.overflow).toBeNull()
@@ -28,7 +28,7 @@ test.each(VILLAGE_TRACES)('level $level has reachable authored win and overflow 
 })
 
 test('authored covers actually intersect the screw’s outward access ray', () => {
-  for (const { level: id } of VILLAGE_TRACES) {
+  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES]) {
     const level = getLevel(id)
     for (const screw of level.screws) {
       const plate = level.plates.find((candidate) => candidate.id === screw.plate)!
@@ -66,7 +66,7 @@ test('seeing a head through glass never makes it selectable through the cover', 
 })
 
 test('blocked heads cannot consume storage or release their wall before the cover', () => {
-  for (const id of [3, 4, 5]) {
+  for (const id of [2, 3, 4, 5]) {
     const state = createPuzzle(id)
     expect(removeScrew(state, 'front-1')).toBe(state)
     expect(state.removed).toEqual([])

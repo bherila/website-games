@@ -1,4 +1,5 @@
-.plate-escape { font-family: 'Atkinson Hyperlegible Next Variable', sans-serif; }
+.plate-escape { font-family: 'Atkinson Hyperlegible Next Variable', sans-serif; --plate-tray-empty: #cbd5d6; }
+.dark .plate-escape { --plate-tray-empty: #475663; }
 .plate-tray-row { display: flex; justify-content: center; max-width: calc(var(--tray-count) * 76px + 64px); margin-inline: auto; padding-block: 4px; }
 .plate-color-tray { flex: 0 1 140px; width: 140px; aspect-ratio: 4 / 3; min-width: 0; }
 .plate-color-tray + .plate-color-tray { margin-left: calc(-60% / var(--tray-count)); }
@@ -6,6 +7,16 @@
 .plate-escape .screw-target { cursor: pointer; background: transparent; }
 .plate-escape .screw-target:hover { box-shadow: 0 0 0 2px rgb(255 255 255 / 75%); }
 .plate-screw-flight { position: fixed; z-index: 80; display: grid; width: 30px; height: 30px; margin: -15px; place-items: center; border-radius: 50%; filter: drop-shadow(0 4px 4px #0002); pointer-events: none; animation: plate-screw-collect 650ms ease-in-out both; }
+/* A refused tap nudges the badge; the hint rises in beside the rotate controls. */
+.plate-bearing-badge { animation: plate-badge-nudge 420ms ease-in-out; }
+.plate-hint { animation: plate-hint-in 180ms ease-out both; }
+@keyframes plate-badge-nudge {
+  25% { transform: translateX(-3px) rotate(-10deg); }
+  75% { transform: translateX(3px) rotate(10deg); }
+}
+@keyframes plate-hint-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
 @keyframes plate-screw-collect {
   0%, 30% { opacity: 0; transform: scale(.8); }
   40% { opacity: 1; transform: scale(1.1); }
@@ -13,4 +24,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .plate-screw-flight { animation-duration: 1ms; }
+  .plate-bearing-badge, .plate-hint { animation: none; }
 }

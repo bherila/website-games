@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
-import { VILLAGE_TRACES } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
 
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
@@ -30,7 +30,9 @@ test.describe('Plate Escape real puzzle', () => {
     await expect(page.locator('[data-screw-id="right-roof-1"]')).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath('little-cottage.png') })
     for (let turn = 0; turn < 4; turn++) await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
-    await expect(page.locator('[data-screw-id="back-1"]')).toBeVisible()
+    // The back gable's only screw carries the roof, so it is shown but held until the roof is off.
+    await expect(page.locator('[data-bearing-screw-id="back-1"]')).toBeVisible()
+    await expect(page.locator('[data-screw-id="back-1"]')).toHaveCount(0)
     await expect(page.locator('[data-screw-id="front-1"]')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('cottage-back.png') })
     await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
@@ -126,7 +128,21 @@ test.describe('Plate Escape real puzzle', () => {
     await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
     await expect(page.getByLabel('Spare storage: 0 of 2', { exact: true })).toBeVisible()
-    for (const id of ['front-brace-1', 'back-brace-1', 'left-1', 'front-brace-2', 'right-1', 'left-roof-1', 'front-1', 'back-1', 'right-roof-1', 'front-2', 'left-roof-2', 'right-roof-2']) await removeVisible(id)
+    for (const id of WORKSHOP_TRACE.win) {
+      await removeVisible(id)
+      if (id !== 'front-1') continue
+      // The front gable's last screw waits for the roof, and tapping it says why.
+      const held = page.locator('[data-bearing-screw-id="front-2"]')
+      for (let turn = 0; turn < 9 && !await held.isVisible(); turn++) {
+        await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+        await page.waitForTimeout(250)
+      }
+      await expect(page.locator('[data-screw-id="front-2"]')).toHaveCount(0)
+      await activate(held)
+      await expect(page.getByTestId('plate-hint')).toHaveText('Front gable wall is holding up the left roof slope. Free the roof first.')
+      await expect(page.getByTestId('screw-progress')).toHaveText('7 / 12 screws')
+      await page.screenshot({ path: testInfo.outputPath('workshop-bearing-wall.png') })
+    }
     await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
     await expect(page.getByTestId('plate-progress')).toHaveText('8 / 8 plates released')
     await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
