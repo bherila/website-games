@@ -16,6 +16,24 @@
             <p role="alert" class="mb-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950 dark:text-rose-100">{{ session('error') }}</p>
         @endif
 
+        @if ($mergeOffer && $mergeHolder)
+            <section class="mb-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-50" data-testid="merge-offer">
+                <h2 class="font-semibold">Merge your other account?</h2>
+                <p class="mt-1">{{ $mergeOffer->email }} belongs to another Games account ({{ $mergeHolder->name }}, {{ $mergeHolder->gameData()->count() }} saved game {{ \Illuminate\Support\Str::plural('record', $mergeHolder->gameData()->count()) }}). Merging moves its sign-in methods and progress into this account, keeping the best result for each level, then deletes it. This account then uses {{ $mergeOffer->email }}.</p>
+                <div class="mt-3 flex gap-2">
+                    <form method="POST" action="{{ route('account.merge') }}">
+                        @csrf
+                        <button type="submit" class="rounded-md bg-amber-700 px-4 py-2 font-medium text-white hover:bg-amber-800">Merge accounts</button>
+                    </form>
+                    <form method="POST" action="{{ route('account.merge.cancel') }}">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="rounded-md border border-amber-400 px-4 py-2 font-medium hover:bg-amber-100 dark:hover:bg-amber-900">Not now</button>
+                    </form>
+                </div>
+            </section>
+        @endif
+
         <h2 class="text-sm font-semibold text-card-foreground">Sign-in methods</h2>
         <ul class="mb-6 mt-1 text-sm text-card-foreground" data-testid="sign-in-methods">
             @if ($user->oauth_subject !== null)

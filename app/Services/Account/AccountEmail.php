@@ -29,12 +29,12 @@ final class AccountEmail
         return Str::lower(trim($email));
     }
 
-    public static function heldByAnotherAccount(User $user, string $email): bool
+    public static function holder(User $user, string $email): ?User
     {
         return User::query()
             ->whereRaw('lower(email) = ?', [self::normalise($email)])
             ->whereKeyNot($user->getKey())
-            ->exists();
+            ->first();
     }
 
     /**
@@ -61,14 +61,20 @@ final class AccountEmail
     /**
      * Completes the pending request whose link carried `$token`, for the signed-in `$user` only.
      *
+     * Returns the pending request instead of completing it when the address belongs to another
+     * account that confirmed it: opening the link proved control of that mailbox, which under
+     * the email-as-key rule is control of that account, so the caller may offer a merge
+     * ({@see completeWithMerge()}). An address held by an unconfirmed account is refused.
+     *
      * @throws EmailConfirmationFailed
      */
-    public function confirm(User $user, string $token): void
+    public function confirm(User $user, string $token): ?EmailChangeRequest
     {
         $previous = null;
         $expired = false;
+        $mergeable = null;
 
-        DB::transaction(function () use ($user, $token, &$previous, &$expired): void {
+        DB::transaction(function () use ($user, $token, &$previous, &$expired, &$mergeable): void {
             $request = EmailChangeRequest::query()
                 ->where('token_hash', hash('sha256', $token))
                 ->lockForUpdate()
@@ -85,27 +91,80 @@ final class AccountEmail
 
                 return;
             }
-            if (self::heldByAnotherAccount($user, $request->email)) {
-                throw EmailConfirmationFailed::taken();
+            $holder = self::holder($user, $request->email);
+            if ($holder !== null) {
+                if ($holder->email_verified_at === null) {
+                    throw EmailConfirmationFailed::taken();
+                }
+                $mergeable = $request;
+
+                return;
             }
 
-            $changing = $request->email !== self::normalise($user->email);
-            $previous = $changing ? $user->email : null;
-            $user->forceFill(['email' => $request->email, 'email_verified_at' => now()])->save();
-            $request->delete();
-
-            $this->audit->record(
-                $changing ? AccessAudit::EMAIL_CHANGED : AccessAudit::EMAIL_VERIFIED,
-                $user,
-                $user,
-                AccessAudit::METHOD_SESSION,
-                [],
-            );
+            $previous = $this->apply($user, $request);
         });
 
         if ($expired) {
             throw EmailConfirmationFailed::expired();
         }
+        $this->notifyPrevious($previous);
+
+        return $mergeable;
+    }
+
+    /**
+     * Merges the account holding the requested address into `$user`, then gives `$user` the
+     * address. The request must still be this account's pending one and unexpired, and the
+     * holder must still hold the address, confirmed; otherwise nothing changes.
+     *
+     * @throws EmailConfirmationFailed
+     * @throws AccountMergeRefused
+     */
+    public function completeWithMerge(User $user, int $requestId, AccountMerge $merge): void
+    {
+        $previous = null;
+
+        DB::transaction(function () use ($user, $requestId, $merge, &$previous): void {
+            $request = EmailChangeRequest::query()->whereKey($requestId)->where('user_id', $user->getKey())->lockForUpdate()->first();
+            if ($request === null || $request->expires_at->isPast()) {
+                throw EmailConfirmationFailed::expired();
+            }
+
+            $holder = self::holder($user, $request->email);
+            if ($holder !== null) {
+                if ($holder->email_verified_at === null) {
+                    throw EmailConfirmationFailed::taken();
+                }
+                $merge->merge($user, $holder, AccessAudit::METHOD_SESSION, $user);
+            }
+
+            $previous = $this->apply($user->refresh(), $request);
+        });
+
+        $this->notifyPrevious($previous);
+    }
+
+    /** Gives the account the requested address, confirmed. Returns the address it replaced, if any. */
+    private function apply(User $user, EmailChangeRequest $request): ?string
+    {
+        $changing = $request->email !== self::normalise($user->email);
+        $previous = $changing ? $user->email : null;
+        $user->forceFill(['email' => $request->email, 'email_verified_at' => now()])->save();
+        $request->delete();
+
+        $this->audit->record(
+            $changing ? AccessAudit::EMAIL_CHANGED : AccessAudit::EMAIL_VERIFIED,
+            $user,
+            $user,
+            AccessAudit::METHOD_SESSION,
+            [],
+        );
+
+        return $previous;
+    }
+
+    private function notifyPrevious(?string $previous): void
+    {
         if ($previous !== null) {
             Notification::route('mail', $previous)->notify(new EmailAddressChanged);
         }
