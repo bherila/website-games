@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\GamePwaController;
 use App\Http\Controllers\GoogleLoginController;
 use App\Http\Controllers\OAuthLoginController;
+use App\Http\Controllers\Privacy\PrivacyRequestController;
 use Illuminate\Support\Facades\Route;
 
 if (app()->environment('e2e')) {
@@ -12,6 +13,10 @@ if (app()->environment('e2e')) {
 }
 
 Route::view('/privacy', 'privacy')->name('privacy');
+Route::view('/accessibility', 'accessibility')->name('accessibility');
+Route::post('/privacy/request', [PrivacyRequestController::class, 'store'])
+    ->middleware('throttle:privacy-request')
+    ->name('privacy.request');
 Route::get('/login', function () {
     return view('login');
 })->name('login');

@@ -112,11 +112,11 @@ class AccountDeletionTest extends TestCase
         }
     }
 
-    public function test_the_privacy_page_is_public_and_shows_the_contact_only_when_set(): void
+    public function test_the_privacy_page_is_public_and_never_publishes_the_contact_address(): void
     {
-        $this->get('/privacy')->assertOk()->assertSee('Playing without an account')->assertDontSee('Questions and requests');
         config(['app.privacy_contact' => 'privacy@example.test']);
-        $this->get('/privacy')->assertOk()->assertSee('mailto:privacy@example.test', false);
+        // Requests go through the form (PrivacyRequestTest); the address stays private.
+        $this->get('/privacy')->assertOk()->assertSee('Playing without an account')->assertDontSee('privacy@example.test');
         $this->get('/')->assertOk()->assertSee(route('privacy'));
         $this->get('/login')->assertOk()->assertSee(route('privacy'));
     }

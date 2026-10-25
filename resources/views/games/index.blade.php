@@ -151,7 +151,7 @@
     {{-- Mirrors the runtime /mandarin mounts, so the Mandarin card summarizes the same partition. --}}
     <div id="game-select-root" data-mandarin-runtime="{{ config('mandarin.runtime', 'live') === 'preview' ? 'preview' : 'live' }}"></div>
     <footer class="mx-auto max-w-5xl px-4 pb-8 pt-4 text-center text-xs text-muted-foreground">
-        <a href="{{ route('privacy') }}" class="hover:text-foreground">Privacy</a>
+        @include('partials.legal-links')
     </footer>
 @endsection
 
