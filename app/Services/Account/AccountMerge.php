@@ -24,8 +24,8 @@ use Illuminate\Support\Facades\DB;
  * - Tower save slots move; a lease-only row (no payload) never beats a real save. On a clash the
  *   autosave keeps the newer one, and a manual save moves to a free manual slot when there is one,
  *   otherwise the newer is kept.
- * - Mandarin practice events move, except ones both accounts already recorded, and are numbered
- *   after the kept account's last event.
+ * - Mandarin practice events move, except ones both accounts already recorded, and the combined
+ *   history is renumbered in the order it happened, as the review scheduler replays it.
  */
 final class AccountMerge
 {
@@ -188,12 +188,22 @@ final class AccountMerge
             $events()->whereIn('id', $chunk)->delete();
         }
 
-        // Sequences are unique per account, so moved events continue after the kept account's
-        // last one, in their original order.
-        $next = (int) $events()->where('user_id', $keep->getKey())->max('sequence');
+        // Move the rest above every existing sequence, then renumber the combined history in the
+        // order it happened: the scheduler replays reviews by sequence with their accepted times.
+        // Ties keep the kept account's events first. Sequences are unique per account and
+        // unsigned, so the renumbering first lifts every row above the final range.
+        $ceiling = (int) $events()->whereIn('user_id', [$keep->getKey(), $absorb->getKey()])->max('sequence');
         $moving = $events()->where('user_id', $absorb->getKey())->orderBy('sequence')->pluck('id');
-        foreach ($moving as $id) {
-            $events()->where('id', $id)->update(['user_id' => $keep->getKey(), 'sequence' => ++$next]);
+        foreach ($moving->values() as $index => $id) {
+            $events()->where('id', $id)->update(['user_id' => $keep->getKey(), 'sequence' => $ceiling + 1 + $index]);
+        }
+        if ($moving->isNotEmpty()) {
+            $ordered = $events()->where('user_id', $keep->getKey())->orderBy('accepted_at')->orderBy('sequence')->pluck('id');
+            $lift = $ceiling + 1 + $moving->count();
+            $events()->where('user_id', $keep->getKey())->increment('sequence', $lift);
+            foreach ($ordered->values() as $index => $id) {
+                $events()->where('id', $id)->update(['sequence' => $index + 1]);
+            }
         }
 
         return $moving->count();

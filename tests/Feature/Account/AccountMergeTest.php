@@ -165,6 +165,22 @@ class AccountMergeTest extends TestCase
         }
     }
 
+    public function test_merged_practice_history_replays_in_the_order_it_happened(): void
+    {
+        [$keep, $absorb] = [User::factory()->create(), User::factory()->create()];
+        $this->event($keep, 'kept-day-2', 1, now()->subDays(8));
+        $this->event($keep, 'kept-day-4', 2, now()->subDays(6));
+        $this->event($absorb, 'absorbed-day-1', 1, now()->subDays(9));
+        $this->event($absorb, 'absorbed-day-3', 2, now()->subDays(7));
+
+        app(AccountMerge::class)->merge($keep, $absorb, AccessAudit::METHOD_CONSOLE, null);
+
+        $this->assertSame(
+            ['absorbed-day-1' => 1, 'kept-day-2' => 2, 'absorbed-day-3' => 3, 'kept-day-4' => 4],
+            DB::table('mandarin_practice_events')->where('user_id', $keep->getKey())->orderBy('sequence')->pluck('sequence', 'client_event_id')->all(),
+        );
+    }
+
     public function test_sign_in_methods_move_to_the_kept_account(): void
     {
         $keep = User::factory()->create();
