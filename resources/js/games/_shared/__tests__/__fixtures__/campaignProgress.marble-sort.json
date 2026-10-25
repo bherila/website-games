@@ -1,0 +1,1337 @@
+{
+ "initial": {
+  "version": 2,
+  "unlockedLevel": 1,
+  "stars": {},
+  "levelScores": {},
+  "totalScore": 0,
+  "highScore": 0,
+  "powerUps": {
+   "extraBelt": 0,
+   "magnet": 0,
+   "shuffle": 0
+  }
+ },
+ "saved": [
+  [
+   "bwh.marble-sort.progress.v2",
+   "{\"version\":2,\"unlockedLevel\":4,\"stars\":{\"1\":3,\"2\":1,\"3\":2},\"levelScores\":{\"1\":120,\"3\":45,\"4\":9},\"totalScore\":165,\"highScore\":200,\"powerUps\":{\"extraBelt\":2,\"magnet\":3,\"shuffle\":4}}"
+  ]
+ ],
+ "loaded": {
+  "version": 2,
+  "unlockedLevel": 4,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2
+  },
+  "levelScores": {
+   "1": 120,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 165,
+  "highScore": 200,
+  "powerUps": {
+   "extraBelt": 2,
+   "magnet": 3,
+   "shuffle": 4
+  }
+ },
+ "progressRows": [
+  {
+   "scope": "profile",
+   "slot": "default",
+   "data": {
+    "version": 2,
+    "unlocked_level": 4,
+    "total_score": 165,
+    "high_score": 200
+   }
+  },
+  {
+   "scope": "profile",
+   "slot": "inventory",
+   "data": {
+    "version": 2,
+    "power_ups": {
+     "extraBelt": 2,
+     "magnet": 3,
+     "shuffle": 4
+    }
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "1",
+   "data": {
+    "version": 2,
+    "stars": 3,
+    "score": 120
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "2",
+   "data": {
+    "version": 2,
+    "stars": 1,
+    "score": 0
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "3",
+   "data": {
+    "version": 2,
+    "stars": 2,
+    "score": 45
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "4",
+   "data": {
+    "version": 2,
+    "stars": 0,
+    "score": 9
+   }
+  }
+ ],
+ "catalogRows": [
+  {
+   "scope": "profile",
+   "slot": "default",
+   "data": {
+    "version": 2,
+    "unlocked_level": 4,
+    "total_score": 165,
+    "high_score": 200
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "1",
+   "data": {
+    "version": 2,
+    "stars": 3,
+    "score": 120
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "2",
+   "data": {
+    "version": 2,
+    "stars": 1,
+    "score": 0
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "3",
+   "data": {
+    "version": 2,
+    "stars": 2,
+    "score": 45
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "4",
+   "data": {
+    "version": 2,
+    "stars": 0,
+    "score": 9
+   }
+  }
+ ],
+ "decodedProgress": {
+  "version": 2,
+  "unlockedLevel": 5,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2,
+   "4": 0
+  },
+  "levelScores": {
+   "1": 120,
+   "2": 0,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 174,
+  "highScore": 200,
+  "powerUps": {
+   "extraBelt": 2,
+   "magnet": 3,
+   "shuffle": 4
+  }
+ },
+ "decodedCatalog": {
+  "version": 2,
+  "unlockedLevel": 5,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2,
+   "4": 0
+  },
+  "levelScores": {
+   "1": 120,
+   "2": 0,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 174,
+  "highScore": 200,
+  "powerUps": {
+   "extraBelt": 0,
+   "magnet": 0,
+   "shuffle": 0
+  }
+ },
+ "decodedEmpty": null,
+ "rejected": [
+  null,
+  null,
+  {
+   "version": 2,
+   "unlockedLevel": 4,
+   "stars": {
+    "1": 3,
+    "2": 1,
+    "3": 2
+   },
+   "levelScores": {
+    "1": 120,
+    "3": 45,
+    "4": 9
+   },
+   "totalScore": 165,
+   "highScore": 200,
+   "powerUps": {
+    "extraBelt": 0,
+    "magnet": 0,
+    "shuffle": 0
+   }
+  },
+  {
+   "version": 2,
+   "unlockedLevel": 4,
+   "stars": {
+    "1": 3,
+    "2": 1,
+    "3": 2
+   },
+   "levelScores": {},
+   "totalScore": 165,
+   "highScore": 200,
+   "powerUps": {
+    "extraBelt": 2,
+    "magnet": 3,
+    "shuffle": 4
+   }
+  }
+ ],
+ "win": {
+  "version": 2,
+  "unlockedLevel": 4,
+  "stars": {
+   "1": 3,
+   "2": 3,
+   "3": 2
+  },
+  "levelScores": {
+   "1": 120,
+   "2": 300,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 474,
+  "highScore": 474,
+  "powerUps": {
+   "extraBelt": 2,
+   "magnet": 3,
+   "shuffle": 4
+  }
+ },
+ "lesserWin": {
+  "version": 2,
+  "unlockedLevel": 4,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2
+  },
+  "levelScores": {
+   "1": 120,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 165,
+  "highScore": 465,
+  "powerUps": {
+   "extraBelt": 2,
+   "magnet": 3,
+   "shuffle": 4
+  }
+ },
+ "snapshotSaved": "{\"version\":2,\"state\":{\"version\":1,\"activeColors\":[\"orange\",\"cyan\",\"white\",\"brown\"],\"baseConveyorCapacity\":27,\"boxes\":[{\"color\":\"white\",\"hidden\":false,\"id\":\"box-1\",\"position\":{\"column\":0,\"row\":0},\"source\":\"initial\"},{\"color\":\"orange\",\"hidden\":false,\"id\":\"box-2\",\"position\":{\"column\":1,\"row\":0},\"source\":\"initial\"},{\"color\":\"cyan\",\"hidden\":false,\"id\":\"box-3\",\"position\":{\"column\":2,\"row\":0},\"source\":\"initial\"},{\"color\":\"white\",\"hidden\":false,\"id\":\"box-4\",\"position\":{\"column\":0,\"row\":1},\"source\":\"initial\"},{\"color\":\"orange\",\"hidden\":true,\"id\":\"box-5\",\"position\":{\"column\":1,\"row\":1},\"source\":\"initial\"},{\"color\":\"orange\",\"hidden\":false,\"id\":\"box-6\",\"position\":{\"column\":2,\"row\":1},\"source\":\"initial\"},{\"color\":\"brown\",\"hidden\":false,\"id\":\"box-7\",\"position\":{\"column\":0,\"row\":2},\"source\":\"initial\"},{\"color\":\"orange\",\"hidden\":false,\"id\":\"box-8\",\"position\":{\"column\":1,\"row\":2},\"source\":\"initial\"},{\"color\":\"brown\",\"hidden\":true,\"id\":\"box-9\",\"position\":{\"column\":2,\"row\":2},\"source\":\"initial\"},{\"color\":\"orange\",\"hidden\":true,\"id\":\"box-10\",\"position\":{\"column\":0,\"row\":3},\"source\":\"initial\"},{\"color\":\"white\",\"hidden\":false,\"id\":\"box-11\",\"position\":{\"column\":1,\"row\":3},\"source\":\"initial\"},{\"color\":\"white\",\"hidden\":false,\"id\":\"box-12\",\"position\":{\"column\":2,\"row\":3},\"source\":\"initial\"},{\"color\":\"cyan\",\"hidden\":false,\"id\":\"box-13\",\"position\":{\"column\":0,\"row\":4},\"source\":\"initial\"},{\"color\":\"brown\",\"hidden\":false,\"id\":\"box-14\",\"position\":{\"column\":1,\"row\":4},\"source\":\"initial\"},{\"color\":\"cyan\",\"hidden\":false,\"id\":\"box-15\",\"position\":{\"column\":2,\"row\":4},\"source\":\"initial\"}],\"chutes\":[{\"id\":\"chute-1\",\"queue\":[{\"color\":\"cyan\",\"hidden\":false}],\"remaining\":1,\"row\":3,\"side\":\"left\"},{\"id\":\"chute-2\",\"queue\":[{\"color\":\"cyan\",\"hidden\":false}],\"remaining\":1,\"row\":0,\"side\":\"right\"},{\"id\":\"chute-3\",\"queue\":[{\"color\":\"brown\",\"hidden\":false}],\"remaining\":1,\"row\":1,\"side\":\"left\"}],\"clearedBlocks\":0,\"completedLevel\":null,\"conveyor\":[],\"conveyorCapacity\":27,\"conveyorTicks\":0,\"fallingMarbles\":[],\"highScore\":200,\"lastMessage\":\"Level 3 is ready. Pop exposed tiles when the conveyor has space.\",\"gameOver\":null,\"level\":3,\"levelScore\":1900,\"moves\":0,\"nextBoxSequence\":16,\"nextMarbleSequence\":1,\"powerUps\":{\"extraBelt\":2,\"magnet\":3,\"shuffle\":4},\"powerUpsUsed\":0,\"seed\":115094,\"sortingStacks\":[{\"blocks\":[{\"color\":\"cyan\",\"id\":\"stack-1-block-1-1\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-1-block-3-1\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-1-block-4-2\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-1-block-5-3\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-1-block-6-2\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-1-block-7-3\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-1-block-8-1\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-1-block-11-3\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-1-block-12-1\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-1-block-13-3\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-1-block-14-3\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-1-block-15-1\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-1-block-16-2\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-1-block-17-3\",\"slotsFilled\":0}],\"color\":\"orange\",\"id\":\"stack-1\",\"index\":0},{\"blocks\":[{\"color\":\"cyan\",\"id\":\"stack-2-block-1-3\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-2-block-2-3\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-2-block-3-2\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-2-block-5-1\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-2-block-6-1\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-2-block-7-1\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-2-block-8-2\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-2-block-9-1\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-2-block-10-2\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-2-block-12-3\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-2-block-14-2\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-2-block-15-2\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-2-block-16-1\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-2-block-18-2\",\"slotsFilled\":0}],\"color\":\"cyan\",\"id\":\"stack-2\",\"index\":1},{\"blocks\":[{\"color\":\"orange\",\"id\":\"stack-3-block-2-2\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-3-block-3-3\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-3-block-4-1\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-3-block-6-3\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-3-block-7-2\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-3-block-8-3\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-3-block-9-2\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-3-block-10-1\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-3-block-11-1\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-3-block-13-2\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-3-block-14-1\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-3-block-15-3\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-3-block-16-3\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-3-block-17-1\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-3-block-18-3\",\"slotsFilled\":0}],\"color\":\"white\",\"id\":\"stack-3\",\"index\":2},{\"blocks\":[{\"color\":\"cyan\",\"id\":\"stack-4-block-1-2\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-4-block-2-1\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-4-block-4-3\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-4-block-5-2\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-4-block-9-3\",\"slotsFilled\":0},{\"color\":\"white\",\"id\":\"stack-4-block-10-3\",\"slotsFilled\":0},{\"color\":\"orange\",\"id\":\"stack-4-block-11-2\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-4-block-12-2\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-4-block-13-1\",\"slotsFilled\":0},{\"color\":\"cyan\",\"id\":\"stack-4-block-17-2\",\"slotsFilled\":0},{\"color\":\"brown\",\"id\":\"stack-4-block-18-1\",\"slotsFilled\":0}],\"color\":\"brown\",\"id\":\"stack-4\",\"index\":3}],\"totalScore\":165}}",
+ "snapshotLoaded": {
+  "version": 1,
+  "level": 3,
+  "seed": 115094,
+  "boxes": [
+   {
+    "id": "box-1",
+    "color": "white",
+    "hidden": false,
+    "position": {
+     "column": 0,
+     "row": 0
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-2",
+    "color": "orange",
+    "hidden": false,
+    "position": {
+     "column": 1,
+     "row": 0
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-3",
+    "color": "cyan",
+    "hidden": false,
+    "position": {
+     "column": 2,
+     "row": 0
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-4",
+    "color": "white",
+    "hidden": false,
+    "position": {
+     "column": 0,
+     "row": 1
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-5",
+    "color": "orange",
+    "hidden": true,
+    "position": {
+     "column": 1,
+     "row": 1
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-6",
+    "color": "orange",
+    "hidden": false,
+    "position": {
+     "column": 2,
+     "row": 1
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-7",
+    "color": "brown",
+    "hidden": false,
+    "position": {
+     "column": 0,
+     "row": 2
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-8",
+    "color": "orange",
+    "hidden": false,
+    "position": {
+     "column": 1,
+     "row": 2
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-9",
+    "color": "brown",
+    "hidden": true,
+    "position": {
+     "column": 2,
+     "row": 2
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-10",
+    "color": "orange",
+    "hidden": true,
+    "position": {
+     "column": 0,
+     "row": 3
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-11",
+    "color": "white",
+    "hidden": false,
+    "position": {
+     "column": 1,
+     "row": 3
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-12",
+    "color": "white",
+    "hidden": false,
+    "position": {
+     "column": 2,
+     "row": 3
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-13",
+    "color": "cyan",
+    "hidden": false,
+    "position": {
+     "column": 0,
+     "row": 4
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-14",
+    "color": "brown",
+    "hidden": false,
+    "position": {
+     "column": 1,
+     "row": 4
+    },
+    "source": "initial"
+   },
+   {
+    "id": "box-15",
+    "color": "cyan",
+    "hidden": false,
+    "position": {
+     "column": 2,
+     "row": 4
+    },
+    "source": "initial"
+   }
+  ],
+  "chutes": [
+   {
+    "id": "chute-1",
+    "row": 3,
+    "side": "left",
+    "remaining": 1,
+    "queue": [
+     {
+      "color": "cyan",
+      "hidden": false
+     }
+    ]
+   },
+   {
+    "id": "chute-2",
+    "row": 0,
+    "side": "right",
+    "remaining": 1,
+    "queue": [
+     {
+      "color": "cyan",
+      "hidden": false
+     }
+    ]
+   },
+   {
+    "id": "chute-3",
+    "row": 1,
+    "side": "left",
+    "remaining": 1,
+    "queue": [
+     {
+      "color": "brown",
+      "hidden": false
+     }
+    ]
+   }
+  ],
+  "conveyor": [],
+  "fallingMarbles": [],
+  "sortingStacks": [
+   {
+    "id": "stack-1",
+    "color": "orange",
+    "index": 0,
+    "blocks": [
+     {
+      "id": "stack-1-block-1-1",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-3-1",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-4-2",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-5-3",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-6-2",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-7-3",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-8-1",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-11-3",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-12-1",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-13-3",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-14-3",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-15-1",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-16-2",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-1-block-17-3",
+      "color": "cyan",
+      "slotsFilled": 0
+     }
+    ]
+   },
+   {
+    "id": "stack-2",
+    "color": "cyan",
+    "index": 1,
+    "blocks": [
+     {
+      "id": "stack-2-block-1-3",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-2-3",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-3-2",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-5-1",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-6-1",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-7-1",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-8-2",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-9-1",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-10-2",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-12-3",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-14-2",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-15-2",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-16-1",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-2-block-18-2",
+      "color": "brown",
+      "slotsFilled": 0
+     }
+    ]
+   },
+   {
+    "id": "stack-3",
+    "color": "white",
+    "index": 2,
+    "blocks": [
+     {
+      "id": "stack-3-block-2-2",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-3-3",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-4-1",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-6-3",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-7-2",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-8-3",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-9-2",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-10-1",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-11-1",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-13-2",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-14-1",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-15-3",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-16-3",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-17-1",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-3-block-18-3",
+      "color": "brown",
+      "slotsFilled": 0
+     }
+    ]
+   },
+   {
+    "id": "stack-4",
+    "color": "brown",
+    "index": 3,
+    "blocks": [
+     {
+      "id": "stack-4-block-1-2",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-2-1",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-4-3",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-5-2",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-9-3",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-10-3",
+      "color": "white",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-11-2",
+      "color": "orange",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-12-2",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-13-1",
+      "color": "brown",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-17-2",
+      "color": "cyan",
+      "slotsFilled": 0
+     },
+     {
+      "id": "stack-4-block-18-1",
+      "color": "brown",
+      "slotsFilled": 0
+     }
+    ]
+   }
+  ],
+  "activeColors": [
+   "orange",
+   "cyan",
+   "white",
+   "brown"
+  ],
+  "conveyorCapacity": 27,
+  "baseConveyorCapacity": 27,
+  "levelScore": 1900,
+  "totalScore": 165,
+  "highScore": 200,
+  "moves": 0,
+  "powerUpsUsed": 0,
+  "clearedBlocks": 0,
+  "nextBoxSequence": 16,
+  "nextMarbleSequence": 1,
+  "conveyorTicks": 0,
+  "powerUps": {
+   "extraBelt": 2,
+   "magnet": 3,
+   "shuffle": 4
+  },
+  "lastMessage": "Level 3 is ready. Pop exposed tiles when the conveyor has space.",
+  "completedLevel": null,
+  "gameOver": null
+ },
+ "snapshotLockedOut": null,
+ "snapshotRows": [
+  {
+   "scope": "save",
+   "slot": "autosave",
+   "data": {
+    "version": 2,
+    "state": {
+     "version": 1,
+     "activeColors": [
+      "orange",
+      "cyan",
+      "white",
+      "brown"
+     ],
+     "baseConveyorCapacity": 27,
+     "boxes": [
+      {
+       "color": "white",
+       "hidden": false,
+       "id": "box-1",
+       "position": {
+        "column": 0,
+        "row": 0
+       },
+       "source": "initial"
+      },
+      {
+       "color": "orange",
+       "hidden": false,
+       "id": "box-2",
+       "position": {
+        "column": 1,
+        "row": 0
+       },
+       "source": "initial"
+      },
+      {
+       "color": "cyan",
+       "hidden": false,
+       "id": "box-3",
+       "position": {
+        "column": 2,
+        "row": 0
+       },
+       "source": "initial"
+      },
+      {
+       "color": "white",
+       "hidden": false,
+       "id": "box-4",
+       "position": {
+        "column": 0,
+        "row": 1
+       },
+       "source": "initial"
+      },
+      {
+       "color": "orange",
+       "hidden": true,
+       "id": "box-5",
+       "position": {
+        "column": 1,
+        "row": 1
+       },
+       "source": "initial"
+      },
+      {
+       "color": "orange",
+       "hidden": false,
+       "id": "box-6",
+       "position": {
+        "column": 2,
+        "row": 1
+       },
+       "source": "initial"
+      },
+      {
+       "color": "brown",
+       "hidden": false,
+       "id": "box-7",
+       "position": {
+        "column": 0,
+        "row": 2
+       },
+       "source": "initial"
+      },
+      {
+       "color": "orange",
+       "hidden": false,
+       "id": "box-8",
+       "position": {
+        "column": 1,
+        "row": 2
+       },
+       "source": "initial"
+      },
+      {
+       "color": "brown",
+       "hidden": true,
+       "id": "box-9",
+       "position": {
+        "column": 2,
+        "row": 2
+       },
+       "source": "initial"
+      },
+      {
+       "color": "orange",
+       "hidden": true,
+       "id": "box-10",
+       "position": {
+        "column": 0,
+        "row": 3
+       },
+       "source": "initial"
+      },
+      {
+       "color": "white",
+       "hidden": false,
+       "id": "box-11",
+       "position": {
+        "column": 1,
+        "row": 3
+       },
+       "source": "initial"
+      },
+      {
+       "color": "white",
+       "hidden": false,
+       "id": "box-12",
+       "position": {
+        "column": 2,
+        "row": 3
+       },
+       "source": "initial"
+      },
+      {
+       "color": "cyan",
+       "hidden": false,
+       "id": "box-13",
+       "position": {
+        "column": 0,
+        "row": 4
+       },
+       "source": "initial"
+      },
+      {
+       "color": "brown",
+       "hidden": false,
+       "id": "box-14",
+       "position": {
+        "column": 1,
+        "row": 4
+       },
+       "source": "initial"
+      },
+      {
+       "color": "cyan",
+       "hidden": false,
+       "id": "box-15",
+       "position": {
+        "column": 2,
+        "row": 4
+       },
+       "source": "initial"
+      }
+     ],
+     "chutes": [
+      {
+       "id": "chute-1",
+       "queue": [
+        {
+         "color": "cyan",
+         "hidden": false
+        }
+       ],
+       "remaining": 1,
+       "row": 3,
+       "side": "left"
+      },
+      {
+       "id": "chute-2",
+       "queue": [
+        {
+         "color": "cyan",
+         "hidden": false
+        }
+       ],
+       "remaining": 1,
+       "row": 0,
+       "side": "right"
+      },
+      {
+       "id": "chute-3",
+       "queue": [
+        {
+         "color": "brown",
+         "hidden": false
+        }
+       ],
+       "remaining": 1,
+       "row": 1,
+       "side": "left"
+      }
+     ],
+     "clearedBlocks": 0,
+     "completedLevel": null,
+     "conveyor": [],
+     "conveyorCapacity": 27,
+     "conveyorTicks": 0,
+     "fallingMarbles": [],
+     "highScore": 200,
+     "lastMessage": "Level 3 is ready. Pop exposed tiles when the conveyor has space.",
+     "gameOver": null,
+     "level": 3,
+     "levelScore": 1900,
+     "moves": 0,
+     "nextBoxSequence": 16,
+     "nextMarbleSequence": 1,
+     "powerUps": {
+      "extraBelt": 2,
+      "magnet": 3,
+      "shuffle": 4
+     },
+     "powerUpsUsed": 0,
+     "seed": 115094,
+     "sortingStacks": [
+      {
+       "blocks": [
+        {
+         "color": "cyan",
+         "id": "stack-1-block-1-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-1-block-3-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-1-block-4-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-1-block-5-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-1-block-6-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-1-block-7-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-1-block-8-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-1-block-11-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-1-block-12-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-1-block-13-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-1-block-14-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-1-block-15-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-1-block-16-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-1-block-17-3",
+         "slotsFilled": 0
+        }
+       ],
+       "color": "orange",
+       "id": "stack-1",
+       "index": 0
+      },
+      {
+       "blocks": [
+        {
+         "color": "cyan",
+         "id": "stack-2-block-1-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-2-block-2-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-2-block-3-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-2-block-5-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-2-block-6-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-2-block-7-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-2-block-8-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-2-block-9-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-2-block-10-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-2-block-12-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-2-block-14-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-2-block-15-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-2-block-16-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-2-block-18-2",
+         "slotsFilled": 0
+        }
+       ],
+       "color": "cyan",
+       "id": "stack-2",
+       "index": 1
+      },
+      {
+       "blocks": [
+        {
+         "color": "orange",
+         "id": "stack-3-block-2-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-3-block-3-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-3-block-4-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-3-block-6-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-3-block-7-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-3-block-8-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-3-block-9-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-3-block-10-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-3-block-11-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-3-block-13-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-3-block-14-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-3-block-15-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-3-block-16-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-3-block-17-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-3-block-18-3",
+         "slotsFilled": 0
+        }
+       ],
+       "color": "white",
+       "id": "stack-3",
+       "index": 2
+      },
+      {
+       "blocks": [
+        {
+         "color": "cyan",
+         "id": "stack-4-block-1-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-4-block-2-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-4-block-4-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-4-block-5-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-4-block-9-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "white",
+         "id": "stack-4-block-10-3",
+         "slotsFilled": 0
+        },
+        {
+         "color": "orange",
+         "id": "stack-4-block-11-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-4-block-12-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-4-block-13-1",
+         "slotsFilled": 0
+        },
+        {
+         "color": "cyan",
+         "id": "stack-4-block-17-2",
+         "slotsFilled": 0
+        },
+        {
+         "color": "brown",
+         "id": "stack-4-block-18-1",
+         "slotsFilled": 0
+        }
+       ],
+       "color": "brown",
+       "id": "stack-4",
+       "index": 3
+      }
+     ],
+     "totalScore": 165
+    }
+   }
+  }
+ ]
+}

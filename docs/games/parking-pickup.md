@@ -167,7 +167,7 @@ The Fill button opens a confirmation dialog before passengers are pulled from th
 - Scene constants (z-positions, lane positions, animation speeds): `resources/js/games/cars/scene/sceneConstants.ts`
 - Game engine: `resources/js/games/cars/gameEngine.ts`
 - Shared game contracts: `resources/js/games/cars/gameTypes.ts`
-- Progress persistence: `resources/js/games/cars/gameProgress.ts`
+- Progress persistence: `resources/js/games/cars/gameProgress.ts` (board-state parsing), on the shared `_shared/campaignProgress.ts` factory for progress, inventory, database rows and the level snapshot. `_shared/__tests__/campaignProgress.dom.test.ts` pins every saved byte to fixtures captured before the factory existed.
 - Anonymous/legacy progress key: `bwh.cars-game.progress.v3`
 - Anonymous/legacy level snapshot key: `bwh.cars-game.snapshot.v3`
 - Rendering uses Three.js through Vite.

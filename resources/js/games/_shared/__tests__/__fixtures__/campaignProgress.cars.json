@@ -1,0 +1,759 @@
+{
+ "initial": {
+  "version": 3,
+  "unlockedLevel": 1,
+  "stars": {},
+  "levelScores": {},
+  "totalScore": 0,
+  "highScore": 0,
+  "powerUps": {
+   "vip": 0,
+   "shuffle": 0,
+   "fill": 0
+  }
+ },
+ "saved": [
+  [
+   "bwh.cars-game.progress.v3",
+   "{\"version\":3,\"unlockedLevel\":4,\"stars\":{\"1\":3,\"2\":1,\"3\":2},\"levelScores\":{\"1\":120,\"3\":45,\"4\":9},\"totalScore\":165,\"highScore\":200,\"powerUps\":{\"vip\":2,\"shuffle\":3,\"fill\":4}}"
+  ]
+ ],
+ "loaded": {
+  "version": 3,
+  "unlockedLevel": 4,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2
+  },
+  "levelScores": {
+   "1": 120,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 165,
+  "highScore": 200,
+  "powerUps": {
+   "vip": 2,
+   "shuffle": 3,
+   "fill": 4
+  }
+ },
+ "progressRows": [
+  {
+   "scope": "profile",
+   "slot": "default",
+   "data": {
+    "version": 3,
+    "unlocked_level": 4,
+    "total_score": 165,
+    "high_score": 200
+   }
+  },
+  {
+   "scope": "profile",
+   "slot": "inventory",
+   "data": {
+    "version": 3,
+    "power_ups": {
+     "vip": 2,
+     "shuffle": 3,
+     "fill": 4
+    }
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "1",
+   "data": {
+    "version": 3,
+    "stars": 3,
+    "score": 120
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "2",
+   "data": {
+    "version": 3,
+    "stars": 1,
+    "score": 0
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "3",
+   "data": {
+    "version": 3,
+    "stars": 2,
+    "score": 45
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "4",
+   "data": {
+    "version": 3,
+    "stars": 0,
+    "score": 9
+   }
+  }
+ ],
+ "catalogRows": [
+  {
+   "scope": "profile",
+   "slot": "default",
+   "data": {
+    "version": 3,
+    "unlocked_level": 4,
+    "total_score": 165,
+    "high_score": 200
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "1",
+   "data": {
+    "version": 3,
+    "stars": 3,
+    "score": 120
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "2",
+   "data": {
+    "version": 3,
+    "stars": 1,
+    "score": 0
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "3",
+   "data": {
+    "version": 3,
+    "stars": 2,
+    "score": 45
+   }
+  },
+  {
+   "scope": "level",
+   "slot": "4",
+   "data": {
+    "version": 3,
+    "stars": 0,
+    "score": 9
+   }
+  }
+ ],
+ "decodedProgress": {
+  "version": 3,
+  "unlockedLevel": 5,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2,
+   "4": 0
+  },
+  "levelScores": {
+   "1": 120,
+   "2": 0,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 174,
+  "highScore": 200,
+  "powerUps": {
+   "vip": 2,
+   "shuffle": 3,
+   "fill": 4
+  }
+ },
+ "decodedCatalog": {
+  "version": 3,
+  "unlockedLevel": 5,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2,
+   "4": 0
+  },
+  "levelScores": {
+   "1": 120,
+   "2": 0,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 174,
+  "highScore": 200,
+  "powerUps": {
+   "vip": 0,
+   "shuffle": 0,
+   "fill": 0
+  }
+ },
+ "decodedEmpty": null,
+ "rejected": [
+  null,
+  null,
+  {
+   "version": 3,
+   "unlockedLevel": 4,
+   "stars": {
+    "1": 3,
+    "2": 1,
+    "3": 2
+   },
+   "levelScores": {
+    "1": 120,
+    "3": 45,
+    "4": 9
+   },
+   "totalScore": 165,
+   "highScore": 200,
+   "powerUps": {
+    "vip": 0,
+    "shuffle": 0,
+    "fill": 0
+   }
+  },
+  {
+   "version": 3,
+   "unlockedLevel": 4,
+   "stars": {
+    "1": 3,
+    "2": 1,
+    "3": 2
+   },
+   "levelScores": {},
+   "totalScore": 165,
+   "highScore": 200,
+   "powerUps": {
+    "vip": 2,
+    "shuffle": 3,
+    "fill": 4
+   }
+  }
+ ],
+ "win": {
+  "version": 3,
+  "unlockedLevel": 4,
+  "stars": {
+   "1": 3,
+   "2": 3,
+   "3": 2
+  },
+  "levelScores": {
+   "1": 120,
+   "2": 300,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 474,
+  "highScore": 474,
+  "powerUps": {
+   "vip": 2,
+   "shuffle": 3,
+   "fill": 4
+  }
+ },
+ "lesserWin": {
+  "version": 3,
+  "unlockedLevel": 4,
+  "stars": {
+   "1": 3,
+   "2": 1,
+   "3": 2
+  },
+  "levelScores": {
+   "1": 120,
+   "3": 45,
+   "4": 9
+  },
+  "totalScore": 165,
+  "highScore": 465,
+  "powerUps": {
+   "vip": 2,
+   "shuffle": 3,
+   "fill": 4
+  }
+ },
+ "snapshotSaved": "{\"version\":3,\"state\":{\"version\":2,\"level\":3,\"seed\":83030,\"boardWidth\":24,\"boardHeight\":16,\"cars\":[{\"id\":\"car-1\",\"color\":\"blue\",\"colorHidden\":false,\"direction\":\"up\",\"capacity\":4,\"length\":2,\"position\":{\"x\":12,\"y\":4},\"status\":\"field\",\"parkingSlotId\":null,\"boarded\":0,\"tunnelId\":null,\"sequence\":0},{\"id\":\"car-2\",\"color\":\"red\",\"colorHidden\":false,\"direction\":\"up\",\"capacity\":4,\"length\":2,\"position\":{\"x\":12,\"y\":7},\"status\":\"field\",\"parkingSlotId\":null,\"boarded\":0,\"tunnelId\":null,\"sequence\":1},{\"id\":\"car-3\",\"color\":\"green\",\"colorHidden\":false,\"direction\":\"up\",\"capacity\":4,\"length\":2,\"position\":{\"x\":9,\"y\":6},\"status\":\"field\",\"parkingSlotId\":null,\"boarded\":0,\"tunnelId\":null,\"sequence\":2},{\"id\":\"car-4\",\"color\":\"yellow\",\"colorHidden\":false,\"direction\":\"up\",\"capacity\":4,\"length\":2,\"position\":{\"x\":15,\"y\":6},\"status\":\"field\",\"parkingSlotId\":null,\"boarded\":0,\"tunnelId\":null,\"sequence\":3}],\"tunnels\":[],\"passengerQueue\":[{\"id\":\"passenger-1\",\"color\":\"blue\",\"feederSide\":\"left\"},{\"id\":\"passenger-2\",\"color\":\"blue\",\"feederSide\":\"left\"},{\"id\":\"passenger-3\",\"color\":\"blue\",\"feederSide\":\"left\"},{\"id\":\"passenger-4\",\"color\":\"blue\",\"feederSide\":\"left\"},{\"id\":\"passenger-5\",\"color\":\"red\",\"feederSide\":\"left\"},{\"id\":\"passenger-6\",\"color\":\"red\",\"feederSide\":\"left\"},{\"id\":\"passenger-7\",\"color\":\"red\",\"feederSide\":\"left\"},{\"id\":\"passenger-8\",\"color\":\"red\",\"feederSide\":\"left\"},{\"id\":\"passenger-9\",\"color\":\"green\",\"feederSide\":\"left\"},{\"id\":\"passenger-10\",\"color\":\"green\",\"feederSide\":\"left\"},{\"id\":\"passenger-11\",\"color\":\"green\",\"feederSide\":\"left\"},{\"id\":\"passenger-12\",\"color\":\"green\",\"feederSide\":\"left\"},{\"id\":\"passenger-13\",\"color\":\"yellow\",\"feederSide\":\"left\"},{\"id\":\"passenger-14\",\"color\":\"yellow\",\"feederSide\":\"left\"},{\"id\":\"passenger-15\",\"color\":\"yellow\",\"feederSide\":\"left\"},{\"id\":\"passenger-16\",\"color\":\"yellow\",\"feederSide\":\"left\"}],\"parkingSlots\":[{\"id\":\"vip\",\"kind\":\"vip\",\"unlocked\":true,\"occupiedCarId\":null,\"index\":-1},{\"id\":\"slot-1\",\"kind\":\"regular\",\"unlocked\":true,\"occupiedCarId\":null,\"index\":0},{\"id\":\"slot-2\",\"kind\":\"regular\",\"unlocked\":true,\"occupiedCarId\":null,\"index\":1},{\"id\":\"slot-3\",\"kind\":\"regular\",\"unlocked\":true,\"occupiedCarId\":null,\"index\":2},{\"id\":\"slot-4\",\"kind\":\"regular\",\"unlocked\":true,\"occupiedCarId\":null,\"index\":3},{\"id\":\"slot-5\",\"kind\":\"regular\",\"unlocked\":false,\"occupiedCarId\":null,\"index\":4},{\"id\":\"slot-6\",\"kind\":\"regular\",\"unlocked\":false,\"occupiedCarId\":null,\"index\":5},{\"id\":\"slot-7\",\"kind\":\"regular\",\"unlocked\":false,\"occupiedCarId\":null,\"index\":6}],\"powerUps\":{\"vip\":2,\"shuffle\":3,\"fill\":4},\"levelScore\":1330,\"totalScore\":165,\"highScore\":200,\"moves\":0,\"maxRegularSlotsUsed\":0,\"maxRegularSlotsUnlocked\":4,\"powerUpsUsed\":0,\"lastMessage\":\"Blocked cars bounce back — free the car in front first.\",\"completedLevel\":null,\"failedLevel\":null}}",
+ "snapshotLoaded": {
+  "version": 2,
+  "level": 3,
+  "seed": 83030,
+  "boardWidth": 24,
+  "boardHeight": 16,
+  "cars": [
+   {
+    "id": "car-1",
+    "color": "blue",
+    "colorHidden": false,
+    "direction": "up",
+    "capacity": 4,
+    "length": 2,
+    "position": {
+     "x": 12,
+     "y": 4
+    },
+    "status": "field",
+    "parkingSlotId": null,
+    "boarded": 0,
+    "tunnelId": null,
+    "sequence": 0
+   },
+   {
+    "id": "car-2",
+    "color": "red",
+    "colorHidden": false,
+    "direction": "up",
+    "capacity": 4,
+    "length": 2,
+    "position": {
+     "x": 12,
+     "y": 7
+    },
+    "status": "field",
+    "parkingSlotId": null,
+    "boarded": 0,
+    "tunnelId": null,
+    "sequence": 1
+   },
+   {
+    "id": "car-3",
+    "color": "green",
+    "colorHidden": false,
+    "direction": "up",
+    "capacity": 4,
+    "length": 2,
+    "position": {
+     "x": 9,
+     "y": 6
+    },
+    "status": "field",
+    "parkingSlotId": null,
+    "boarded": 0,
+    "tunnelId": null,
+    "sequence": 2
+   },
+   {
+    "id": "car-4",
+    "color": "yellow",
+    "colorHidden": false,
+    "direction": "up",
+    "capacity": 4,
+    "length": 2,
+    "position": {
+     "x": 15,
+     "y": 6
+    },
+    "status": "field",
+    "parkingSlotId": null,
+    "boarded": 0,
+    "tunnelId": null,
+    "sequence": 3
+   }
+  ],
+  "tunnels": [],
+  "passengerQueue": [
+   {
+    "id": "passenger-1",
+    "color": "blue",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-2",
+    "color": "blue",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-3",
+    "color": "blue",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-4",
+    "color": "blue",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-5",
+    "color": "red",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-6",
+    "color": "red",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-7",
+    "color": "red",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-8",
+    "color": "red",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-9",
+    "color": "green",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-10",
+    "color": "green",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-11",
+    "color": "green",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-12",
+    "color": "green",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-13",
+    "color": "yellow",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-14",
+    "color": "yellow",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-15",
+    "color": "yellow",
+    "feederSide": "left"
+   },
+   {
+    "id": "passenger-16",
+    "color": "yellow",
+    "feederSide": "left"
+   }
+  ],
+  "parkingSlots": [
+   {
+    "id": "vip",
+    "kind": "vip",
+    "unlocked": true,
+    "occupiedCarId": null,
+    "index": -1
+   },
+   {
+    "id": "slot-1",
+    "kind": "regular",
+    "unlocked": true,
+    "occupiedCarId": null,
+    "index": 0
+   },
+   {
+    "id": "slot-2",
+    "kind": "regular",
+    "unlocked": true,
+    "occupiedCarId": null,
+    "index": 1
+   },
+   {
+    "id": "slot-3",
+    "kind": "regular",
+    "unlocked": true,
+    "occupiedCarId": null,
+    "index": 2
+   },
+   {
+    "id": "slot-4",
+    "kind": "regular",
+    "unlocked": true,
+    "occupiedCarId": null,
+    "index": 3
+   },
+   {
+    "id": "slot-5",
+    "kind": "regular",
+    "unlocked": false,
+    "occupiedCarId": null,
+    "index": 4
+   },
+   {
+    "id": "slot-6",
+    "kind": "regular",
+    "unlocked": false,
+    "occupiedCarId": null,
+    "index": 5
+   },
+   {
+    "id": "slot-7",
+    "kind": "regular",
+    "unlocked": false,
+    "occupiedCarId": null,
+    "index": 6
+   }
+  ],
+  "powerUps": {
+   "vip": 2,
+   "shuffle": 3,
+   "fill": 4
+  },
+  "levelScore": 1330,
+  "totalScore": 165,
+  "highScore": 200,
+  "moves": 0,
+  "maxRegularSlotsUsed": 0,
+  "maxRegularSlotsUnlocked": 4,
+  "powerUpsUsed": 0,
+  "lastMessage": "Blocked cars bounce back — free the car in front first.",
+  "completedLevel": null,
+  "failedLevel": null
+ },
+ "snapshotLockedOut": null,
+ "snapshotRows": [
+  {
+   "scope": "save",
+   "slot": "autosave",
+   "data": {
+    "version": 3,
+    "state": {
+     "version": 2,
+     "level": 3,
+     "seed": 83030,
+     "boardWidth": 24,
+     "boardHeight": 16,
+     "cars": [
+      {
+       "id": "car-1",
+       "color": "blue",
+       "colorHidden": false,
+       "direction": "up",
+       "capacity": 4,
+       "length": 2,
+       "position": {
+        "x": 12,
+        "y": 4
+       },
+       "status": "field",
+       "parkingSlotId": null,
+       "boarded": 0,
+       "tunnelId": null,
+       "sequence": 0
+      },
+      {
+       "id": "car-2",
+       "color": "red",
+       "colorHidden": false,
+       "direction": "up",
+       "capacity": 4,
+       "length": 2,
+       "position": {
+        "x": 12,
+        "y": 7
+       },
+       "status": "field",
+       "parkingSlotId": null,
+       "boarded": 0,
+       "tunnelId": null,
+       "sequence": 1
+      },
+      {
+       "id": "car-3",
+       "color": "green",
+       "colorHidden": false,
+       "direction": "up",
+       "capacity": 4,
+       "length": 2,
+       "position": {
+        "x": 9,
+        "y": 6
+       },
+       "status": "field",
+       "parkingSlotId": null,
+       "boarded": 0,
+       "tunnelId": null,
+       "sequence": 2
+      },
+      {
+       "id": "car-4",
+       "color": "yellow",
+       "colorHidden": false,
+       "direction": "up",
+       "capacity": 4,
+       "length": 2,
+       "position": {
+        "x": 15,
+        "y": 6
+       },
+       "status": "field",
+       "parkingSlotId": null,
+       "boarded": 0,
+       "tunnelId": null,
+       "sequence": 3
+      }
+     ],
+     "tunnels": [],
+     "passengerQueue": [
+      {
+       "id": "passenger-1",
+       "color": "blue",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-2",
+       "color": "blue",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-3",
+       "color": "blue",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-4",
+       "color": "blue",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-5",
+       "color": "red",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-6",
+       "color": "red",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-7",
+       "color": "red",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-8",
+       "color": "red",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-9",
+       "color": "green",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-10",
+       "color": "green",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-11",
+       "color": "green",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-12",
+       "color": "green",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-13",
+       "color": "yellow",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-14",
+       "color": "yellow",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-15",
+       "color": "yellow",
+       "feederSide": "left"
+      },
+      {
+       "id": "passenger-16",
+       "color": "yellow",
+       "feederSide": "left"
+      }
+     ],
+     "parkingSlots": [
+      {
+       "id": "vip",
+       "kind": "vip",
+       "unlocked": true,
+       "occupiedCarId": null,
+       "index": -1
+      },
+      {
+       "id": "slot-1",
+       "kind": "regular",
+       "unlocked": true,
+       "occupiedCarId": null,
+       "index": 0
+      },
+      {
+       "id": "slot-2",
+       "kind": "regular",
+       "unlocked": true,
+       "occupiedCarId": null,
+       "index": 1
+      },
+      {
+       "id": "slot-3",
+       "kind": "regular",
+       "unlocked": true,
+       "occupiedCarId": null,
+       "index": 2
+      },
+      {
+       "id": "slot-4",
+       "kind": "regular",
+       "unlocked": true,
+       "occupiedCarId": null,
+       "index": 3
+      },
+      {
+       "id": "slot-5",
+       "kind": "regular",
+       "unlocked": false,
+       "occupiedCarId": null,
+       "index": 4
+      },
+      {
+       "id": "slot-6",
+       "kind": "regular",
+       "unlocked": false,
+       "occupiedCarId": null,
+       "index": 5
+      },
+      {
+       "id": "slot-7",
+       "kind": "regular",
+       "unlocked": false,
+       "occupiedCarId": null,
+       "index": 6
+      }
+     ],
+     "powerUps": {
+      "vip": 2,
+      "shuffle": 3,
+      "fill": 4
+     },
+     "levelScore": 1330,
+     "totalScore": 165,
+     "highScore": 200,
+     "moves": 0,
+     "maxRegularSlotsUsed": 0,
+     "maxRegularSlotsUnlocked": 4,
+     "powerUpsUsed": 0,
+     "lastMessage": "Blocked cars bounce back — free the car in front first.",
+     "completedLevel": null,
+     "failedLevel": null
+    }
+   }
+  }
+ ]
+}

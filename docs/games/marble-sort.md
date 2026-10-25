@@ -135,7 +135,7 @@ Each power-up uses a confirmation dialog before spending inventory.
 - Animation modules live under `resources/js/games/marble-sort/scene/animation/`.
 - Game engine: `resources/js/games/marble-sort/gameEngine.ts`
 - Shared game contracts: `resources/js/games/marble-sort/gameTypes.ts`
-- Progress persistence: `resources/js/games/marble-sort/gameProgress.ts`
+- Progress persistence: `resources/js/games/marble-sort/gameProgress.ts` (board-state parsing), on the shared `_shared/campaignProgress.ts` factory for progress, inventory, database rows and the level snapshot. `_shared/__tests__/campaignProgress.dom.test.ts` pins every saved byte to fixtures captured before the factory existed.
 - Anonymous/legacy progress key: `bwh.marble-sort.progress.v2`
 - Anonymous/legacy level snapshot key: `bwh.marble-sort.snapshot.v4`
 - Rendering uses Three.js through Vite.

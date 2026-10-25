@@ -1,16 +1,9 @@
-import { earnsCompletionReward } from '../_shared/campaignRewards'
-import {
-  defineGameData,
-  definitionRowKey,
-  type GameDataSlotInput,
-  gameDataStorage,
-} from '../_shared/gameDataPersistence'
+import { defineCampaignProgress } from '../_shared/campaignProgress'
 import {
   isRecord,
   parseArray,
   parseInteger,
   parseNumber,
-  parseStars,
   parseString,
   safeProgressNumber,
 } from '../_shared/progressParsers'
@@ -32,8 +25,6 @@ import {
   type ParkingSlot,
   type ParkingSlotKind,
   type Passenger,
-  type PowerUpInventory,
-  type SavedGameProgress,
   type Tunnel,
 } from './gameTypes'
 import { TOTAL_LEVELS } from './levels/levels'
@@ -42,319 +33,33 @@ export { safeProgressNumber }
 
 export const LEVEL_SNAPSHOT_STORAGE_KEY = 'bwh.cars-game.snapshot.v3'
 
-interface SavedLevelSnapshot {
-  version: 3
-  state: GameState
-}
-
-function defineCarsProgressGameData(includeInventory: boolean, promoteLocal: boolean) {
-  return defineGameData<SavedGameProgress>({
-    game: 'parking-pickup',
-    localStorageKey: GAME_PROGRESS_STORAGE_KEY,
-    promoteLocal,
-    parse: parseSavedProgress,
-    encode: (progress) => {
-      const slots: GameDataSlotInput[] = [{
-        scope: 'profile',
-        slot: 'default',
-        data: {
-          version: 3,
-          unlocked_level: progress.unlockedLevel,
-          total_score: progress.totalScore,
-          high_score: progress.highScore,
-        },
-      }]
-      if (includeInventory) {
-        slots.push({
-          scope: 'profile',
-          slot: 'inventory',
-          data: { version: 3, power_ups: progress.powerUps },
-        })
-      }
-      slots.push(...[...new Set([...Object.keys(progress.stars), ...Object.keys(progress.levelScores)])]
-        .map((level) => Number(level))
-        .filter((level) => Number.isInteger(level) && level >= 1 && level <= TOTAL_LEVELS)
-        .map((level) => ({
-          scope: 'level' as const,
-          slot: String(level),
-          data: {
-            version: 3,
-            stars: progress.stars[level] ?? 0,
-            score: progress.levelScores[level] ?? 0,
-          },
-        })))
-
-      return slots
-    },
-    decode: (rows) => {
-      const profileRow = rows.get(definitionRowKey('profile', 'default'))
-      const profile = profileRow?.data.version === 3 ? profileRow : undefined
-      const inventoryRow = includeInventory ? rows.get(definitionRowKey('profile', 'inventory')) : undefined
-      const inventory = inventoryRow?.data.version === 3 ? inventoryRow : undefined
-      let unlockedLevel = parseInteger(profile?.data.unlocked_level, 1) ?? 1
-      const stars: Record<number, number> = {}
-      const levelScores: Record<number, number> = {}
-      let found = Boolean(profile || inventory)
-
-      for (let level = 1; level <= TOTAL_LEVELS; level += 1) {
-        const row = rows.get(definitionRowKey('level', String(level)))
-        if (row?.data.version !== 3) {
-          continue
-        }
-
-        const rowStars = parseInteger(row.data.stars, 0)
-        const rowScore = parseInteger(row.data.score, 0)
-        if (rowStars === null || rowStars > 3 || rowScore === null) {
-          continue
-        }
-
-        found = true
-        stars[level] = rowStars
-        levelScores[level] = rowScore
-        unlockedLevel = Math.max(unlockedLevel, level + 1)
-      }
-
-      const bestScoreTotal = Object.values(levelScores).reduce((total, score) => total + score, 0)
-      const hydratedTotalScore = Math.max(safeProgressNumber(profile?.data.total_score), bestScoreTotal)
-
-      return found ? parseSavedProgress({
-        version: 3,
-        unlockedLevel,
-        stars,
-        levelScores,
-        totalScore: hydratedTotalScore,
-        highScore: Math.max(safeProgressNumber(profile?.data.high_score), hydratedTotalScore),
-        powerUps: inventory?.data.power_ups,
-      }) : null
-    },
-  })
-}
-
-export const CARS_PROGRESS_GAME_DATA = defineCarsProgressGameData(true, true)
-export const CARS_CATALOG_GAME_DATA = defineCarsProgressGameData(false, false)
-
-export const CARS_SNAPSHOT_GAME_DATA = defineGameData<SavedLevelSnapshot>({
+const campaign = defineCampaignProgress({
   game: 'parking-pickup',
-  localStorageKey: LEVEL_SNAPSHOT_STORAGE_KEY,
-  parse: parseSavedLevelSnapshot,
-  encode: (snapshot) => [{
-    scope: 'save',
-    slot: 'autosave',
-    data: snapshot as unknown as Record<string, unknown>,
-  }],
-  decode: (rows) => parseSavedLevelSnapshot(rows.get(definitionRowKey('save', 'autosave'))?.data),
-  clearSlots: [{ scope: 'save', slot: 'autosave' }],
+  progressKey: GAME_PROGRESS_STORAGE_KEY,
+  snapshotKey: LEVEL_SNAPSHOT_STORAGE_KEY,
+  version: 3,
+  powerUps: ['vip', 'shuffle', 'fill'],
+  totalLevels: TOTAL_LEVELS,
+  parseGameState,
+  cloneState: cloneSerializableState,
 })
 
-export const CARS_GAME_DATA = [CARS_PROGRESS_GAME_DATA, CARS_SNAPSHOT_GAME_DATA] as const
-
-export function createInitialPowerUps(): PowerUpInventory {
-  return {
-    vip: 0,
-    shuffle: 0,
-    fill: 0,
-  }
-}
-
-export function createInitialProgress(): SavedGameProgress {
-  return {
-    version: 3,
-    unlockedLevel: 1,
-    stars: {},
-    levelScores: {},
-    totalScore: 0,
-    highScore: 0,
-    powerUps: createInitialPowerUps(),
-  }
-}
-
-export function loadProgress(storage: Pick<Storage, 'getItem'> | null = gameDataStorage()): SavedGameProgress {
-  if (!storage) {
-    return createInitialProgress()
-  }
-
-  try {
-    const raw = storage.getItem(GAME_PROGRESS_STORAGE_KEY)
-    if (!raw) {
-      return createInitialProgress()
-    }
-
-    return parseSavedProgress(JSON.parse(raw)) ?? createInitialProgress()
-  } catch {
-    return createInitialProgress()
-  }
-}
-
-/**
- * Records a level win from a completed state. Never lowers an earned star
- * count or the unlocked-level watermark. Score and power-up rewards are only
- * persisted when the completion improves the saved star result.
- */
-export function recordWin(progress: SavedGameProgress, state: GameState): SavedGameProgress {
-  const completed = state.completedLevel
-  if (!completed) {
-    return progress
-  }
-
-  const existingStars = progress.stars[completed.level] ?? 0
-  const rewardEarned = earnsCompletionReward(existingStars, completed.stars)
-  const levelScores = rewardEarned
-    ? {
-        ...progress.levelScores,
-        [completed.level]: Math.max(progress.levelScores[completed.level] ?? 0, completed.score),
-      }
-    : { ...progress.levelScores }
-  const totalScore = rewardEarned
-    ? Math.max(
-        progress.totalScore,
-        state.totalScore,
-        Object.values(levelScores).reduce((total, score) => total + score, 0),
-      )
-    : progress.totalScore
-
-  return {
-    version: 3,
-    // Deliberately uncapped: finishing today's final level pre-unlocks the
-    // next one the moment more levels ship. The grid only renders defined ids.
-    unlockedLevel: Math.max(progress.unlockedLevel, completed.level + 1),
-    stars: { ...progress.stars, [completed.level]: Math.max(existingStars, completed.stars) },
-    levelScores,
-    totalScore,
-    highScore: Math.max(progress.highScore, state.highScore, totalScore),
-    powerUps: rewardEarned ? { ...state.powerUps } : { ...progress.powerUps },
-  }
-}
-
-
-export function saveProgress(progress: SavedGameProgress, storage: Pick<Storage, 'setItem'> | null = gameDataStorage()): void {
-  if (!storage) {
-    return
-  }
-
-  try {
-    storage.setItem(GAME_PROGRESS_STORAGE_KEY, JSON.stringify(progress))
-  } catch {
-    // Persistence failures must not interrupt gameplay.
-  }
-}
-
-export function saveLevelSnapshot(state: GameState, storage: Pick<Storage, 'setItem'> | null = gameDataStorage()): void {
-  if (!storage || state.completedLevel) {
-    return
-  }
-
-  const snapshot: SavedLevelSnapshot = {
-    version: 3,
-    state: cloneSerializableState(state),
-  }
-  try {
-    storage.setItem(LEVEL_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshot))
-  } catch {
-    // Persistence failures must not interrupt gameplay.
-  }
-}
-
-export function loadLevelSnapshot(
-  storage: Pick<Storage, 'getItem'> | null = gameDataStorage(),
-  progress: SavedGameProgress = loadProgress(storage),
-): GameState | null {
-  if (!storage) {
-    return null
-  }
-
-  try {
-    const raw = storage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)
-    if (!raw) {
-      return null
-    }
-
-    const parsed = JSON.parse(raw) as unknown
-    if (!isRecord(parsed) || parsed.version !== 3) {
-      return null
-    }
-
-    const state = parseGameState(parsed.state)
-    if (!state || state.level > progress.unlockedLevel) {
-      return null
-    }
-
-    return state
-  } catch {
-    return null
-  }
-}
-
-export function clearLevelSnapshot(storage: Pick<Storage, 'removeItem'> | null = gameDataStorage()): void {
-  try {
-    storage?.removeItem(LEVEL_SNAPSHOT_STORAGE_KEY)
-  } catch {
-    // Persistence failures must not interrupt gameplay.
-  }
-}
-
-export function parseSavedProgress(value: unknown): SavedGameProgress | null {
-  if (!isRecord(value) || value.version !== 3) {
-    return null
-  }
-
-  const unlockedLevel = parseInteger(value.unlockedLevel, 1)
-  const stars = parseStars(value.stars)
-  const levelScores = parseLevelScores(value.levelScores)
-  if (unlockedLevel === null || stars === null || levelScores === null) {
-    return null
-  }
-
-  return {
-    version: 3,
-    unlockedLevel,
-    stars,
-    levelScores,
-    totalScore: safeProgressNumber(value.totalScore),
-    highScore: safeProgressNumber(value.highScore),
-    powerUps: sanitizePowerUps(value.powerUps),
-  }
-}
-
-function parseSavedLevelSnapshot(value: unknown): SavedLevelSnapshot | null {
-  if (!isRecord(value) || value.version !== 3) {
-    return null
-  }
-
-  const state = parseGameState(value.state)
-
-  return state ? { version: 3, state } : null
-}
-
-function parseLevelScores(value: unknown): Record<number, number> | null {
-  if (value === undefined) {
-    return {}
-  }
-  if (!isRecord(value)) {
-    return null
-  }
-
-  const scores: Record<number, number> = {}
-  for (const [level, score] of Object.entries(value)) {
-    const parsedLevel = parseInteger(Number(level), 1)
-    const parsedScore = parseInteger(score, 0)
-    if (parsedLevel === null || parsedScore === null) {
-      return null
-    }
-    scores[parsedLevel] = parsedScore
-  }
-
-  return scores
-}
-
-export function sanitizePowerUps(powerUps: unknown): PowerUpInventory {
-  const candidate = powerUps as Partial<PowerUpInventory> | undefined
-
-  return {
-    vip: Math.max(0, safeProgressNumber(candidate?.vip)),
-    shuffle: Math.max(0, safeProgressNumber(candidate?.shuffle)),
-    fill: Math.max(0, safeProgressNumber(candidate?.fill)),
-  }
-}
+export const CARS_PROGRESS_GAME_DATA = campaign.progressGameData
+export const CARS_CATALOG_GAME_DATA = campaign.catalogGameData
+export const CARS_SNAPSHOT_GAME_DATA = campaign.snapshotGameData
+export const CARS_GAME_DATA = campaign.gameData
+export const {
+  createInitialPowerUps,
+  createInitialProgress,
+  sanitizePowerUps,
+  parseSavedProgress,
+  loadProgress,
+  saveProgress,
+  recordWin,
+  saveLevelSnapshot,
+  loadLevelSnapshot,
+  clearLevelSnapshot,
+} = campaign
 
 function cloneSerializableState(state: GameState): GameState {
   return {
