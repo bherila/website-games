@@ -23,11 +23,14 @@ final class AccountDeletion
 
     public function delete(User $user): void
     {
-        if ($user->isAdministrator()) {
-            throw new LogicException('Administrators cannot delete their own account.');
-        }
-
         DB::transaction(function () use ($user): void {
+            // Re-read under a lock: a grant that committed after `$user` was loaded must still
+            // stop the deletion, as ApplicationAdministrators locks the same row to grant.
+            $user = User::query()->lockForUpdate()->findOrFail($user->getKey());
+            if ($user->isAdministrator()) {
+                throw new LogicException('Administrators cannot delete their own account.');
+            }
+
             $this->audit->record(AccessAudit::ACCOUNT_DELETED, $user, $user, AccessAudit::METHOD_SESSION, [
                 'deleted_user_id' => $user->getKey(),
             ]);

@@ -6,11 +6,13 @@ use App\Models\TowerSaveSlot;
 use App\Models\User;
 use App\Models\UserGameData;
 use App\Models\UserIdentity;
+use App\Services\Account\AccountDeletion;
 use App\Services\Admin\AccessAudit;
 use BWH\Auth\Models\AuthAuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use LogicException;
 use Tests\TestCase;
 
 class AccountDeletionTest extends TestCase
@@ -93,6 +95,21 @@ class AccountDeletionTest extends TestCase
             ->assertSessionHas('error');
         $this->assertModelExists($admin);
         $this->actingThroughIdentityProvider($admin)->get('/account')->assertOk()->assertSee('Remove the administrator role first');
+    }
+
+    public function test_a_grant_after_the_account_was_loaded_still_stops_the_deletion(): void
+    {
+        $stale = User::factory()->create();
+        // Granted elsewhere after this request loaded its user.
+        User::query()->whereKey($stale->getKey())->update(['is_admin' => true]);
+
+        try {
+            app(AccountDeletion::class)->delete($stale);
+            $this->fail('An administrator was deleted.');
+        } catch (LogicException) {
+            $this->assertModelExists($stale);
+            $this->assertSame(0, AuthAuditLog::query()->where('event', AccessAudit::ACCOUNT_DELETED)->count());
+        }
     }
 
     public function test_the_privacy_page_is_public_and_shows_the_contact_only_when_set(): void
