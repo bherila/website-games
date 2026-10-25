@@ -74,15 +74,17 @@ const STEP = 1 / 120
  * until it drops off the garden's edge. Recomputed from release each frame, so
  * undo needs no simulation state.
  */
-export function fallPose(plate: Plate, position: THREE.Vector3, quaternion: THREE.Quaternion, t: number): FallPose {
+export function fallPose(plate: Plate, position: THREE.Vector3, quaternion: THREE.Quaternion, elapsed: number): FallPose {
+  // The replay costs one substep per 1/120 s, so it stops where the part leaves the screen.
+  const t = Math.min(elapsed, FALL_SECONDS)
   let drop = 0
   let speed = 0
   let resting = false
   let pose = carried(plate, position, quaternion, 0)
-  for (let elapsed = 0; elapsed < t;) {
-    const step = Math.min(STEP, t - elapsed)
-    elapsed += step
-    pose = carried(plate, position, quaternion, elapsed)
+  for (let time = 0; time < t;) {
+    const step = Math.min(STEP, t - time)
+    time += step
+    pose = carried(plate, position, quaternion, time)
     speed += 9.8 * step
     drop += speed * step
     // Contact: rest on the ground (or be lifted by a tipping edge) and lose the fall speed.

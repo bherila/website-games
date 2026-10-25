@@ -218,6 +218,12 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
             falling.add(plate.id)
             latestRef.current.onPlateEvent?.('fall')
           }
+          const lasts = reduceMotion ? FADE_SECONDS : FALL_SECONDS
+          // A part that has faded away needs no simulation, and its shadow stops refreshing.
+          if (fall >= lasts) {
+            group.visible = false
+            continue
+          }
           const pose = fallPose(plate, group.position, group.quaternion, reduceMotion ? 0 : fall)
           group.position.copy(pose.position)
           group.quaternion.copy(pose.quaternion)
@@ -225,9 +231,8 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
             landed.add(plate.id)
             latestRef.current.onPlateEvent?.('land')
           }
-          const lasts = reduceMotion ? FADE_SECONDS : FALL_SECONDS
-          setOpacity(group, plate.id, Math.min(1, Math.max(0, (lasts - fall) / FADE_SECONDS)))
-          group.visible = fall < lasts
+          setOpacity(group, plate.id, Math.min(1, (lasts - fall) / FADE_SECONDS))
+          group.visible = true
           lastMotionAt = now
         } else {
           falling.delete(plate.id)

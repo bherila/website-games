@@ -40,3 +40,14 @@ test('a roof slope slides down its pitch before it tips off the eave', () => {
   expect(sliding.position.y).toBeLessThan(start.y)
   expect(fallPose(roof, start, rotation, 1).quaternion.angleTo(rotation)).toBeGreaterThan(0.5)
 })
+
+test('a call long after the fall costs no more than the fall itself', () => {
+  const wall = LEVELS[0]!.plates.find((plate) => plate.id === 'front')!
+  const start = new THREE.Vector3().fromArray(wall.position)
+  const rotation = plateQuaternion(wall)
+  const end = fallPose(wall, start, rotation, FALL_SECONDS)
+  // Five minutes later the replay is clamped to the visible window, not 36,000 substeps further on.
+  const later = fallPose(wall, start, rotation, 300)
+  expect(later.position.distanceTo(end.position)).toBeLessThan(1e-9)
+  expect(later.quaternion.angleTo(end.quaternion)).toBeLessThan(1e-9)
+})
