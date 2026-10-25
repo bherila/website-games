@@ -21,8 +21,9 @@ use Illuminate\Support\Facades\DB;
  *   two devices: best values win for metrics, and otherwise the more recently updated row's
  *   fields win. In-level snapshots (save scope) keep the more recently updated one. A row only
  *   one account has moves as is; a deletion tombstone never erases the other account's live row.
- * - Tower save slots move; on a clash the autosave keeps the newer one, and a manual save moves
- *   to a free manual slot when there is one, otherwise the newer is kept.
+ * - Tower save slots move; a lease-only row (no payload) never beats a real save. On a clash the
+ *   autosave keeps the newer one, and a manual save moves to a free manual slot when there is one,
+ *   otherwise the newer is kept.
  * - Mandarin practice events move, except ones both accounts already recorded, and are numbered
  *   after the kept account's last event.
  */
@@ -145,23 +146,28 @@ final class AccountMerge
     {
         $slots = TowerSaveSlot::query()->where('user_id', $absorb->getKey())->lockForUpdate()->get();
         foreach ($slots as $slot) {
-            $taken = TowerSaveSlot::query()->where('user_id', $keep->getKey())->lockForUpdate()->pluck('updated_at', 'slot');
-            $clear = ['user_id' => $keep->getKey(), 'lease_token' => null, 'lease_acquired_at' => null, 'lease_expires_at' => null];
-            if (! $taken->has($slot->slot)) {
-                $slot->forceFill($clear)->save();
+            // A row with no payload is only a lease (TowerSaveController::acquire); it holds no save.
+            if (! $slot->hasPayload()) {
+                $slot->delete();
 
                 continue;
             }
-            $free = array_values(array_diff(self::MANUAL_TOWER_SLOTS, $taken->keys()->all()));
-            if (in_array($slot->slot, self::MANUAL_TOWER_SLOTS, true) && $free !== []) {
-                $slot->forceFill($clear + ['slot' => $free[0]])->save();
+            $keptRows = TowerSaveSlot::query()->where('user_id', $keep->getKey())->lockForUpdate()->get()->keyBy('slot');
+            $place = function (string $target) use ($slot, $keep, $keptRows): void {
+                $keptRows->get($target)?->delete();
+                $slot->forceFill(['user_id' => $keep->getKey(), 'slot' => $target, 'lease_token' => null, 'lease_acquired_at' => null, 'lease_expires_at' => null])->save();
+            };
+            $kept = $keptRows->get($slot->slot);
+            if ($kept === null || ! $kept->hasPayload()) {
+                $place($slot->slot);
 
                 continue;
             }
-            $keptUpdated = $taken->get($slot->slot);
-            if ($slot->updated_at !== null && ($keptUpdated === null || $slot->updated_at->greaterThan($keptUpdated))) {
-                TowerSaveSlot::query()->where('user_id', $keep->getKey())->where('slot', $slot->slot)->delete();
-                $slot->forceFill($clear)->save();
+            $free = collect(self::MANUAL_TOWER_SLOTS)->first(fn (string $manual): bool => ! $keptRows->has($manual) || ! $keptRows->get($manual)->hasPayload());
+            if (in_array($slot->slot, self::MANUAL_TOWER_SLOTS, true) && $free !== null) {
+                $place($free);
+            } elseif ($slot->updated_at !== null && ($kept->updated_at === null || $slot->updated_at->greaterThan($kept->updated_at))) {
+                $place($slot->slot);
             } else {
                 $slot->delete();
             }

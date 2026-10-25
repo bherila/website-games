@@ -124,6 +124,25 @@ class AccountMergeTest extends TestCase
         $this->assertSame(['version' => 1, 'board' => 'imported'], $this->data($keep, GameDataScope::Save, 'autosave'));
     }
 
+    public function test_a_lease_only_tower_row_never_replaces_a_real_save(): void
+    {
+        [$keep, $absorb] = [User::factory()->create(), User::factory()->create()];
+        // Kept: a real autosave, older. Absorbed: a newer lease with no payload.
+        TowerSaveSlot::factory()->for($keep)->create(['slot' => 'autosave', 'game_day' => 7, 'updated_at' => now()->subDay()]);
+        TowerSaveSlot::factory()->for($absorb)->create(['slot' => 'autosave', 'payload' => null, 'updated_at' => now()]);
+        // Kept: a newer lease in slot-a. Absorbed: a real older save there.
+        TowerSaveSlot::factory()->for($keep)->create(['slot' => 'slot-a', 'payload' => null, 'updated_at' => now()]);
+        TowerSaveSlot::factory()->for($absorb)->create(['slot' => 'slot-a', 'game_day' => 9, 'updated_at' => now()->subDay()]);
+
+        app(AccountMerge::class)->merge($keep, $absorb, AccessAudit::METHOD_CONSOLE, null);
+
+        $slots = TowerSaveSlot::query()->where('user_id', $keep->getKey())->get()->keyBy('slot');
+        $this->assertSame(7, $slots->get('autosave')?->game_day);
+        $this->assertTrue($slots->get('slot-a')?->hasPayload());
+        $this->assertSame(9, $slots->get('slot-a')?->game_day);
+        $this->assertCount(2, $slots);
+    }
+
     public function test_sign_in_methods_move_to_the_kept_account(): void
     {
         $keep = User::factory()->create();
