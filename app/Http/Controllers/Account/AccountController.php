@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Account;
 use App\Http\Controllers\Controller;
 use App\Models\EmailChangeRequest;
 use App\Models\User;
+use App\Services\Account\AccountDeletion;
 use App\Services\Account\AccountEmail;
 use App\Services\Account\EmailConfirmationFailed;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class AccountController extends Controller
@@ -43,6 +45,31 @@ class AccountController extends Controller
         $emails->request($user, $email);
 
         return redirect()->route('account.show')->with('status', "We sent a confirmation link to {$email}. It works for ".AccountEmail::LINK_MINUTES.' minutes.');
+    }
+
+    /**
+     * Deletes the signed-in account after the holder types DELETE. Signing in again later
+     * starts a new, empty account.
+     */
+    public function destroy(Request $request, AccountDeletion $deletion): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $request->validate(['confirmation' => ['required', 'string', 'in:DELETE']], [
+            'confirmation.in' => 'Type DELETE in capitals to delete your account.',
+        ]);
+        if ($user->isAdministrator()) {
+            return redirect()->route('account.show')->with('error', 'Administrators cannot delete their own account. Remove the administrator role first.');
+        }
+
+        // Sign out first: logging out rotates the remember-me token by saving the user, which
+        // would re-insert an already deleted row.
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        $deletion->delete($user);
+
+        return redirect()->route('games.index')->with('status', 'Your account and its saved progress were deleted.');
     }
 
     public function confirmEmail(Request $request, AccountEmail $emails, string $token): RedirectResponse

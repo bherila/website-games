@@ -145,8 +145,14 @@
             </script>
         </div>
     </div>
+    @if (session('status'))
+        <p role="status" class="mx-auto mt-3 max-w-5xl px-4 text-sm text-muted-foreground" data-testid="home-status">{{ session('status') }}</p>
+    @endif
     {{-- Mirrors the runtime /mandarin mounts, so the Mandarin card summarizes the same partition. --}}
     <div id="game-select-root" data-mandarin-runtime="{{ config('mandarin.runtime', 'live') === 'preview' ? 'preview' : 'live' }}"></div>
+    <footer class="mx-auto max-w-5xl px-4 pb-8 pt-4 text-center text-xs text-muted-foreground">
+        <a href="{{ route('privacy') }}" class="hover:text-foreground">Privacy</a>
+    </footer>
 @endsection
 
 @push('scripts')

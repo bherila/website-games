@@ -30,6 +30,9 @@
                 Sign in with bherila ID
             </a>
         </div>
+        <p class="mt-6 text-center text-xs text-muted-foreground">
+            Playing without an account keeps progress in this browser only. <a href="{{ route('privacy') }}" class="underline hover:text-foreground">Privacy</a>
+        </p>
     </div>
 </div>
 @endsection

@@ -66,6 +66,20 @@ Mail is sent through Brevo's API in production: `MAIL_MAILER=brevo` (or `hybrid`
 back to the SMTP relay) with `MAILER_DSN="brevo+api://<api key>@default"`. Locally `MAIL_MAILER=log`
 writes messages to the log.
 
+### Privacy page and account deletion
+
+`/privacy` describes what is stored, the cookies and services involved, and how to delete an
+account. Its contact section appears when `PRIVACY_CONTACT` is set. It is linked from the home
+page, `/login` and `/account`, and is the privacy policy link for Google's consent screen.
+
+The account page can delete the signed-in account after the holder types `DELETE`
+(`App\Services\Account\AccountDeletion`). Game saves, tower save slots, API tokens and database
+sessions are deleted explicitly. Sign-in links, email requests and Mandarin practice history
+cascade from the user row. An `account_deleted` audit row is kept with its user nulled and the old
+id in metadata. Administrators are refused until their flag is revoked. A test pins every table
+with a `user_id` column to a deletion decision, so a new table fails until it has one. Signing in
+again later starts a new, empty account.
+
 ### Google sign-in
 
 "Continue with Google" appears on `/login` once `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are

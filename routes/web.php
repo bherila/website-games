@@ -11,6 +11,7 @@ if (app()->environment('e2e')) {
     require __DIR__.'/e2e.php';
 }
 
+Route::view('/privacy', 'privacy')->name('privacy');
 Route::get('/login', function () {
     return view('login');
 })->name('login');
@@ -37,6 +38,9 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/account/email', [AccountController::class, 'requestEmail'])
         ->middleware('throttle:account-email-request')
         ->name('account.email.request');
+    Route::delete('/account', [AccountController::class, 'destroy'])
+        ->middleware('throttle:5,1,account-delete')
+        ->name('account.destroy');
     Route::get('/account/email/confirm/{token}', [AccountController::class, 'confirmEmail'])
         ->middleware('throttle:account-email-confirm')
         ->name('account.email.confirm');
