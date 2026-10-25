@@ -8,7 +8,8 @@ export default function Container(props: {
   fluid?: boolean
 }): React.ReactElement {
   return (
-    <main
+    // The page layout already provides the one <main> landmark; nesting another confuses screen readers.
+    <div
       className={cn(
         {
           'container mx-auto px-4': !props.fluid,
@@ -18,6 +19,6 @@ export default function Container(props: {
       )}
     >
       {props.children}
-    </main>
+    </div>
   )
 }

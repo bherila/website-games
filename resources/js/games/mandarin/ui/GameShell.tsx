@@ -185,7 +185,7 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
             )}
           </>
         )}
-        <main
+        <div
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4 lg:border-l lg:border-[#e6dfcf]"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
         >
@@ -194,7 +194,7 @@ export function GameShell({ children, scenery = true, title }: GameShellProps): 
             {game.schedulerOutdated && <UpdateBanner />}
             {children}
           </div>
-        </main>
+        </div>
       </div>
       {confirmGlossary && (
         <ConfirmDialog

@@ -79,6 +79,6 @@
             @endif
         </form>
     </div>
-    <p class="mt-4 text-center text-xs text-muted-foreground"><a href="{{ route('privacy') }}" class="hover:text-foreground">Privacy</a></p>
+    <div class="mt-4">@include('partials.legal-links')</div>
 </div>
 @endsection

@@ -187,7 +187,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
         {level.introduction && <button type="button" aria-label="Level guide" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-white/70 dark:text-slate-400 dark:hover:bg-white/10" onClick={() => setHelp(true)}><CircleHelp size={20} aria-hidden="true" /></button>}
       </header>
       <CollectionTrays state={busy && fly ? history.at(-1) ?? puzzle : puzzle} />
-      <main className="relative min-h-0 flex-1" aria-label="Plate puzzle">
+      <section className="relative min-h-0 flex-1" aria-label="Plate puzzle">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#fff9ed_0%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,#2a3640_0%,transparent_70%)]" />
         <PlateEscapeScene key={sceneKey} state={puzzle} view={view} onTargets={setTargets} onError={reportError} onPlateEvent={plateEvent} />
         {targets.map((target) => {
@@ -231,7 +231,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
             <button type="button" onClick={restart} className="mt-3 rounded-full bg-slate-800 px-6 py-3 font-semibold text-white dark:bg-slate-100 dark:text-slate-900">Play again</button>
           </div>
         )}
-      </main>
+      </section>
       <footer className="px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
         <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>{level.overflowLoses ? storageFull ? 'Storage full · Match a tray or the next screw will overflow' : `${SPARE_CAPACITY} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · The gable walls hold up the roof'}</p>
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white/65 p-2 dark:bg-white/5">

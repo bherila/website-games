@@ -43,6 +43,11 @@ class AppServiceProvider extends ServiceProvider
         // Named so each keeps its own counter: an unnamed `throttle:N,M` is keyed by the user
         // alone, so confirmation clicks and game-data saves would spend the email allowance.
         RateLimiter::for('account-email-request', fn (Request $request): Limit => Limit::perHour(5)->by((string) $request->user()?->getAuthIdentifier()));
+        // The form emails whatever address is typed, so it is limited per address as well as per IP.
+        RateLimiter::for('privacy-request', fn (Request $request): array => [
+            Limit::perHour(5)->by('ip:'.$request->ip()),
+            Limit::perDay(3)->by('email:'.strtolower(trim((string) $request->input('email')))),
+        ]);
         RateLimiter::for('account-email-confirm', fn (Request $request): Limit => Limit::perMinute(20)->by((string) $request->user()?->getAuthIdentifier()));
 
         $this->app->make(MailManager::class)->extend('brevo', fn () => (new BrevoTransportFactory)->create(
