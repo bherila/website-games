@@ -148,6 +148,8 @@ class OAuthLoginTest extends TestCase
         $user = User::factory()->create([
             'name' => 'Old Name',
             'email' => 'old-address@example.test',
+            // Unconfirmed, so the provider's address still applies.
+            'email_verified_at' => null,
         ]);
         $user->forceFill([
             'oauth_provider' => 'bherila',
@@ -383,11 +385,12 @@ class OAuthLoginTest extends TestCase
         $this->assertDatabaseCount('users', 2);
     }
 
-    public function test_refreshing_to_a_new_unverified_email_clears_previous_verification(): void
+    public function test_an_email_confirmed_here_is_not_replaced_by_the_provider(): void
     {
+        $confirmedAt = now()->subDay()->startOfSecond();
         $user = User::factory()->create([
-            'email' => 'verified-address@example.test',
-            'email_verified_at' => now(),
+            'email' => 'confirmed-address@example.test',
+            'email_verified_at' => $confirmedAt,
         ]);
         $user->forceFill([
             'oauth_provider' => 'bherila',
@@ -399,7 +402,11 @@ class OAuthLoginTest extends TestCase
             ->get('/oauth/callback?state=expected-state&code=authorization-code')
             ->assertRedirect('/');
 
-        $this->assertNull($user->fresh()?->email_verified_at);
+        // The account page owns a confirmed address; the provider still refreshes the name.
+        $fresh = $user->fresh();
+        $this->assertSame('confirmed-address@example.test', $fresh?->email);
+        $this->assertEquals($confirmedAt, $fresh?->email_verified_at);
+        $this->assertSame('Updated Name', $fresh?->name);
     }
 
     public function test_matching_email_never_rebinds_a_different_account(): void
@@ -546,7 +553,7 @@ class OAuthLoginTest extends TestCase
 
     public function test_bound_account_is_not_logged_in_with_a_stale_profile_when_email_refresh_conflicts(): void
     {
-        $boundUser = User::factory()->create(['email' => 'old-bound-address@example.test']);
+        $boundUser = User::factory()->create(['email' => 'old-bound-address@example.test', 'email_verified_at' => null]);
         $boundUser->forceFill([
             'oauth_provider' => 'bherila',
             'oauth_subject' => 'bound-provider-subject',

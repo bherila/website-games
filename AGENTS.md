@@ -21,6 +21,9 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
 - Auth is authorization-code + PKCE against an external identity provider. Accounts bind to
   the immutable `sub` claim (`users.oauth_provider` + `users.oauth_subject`), **never** to the
   email address. See README for `php artisan oauth:bind-subject`.
+- `/account` (`App\Http\Controllers\Account\AccountController` over `App\Services\Account\AccountEmail`)
+  confirms or changes the account email by emailed link; a confirmed address is no longer replaced
+  at sign-in. Mail goes through Brevo (`MAIL_MAILER=brevo`, `MAILER_DSN`). See README "Account email".
 - Application administrator is `users.is_admin` (never set by sign-in), checked through the
   `administer` gate and changed only through `App\Services\Admin\ApplicationAdministrators`,
   which owns the last-administrator rule. See README for `php artisan users:admin`.

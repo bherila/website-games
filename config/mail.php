@@ -79,6 +79,21 @@ return [
             'transport' => 'array',
         ],
 
+        // Brevo's HTTP API (`brevo+api://KEY@default` in MAILER_DSN), as the other sites send.
+        'brevo' => [
+            'transport' => 'brevo',
+        ],
+
+        // Brevo first, the host's SMTP relay if Brevo refuses.
+        'hybrid' => [
+            'transport' => 'failover',
+            'mailers' => [
+                'brevo',
+                'smtp',
+            ],
+            'retry_after' => 60,
+        ],
+
         'failover' => [
             'transport' => 'failover',
             'mailers' => [

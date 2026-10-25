@@ -5,8 +5,11 @@ namespace App\Providers;
 use App\Models\User;
 use App\Services\Admin\DelegatedApplicationAccess;
 use BWH\Auth\OAuth\DelegatedAccess\ApplicationAccessAdapter;
+use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoTransportFactory;
+use Symfony\Component\Mailer\Transport\Dsn;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +32,9 @@ class AppServiceProvider extends ServiceProvider
         // Operator-only surfaces. Being signed in is not enough: every account is created at
         // first sign-in, so the flag is the only thing that separates an operator from a player.
         Gate::define('administer', fn (User $user): bool => $user->isAdministrator());
+
+        $this->app->make(MailManager::class)->extend('brevo', fn () => (new BrevoTransportFactory)->create(
+            Dsn::fromString((string) config('services.brevo.dsn')),
+        ));
     }
 }

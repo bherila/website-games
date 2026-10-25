@@ -18,6 +18,10 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    'brevo' => [
+        'dsn' => env('MAILER_DSN'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

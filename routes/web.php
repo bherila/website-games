@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Account\AccountController;
 use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\GamePwaController;
 use App\Http\Controllers\OAuthLoginController;
@@ -21,6 +22,18 @@ Route::get('/oauth/callback', [OAuthLoginController::class, 'callback'])
 Route::post('/logout', [OAuthLoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
+
+// The account page. Confirmation links require the same signed-in account, so a forwarded or
+// intercepted link cannot change someone else's address.
+Route::middleware('auth')->group(function (): void {
+    Route::get('/account', [AccountController::class, 'show'])->name('account.show');
+    Route::post('/account/email', [AccountController::class, 'requestEmail'])
+        ->middleware('throttle:5,60')
+        ->name('account.email.request');
+    Route::get('/account/email/confirm/{token}', [AccountController::class, 'confirmEmail'])
+        ->middleware('throttle:20,1')
+        ->name('account.email.confirm');
+});
 
 // Routes are root-mounted (no '/games' prefix). Route *names* keep the 'games.'
 // prefix as an internal identifier, separate from the user-facing URL.
