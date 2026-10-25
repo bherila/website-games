@@ -28,10 +28,10 @@ Route::post('/logout', [OAuthLoginController::class, 'logout'])
 Route::middleware('auth')->group(function (): void {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account/email', [AccountController::class, 'requestEmail'])
-        ->middleware('throttle:5,60')
+        ->middleware('throttle:account-email-request')
         ->name('account.email.request');
     Route::get('/account/email/confirm/{token}', [AccountController::class, 'confirmEmail'])
-        ->middleware('throttle:20,1')
+        ->middleware('throttle:account-email-confirm')
         ->name('account.email.confirm');
 });
 

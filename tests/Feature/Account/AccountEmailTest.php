@@ -147,6 +147,25 @@ class AccountEmailTest extends TestCase
         $this->actingAs($user)->post('/account/email', ['email' => 'try6@example.test'])->assertTooManyRequests();
     }
 
+    public function test_confirmation_clicks_and_game_saves_do_not_spend_the_email_allowance(): void
+    {
+        $user = User::factory()->create();
+        // Before the limiters were named, every unprefixed throttle shared one per-user counter.
+        foreach (range(1, 10) as $attempt) {
+            $this->actingAs($user)->get("/account/email/confirm/not-a-token-{$attempt}")->assertRedirect('/account');
+        }
+        foreach (range(1, 25) as $attempt) {
+            $this->actingAs($user)->getJson('/api/games/data')->assertOk();
+        }
+
+        foreach (range(1, 5) as $attempt) {
+            $this->actingAs($user)->post('/account/email', ['email' => "try{$attempt}@example.test"])->assertRedirect('/account');
+        }
+        $this->actingAs($user)->post('/account/email', ['email' => 'try6@example.test'])->assertTooManyRequests();
+        // And the confirmation limit is still untouched by all of the above.
+        $this->actingAs($user)->get('/account/email/confirm/still-allowed')->assertRedirect('/account');
+    }
+
     public function test_the_home_page_links_to_the_account_and_flags_an_unconfirmed_email(): void
     {
         $user = User::factory()->create(['email_verified_at' => null]);
