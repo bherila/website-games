@@ -1,4 +1,5 @@
-.plate-escape { font-family: 'Atkinson Hyperlegible Next Variable', sans-serif; }
+.plate-escape { font-family: 'Atkinson Hyperlegible Next Variable', sans-serif; --plate-tray-empty: #cbd5d6; }
+.dark .plate-escape { --plate-tray-empty: #475663; }
 .plate-tray-row { display: flex; justify-content: center; max-width: calc(var(--tray-count) * 76px + 64px); margin-inline: auto; padding-block: 4px; }
 .plate-color-tray { flex: 0 1 140px; width: 140px; aspect-ratio: 4 / 3; min-width: 0; }
 .plate-color-tray + .plate-color-tray { margin-left: calc(-60% / var(--tray-count)); }
