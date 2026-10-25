@@ -103,14 +103,15 @@ class AccountEmailTest extends TestCase
     public function test_an_address_held_by_another_account_is_refused_only_after_its_link_is_opened(): void
     {
         $user = User::factory()->create(['email' => 'mine@example.test']);
-        User::factory()->create(['email' => 'Taken@example.test']);
+        // Unconfirmed, so it is refused; a confirmed holder is offered as a merge (AccountMergeTest).
+        User::factory()->create(['email' => 'Taken@example.test', 'email_verified_at' => null]);
 
         // Asking reveals nothing: the response is the same as for a free address.
         $this->actingAs($user)->post('/account/email', ['email' => 'taken@example.test'])
             ->assertSessionHas('status', 'We sent a confirmation link to taken@example.test. It works for 60 minutes.');
 
         $this->actingAs($user)->get('/account/email/confirm/'.$this->tokenSentTo('taken@example.test'))
-            ->assertSessionHas('error', 'That address now belongs to another Games account, so it cannot be used here.');
+            ->assertSessionHas('error', 'That address belongs to another Games account that has not confirmed it, so it cannot be used or merged here. Sign in to that account and confirm its email first.');
         $this->assertSame('mine@example.test', $user->fresh()?->email);
     }
 

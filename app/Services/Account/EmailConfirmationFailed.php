@@ -19,6 +19,6 @@ final class EmailConfirmationFailed extends RuntimeException
 
     public static function taken(): self
     {
-        return new self('That address now belongs to another Games account, so it cannot be used here.');
+        return new self('That address belongs to another Games account that has not confirmed it, so it cannot be used or merged here. Sign in to that account and confirm its email first.');
     }
 }

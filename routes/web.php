@@ -46,6 +46,10 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/account', [AccountController::class, 'destroy'])
         ->middleware('throttle:5,1,account-delete')
         ->name('account.destroy');
+    Route::post('/account/merge', [AccountController::class, 'merge'])
+        ->middleware('throttle:5,1,account-merge')
+        ->name('account.merge');
+    Route::delete('/account/merge', [AccountController::class, 'cancelMerge'])->name('account.merge.cancel');
     Route::get('/account/email/confirm/{token}', [AccountController::class, 'confirmEmail'])
         ->middleware('throttle:account-email-confirm')
         ->name('account.email.confirm');

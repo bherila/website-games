@@ -92,6 +92,31 @@ id in metadata. Administrators are refused until their flag is revoked. A test p
 with a `user_id` column to a deletion decision, so a new table fails until it has one. Signing in
 again later starts a new, empty account.
 
+### Merging accounts
+
+When a signed-in player opens the confirmation link for an address another account holds, the
+outcome depends on that account. If it confirmed the address, the account page offers a merge:
+opening the link proved control of that mailbox, and under the email rule that is control of the
+account. The offer lasts 15 minutes in that session. If the other account never confirmed the
+address, the change is refused, because the mailbox proves nothing about that account. Support
+can merge by id with `php artisan users:merge <keep> <absorb>` (`--force` skips the prompt).
+
+`App\Services\Account\AccountMerge` treats the absorbed account as a second device of the kept
+one:
+
+- **Sign-in methods** move across. Two identity-provider bindings or two Google links are refused
+  rather than dropped, and an administrator is never absorbed.
+- **Profile and level rows** combine through `GameDataMerger`, the same rules that settle two
+  devices: best values win for metrics, and otherwise the newer row's fields win. The kept row
+  gets a new revision so its devices re-read it.
+- **In-level snapshots** keep the newer one, and a deletion tombstone never erases live progress.
+- **Tower saves** move into free manual slots. On a clash the autosave keeps the newer one.
+- **Mandarin practice events** move, except duplicates, and are numbered after the kept account's
+  last event.
+
+The merge is audited as `accounts_merged` with counts, then the absorbed account is deleted
+through `AccountDeletion`, which records `account_deleted`.
+
 ### Google sign-in
 
 "Continue with Google" appears on `/login` once `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are

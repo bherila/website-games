@@ -33,6 +33,8 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
   deletion decision in `tests/Feature/Account/AccountDeletionTest.php`. `/privacy` (CCPA notices)
   and `/accessibility` (WCAG 2.1 AA statement) share a request form that emails `PRIVACY_CONTACT`,
   which is never displayed. The layout provides the only `<main>`, so components must not add another.
+  Confirming an address another confirmed account holds offers a merge
+  (`AccountMerge`, also `php artisan users:merge`); see README "Merging accounts".
 - Application administrator is `users.is_admin` (never set by sign-in), checked through the
   `administer` gate and changed only through `App\Services\Admin\ApplicationAdministrators`,
   which owns the last-administrator rule. See README for `php artisan users:admin`.
