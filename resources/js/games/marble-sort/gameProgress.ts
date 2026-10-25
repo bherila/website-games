@@ -1,16 +1,9 @@
-import { earnsCompletionReward } from '../_shared/campaignRewards'
-import {
-  defineGameData,
-  definitionRowKey,
-  type GameDataSlotInput,
-  gameDataStorage,
-} from '../_shared/gameDataPersistence'
+import { defineCampaignProgress } from '../_shared/campaignProgress'
 import {
   isRecord,
   parseArray,
   parseInteger,
   parseNumber,
-  parseStars,
   safeProgressNumber,
 } from '../_shared/progressParsers'
 import {
@@ -26,8 +19,6 @@ import {
   MARBLE_COLORS,
   MARBLE_SORT_PROGRESS_STORAGE_KEY,
   type MarbleBox,
-  type PowerUpInventory,
-  type SavedGameProgress,
   type SortingStack,
 } from './gameTypes'
 import { TOTAL_LEVELS } from './levels'
@@ -38,319 +29,33 @@ export { safeProgressNumber }
 // generated under row-based rules and may no longer be solvable.
 export const MARBLE_SORT_SNAPSHOT_STORAGE_KEY = 'bwh.marble-sort.snapshot.v4'
 
-interface SavedLevelSnapshot {
-  version: 2
-  state: GameState
-}
-
-function defineMarbleSortProgressGameData(includeInventory: boolean, promoteLocal: boolean) {
-  return defineGameData<SavedGameProgress>({
-    game: 'marble-sort',
-    localStorageKey: MARBLE_SORT_PROGRESS_STORAGE_KEY,
-    promoteLocal,
-    parse: parseSavedProgress,
-    encode: (progress) => {
-      const slots: GameDataSlotInput[] = [{
-        scope: 'profile',
-        slot: 'default',
-        data: {
-          version: 2,
-          unlocked_level: progress.unlockedLevel,
-          total_score: progress.totalScore,
-          high_score: progress.highScore,
-        },
-      }]
-      if (includeInventory) {
-        slots.push({
-          scope: 'profile',
-          slot: 'inventory',
-          data: { version: 2, power_ups: progress.powerUps },
-        })
-      }
-      slots.push(...[...new Set([...Object.keys(progress.stars), ...Object.keys(progress.levelScores)])]
-        .map((level) => Number(level))
-        .filter((level) => Number.isInteger(level) && level >= 1 && level <= TOTAL_LEVELS)
-        .map((level) => ({
-          scope: 'level' as const,
-          slot: String(level),
-          data: {
-            version: 2,
-            stars: progress.stars[level] ?? 0,
-            score: progress.levelScores[level] ?? 0,
-          },
-        })))
-
-      return slots
-    },
-    decode: (rows) => {
-      const profileRow = rows.get(definitionRowKey('profile', 'default'))
-      const profile = profileRow?.data.version === 2 ? profileRow : undefined
-      const inventoryRow = includeInventory ? rows.get(definitionRowKey('profile', 'inventory')) : undefined
-      const inventory = inventoryRow?.data.version === 2 ? inventoryRow : undefined
-      let unlockedLevel = parseInteger(profile?.data.unlocked_level, 1) ?? 1
-      const stars: Record<number, number> = {}
-      const levelScores: Record<number, number> = {}
-      let found = Boolean(profile || inventory)
-
-      for (let level = 1; level <= TOTAL_LEVELS; level += 1) {
-        const row = rows.get(definitionRowKey('level', String(level)))
-        if (row?.data.version !== 2) {
-          continue
-        }
-
-        const rowStars = parseInteger(row.data.stars, 0)
-        const rowScore = parseInteger(row.data.score, 0)
-        if (rowStars === null || rowStars > 3 || rowScore === null) {
-          continue
-        }
-
-        found = true
-        stars[level] = rowStars
-        levelScores[level] = rowScore
-        unlockedLevel = Math.max(unlockedLevel, level + 1)
-      }
-
-      const bestScoreTotal = Object.values(levelScores).reduce((total, score) => total + score, 0)
-      const hydratedTotalScore = Math.max(safeProgressNumber(profile?.data.total_score), bestScoreTotal)
-
-      return found ? parseSavedProgress({
-        version: 2,
-        unlockedLevel,
-        stars,
-        levelScores,
-        totalScore: hydratedTotalScore,
-        highScore: Math.max(safeProgressNumber(profile?.data.high_score), hydratedTotalScore),
-        powerUps: inventory?.data.power_ups,
-      }) : null
-    },
-  })
-}
-
-export const MARBLE_SORT_PROGRESS_GAME_DATA = defineMarbleSortProgressGameData(true, true)
-export const MARBLE_SORT_CATALOG_GAME_DATA = defineMarbleSortProgressGameData(false, false)
-
-export const MARBLE_SORT_SNAPSHOT_GAME_DATA = defineGameData<SavedLevelSnapshot>({
+const campaign = defineCampaignProgress({
   game: 'marble-sort',
-  localStorageKey: MARBLE_SORT_SNAPSHOT_STORAGE_KEY,
-  parse: parseSavedLevelSnapshot,
-  encode: (snapshot) => [{
-    scope: 'save',
-    slot: 'autosave',
-    data: snapshot as unknown as Record<string, unknown>,
-  }],
-  decode: (rows) => parseSavedLevelSnapshot(rows.get(definitionRowKey('save', 'autosave'))?.data),
-  clearSlots: [{ scope: 'save', slot: 'autosave' }],
+  progressKey: MARBLE_SORT_PROGRESS_STORAGE_KEY,
+  snapshotKey: MARBLE_SORT_SNAPSHOT_STORAGE_KEY,
+  version: 2,
+  powerUps: ['extraBelt', 'magnet', 'shuffle'],
+  totalLevels: TOTAL_LEVELS,
+  parseGameState,
+  cloneState: cloneSerializableState,
 })
 
-export const MARBLE_SORT_GAME_DATA = [MARBLE_SORT_PROGRESS_GAME_DATA, MARBLE_SORT_SNAPSHOT_GAME_DATA] as const
-
-export function createInitialPowerUps(): PowerUpInventory {
-  return {
-    extraBelt: 0,
-    magnet: 0,
-    shuffle: 0,
-  }
-}
-
-export function createInitialProgress(): SavedGameProgress {
-  return {
-    version: 2,
-    unlockedLevel: 1,
-    stars: {},
-    levelScores: {},
-    totalScore: 0,
-    highScore: 0,
-    powerUps: createInitialPowerUps(),
-  }
-}
-
-export function loadProgress(storage: Pick<Storage, 'getItem'> | null = gameDataStorage()): SavedGameProgress {
-  if (!storage) {
-    return createInitialProgress()
-  }
-
-  try {
-    const raw = storage.getItem(MARBLE_SORT_PROGRESS_STORAGE_KEY)
-    if (!raw) {
-      return createInitialProgress()
-    }
-
-    return parseSavedProgress(JSON.parse(raw)) ?? createInitialProgress()
-  } catch {
-    return createInitialProgress()
-  }
-}
-
-/**
- * Records a level win from a completed state. Never lowers an earned star
- * count or the unlocked-level watermark. Score and power-up rewards are only
- * persisted when the completion improves the saved star result.
- */
-export function recordWin(progress: SavedGameProgress, state: GameState): SavedGameProgress {
-  const completed = state.completedLevel
-  if (!completed) {
-    return progress
-  }
-
-  const existingStars = progress.stars[completed.level] ?? 0
-  const rewardEarned = earnsCompletionReward(existingStars, completed.stars)
-  const levelScores = rewardEarned
-    ? {
-        ...progress.levelScores,
-        [completed.level]: Math.max(progress.levelScores[completed.level] ?? 0, completed.score),
-      }
-    : { ...progress.levelScores }
-  const totalScore = rewardEarned
-    ? Math.max(
-        progress.totalScore,
-        state.totalScore,
-        Object.values(levelScores).reduce((total, score) => total + score, 0),
-      )
-    : progress.totalScore
-
-  return {
-    version: 2,
-    // Deliberately uncapped: finishing today's final level pre-unlocks the
-    // next one the moment more levels ship. The grid only renders defined ids.
-    unlockedLevel: Math.max(progress.unlockedLevel, completed.level + 1),
-    stars: { ...progress.stars, [completed.level]: Math.max(existingStars, completed.stars) },
-    levelScores,
-    totalScore,
-    highScore: Math.max(progress.highScore, state.highScore, totalScore),
-    powerUps: rewardEarned ? { ...state.powerUps } : { ...progress.powerUps },
-  }
-}
-
-
-export function saveProgress(progress: SavedGameProgress, storage: Pick<Storage, 'setItem'> | null = gameDataStorage()): void {
-  if (!storage) {
-    return
-  }
-
-  try {
-    storage.setItem(MARBLE_SORT_PROGRESS_STORAGE_KEY, JSON.stringify(progress))
-  } catch {
-    // Persistence failures must not interrupt gameplay.
-  }
-}
-
-export function saveLevelSnapshot(state: GameState, storage: Pick<Storage, 'setItem'> | null = gameDataStorage()): void {
-  if (!storage || state.completedLevel) {
-    return
-  }
-
-  const snapshot: SavedLevelSnapshot = {
-    version: 2,
-    state: cloneSerializableState(state),
-  }
-  try {
-    storage.setItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshot))
-  } catch {
-    // Persistence failures must not interrupt gameplay.
-  }
-}
-
-export function loadLevelSnapshot(
-  storage: Pick<Storage, 'getItem'> | null = gameDataStorage(),
-  progress: SavedGameProgress = loadProgress(storage),
-): GameState | null {
-  if (!storage) {
-    return null
-  }
-
-  try {
-    const raw = storage.getItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)
-    if (!raw) {
-      return null
-    }
-
-    const parsed = JSON.parse(raw) as unknown
-    if (!isRecord(parsed) || parsed.version !== 2) {
-      return null
-    }
-
-    const state = parseGameState(parsed.state)
-    if (!state || state.level > progress.unlockedLevel) {
-      return null
-    }
-
-    return state
-  } catch {
-    return null
-  }
-}
-
-export function clearLevelSnapshot(storage: Pick<Storage, 'removeItem'> | null = gameDataStorage()): void {
-  try {
-    storage?.removeItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)
-  } catch {
-    // Persistence failures must not interrupt gameplay.
-  }
-}
-
-export function parseSavedProgress(value: unknown): SavedGameProgress | null {
-  if (!isRecord(value) || value.version !== 2) {
-    return null
-  }
-
-  const unlockedLevel = parseInteger(value.unlockedLevel, 1)
-  const stars = parseStars(value.stars)
-  const levelScores = parseLevelScores(value.levelScores)
-  if (unlockedLevel === null || stars === null || levelScores === null) {
-    return null
-  }
-
-  return {
-    version: 2,
-    unlockedLevel,
-    stars,
-    levelScores,
-    totalScore: safeProgressNumber(value.totalScore),
-    highScore: safeProgressNumber(value.highScore),
-    powerUps: sanitizePowerUps(value.powerUps),
-  }
-}
-
-function parseSavedLevelSnapshot(value: unknown): SavedLevelSnapshot | null {
-  if (!isRecord(value) || value.version !== 2) {
-    return null
-  }
-
-  const state = parseGameState(value.state)
-
-  return state ? { version: 2, state } : null
-}
-
-function parseLevelScores(value: unknown): Record<number, number> | null {
-  if (value === undefined) {
-    return {}
-  }
-  if (!isRecord(value)) {
-    return null
-  }
-
-  const scores: Record<number, number> = {}
-  for (const [level, score] of Object.entries(value)) {
-    const parsedLevel = parseInteger(Number(level), 1)
-    const parsedScore = parseInteger(score, 0)
-    if (parsedLevel === null || parsedScore === null) {
-      return null
-    }
-    scores[parsedLevel] = parsedScore
-  }
-
-  return scores
-}
-
-export function sanitizePowerUps(powerUps: unknown): PowerUpInventory {
-  const candidate = powerUps as Partial<PowerUpInventory> | undefined
-
-  return {
-    extraBelt: Math.max(0, safeProgressNumber(candidate?.extraBelt)),
-    magnet: Math.max(0, safeProgressNumber(candidate?.magnet)),
-    shuffle: Math.max(0, safeProgressNumber(candidate?.shuffle)),
-  }
-}
+export const MARBLE_SORT_PROGRESS_GAME_DATA = campaign.progressGameData
+export const MARBLE_SORT_CATALOG_GAME_DATA = campaign.catalogGameData
+export const MARBLE_SORT_SNAPSHOT_GAME_DATA = campaign.snapshotGameData
+export const MARBLE_SORT_GAME_DATA = campaign.gameData
+export const {
+  createInitialPowerUps,
+  createInitialProgress,
+  sanitizePowerUps,
+  parseSavedProgress,
+  loadProgress,
+  saveProgress,
+  recordWin,
+  saveLevelSnapshot,
+  loadLevelSnapshot,
+  clearLevelSnapshot,
+} = campaign
 
 function cloneSerializableState(state: GameState): GameState {
   return {
