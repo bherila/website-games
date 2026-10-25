@@ -22,6 +22,11 @@ final class AccountMergeRefused extends RuntimeException
         return new self('Both accounts sign in with bherila ID, and an account can have only one, so they cannot be merged.');
     }
 
+    public static function addressMoved(): self
+    {
+        return new self('The other account no longer holds that address, so nothing was merged. Request a new confirmation link.');
+    }
+
     public static function bothUseGoogle(): self
     {
         return new self('Both accounts are linked to a Google account, and an account can have only one, so they cannot be merged.');

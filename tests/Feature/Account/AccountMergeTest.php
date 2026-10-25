@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserGameData;
 use App\Models\UserIdentity;
 use App\Notifications\ConfirmEmailAddress;
+use App\Services\Account\AccountEmail;
 use App\Services\Account\AccountMerge;
 use App\Services\Account\AccountMergeRefused;
 use App\Services\Admin\AccessAudit;
@@ -295,6 +296,34 @@ class AccountMergeTest extends TestCase
         $this->assertSame(['version' => 1, 'stars' => 3], $this->data($victim, GameDataScope::Level, '1'));
         $this->assertSame('attacker@example.test', $attacker->fresh()?->email);
         $this->actingAs($attacker)->get('/account')->assertOk()->assertDontSee('Merge your other account?');
+    }
+
+    public function test_a_merge_is_refused_if_the_holder_gives_up_the_address_before_the_lock(): void
+    {
+        $keep = User::factory()->create(['email' => 'mine@example.test']);
+        $other = User::factory()->create(['email' => 'shared@example.test', 'email_verified_at' => now()]);
+        $this->actingAs($keep)->post('/account/email', ['email' => 'shared@example.test']);
+        $this->actingAs($keep)->get('/account/email/confirm/'.$this->tokenSentTo('shared@example.test'));
+        $binding = AccountEmail::mergeBinding($keep, EmailChangeRequest::query()->where('user_id', $keep->getKey())->sole());
+
+        // The other account changes its address in another request, committing after the
+        // offer's unlocked checks have read it and before the merge locks it.
+        $reads = 0;
+        User::retrieved(function (User $user) use ($other, &$reads): void {
+            if ($user->is($other) && ++$reads === 2) {
+                DB::table('users')->where('id', $other->getKey())->update(['email' => 'moved@example.test']);
+            }
+        });
+
+        try {
+            app(AccountEmail::class)->completeWithMerge($keep->fresh(), $binding, app(AccountMerge::class));
+            $this->fail('The merge went ahead.');
+        } catch (AccountMergeRefused) {
+        }
+
+        // The simulated commit shares the test's connection, so it rolls back with the refusal.
+        $this->assertModelExists($other);
+        $this->assertSame('mine@example.test', $keep->fresh()?->email);
     }
 
     public function test_a_merge_offer_expires_and_can_be_declined(): void

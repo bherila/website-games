@@ -184,7 +184,7 @@ final class AccountEmail
             if ($holder === null || $holder->email_verified_at === null) {
                 throw EmailConfirmationFailed::taken();
             }
-            $merge->merge($user, $holder, AccessAudit::METHOD_SESSION, $user);
+            $merge->merge($user, $holder, AccessAudit::METHOD_SESSION, $user, absorbHolds: $request->email);
 
             $previous = $this->apply($user->refresh(), $request);
         });

@@ -65,15 +65,21 @@ final class AccountMerge
     }
 
     /**
+     * `$absorbHolds` is the address whose confirmation authorized a self-service merge: the
+     * absorbed account must still hold it, confirmed, once locked.
+     *
      * @return array{game_rows: int, tower_slots: int, practice_events: int}
      *
      * @throws AccountMergeRefused
      */
-    public function merge(User $keep, User $absorb, string $authMethod, ?User $actingUser): array
+    public function merge(User $keep, User $absorb, string $authMethod, ?User $actingUser, ?string $absorbHolds = null): array
     {
-        return DB::transaction(function () use ($keep, $absorb, $authMethod, $actingUser): array {
+        return DB::transaction(function () use ($keep, $absorb, $authMethod, $actingUser, $absorbHolds): array {
             $keep = User::query()->lockForUpdate()->findOrFail($keep->getKey());
             $absorb = User::query()->lockForUpdate()->findOrFail($absorb->getKey());
+            if ($absorbHolds !== null && (AccountEmail::normalise($absorb->email) !== AccountEmail::normalise($absorbHolds) || $absorb->email_verified_at === null)) {
+                throw AccountMergeRefused::addressMoved();
+            }
             $this->assertMergeable($keep, $absorb);
 
             if ($absorb->oauth_subject !== null) {
