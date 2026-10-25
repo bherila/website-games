@@ -150,6 +150,19 @@ class GoogleSignInTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_a_remembered_google_session_still_signs_out_locally(): void
+    {
+        config(['bherila-auth.oauth_client.client_id' => 'games-client', 'bherila-auth.oauth_client.base_url' => 'https://identity.example.test']);
+        $this->google('google-sub-7', 'remembered@example.test', verified: true);
+        $this->get('/oauth/google/callback');
+        $player = User::query()->sole();
+
+        // A remember-me restore: authenticated again, but with no recorded sign-in method.
+        $this->flushSession();
+        $this->actingAs($player)->post('/logout')->assertRedirect('/');
+        $this->assertGuest();
+    }
+
     private function providerAccount(string $email, bool $confirmed): User
     {
         $user = User::factory()->create(['email' => $email, 'email_verified_at' => $confirmed ? now() : null]);

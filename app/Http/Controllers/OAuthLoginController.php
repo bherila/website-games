@@ -52,8 +52,12 @@ class OAuthLoginController extends Controller
 
     public function logout(Request $request, OAuthClient $oauth): RedirectResponse
     {
-        // A Google session never involved the identity provider, so it ends here.
-        if (SignInMethod::current($request->session()) === SignInMethod::GOOGLE) {
+        // A Google session never involved the identity provider, so it ends here. A session
+        // restored from the remember-me cookie records no method; an account with no identity
+        // provider binding can only have signed in with Google, so it ends here too.
+        $method = SignInMethod::current($request->session());
+        $user = $request->user();
+        if ($method === SignInMethod::GOOGLE || ($method === null && $user instanceof User && $user->oauth_subject === null)) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

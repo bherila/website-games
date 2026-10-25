@@ -48,7 +48,8 @@ class OAuthLoginTest extends TestCase
 
     public function test_signing_out_ends_the_session_at_the_provider(): void
     {
-        $user = User::factory()->create();
+        // Bound to the identity provider; an account without that binding signed in with Google.
+        $user = User::factory()->create(['oauth_provider' => 'bherila', 'oauth_subject' => 'signing-out-subject']);
 
         // Ending only the local session leaves the provider still recognising this person,
         // so the next sign-in returns them with no prompt and the button reads as a no-op.
