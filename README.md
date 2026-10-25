@@ -69,8 +69,20 @@ writes messages to the log.
 ### Privacy page and account deletion
 
 `/privacy` describes what is stored, the cookies and services involved, and how to delete an
-account. Its contact section appears when `PRIVACY_CONTACT` is set. It is linked from the home
-page, `/login` and `/account`, and is the privacy policy link for Google's consent screen.
+account. It includes the California notice at collection, the no-sale/no-sharing statement with
+Global Privacy Control, consumer rights, verification, authorized agents and the 45-day response
+time. `/accessibility` is the accessibility statement, targeting WCAG 2.1 AA, with its known
+limitations. Both are linked from every site page, and `/privacy` is the privacy policy link for
+Google's consent screen.
+
+Both pages end in one request form (`App\Services\Privacy\PrivacyRequests`). It emails
+`PRIVACY_CONTACT`, which is never shown on the site, with the requester as reply-to, and
+acknowledges receipt to the requester. Nothing is stored. It appears only when `PRIVACY_CONTACT`
+is set and the mailer is not `log` or `array`. A hidden honeypot field and limits of five an hour
+per IP and three a day per address keep it from being used to spam. `tests/e2e/site-accessibility.spec.ts`,
+part of the always-run PWA browser job, checks the site pages (home, sign-in, account, privacy,
+accessibility) against axe's WCAG 2.1 AA rules in light and dark. It also checks for exactly one
+`main` landmark per page, since the layout provides it.
 
 The account page can delete the signed-in account after the holder types `DELETE`
 (`App\Services\Account\AccountDeletion`). Game saves, tower save slots, API tokens and database

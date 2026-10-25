@@ -31,8 +31,9 @@
             </a>
         </div>
         <p class="mt-6 text-center text-xs text-muted-foreground">
-            Playing without an account keeps progress in this browser only. <a href="{{ route('privacy') }}" class="underline hover:text-foreground">Privacy</a>
+            Playing without an account keeps progress in this browser only.
         </p>
     </div>
+    <div class="mt-4">@include('partials.legal-links')</div>
 </div>
 @endsection

@@ -30,8 +30,9 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
   confirms or changes the account email by emailed link; a confirmed address is no longer replaced
   at sign-in. Mail goes through Brevo (`MAIL_MAILER=brevo`, `MAILER_DSN`). See README "Account email".
   It also deletes the account (`AccountDeletion`). A new table with a `user_id` column needs a
-  deletion decision in `tests/Feature/Account/AccountDeletionTest.php`. `/privacy` is the public
-  privacy page.
+  deletion decision in `tests/Feature/Account/AccountDeletionTest.php`. `/privacy` (CCPA notices)
+  and `/accessibility` (WCAG 2.1 AA statement) share a request form that emails `PRIVACY_CONTACT`,
+  which is never displayed. The layout provides the only `<main>`, so components must not add another.
 - Application administrator is `users.is_admin` (never set by sign-in), checked through the
   `administer` gate and changed only through `App\Services\Admin\ApplicationAdministrators`,
   which owns the last-administrator rule. See README for `php artisan users:admin`.
