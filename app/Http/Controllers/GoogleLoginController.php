@@ -61,9 +61,16 @@ class GoogleLoginController extends Controller
             return redirect()->route('login')->with('error', $refusal->getMessage());
         }
 
+        // A new sign-in inherits nothing from whoever was signed in on this browser before, such
+        // as the identity provider's list of their other applications; only the page to return
+        // to is kept.
+        $intended = $request->session()->pull('url.intended');
+        $request->session()->invalidate();
         Auth::login($user, remember: true);
-        $request->session()->regenerate();
         SignInMethod::remember($request->session(), SignInMethod::GOOGLE);
+        if (is_string($intended)) {
+            $request->session()->put('url.intended', $intended);
+        }
 
         return redirect()->intended('/');
     }

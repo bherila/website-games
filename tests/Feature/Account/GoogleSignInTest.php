@@ -7,6 +7,7 @@ use App\Models\UserIdentity;
 use App\Services\Account\SignInMethod;
 use App\Services\Admin\AccessAudit;
 use BWH\Auth\Models\AuthAuditLog;
+use BWH\Auth\OAuth\ProviderApplications;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as GoogleUser;
@@ -161,6 +162,20 @@ class GoogleSignInTest extends TestCase
         $this->flushSession();
         $this->actingAs($player)->post('/logout')->assertRedirect('/');
         $this->assertGuest();
+    }
+
+    public function test_a_google_sign_in_does_not_inherit_the_previous_accounts_session(): void
+    {
+        $previous = $this->providerAccount('previous@example.test', confirmed: true);
+        $this->actingThroughIdentityProvider($previous)->withSession([ProviderApplications::SESSION_KEY => [['key' => 'ledger', 'name' => 'Private Ledger', 'url' => 'https://ledger.example.test']]]);
+        $this->get('/')->assertSee('Private Ledger');
+
+        $this->google('google-sub-8', 'someone.else@example.test', verified: true);
+        $this->get('/oauth/google/callback')->assertRedirect('/');
+
+        $this->assertSame('someone.else@example.test', auth()->user()?->email);
+        $this->assertNull(session(ProviderApplications::SESSION_KEY));
+        $this->get('/')->assertOk()->assertDontSee('Private Ledger');
     }
 
     private function providerAccount(string $email, bool $confirmed): User
