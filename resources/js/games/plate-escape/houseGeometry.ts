@@ -52,8 +52,23 @@ function windowFrame(parent: THREE.Group, x: number, y: number, width = 0.66, he
   box(parent, [width + 0.24, 0.07, 0.19], [x, y - height / 2 - 0.07, 0.22], '#d1ae80')
 }
 
+/** Depth from a wall's centre plane to its outer face, matching createPlateMesh's extrusion. */
+export const PANEL_FACE = 0.13
+
+/**
+ * Covers stand off their wall; two blocks behind the ends bolt them to it.
+ * They sit outboard of every wall screw so no head's access ray crosses one.
+ */
+function spacers(parent: THREE.Group, plate: Plate, standoff: number, color: string): void {
+  const length = standoff - PANEL_FACE * 2
+  for (const side of [-1, 1]) {
+    const block = box(parent, [0.16, 0.62, length], [side * (plate.size[0] / 2 - 0.16), 0, -PANEL_FACE - length / 2], color)
+    block.userData.spacer = true
+  }
+}
+
 /** All architectural details belong to their panel, so they leave with it. */
-export function decoratePlate(plate: Plate): THREE.Group {
+export function decoratePlate(plate: Plate, standoff = 0): THREE.Group {
   const details = new THREE.Group()
   const [width, height] = plate.size
   const cream = '#fff2d7'
@@ -92,6 +107,7 @@ export function decoratePlate(plate: Plate): THREE.Group {
         trim.rotation.z = -side * Math.atan2(plate.gableRise, width / 2)
       }
     }
+    if (plate.finish === 'glass' && standoff > 0) spacers(details, plate, standoff, frame)
     if (plate.finish === 'awning') {
       for (const x of [-1.5, -0.9, -0.3, 0.3, 0.9, 1.5]) box(details, [0.20, height - 0.08, 0.025], [x, 0, 0.14], '#c46e5b')
     } else if (plate.finish !== 'glass') {
@@ -101,6 +117,7 @@ export function decoratePlate(plate: Plate): THREE.Group {
     return details
   }
   if (plate.finish === 'brace') {
+    if (standoff > 0) spacers(details, plate, standoff, '#94653e')
     for (const y of [-0.3, 0, 0.3]) box(details, [width - 0.1, 0.025, 0.03], [0, y, 0.13], '#94653e')
     const diagonal = box(details, [width - 0.24, 0.10, 0.07], [0, 0, 0.16], '#d0a876')
     diagonal.rotation.z = 0.15
@@ -197,6 +214,16 @@ export function createGarden(theme?: 'windmill' | 'glasshouse' | 'cafe'): THREE.
 }
 
 
+/** Distance from a cover to the parallel wall behind it, or 0 when it has none. */
+export function coverStandoff(plate: Plate, plates: readonly Plate[]): number {
+  if (plate.finish !== 'brace' && plate.finish !== 'glass') return 0
+  const normal = new THREE.Vector3().fromArray(plate.normal)
+  const offsets = plates.filter((wall) => wall.id !== plate.id && wall.finish !== plate.finish && new THREE.Vector3().fromArray(wall.normal).dot(normal) > 0.999)
+    .map((wall) => new THREE.Vector3().fromArray(plate.position).sub(new THREE.Vector3().fromArray(wall.position)).dot(normal))
+    .filter((offset) => offset > 0)
+  return offsets.length ? Math.min(...offsets) : 0
+}
+
 /** The same panel body is used for rendering and geometry/access verification. */
 export function createPlateMesh(plate: Plate, screws: readonly Screw[]): THREE.Mesh {
   const shape = plateOutline(plate)
@@ -205,7 +232,7 @@ export function createPlateMesh(plate: Plate, screws: readonly Screw[]): THREE.M
     hole.absarc(screw.position[0], screw.position[1], 0.14, 0, Math.PI * 2, true)
     shape.holes.push(hole)
   }
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.04, bevelSegments: 2, steps: 1 })
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: PANEL_FACE - 0.09, bevelSegments: 2, steps: 1 })
   geometry.translate(0, 0, -0.09)
   const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: plate.color, metalness: plate.translucent ? 0 : 0.12, roughness: plate.translucent ? 0.12 : 0.45, transparent: Boolean(plate.translucent), opacity: plate.translucent ? 0.22 : 1, depthWrite: !plate.translucent, side: plate.translucent ? THREE.DoubleSide : THREE.FrontSide }))
   mesh.castShadow = !plate.translucent

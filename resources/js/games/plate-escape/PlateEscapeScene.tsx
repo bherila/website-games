@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
-import { createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
+import { coverStandoff, createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
 import { COLORS, getLevel } from './level'
 import { traceScrew } from './screwVisibility'
 
@@ -116,7 +116,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
       plateGroups.set(plate.id, group)
       const screws = SCREWS.filter((screw) => screw.plate === plate.id)
       const mesh = createPlateMesh(plate, screws)
-      group.add(mesh, decoratePlate(plate))
+      group.add(mesh, decoratePlate(plate, coverStandoff(plate, PLATES)))
       hitObjects.push(group)
       for (const screw of screws) {
         const screwGroup = makeScrew(COLORS[screw.color].hex, screw.color)
