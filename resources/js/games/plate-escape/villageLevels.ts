@@ -9,7 +9,9 @@ export function createVillageLevels(plates: readonly Plate[], screws: readonly S
     const y = Math.cos(angle)
     return { id: `sail-${color}`, name: `${color} sail`, position: [x * 0.85, 0.5 + y * 0.85, 1.95 + index * 0.035], size: [0.70, 1.9], normal: [0, 0, 1], up: [x, y, 0], finish: 'sail', color: '#f0dfb7' }
   })
-  const millColors: Record<string, ScrewColor> = { 'front-1': 'blue', 'back-1': 'mint', 'left-roof-1': 'coral', 'left-roof-2': 'amber', 'right-roof-2': 'amber' }
+  // The back wall’s only screw waits for the roof, so it takes the late blue
+  // and the roof gives up the mint; this keeps the mill's difficulty.
+  const millColors: Record<string, ScrewColor> = { 'front-1': 'blue', 'back-1': 'blue', 'right-roof-1': 'mint', 'left-roof-1': 'coral', 'left-roof-2': 'amber', 'right-roof-2': 'amber' }
   const mill: PuzzleLevel = {
     id: 3, name: 'Village Windmill', spareCapacity: 2, overflowLoses: true,
     trayColors: colors, theme: 'windmill',
@@ -25,7 +27,7 @@ export function createVillageLevels(plates: readonly Plate[], screws: readonly S
     trayColors: colors, theme: 'glasshouse',
     introduction: 'You can see screws through glass, but cannot reach through it. A lock marks a covered head. Remove the outer glass panel to reach the screws behind it. This introduction gives you three spare slots.',
     plates: workshop.plates.map((plate): Plate => ({ ...plate, translucent: true, color: '#a4d7cf', finish: plate.finish === 'roof' ? 'glass-roof' : plate.finish === 'brace' ? 'glass' : 'glass-wall' })),
-    screws: workshop.screws.map((screw): Screw => ({ ...screw, ...(screw.id === 'front-brace-1' ? { position: [-1.4, 0] as const } : screw.id === 'front-brace-2' ? { position: [1.4, 0] as const } : screw.id === 'back-brace-1' ? { position: [1.1, 0] as const } : {}), ...(['front-1', 'front-2'].includes(screw.id) ? { blockedBy: ['front-brace'] } : screw.id === 'back-1' ? { blockedBy: ['back-brace'] } : {}) })),
+    screws: workshop.screws.map((screw): Screw => ({ ...screw, ...(screw.id === 'front-brace-1' ? { position: [-1.4, 0] as const } : screw.id === 'front-brace-2' ? { position: [1.4, 0] as const } : {}) })),
   }
   glasshouse.plates = glasshouse.plates.map((plate) => ({ ...plate, name: plate.id === 'front-brace' ? 'Front glass cover' : plate.id === 'back-brace' ? 'Back glass cover' : plate.name }))
   const slope = Math.SQRT1_2
@@ -39,7 +41,7 @@ export function createVillageLevels(plates: readonly Plate[], screws: readonly S
       { id: 'cafe-sign', name: 'Café sign', position: [0, 0.92, 2.3], size: [3.6, 0.9], normal: [0, 0, 1], up: [0, 1, 0], finish: 'sign', color: '#48776f' },
     ],
     screws: [
-      ...workshop.screws.filter((screw) => !screw.plate.endsWith('brace')).map((screw): Screw => ({ ...screw, ...(['front-1', 'front-2'].includes(screw.id) ? { blockedBy: ['cafe-sign', 'cafe-awning'] } : {}) })),
+      ...workshop.screws.filter((screw) => !screw.plate.endsWith('brace')).map(({ blockedBy: _braces, ...screw }): Screw => ({ ...screw, ...(['front-1', 'front-2'].includes(screw.id) ? { blockedBy: ['cafe-sign', 'cafe-awning'] } : {}) })),
       { id: 'cafe-sign-1', plate: 'cafe-sign', color: 'coral', position: [-1.35, 0] },
       { id: 'cafe-sign-2', plate: 'cafe-sign', color: 'coral', position: [1.35, 0] },
       { id: 'cafe-awning-1', plate: 'cafe-awning', color: 'mint', position: [0, -0.25], blockedBy: ['cafe-sign'] },

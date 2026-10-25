@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
-import { VILLAGE_TRACES } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
 
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
@@ -126,7 +126,7 @@ test.describe('Plate Escape real puzzle', () => {
     await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
     await expect(page.getByLabel('Spare storage: 0 of 2', { exact: true })).toBeVisible()
-    for (const id of ['front-brace-1', 'back-brace-1', 'left-1', 'front-brace-2', 'right-1', 'left-roof-1', 'front-1', 'back-1', 'right-roof-1', 'front-2', 'left-roof-2', 'right-roof-2']) await removeVisible(id)
+    for (const id of WORKSHOP_TRACE.win) await removeVisible(id)
     await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
     await expect(page.getByTestId('plate-progress')).toHaveText('8 / 8 plates released')
     await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()

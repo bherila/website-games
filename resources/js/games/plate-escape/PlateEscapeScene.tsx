@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
-import { blockingPlates, type PuzzleState } from './engine'
+import { type PuzzleState, screwLock } from './engine'
 import { createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
 import { COLORS, getLevel } from './level'
 import { traceScrew } from './screwVisibility'
@@ -208,8 +208,8 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
           ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera)
           const sight = traceScrew(ray, hitObjects)
           if (sight?.screwId !== screw.id) continue
-          const covers = blockingPlates(latestRef.current.state, screw)
-          const cover = PLATES.find((plate) => plate.id === covers[0])
+          const lock = screwLock(latestRef.current.state, screw)
+          const cover = lock?.kind === 'cover' ? PLATES.find((plate) => plate.id === lock.plate) : undefined
           targets.push({ id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2, coveredBy: cover?.name ?? sight.coveredBy })
         }
         latestRef.current.onTargets(targets)

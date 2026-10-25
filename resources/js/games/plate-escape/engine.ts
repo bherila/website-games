@@ -1,6 +1,8 @@
 import { getLevel, type Screw, type ScrewColor, TRAY_CAPACITY } from './level'
 
 export interface Tray { id: 'left' | 'right', color: ScrewColor | null, count: number }
+/** Why a head cannot be unscrewed yet: a cover in front of it, or a part resting on its plate. */
+export interface ScrewLock { kind: 'cover' | 'bearing', plate: string }
 export interface PuzzleState {
   level: number
   overflow: ScrewColor | null
@@ -25,7 +27,7 @@ export function removeScrew(state: PuzzleState, id: string): PuzzleState {
   if (state.overflow !== null || hasWon(state)) return state
   const level = getLevel(state.level)
   const screw = level.screws.find((candidate) => candidate.id === id)
-  if (!screw || state.removed.includes(id) || blockingPlates(state, screw).length > 0) return state
+  if (!screw || state.removed.includes(id) || screwLock(state, screw)) return state
   const next: PuzzleState = {
     ...state, removed: [...state.removed, id], trays: state.trays.map((tray) => ({ ...tray })),
     spare: [...state.spare], queue: [...state.queue], completed: [...state.completed],
@@ -77,7 +79,20 @@ export function hasWon(state: PuzzleState): boolean {
 }
 
 
-/** Covers block axial access even when a head can be glimpsed from an oblique angle. */
-export function blockingPlates(state: PuzzleState, screw: Screw): string[] {
-  return (screw.blockedBy ?? []).filter((id) => remainingScrews(state, id) > 0)
+/**
+ * Covers block axial access even when a head can be glimpsed from an oblique
+ * angle. A plate's last screw also stays put while a part still rests on it,
+ * so a roof can never be left hanging over released walls.
+ */
+export function screwLock(state: PuzzleState, screw: Screw): ScrewLock | null {
+  if (state.removed.includes(screw.id)) return null
+  const cover = (screw.blockedBy ?? []).find((id) => remainingScrews(state, id) > 0)
+  if (cover) return { kind: 'cover', plate: cover }
+  return remainingScrews(state, screw.plate) === 1 ? bearingLock(state, screw.plate) : null
+}
+
+/** The first attached part that rests on this plate, if any. */
+export function bearingLock(state: PuzzleState, plateId: string): ScrewLock | null {
+  const load = getLevel(state.level).plates.find((plate) => plate.restsOn?.includes(plateId) && remainingScrews(state, plate.id) > 0)
+  return load ? { kind: 'bearing', plate: load.id } : null
 }
