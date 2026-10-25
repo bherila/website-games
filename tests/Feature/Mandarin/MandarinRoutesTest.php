@@ -18,7 +18,7 @@ class MandarinRoutesTest extends TestCase
         return [
             'games.mandarin' => ['GET', '/mandarin', ['web'], []],
             'games.mandarin.preview' => ['GET', '/mandarin/preview', ['web'], []],
-            'games.mandarin.qa' => ['GET', '/mandarin/qa', ['web', 'auth'], []],
+            'games.mandarin.qa' => ['GET', '/mandarin/qa', ['web', 'auth', 'identity-provider-session'], []],
             'games.mandarin.media' => ['GET', '/media/games/mandarin/{asset}/{hash}.{extension}', ['web'], [
                 'asset' => '[0-9]+',
                 'hash' => '[a-f0-9]{64}',
@@ -29,11 +29,11 @@ class MandarinRoutesTest extends TestCase
             'games.mandarin.audio.poll' => ['GET', '/api/games/mandarin/audio/requests/{request}', ['api', 'web', 'throttle:120,1'], ['request' => '[0-9]+']],
             'games.mandarin.progress' => ['GET', '/api/games/mandarin/progress', ['api', 'web', 'auth', 'throttle:120,1'], []],
             'games.mandarin.events' => ['POST', '/api/games/mandarin/events', ['api', 'web', 'auth', 'throttle:120,1'], []],
-            'admin.mandarin.audio.request' => ['POST', '/api/admin/mandarin/audio/request', ['api', 'web', 'auth', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
-            'admin.mandarin.audio.regenerate' => ['POST', '/api/admin/mandarin/audio/regenerate', ['api', 'web', 'auth', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
-            'admin.mandarin.audio.request-missing' => ['POST', '/api/admin/mandarin/audio/request-missing', ['api', 'web', 'auth', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
-            'admin.mandarin.audio.retry-failed' => ['POST', '/api/admin/mandarin/audio/retry-failed', ['api', 'web', 'auth', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
-            'admin.mandarin.audio' => ['GET', '/api/admin/mandarin/audio', ['api', 'web', 'auth', 'can:administer', 'throttle:120,1,admin-audio-list'], []],
+            'admin.mandarin.audio.request' => ['POST', '/api/admin/mandarin/audio/request', ['api', 'web', 'auth', 'identity-provider-session', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
+            'admin.mandarin.audio.regenerate' => ['POST', '/api/admin/mandarin/audio/regenerate', ['api', 'web', 'auth', 'identity-provider-session', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
+            'admin.mandarin.audio.request-missing' => ['POST', '/api/admin/mandarin/audio/request-missing', ['api', 'web', 'auth', 'identity-provider-session', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
+            'admin.mandarin.audio.retry-failed' => ['POST', '/api/admin/mandarin/audio/retry-failed', ['api', 'web', 'auth', 'identity-provider-session', 'can:administer', 'throttle:30,1,admin-audio-actions'], []],
+            'admin.mandarin.audio' => ['GET', '/api/admin/mandarin/audio', ['api', 'web', 'auth', 'identity-provider-session', 'can:administer', 'throttle:120,1,admin-audio-list'], []],
         ];
     }
 

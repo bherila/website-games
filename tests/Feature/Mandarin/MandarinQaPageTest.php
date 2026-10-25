@@ -26,12 +26,12 @@ class MandarinQaPageTest extends MandarinTestCase
     {
         foreach (['local', 'testing', 'staging'] as $environment) {
             $this->app->detectEnvironment(fn () => $environment);
-            $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
+            $this->actingThroughIdentityProvider(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
         }
 
         // qa_enabled is a production deploy switch, not a way past the administrator check.
         config()->set('mandarin.qa_enabled', true);
-        $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
+        $this->actingThroughIdentityProvider(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
     }
 
     public function test_an_administrator_sees_the_page_outside_production_without_the_switch(): void
@@ -39,12 +39,12 @@ class MandarinQaPageTest extends MandarinTestCase
         config()->set('mandarin.qa_enabled', false);
         $this->app->detectEnvironment(fn () => 'local');
 
-        $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
+        $this->actingThroughIdentityProvider(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
     }
 
     public function test_an_administrator_sees_every_line_with_its_provenance(): void
     {
-        $response = $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
+        $response = $this->actingThroughIdentityProvider(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
 
         $response->assertSee('你好。', false)
             ->assertSee('Nǐ hǎo.', false)
@@ -65,7 +65,7 @@ class MandarinQaPageTest extends MandarinTestCase
 
     public function test_reserved_checkpoint_lines_are_labelled(): void
     {
-        $response = $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
+        $response = $this->actingThroughIdentityProvider(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
 
         $response->assertSee('Reserved for the listening check')
             ->assertSee('我是他的朋友。', false);
@@ -74,7 +74,7 @@ class MandarinQaPageTest extends MandarinTestCase
     public function test_a_line_without_audio_reports_its_state_and_the_page_never_generates(): void
     {
         // Read-only resolution: even for an administrator, who may generate elsewhere, nothing is enqueued.
-        $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk()
+        $this->actingThroughIdentityProvider(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk()
             ->assertSee('unavailable: generation_disabled')
             ->assertDontSee('<audio', false);
 
@@ -84,7 +84,7 @@ class MandarinQaPageTest extends MandarinTestCase
     public function test_a_generated_line_gets_a_playable_audio_element(): void
     {
         $user = User::factory()->administrator()->create();
-        $requestId = (int) $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
+        $requestId = (int) $this->actingThroughIdentityProvider($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',
                 'contentVersion' => '1.1.1',
@@ -94,7 +94,7 @@ class MandarinQaPageTest extends MandarinTestCase
         $asset = MandarinAudioAsset::query()->findOrFail($requestId);
         $this->assertSame('ready', $asset->state);
 
-        $response = $this->actingAs($user)->get('/mandarin/qa')->assertOk();
+        $response = $this->actingThroughIdentityProvider($user)->get('/mandarin/qa')->assertOk();
 
         $response->assertSee('<audio controls preload="none"', false)
             ->assertSee("/media/games/mandarin/{$requestId}/{$asset->content_hash}.mp3", false)
@@ -108,10 +108,10 @@ class MandarinQaPageTest extends MandarinTestCase
         $admin = User::factory()->administrator()->create();
         $this->app->detectEnvironment(fn () => 'production');
 
-        $this->actingAs($admin)->get('/mandarin/qa')->assertNotFound();
+        $this->actingThroughIdentityProvider($admin)->get('/mandarin/qa')->assertNotFound();
 
         config()->set('mandarin.qa_enabled', true);
-        $this->actingAs($admin)->get('/mandarin/qa')->assertOk();
+        $this->actingThroughIdentityProvider($admin)->get('/mandarin/qa')->assertOk();
     }
 
     /**
@@ -123,7 +123,7 @@ class MandarinQaPageTest extends MandarinTestCase
         config()->set('mandarin.qa_enabled', true);
         $this->app->detectEnvironment(fn () => 'production');
 
-        $this->actingAs(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
-        $this->actingAs(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
+        $this->actingThroughIdentityProvider(User::factory()->create())->get('/mandarin/qa')->assertNotFound();
+        $this->actingThroughIdentityProvider(User::factory()->administrator()->create())->get('/mandarin/qa')->assertOk();
     }
 }

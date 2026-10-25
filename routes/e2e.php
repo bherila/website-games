@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\Account\SignInMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,8 @@ Route::post('/__e2e/login', function (Request $request) {
 
     Auth::login(User::query()->findOrFail($userId));
     $request->session()->regenerate();
+    // Stands in for a sign-in through the identity provider.
+    SignInMethod::remember($request->session(), SignInMethod::IDENTITY_PROVIDER);
 
     return response()->noContent();
 });

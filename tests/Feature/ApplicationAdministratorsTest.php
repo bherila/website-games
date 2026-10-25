@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\Account\SignInMethod;
 use App\Services\Admin\AccessAudit;
 use App\Services\Admin\AdministratorChangeOrigin;
 use App\Services\Admin\AdministratorChangeRefused;
@@ -267,9 +268,22 @@ class ApplicationAdministratorsTest extends TestCase
         $this->assertFalse($user->fresh()?->isAdministrator());
     }
 
-    public function test_the_administer_gate_follows_the_flag(): void
+    public function test_the_administer_gate_follows_the_flag_and_the_sign_in_method(): void
     {
-        $this->assertTrue(Gate::forUser(User::factory()->administrator()->create())->allows('administer'));
-        $this->assertFalse(Gate::forUser(User::factory()->create())->allows('administer'));
+        $admin = User::factory()->administrator()->create();
+        $player = User::factory()->create();
+        $session = $this->app['session']->driver();
+        $this->app['request']->setLaravelSession($session);
+
+        $session->put(SignInMethod::SESSION_KEY, SignInMethod::IDENTITY_PROVIDER);
+        $this->assertTrue(Gate::forUser($admin)->allows('administer'));
+        $this->assertFalse(Gate::forUser($player)->allows('administer'));
+
+        // A Google sign-in can reach an administrator's account by its confirmed address, and a
+        // remember-me restore records no method; neither may administer.
+        $session->put(SignInMethod::SESSION_KEY, SignInMethod::GOOGLE);
+        $this->assertFalse(Gate::forUser($admin)->allows('administer'));
+        $session->forget(SignInMethod::SESSION_KEY);
+        $this->assertFalse(Gate::forUser($admin)->allows('administer'));
     }
 }

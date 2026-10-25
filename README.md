@@ -66,6 +66,32 @@ Mail is sent through Brevo's API in production: `MAIL_MAILER=brevo` (or `hybrid`
 back to the SMTP relay) with `MAILER_DSN="brevo+api://<api key>@default"`. Locally `MAIL_MAILER=log`
 writes messages to the log.
 
+### Google sign-in
+
+"Continue with Google" appears on `/login` once `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are
+set (authorized redirect URI `${APP_URL}/oauth/google/callback`, scopes `openid email profile`).
+Google players never touch the identity provider, so they reach none of its other applications.
+
+A Google account is bound by its `sub` in `user_identities`, one per games account. The first
+sign-in resolves as follows:
+
+| Google says the email is verified | Account with that email here | Result |
+|---|---|---|
+| no | any | refused |
+| yes | none | new Google-only account, email confirmed |
+| yes | confirmed on the account page | Google is linked to that account |
+| yes | not confirmed | refused, with a pointer to confirm it first |
+
+An unconfirmed address is never taken over, because the identity provider does not verify
+addresses: only this application's confirmation link makes an email a key. Once linked, the
+subject finds the account even if either address later changes. Links are audited as
+`sign_in_method_linked`.
+
+Administering needs more than the flag: the `administer` gate also requires that the session
+signed in through the identity provider. A Google session, or one restored from the
+remember-me cookie, is sent through the identity provider first (`identity-provider-session`
+middleware on the admin pages and APIs). Signing out of a Google session is local.
+
 ### Linking an existing account
 
 Rows copied across before OAuth existed carry an address but no subject, so no sign-in

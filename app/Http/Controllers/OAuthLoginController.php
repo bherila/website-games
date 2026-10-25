@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\Account\SignInMethod;
 use BWH\Auth\Concerns\SignsOutThroughProvider;
 use BWH\Auth\OAuth\OAuthClient;
 use BWH\Auth\OAuth\ProviderApplications;
@@ -38,6 +39,7 @@ class OAuthLoginController extends Controller
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
+        SignInMethod::remember($request->session(), SignInMethod::IDENTITY_PROVIDER);
 
         // Cached for the session rather than fetched per request: this is navigation chrome,
         // and the callback is the only moment an access token for the provider is in hand.
@@ -50,6 +52,19 @@ class OAuthLoginController extends Controller
 
     public function logout(Request $request, OAuthClient $oauth): RedirectResponse
     {
+        // A Google session never involved the identity provider, so it ends here. A session
+        // restored from the remember-me cookie records no method; an account with no identity
+        // provider binding can only have signed in with Google, so it ends here too.
+        $method = SignInMethod::current($request->session());
+        $user = $request->user();
+        if ($method === SignInMethod::GOOGLE || ($method === null && $user instanceof User && $user->oauth_subject === null)) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect('/');
+        }
+
         return $this->signOutThroughProvider($request, $oauth);
     }
 

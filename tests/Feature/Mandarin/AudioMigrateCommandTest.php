@@ -24,7 +24,7 @@ class AudioMigrateCommandTest extends MandarinTestCase
     private function ready(array $source): MandarinAudioAsset
     {
         $user = User::factory()->administrator()->create();
-        $response = $this->actingAs($user)->withHeaders(['Accept' => 'application/json'])
+        $response = $this->actingThroughIdentityProvider($user)->withHeaders(['Accept' => 'application/json'])
             ->postJson('/api/games/mandarin/audio/resolve', [
                 'courseId' => 'mandarin-foundations',
                 'contentVersion' => '1.1.1',

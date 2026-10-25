@@ -46,6 +46,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Sign-in methods beyond the identity provider's binding on this row.
+     *
+     * @return HasMany<UserIdentity, $this>
+     */
+    public function identities(): HasMany
+    {
+        return $this->hasMany(UserIdentity::class);
+    }
+
+    /**
      * @return HasMany<UserGameData, $this>
      */
     public function gameData(): HasMany

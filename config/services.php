@@ -18,6 +18,13 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    // "Continue with Google" for games only; off until both are set.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/oauth/google/callback'),
+    ],
+
     'brevo' => [
         'dsn' => env('MAILER_DSN'),
     ],

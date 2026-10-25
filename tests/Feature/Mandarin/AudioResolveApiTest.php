@@ -32,7 +32,7 @@ class AudioResolveApiTest extends MandarinTestCase
     {
         $request = $this->withHeaders(['Accept' => 'application/json']);
         if ($user !== null) {
-            $request = $request->actingAs($user);
+            $request = $request->actingThroughIdentityProvider($user);
         }
 
         return $request->postJson('/api/games/mandarin/audio/resolve', self::IDENTITY + ['sources' => $sources]);
@@ -97,7 +97,7 @@ class AudioResolveApiTest extends MandarinTestCase
         $user = User::factory()->administrator()->create();
         $this->resolve($user, array_fill(0, 17, self::HELLO))->assertStatus(422);
         $this->resolve($user, [['sourceKind' => 'text', 'sourceId' => 'x', 'variant' => 'normal']])->assertStatus(422);
-        $this->actingAs($user)->postJson('/api/games/mandarin/audio/resolve', ['courseId' => 'mandarin-foundations', 'contentVersion' => '9.9.9', 'sources' => [self::HELLO]])->assertStatus(422);
+        $this->actingThroughIdentityProvider($user)->postJson('/api/games/mandarin/audio/resolve', ['courseId' => 'mandarin-foundations', 'contentVersion' => '9.9.9', 'sources' => [self::HELLO]])->assertStatus(422);
     }
 
     public function test_support_audio_uses_the_versioned_glossary_text(): void
