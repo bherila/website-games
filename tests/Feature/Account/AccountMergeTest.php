@@ -143,6 +143,30 @@ class AccountMergeTest extends TestCase
         $this->assertCount(2, $slots);
     }
 
+    public function test_an_open_tower_game_cannot_overwrite_a_slot_the_merge_replaced(): void
+    {
+        [$keep, $absorb] = [User::factory()->create(), User::factory()->create()];
+        // Tower is open on the kept account (an active lease), and the absorbed autosave is newer.
+        TowerSaveSlot::factory()->for($keep)->create([
+            'slot' => 'autosave', 'game_day' => 2, 'updated_at' => now()->subHour(),
+            'lease_token' => 'open-game', 'lease_acquired_at' => now()->subMinute(), 'lease_expires_at' => now()->addMinutes(5),
+        ]);
+        TowerSaveSlot::factory()->for($absorb)->create(['slot' => 'autosave', 'game_day' => 12, 'updated_at' => now()]);
+
+        app(AccountMerge::class)->merge($keep, $absorb, AccessAudit::METHOD_CONSOLE, null);
+
+        $this->actingAs($keep)
+            ->putJson('/api/games/tower-throwback/saves/autosave', [
+                'payload' => ['version' => 2, 'mapId' => 'city-tower', 'funds' => 1],
+                'wire_version' => 2, 'game_day' => 3, 'star' => 1, 'population' => 1, 'funds' => 1,
+                'lease_token' => 'open-game',
+            ])
+            ->assertStatus(409);
+        $this->assertSame(12, TowerSaveSlot::query()->where('user_id', $keep->getKey())->where('slot', 'autosave')->sole()->game_day);
+        // Any device can still open it by taking over, as after any other device's takeover.
+        $this->actingAs($keep)->postJson('/api/games/tower-throwback/saves/autosave/lease', ['force' => true])->assertOk();
+    }
+
     public function test_no_practice_event_delete_selects_from_its_own_table(): void
     {
         // MySQL rejects DELETE ... WHERE x IN (SELECT ... FROM the same table); SQLite allows it,

@@ -10,6 +10,7 @@ use App\Models\UserIdentity;
 use App\Services\Admin\AccessAudit;
 use App\Services\Games\GameDataMerger;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Folds one account into another, as if the absorbed account had been a second device of the
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  *   one account has moves as is; a deletion tombstone never erases the other account's live row.
  * - Tower save slots move; a lease-only row (no payload) never beats a real save. On a clash the
  *   autosave keeps the newer one, and a manual save moves to a free manual slot when there is one,
- *   otherwise the newer is kept.
+ *   otherwise the newer is kept. A game open on a replaced slot is displaced as by a takeover.
  * - Mandarin practice events move, except ones both accounts already recorded, and the combined
  *   history is renumbered in the order it happened, as the review scheduler replays it.
  */
@@ -154,8 +155,15 @@ final class AccountMerge
             }
             $keptRows = TowerSaveSlot::query()->where('user_id', $keep->getKey())->lockForUpdate()->get()->keyBy('slot');
             $place = function (string $target) use ($slot, $keep, $keptRows): void {
-                $keptRows->get($target)?->delete();
-                $slot->forceFill(['user_id' => $keep->getKey(), 'slot' => $target, 'lease_token' => null, 'lease_acquired_at' => null, 'lease_expires_at' => null])->save();
+                $replaced = $keptRows->get($target);
+                // A game open on the replaced slot is displaced as by another device's takeover:
+                // a lease it does not hold, until its own would have expired, so its next write
+                // is refused rather than overwriting the moved save.
+                $lease = $replaced?->leaseActive()
+                    ? ['lease_token' => Str::random(48), 'lease_acquired_at' => now(), 'lease_expires_at' => $replaced->lease_expires_at]
+                    : ['lease_token' => null, 'lease_acquired_at' => null, 'lease_expires_at' => null];
+                $replaced?->delete();
+                $slot->forceFill(['user_id' => $keep->getKey(), 'slot' => $target] + $lease)->save();
             };
             $kept = $keptRows->get($slot->slot);
             if ($kept === null || ! $kept->hasPayload()) {
