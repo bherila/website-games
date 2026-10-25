@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { disposeObject } from '../../../_shared/three/threeUtils'
 import { makeTestState, placeShaft, placeSlabRow, setStars } from '../../engine/__tests__/testState'
 import { floorLabel } from '../../floorLabels'
 import { type Person, TUNING, type Unit } from '../../gameTypes'
@@ -32,7 +33,6 @@ import {
 } from '../styleGateArt'
 import type { StyleGateFrameName } from '../styleGateFrames'
 import { STYLE_GATE_NIAGARA_GORGE_FRAME, styleGatePersonReadsIrritated } from '../styleGateFrames'
-import { disposeObject } from '../threeUtils'
 
 function makeRenderPerson(id: number, overrides: Partial<Person> = {}): Person {
   return {

@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 
+import { hexColor } from '../../_shared/three/threeUtils'
 import type { PodKind } from '../gameTypes'
 import type { FloorPattern, WallTextureKind } from '../maps/mapTypes'
-import { hexColor } from './threeUtils'
 
 const WALL_TEXTURE_SIZE = 256
 

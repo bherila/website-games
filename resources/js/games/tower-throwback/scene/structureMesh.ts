@@ -16,6 +16,7 @@
 
 import * as THREE from 'three'
 
+import { disposeObject } from '../../_shared/three/threeUtils'
 import { shaftDef } from '../engine/catalog'
 import { getSegments, isSlabFamily } from '../engine/grid'
 import { getMap } from '../engine/maps'
@@ -30,7 +31,6 @@ import {
   type TowerPalette,
   unitFillColor,
 } from './palette'
-import { disposeObject } from './threeUtils'
 import { type PrecipKind, precipScrollPhase, weatherLookForDay } from './weather'
 
 const Z_SKY = -10

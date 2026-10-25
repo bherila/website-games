@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { clearGroup, disposeObject } from '../../_shared/three/threeUtils'
 import { shaftDef } from '../engine/catalog'
 import { isSlabFamily } from '../engine/grid'
 import { getMap } from '../engine/maps'
@@ -41,7 +42,6 @@ import {
   styleGateUnitHasGlassBacking,
   styleGateUnitUsesDynamicArt,
 } from './styleGateFrames'
-import { clearGroup, disposeObject } from './threeUtils'
 import { type UnitVisualActivity, unitVisualActivity } from './unitActivity'
 
 const ATLAS_URL = new URL('../assets/sprites/style-gate.webp', import.meta.url).href
