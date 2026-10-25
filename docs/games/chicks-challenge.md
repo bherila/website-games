@@ -237,6 +237,10 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
   `viewport-fit=cover` via the layout's `viewport-content` section, without which those insets are 0.
 - **In-level HUD:** top bar — level number, chips-remaining chip (💠 n), moves counter shown as
   `moves / par`; inventory row of key counts and boot icons; icon buttons: mute, restart, level select.
+  The inventory row is reserved from the first frame on levels whose board holds a key or boot
+  (`hud/inventorySlots.ts` scans the starting board): one dashed slot per item kind, filled on pickup,
+  on a single line that never wraps, so collecting an item never resizes the board. Levels with no
+  items reserve nothing.
   Hint text appears in a bottom banner (`hud/HintBanner.tsx`) while standing on a hint tile.
 - **Toolbar:** board-rotation toggle (auto / turned / upright) plus the touch D-pad.
 - **Win overlay:** dimmed backdrop, `StarRow` stars animate in, `moves / par` line, buttons: replay,

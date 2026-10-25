@@ -25,6 +25,7 @@ import { type GamePhase, INPUT_BUFFER_MAX, INPUT_REPEAT_MS, starsForMoves, STEP_
 import { GameHud } from './hud/GameHud'
 import { GameToolbar } from './hud/GameToolbar'
 import { HintBanner } from './hud/HintBanner'
+import { levelInventorySlots } from './hud/inventorySlots'
 import { createInputQueue, keyboardIntent } from './input/inputQueue'
 import { cycleBoardOrientationPreference, rotateIntent } from './input/orientation'
 import { loadBoardOrientationPreference, saveBoardOrientationPreference } from './input/orientationStorage'
@@ -114,6 +115,8 @@ export function ChicksGame(): ReactElement {
   const [savedProgress, setSavedProgress] = useState(loadSavedProgress)
   const [levelDef, setLevelDef] = useState<ChicksLevelDef | null>(devLevelDef)
   const [gameState, setGameState] = useState<GameState | null>(() => (devLevelDef ? parseLevel(devLevelDef) : null))
+  // Read once per level from its starting board, so the inventory row never appears mid-level.
+  const inventorySlots = useMemo(() => (levelDef ? levelInventorySlots(parseLevel(levelDef)) : []), [levelDef])
   const [moveSeq, setMoveSeq] = useState(0)
   const [events, setEvents] = useState<readonly EngineEvent[]>([])
   const [winSummary, setWinSummary] = useState<WinSummary | null>(null)
@@ -453,6 +456,7 @@ export function ChicksGame(): ReactElement {
     <PortraitGameShell allowLandscape className="bg-slate-100 dark:bg-slate-950">
       <section className="relative flex min-h-0 flex-1 flex-col">
         <GameHud
+          inventorySlots={inventorySlots}
           levelId={levelDef.id}
           muted={muted}
           par={levelDef.par}

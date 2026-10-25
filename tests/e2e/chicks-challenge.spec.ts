@@ -105,6 +105,23 @@ test.describe("Chick's Challenge board layout", () => {
     await expect(page.locator(`${BOARD_ROTOR} [aria-label="Restart level"]`)).toHaveCount(0)
   })
 
+  test('keeps the board still when the first key is picked up', async ({ page }) => {
+    // Upright, so arrow keys map straight onto the level-2 route to its key.
+    await page.addInitScript(() => localStorage.setItem('bwh.chicks-challenge.board-orientation.v1', JSON.stringify('upright')))
+    await page.goto('/chicks-challenge?level=2')
+    await waitForBoard(page)
+    // The key's slot is reserved before it is collected.
+    await expect(page.getByRole('img', { name: 'yellow key: not collected' })).toBeVisible()
+    const board = page.getByTestId('chips-board')
+    const before = await board.boundingBox()
+    for (const key of ['ArrowUp', 'ArrowUp', 'ArrowRight']) {
+      await page.keyboard.press(key)
+      await page.waitForTimeout(300)
+    }
+    await expect(page.getByRole('img', { name: 'yellow key: 1' })).toBeVisible()
+    expect(await board.boundingBox()).toEqual(before)
+  })
+
   test('keeps the largest board inside the viewport', async ({ page }) => {
     // Level 38 is the pack's biggest board (31x31) and drives the follow camera.
     await page.goto('/chicks-challenge?level=38')
