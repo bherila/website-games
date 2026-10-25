@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Auth\SessionGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
@@ -16,7 +15,7 @@ class RenewRememberCookie
         $response = $next($request);
         $guard = Auth::guard();
 
-        if (! $guard instanceof SessionGuard || ! $guard->check()) {
+        if (! $guard->check()) {
             return $response;
         }
 
