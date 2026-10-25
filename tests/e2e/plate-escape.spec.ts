@@ -30,7 +30,9 @@ test.describe('Plate Escape real puzzle', () => {
     await expect(page.locator('[data-screw-id="right-roof-1"]')).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath('little-cottage.png') })
     for (let turn = 0; turn < 4; turn++) await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
-    await expect(page.locator('[data-screw-id="back-1"]')).toBeVisible()
+    // The back gable's only screw carries the roof, so it is shown but held until the roof is off.
+    await expect(page.locator('[data-bearing-screw-id="back-1"]')).toBeVisible()
+    await expect(page.locator('[data-screw-id="back-1"]')).toHaveCount(0)
     await expect(page.locator('[data-screw-id="front-1"]')).toHaveCount(0)
     await page.screenshot({ path: testInfo.outputPath('cottage-back.png') })
     await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
