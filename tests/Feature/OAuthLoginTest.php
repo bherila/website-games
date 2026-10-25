@@ -5,11 +5,14 @@ namespace Tests\Feature;
 use App\Models\TowerSaveSlot;
 use App\Models\User;
 use BWH\Auth\OAuth\ProviderApplications;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -182,6 +185,115 @@ class OAuthLoginTest extends TestCase
 
         $this->assertAuthenticatedAs($newUser);
         $this->assertNull($newUser->email_verified_at);
+    }
+
+    public function test_sign_in_survives_an_expired_session_and_renews_the_remember_cookie(): void
+    {
+        $this->freezeTime();
+        Config::set('session.secure', true);
+        $this->fakeProvider('remembered-player', 'Player', 'player@example.test');
+
+        $response = $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')
+            ->assertRedirect('/');
+
+        $guard = Auth::guard();
+        $this->assertInstanceOf(SessionGuard::class, $guard);
+        $name = $guard->getRecallerName();
+        $cookie = $response->getCookie($name);
+        $this->assertNotNull($cookie);
+        $this->assertSame(now()->addDays(365)->getTimestamp(), $cookie->getExpiresTime());
+        $this->assertTrue($cookie->isHttpOnly());
+        $this->assertTrue($cookie->isSecure());
+        $this->assertSame('lax', $cookie->getSameSite());
+        $this->assertEmpty($cookie->getDomain());
+        $this->assertNotSame($cookie->getValue(), $response->getCookie($name, false)?->getValue());
+        $user = User::query()->where('oauth_subject', 'remembered-player')->sole();
+
+        // Model a returning browser with only its remember cookie: no surviving server
+        // session and no in-memory guard or queued cookies from the previous request.
+        $this->travel(30)->days();
+        $this->forgetBrowserSession();
+        $restored = $this->withCookie($name, $cookie->getValue())
+            ->get('/api/games/data', ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertCookie($name, $cookie->getValue());
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertTrue(Auth::viaRemember());
+        $this->assertSame(now()->addDays(365)->getTimestamp(), $restored->getCookie($name)?->getExpiresTime());
+    }
+
+    public function test_active_visits_extend_remembering_without_rotating_the_session_or_csrf_token(): void
+    {
+        $this->freezeTime();
+        $this->fakeProvider('active-player', 'Player', 'player@example.test');
+        $response = $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code');
+        $guard = Auth::guard();
+        $this->assertInstanceOf(SessionGuard::class, $guard);
+        $name = $guard->getRecallerName();
+        $cookie = $response->getCookie($name);
+        $this->assertNotNull($cookie);
+        $sessionId = session()->getId();
+        $csrfToken = csrf_token();
+        $this->clearQueuedCookies();
+        Auth::forgetGuards();
+        $this->travel(1)->minutes();
+
+        $renewed = $this->withCookies([
+            $name => $cookie->getValue(),
+            config('session.cookie') => $sessionId,
+        ])->get('/api/games/data', ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertCookie($name, $cookie->getValue());
+
+        $this->assertFalse(Auth::viaRemember());
+        $this->assertSame($sessionId, session()->getId());
+        $this->assertSame($csrfToken, csrf_token());
+        $this->assertSame(now()->addDays(365)->getTimestamp(), $renewed->getCookie($name)?->getExpiresTime());
+    }
+
+    public function test_sign_out_expires_the_remember_cookie_and_rejects_replaying_it(): void
+    {
+        $this->fakeProvider('signing-out-player', 'Player', 'player@example.test');
+        $response = $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code');
+        $guard = Auth::guard();
+        $this->assertInstanceOf(SessionGuard::class, $guard);
+        $name = $guard->getRecallerName();
+        $cookie = $response->getCookie($name);
+        $this->assertNotNull($cookie);
+        $user = User::query()->where('oauth_subject', 'signing-out-player')->sole();
+        $token = $user->getRememberToken();
+        $this->forgetBrowserSession();
+
+        $this->withCookie($name, $cookie->getValue())
+            ->post('/logout')
+            ->assertRedirect()
+            ->assertCookieExpired($name);
+        $this->assertGuest();
+        $this->assertNotSame($token, $user->fresh()?->getRememberToken());
+
+        $this->forgetBrowserSession();
+        $this->get('/api/games/data', ['Accept' => 'application/json'])
+            ->assertUnauthorized()
+            ->assertCookieMissing($name);
+        $this->assertGuest();
+    }
+
+    public function test_anonymous_requests_do_not_receive_a_remember_cookie(): void
+    {
+        $this->withoutVite();
+        $guard = Auth::guard();
+        $this->assertInstanceOf(SessionGuard::class, $guard);
+        $name = $guard->getRecallerName();
+
+        $this->get('/')->assertOk()->assertCookieMissing($name);
+        $this->withCookie($name, '1|invalid-token|invalid-hash')
+            ->get('/api/games/data', ['Accept' => 'application/json'])
+            ->assertUnauthorized()
+            ->assertCookieMissing($name);
     }
 
     /**
@@ -488,6 +600,20 @@ class OAuthLoginTest extends TestCase
             'oauth.login.state' => 'expected-state',
             'oauth.login.code_verifier' => str_repeat('v', 64),
         ];
+    }
+
+    private function forgetBrowserSession(): void
+    {
+        $this->flushSession();
+        Auth::forgetGuards();
+        $this->clearQueuedCookies();
+    }
+
+    private function clearQueuedCookies(): void
+    {
+        foreach (Cookie::getQueuedCookies() as $cookie) {
+            Cookie::unqueue($cookie->getName(), $cookie->getPath());
+        }
     }
 
     private function fakeProvider(string $subject, string $name, string $email): void

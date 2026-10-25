@@ -31,6 +31,14 @@ The API remains under `/api/games/...` as a namespaced API path.
 This app has its own `users` table and signs in through the identity provider over an
 authorization-code flow with PKCE, configured by the `OAUTH_*` keys in `.env`.
 
+Sign-in remembers the browser for one year, renewed on authenticated visits. Laravel's
+remember cookie restores authentication after the ordinary idle session expires, so
+`SESSION_LIFETIME` can remain short without making returning players sign in again.
+Existing sessions gain the remember cookie on their next sign-in. Explicit sign-out
+clears the cookie and rotates the server-side remember token. Clearing browser cookies
+or returning after more than a year without a visit requires signing in again. Cookies
+remain host-scoped, encrypted and HttpOnly, and use the session's HTTPS/SameSite settings.
+
 Accounts bind to the provider's immutable `sub` claim, stored as
 `users.oauth_provider` + `users.oauth_subject` — **never** to the email address. An
 address is user-mutable and can be reassigned, so matching on one would orphan an
