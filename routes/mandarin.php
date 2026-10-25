@@ -37,7 +37,7 @@ Route::middleware('web')->group(function (): void {
     // Audition sheet for the whole course. Operator tool: the controller 404s for anyone
     // who is not an application administrator, and in production unless MANDARIN_QA_ENABLED is set.
     Route::get('/mandarin/qa', MandarinQaController::class)
-        ->middleware(['web', 'auth'])
+        ->middleware(['web', 'auth', 'identity-provider-session'])
         ->name('games.mandarin.qa');
 
     Route::get('/media/games/mandarin/{asset}/{hash}.{extension}', [MandarinMediaController::class, 'show'])
@@ -63,7 +63,7 @@ Route::middleware('api')->prefix('api')->group(function (): void {
     // environment. The actions spend money, so they are POSTs (the web group's CSRF check) on a
     // tighter per-user throttle with its own counter (so the page polling the list cannot use up the
     // actions' allowance), and each one is idempotent.
-    Route::middleware(['web', 'auth', 'can:administer'])->prefix('admin/mandarin/audio')->name('admin.mandarin.audio')->group(function (): void {
+    Route::middleware(['web', 'auth', 'identity-provider-session', 'can:administer'])->prefix('admin/mandarin/audio')->name('admin.mandarin.audio')->group(function (): void {
         Route::get('/', [MandarinAudioAdminController::class, 'index'])->middleware('throttle:120,1,admin-audio-list');
         Route::middleware('throttle:30,1,admin-audio-actions')->group(function (): void {
             Route::post('/request', [MandarinAudioAdminController::class, 'request'])->name('.request');

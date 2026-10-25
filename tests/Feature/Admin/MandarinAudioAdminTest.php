@@ -51,9 +51,9 @@ class MandarinAudioAdminTest extends MandarinTestCase
     {
         $player = User::factory()->create();
 
-        $this->actingAs($player)->getJson('/api/admin/mandarin/audio')->assertForbidden();
+        $this->actingThroughIdentityProvider($player)->getJson('/api/admin/mandarin/audio')->assertForbidden();
         foreach (self::ACTIONS as $uri => $payload) {
-            $this->actingAs($player)->postJson($uri, $payload)->assertForbidden();
+            $this->actingThroughIdentityProvider($player)->postJson($uri, $payload)->assertForbidden();
         }
 
         $this->assertNothingHappened();
@@ -65,7 +65,7 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->withMiddleware(ValidateCsrfToken::class);
         $this->app->detectEnvironment(fn () => 'local');
 
-        $this->actingAs($this->admin())->post('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertStatus(419);
+        $this->actingThroughIdentityProvider($this->admin())->post('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertStatus(419);
         $this->assertSame(0, MandarinAudioAsset::query()->count());
     }
 
@@ -75,7 +75,7 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $total = count($this->app->make(AudioCatalog::class)->sources($this->app->make(CourseRepository::class)->publishedOrFail()));
         $ready = $this->ready(self::HELLO, $admin);
 
-        $page = $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->assertOk()->assertHeader('Cache-Control', 'no-store, private');
+        $page = $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio')->assertOk()->assertHeader('Cache-Control', 'no-store, private');
         $this->assertSame($total, array_sum($page->json('summary')));
         // Sources whose text is identical share one recipe, so one clip can make several ready.
         $sharing = $page->json('summary.ready');
@@ -85,7 +85,7 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->assertCount(25, $page->json('entries'));
         $this->assertFalse($page->json('pending'));
 
-        $filtered = $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?state=ready&q=01a:normal')->assertOk();
+        $filtered = $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio?state=ready&q=01a:normal')->assertOk();
         $this->assertSame(1, $filtered->json('total'));
         $filtered->assertJsonPath('entries.0.key', self::HELLO)
             ->assertJsonPath('entries.0.text', '你好。')
@@ -96,17 +96,17 @@ class MandarinAudioAdminTest extends MandarinTestCase
         // The summary always covers the whole revision, whatever the filter.
         $this->assertSame($total, array_sum($filtered->json('summary')));
 
-        $search = $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?q=hello')->assertOk();
+        $search = $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio?q=hello')->assertOk();
         $this->assertGreaterThanOrEqual(1, $search->json('total'));
         foreach ($search->json('entries') as $entry) {
             $this->assertStringContainsString('hello', mb_strtolower($entry['key'].' '.$entry['en'].' '.$entry['pinyin'].' '.$entry['text']));
         }
 
         $last = (int) ceil($total / 25);
-        $this->actingAs($admin)->getJson("/api/admin/mandarin/audio?page={$last}")->assertOk()
+        $this->actingThroughIdentityProvider($admin)->getJson("/api/admin/mandarin/audio?page={$last}")->assertOk()
             ->assertJsonPath('page', $last)->assertJsonPath('lastPage', $last)
             ->assertJsonCount($total - 25 * ($last - 1), 'entries');
-        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?state=bogus')->assertUnprocessable();
+        $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio?state=bogus')->assertUnprocessable();
 
         // Listing never generates: the one job is the one ready() queued.
         Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 1);
@@ -117,9 +117,9 @@ class MandarinAudioAdminTest extends MandarinTestCase
     {
         $admin = $this->admin();
 
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
             ->assertJsonPath('action', 'request')->assertJsonPath('queued', 1)->assertJsonPath('skipped', []);
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
             ->assertJsonPath('queued', 0)->assertJsonPath('skipped.0.reason', 'queued');
 
         Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 1);
@@ -138,15 +138,15 @@ class MandarinAudioAdminTest extends MandarinTestCase
             'sources_truncated' => false,
         ], $row->metadata);
 
-        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?state=queued&q='.urlencode(self::HELLO))->assertJsonPath('total', 1)->assertJsonPath('pending', true);
+        $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio?state=queued&q='.urlencode(self::HELLO))->assertJsonPath('total', 1)->assertJsonPath('pending', true);
     }
 
     public function test_an_unknown_or_malformed_source_is_refused(): void
     {
         $admin = $this->admin();
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'utterance:nope:normal'])->assertUnprocessable();
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'text:01a:normal'])->assertUnprocessable();
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', [])->assertUnprocessable();
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'utterance:nope:normal'])->assertUnprocessable();
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'text:01a:normal'])->assertUnprocessable();
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', [])->assertUnprocessable();
 
         $this->assertNothingHappened();
     }
@@ -157,19 +157,19 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $ready = $this->ready(self::HELLO, $admin);
         $audited = AuthAuditLog::query()->count();
 
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO])->assertUnprocessable()->assertJsonValidationErrors('confirm');
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 0])->assertUnprocessable();
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO])->assertUnprocessable()->assertJsonValidationErrors('confirm');
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 0])->assertUnprocessable();
         $this->assertSame('ready', $ready->refresh()->state);
 
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
         $ready->refresh();
         $this->assertSame('queued', $ready->state);
         $this->assertSame(0, $ready->attempts);
 
         // Already queued: a second regenerate is a no-op, and so is regenerating a missing source.
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()
             ->assertJsonPath('queued', 0)->assertJsonPath('skipped.0.reason', 'queued');
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => 'utterance:01a:slow', 'confirm' => 1])->assertOk()
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => 'utterance:01a:slow', 'confirm' => 1])->assertOk()
             ->assertJsonPath('queued', 0)->assertJsonPath('skipped.0.reason', 'missing');
 
         $this->assertSame($audited + 1, AuthAuditLog::query()->count());
@@ -201,10 +201,10 @@ class MandarinAudioAdminTest extends MandarinTestCase
         // A ready row with no object behind it is queued for real, once, and audited once.
         MandarinAudioAsset::query()->update(['state' => 'ready', 'disk' => null, 'object_key' => null]);
         $audited = AuthAuditLog::query()->count();
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()->assertJsonPath('queued', 1);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()->assertJsonPath('queued', 1);
         $this->assertSame('queued', MandarinAudioAsset::query()->sole()->state);
         Bus::assertDispatchedTimes(GenerateMandarinAudioJob::class, 2);
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
             ->assertJsonPath('queued', 0)->assertJsonPath('skipped.0.reason', 'queued');
         $this->assertSame($audited + 1, AuthAuditLog::query()->count());
     }
@@ -213,14 +213,14 @@ class MandarinAudioAdminTest extends MandarinTestCase
     {
         $admin = $this->admin();
         for ($i = 0; $i < 30; $i++) {
-            $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->assertOk();
+            $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio')->assertOk();
         }
         // The list's polling has not used the actions' allowance.
         for ($i = 0; $i < 30; $i++) {
-            $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk();
+            $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk();
         }
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertTooManyRequests();
-        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->assertOk();
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertTooManyRequests();
+        $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio')->assertOk();
     }
 
     public function test_a_failed_regeneration_puts_the_previous_clip_back_in_service(): void
@@ -232,7 +232,7 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $service = $this->app->make(AudioAssetService::class);
 
         // The budget is checked only inside the job, so it can run out after the clip was queued.
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
         config()->set('mandarin.speech.daily_character_budget', 1);
         $this->app->make(AudioAssetService::class)->generate($ready->id);
 
@@ -244,24 +244,24 @@ class MandarinAudioAdminTest extends MandarinTestCase
 
         // Players still hear it, and the dashboard says the regeneration failed.
         $course = $this->app->make(CourseRepository::class)->publishedOrFail();
-        $this->actingAs(User::factory()->create())->postJson('/api/games/mandarin/audio/resolve', [
+        $this->actingThroughIdentityProvider(User::factory()->create())->postJson('/api/games/mandarin/audio/resolve', [
             'courseId' => $course->courseId(), 'contentVersion' => $course->contentVersion(),
             'sources' => [['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'normal']],
         ])->assertOk()->assertJsonPath('results.0.state', 'ready');
-        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?q=01a')->assertOk()
+        $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio?q=01a')->assertOk()
             ->assertJsonFragment(['key' => self::HELLO, 'state' => 'ready', 'code' => 'budget_exhausted']);
 
         // An attempt that never finishes and runs out of retries settles the same way.
         config()->set('mandarin.speech.daily_character_budget', 5000);
         config()->set('mandarin.audio.max_attempts', 1);
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/regenerate', ['source' => self::HELLO, 'confirm' => 1])->assertOk()->assertJsonPath('queued', 1);
         MandarinAudioAsset::query()->whereKey($ready->id)->update(['state' => 'generating', 'attempts' => 1, 'lease_token' => 'stale', 'lease_expires_at' => now()->subMinute()]);
         $this->assertSame(['expired' => 1, 'requeued' => 0, 'failed' => 1], $service->recoverExpired(true));
         $this->assertSame('ready', $ready->refresh()->state);
         $this->assertSame($key, $ready->object_key);
 
         // A clip that was never published has nothing to fall back to: it fails.
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'utterance:01a:slow'])->assertOk()->assertJsonPath('queued', 1);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => 'utterance:01a:slow'])->assertOk()->assertJsonPath('queued', 1);
         $fresh = MandarinAudioAsset::query()->latest('id')->firstOrFail();
         config()->set('mandarin.speech.daily_character_budget', 1);
         $this->app->make(AudioAssetService::class)->generate($fresh->id);
@@ -276,20 +276,20 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $operations = $this->app->make(AudioOperations::class);
         $operations->request($course, ['sourceKind' => 'utterance', 'sourceId' => '01a', 'variant' => 'slow'], $admin);
         $assetsBefore = MandarinAudioAsset::query()->count();
-        $missing = $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->json('summary.missing');
+        $missing = $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio')->json('summary.missing');
         $auditedBefore = AuthAuditLog::query()->count();
         $dispatchedBefore = Bus::dispatched(GenerateMandarinAudioJob::class)->count();
 
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request-missing')->assertUnprocessable()->assertJsonValidationErrors('confirm');
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request-missing')->assertUnprocessable()->assertJsonValidationErrors('confirm');
         $this->assertSame($assetsBefore, MandarinAudioAsset::query()->count());
 
-        $response = $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request-missing', ['confirm' => 1])->assertOk();
+        $response = $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request-missing', ['confirm' => 1])->assertOk();
         // Text shared by two sources is one recipe, so rows can be fewer than sources queued.
         $queued = (int) $response->json('queued');
         $this->assertSame($missing, $queued + count($response->json('skipped')));
         $this->assertSame([], $response->json('skipped'));
         $this->assertGreaterThan(AudioOperations::AUDITED_KEYS, $queued);
-        $summary = $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->json('summary');
+        $summary = $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio')->json('summary');
         $this->assertSame(0, $summary['missing']);
         $this->assertSame(1, MandarinAudioAsset::query()->where('state', 'ready')->count());
         $newRows = MandarinAudioAsset::query()->count() - $assetsBefore;
@@ -303,7 +303,7 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->assertSame($queued > AudioOperations::AUDITED_KEYS, $audit?->metadata['sources_truncated']);
 
         // Repeat: nothing is missing, nothing is queued, nothing is audited.
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request-missing', ['confirm' => 1])->assertOk()->assertJsonPath('queued', 0);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request-missing', ['confirm' => 1])->assertOk()->assertJsonPath('queued', 0);
         $this->assertSame($auditedBefore + 1, AuthAuditLog::query()->count());
         $this->assertSame($newRows, Bus::dispatched(GenerateMandarinAudioJob::class)->count() - $dispatchedBefore);
     }
@@ -320,10 +320,10 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $failed->forceFill(['state' => 'failed', 'attempts' => 3, 'error_code' => 'provider_unavailable', 'error_message' => 'boom'])->save();
         $auditedBefore = AuthAuditLog::query()->count();
 
-        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio?state=failed')
+        $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio?state=failed')
             ->assertJsonPath('entries.0.error', 'boom')->assertJsonPath('entries.0.code', 'provider_unavailable')->assertJsonPath('entries.0.attempts', 3);
 
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk()->assertJsonPath('queued', 1);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk()->assertJsonPath('queued', 1);
         $failed->refresh();
         $this->assertSame('queued', $failed->state);
         $this->assertSame(0, $failed->attempts);
@@ -332,7 +332,7 @@ class MandarinAudioAdminTest extends MandarinTestCase
         $this->assertSame($auditedBefore + 1, AuthAuditLog::query()->count());
         $this->assertSame('retry_failed', AuthAuditLog::query()->orderByDesc('id')->first()?->metadata['action']);
 
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk()->assertJsonPath('queued', 0);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/retry-failed')->assertOk()->assertJsonPath('queued', 0);
         $this->assertSame($auditedBefore + 1, AuthAuditLog::query()->count());
     }
 
@@ -341,8 +341,8 @@ class MandarinAudioAdminTest extends MandarinTestCase
         config()->set('mandarin.speech.generation_enabled', false);
         $admin = $this->admin();
 
-        $this->actingAs($admin)->getJson('/api/admin/mandarin/audio')->assertJsonPath('generationEnabled', false);
-        $this->actingAs($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
+        $this->actingThroughIdentityProvider($admin)->getJson('/api/admin/mandarin/audio')->assertJsonPath('generationEnabled', false);
+        $this->actingThroughIdentityProvider($admin)->postJson('/api/admin/mandarin/audio/request', ['source' => self::HELLO])->assertOk()
             ->assertJsonPath('queued', 0)->assertJsonPath('skipped.0.reason', 'generation_disabled');
 
         $this->assertNothingHappened();

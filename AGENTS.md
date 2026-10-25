@@ -18,9 +18,14 @@ Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud
 - `docs/games/*.md` — per-game design/implementation notes; read the relevant one first.
 - Routes are root-mounted (`/`, `/2048`, `/tower-throwback`, …); route *names* use the
   `games.` prefix. The API lives under `/api/games/...`.
-- Auth is authorization-code + PKCE against an external identity provider. Accounts bind to
-  the immutable `sub` claim (`users.oauth_provider` + `users.oauth_subject`), **never** to the
-  email address. See README for `php artisan oauth:bind-subject`.
+- Auth is authorization-code + PKCE against an external identity provider, plus optional
+  "Continue with Google" (`GoogleLoginController`, `App\Services\Account\GoogleAccounts`). The
+  identity provider binds to its immutable `sub` (`users.oauth_provider` + `users.oauth_subject`);
+  Google binds to its `sub` in `user_identities`. A Google sign-in links to an existing account
+  **only** when Google verifies the address and this app has confirmed the same address
+  (`email_verified_at`, set only by the account page). Never match on an unconfirmed email.
+  Administering also requires the session to have signed in through the identity provider
+  (`SignInMethod`, `identity-provider-session` middleware). See README "Google sign-in".
 - `/account` (`App\Http\Controllers\Account\AccountController` over `App\Services\Account\AccountEmail`)
   confirms or changes the account email by emailed link; a confirmed address is no longer replaced
   at sign-in. Mail goes through Brevo (`MAIL_MAILER=brevo`, `MAILER_DSN`). See README "Account email".

@@ -23,12 +23,12 @@ class AdminPanelTest extends MandarinTestCase
 
     public function test_a_signed_in_account_that_is_not_an_administrator_gets_403(): void
     {
-        $this->actingAs(User::factory()->create())->get('/admin')->assertForbidden();
+        $this->actingThroughIdentityProvider(User::factory()->create())->get('/admin')->assertForbidden();
     }
 
     public function test_an_administrator_gets_the_page_with_the_qa_link_and_the_endpoints(): void
     {
-        $response = $this->actingAs($this->admin())->get('/admin')->assertOk();
+        $response = $this->actingThroughIdentityProvider($this->admin())->get('/admin')->assertOk();
 
         $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
         $panel = $this->panel($response);
@@ -43,22 +43,22 @@ class AdminPanelTest extends MandarinTestCase
         config()->set('bherila-auth.delegated_access.application', 'games app/1');
         $this->assertSame(
             'https://identity.example.test/applications/games%20app%2F1/access',
-            $this->panel($this->actingAs($this->admin())->get('/admin'))['usersUrl'],
+            $this->panel($this->actingThroughIdentityProvider($this->admin())->get('/admin'))['usersUrl'],
         );
 
         config()->set('bherila-auth.delegated_access.application', '');
-        $this->assertNull($this->panel($this->actingAs($this->admin())->get('/admin'))['usersUrl']);
+        $this->assertNull($this->panel($this->actingThroughIdentityProvider($this->admin())->get('/admin'))['usersUrl']);
 
         config()->set('bherila-auth.delegated_access.application', 'games');
         config()->set('bherila-auth.oauth_client.base_url', '');
-        $this->assertNull($this->panel($this->actingAs($this->admin())->get('/admin'))['usersUrl']);
+        $this->assertNull($this->panel($this->actingThroughIdentityProvider($this->admin())->get('/admin'))['usersUrl']);
     }
 
     public function test_only_administrators_see_the_admin_link_on_the_games_page(): void
     {
         $this->get('/')->assertOk()->assertDontSee('data-testid="admin-link"', false);
-        $this->actingAs(User::factory()->create())->get('/')->assertOk()->assertDontSee('data-testid="admin-link"', false);
-        $this->actingAs($this->admin())->get('/')->assertOk()->assertSee('data-testid="admin-link"', false)->assertSee(route('admin.index'), false);
+        $this->actingThroughIdentityProvider(User::factory()->create())->get('/')->assertOk()->assertDontSee('data-testid="admin-link"', false);
+        $this->actingThroughIdentityProvider($this->admin())->get('/')->assertOk()->assertSee('data-testid="admin-link"', false)->assertSee(route('admin.index'), false);
     }
 
     private function admin(): User

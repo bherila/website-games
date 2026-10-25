@@ -16,6 +16,16 @@
             <p role="alert" class="mb-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950 dark:text-rose-100">{{ session('error') }}</p>
         @endif
 
+        <h2 class="text-sm font-semibold text-card-foreground">Sign-in methods</h2>
+        <ul class="mb-6 mt-1 text-sm text-card-foreground" data-testid="sign-in-methods">
+            @if ($user->oauth_subject !== null)
+                <li>bherila ID</li>
+            @endif
+            @foreach ($user->identities as $identity)
+                <li>{{ $identity->provider === \App\Models\UserIdentity::GOOGLE ? 'Google' : $identity->provider }}@if ($identity->email) <span class="text-muted-foreground">({{ $identity->email }})</span>@endif</li>
+            @endforeach
+        </ul>
+
         <h2 class="text-sm font-semibold text-card-foreground">Email</h2>
         <p class="mt-1 text-sm text-card-foreground" data-testid="account-email">
             {{ $user->email }}
@@ -30,7 +40,7 @@
             <form method="POST" action="{{ route('account.email.request') }}" class="mt-3">
                 @csrf
                 <input type="hidden" name="email" value="{{ $user->email }}">
-                <p class="mb-2 text-xs text-muted-foreground">Confirming your email lets it identify your account when you sign in other ways.</p>
+                <p class="mb-2 text-xs text-muted-foreground">Confirm your email to also sign in to this account with a Google account that uses it.</p>
                 <button type="submit" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/85">Send confirmation email</button>
             </form>
         @endunless

@@ -40,7 +40,7 @@
             @endcan
             <div id="account-auth-action">
                 @guest
-                    <a href="{{ route('oauth.redirect') }}" class="font-medium text-primary hover:underline">
+                    <a href="{{ route('login') }}" class="font-medium text-primary hover:underline">
                         Sign in to sync progress
                     </a>
                 @endguest
@@ -77,7 +77,7 @@
                 if (root.firstElementChild) return;
 
                 var link = document.createElement('a');
-                link.href = {!! json_encode(route('oauth.redirect')) !!};
+                link.href = {!! json_encode(route('login')) !!};
                 link.className = 'font-medium text-primary hover:underline';
                 link.textContent = 'Sign in to sync progress';
                 root.append(link);

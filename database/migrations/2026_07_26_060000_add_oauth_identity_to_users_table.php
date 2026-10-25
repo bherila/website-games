@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Schema;
  *
  * The columns are nullable so this is safe to apply before any authentication exists; the
  * unique index is composite so a future second provider cannot collide with the first.
- * A single provider is assumed for now — if that ever changes to several *per user*, this
- * wants promoting to its own `oauth_identities` table rather than more columns here.
+ * Google sign-in, added later, binds to its own subject in `user_identities` and may link to an
+ * account by email only when both Google and this application's confirmation vouch for it.
  */
 return new class extends Migration
 {

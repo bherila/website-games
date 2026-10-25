@@ -52,6 +52,14 @@ final class AccessAudit
     /** A signed-in account confirmed the address it already had (auth_method `session`). */
     public const EMAIL_VERIFIED = 'account_email_verified';
 
+    /**
+     * A Google sign-in was added to an account, either to an existing account whose confirmed
+     * address it matched or to a new account it created (auth_method `google`).
+     */
+    public const SIGN_IN_LINKED = 'sign_in_method_linked';
+
+    public const METHOD_GOOGLE = 'google';
+
     public const METHOD_CONSOLE = 'console';
 
     public const METHOD_DELEGATED = 'delegated';

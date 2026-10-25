@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Account\SignInMethod;
 use App\Services\Admin\DelegatedApplicationAccess;
 use BWH\Auth\OAuth\DelegatedAccess\ApplicationAccessAdapter;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -34,7 +35,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // Operator-only surfaces. Being signed in is not enough: every account is created at
         // first sign-in, so the flag is the only thing that separates an operator from a player.
-        Gate::define('administer', fn (User $user): bool => $user->isAdministrator());
+        // A Google sign-in can open any account whose confirmed address it matches, so
+        // administering also needs this session to have signed in through the identity provider.
+        Gate::define('administer', fn (User $user): bool => $user->isAdministrator()
+            && SignInMethod::viaIdentityProvider(request()->hasSession() ? request()->session() : null));
 
         // Named so each keeps its own counter: an unnamed `throttle:N,M` is keyed by the user
         // alone, so confirmation clicks and game-data saves would spend the email allowance.

@@ -43,7 +43,7 @@ class BootstrapApiTest extends MandarinTestCase
     {
         $this->importCourse();
         $user = User::factory()->create();
-        $this->actingAs($user)->getJson('/api/games/mandarin/bootstrap')
+        $this->actingThroughIdentityProvider($user)->getJson('/api/games/mandarin/bootstrap')
             ->assertOk()
             ->assertJsonPath('account.signedIn', true)
             ->assertJsonPath('account.accountPartitionId', 'user:'.$user->id)
@@ -55,13 +55,13 @@ class BootstrapApiTest extends MandarinTestCase
     {
         $this->importCourse();
         $user = User::factory()->administrator()->create();
-        $this->actingAs($user)->getJson('/api/games/mandarin/bootstrap')
+        $this->actingThroughIdentityProvider($user)->getJson('/api/games/mandarin/bootstrap')
             ->assertOk()
             ->assertJsonPath('capabilities.canGenerateAudio', true)
             ->assertJsonPath('capabilities.canSaveToAccount', true);
 
         config()->set('mandarin.speech.generation_enabled', false);
-        $this->actingAs($user)->getJson('/api/games/mandarin/bootstrap')->assertJsonPath('capabilities.canGenerateAudio', false);
+        $this->actingThroughIdentityProvider($user)->getJson('/api/games/mandarin/bootstrap')->assertJsonPath('capabilities.canGenerateAudio', false);
     }
 
     public function test_progress_and_events_require_authentication(): void

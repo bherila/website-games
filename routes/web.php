@@ -3,6 +3,7 @@
 use App\Http\Controllers\Account\AccountController;
 use App\Http\Controllers\Admin\AdminPanelController;
 use App\Http\Controllers\GamePwaController;
+use App\Http\Controllers\GoogleLoginController;
 use App\Http\Controllers\OAuthLoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,12 @@ Route::get('/oauth/redirect', [OAuthLoginController::class, 'redirect'])
 Route::get('/oauth/callback', [OAuthLoginController::class, 'callback'])
     ->middleware('throttle:20,1')
     ->name('oauth.callback');
+Route::get('/oauth/google/redirect', [GoogleLoginController::class, 'redirect'])
+    ->middleware('throttle:20,1,google-sign-in')
+    ->name('oauth.google.redirect');
+Route::get('/oauth/google/callback', [GoogleLoginController::class, 'callback'])
+    ->middleware('throttle:20,1,google-sign-in')
+    ->name('oauth.google.callback');
 Route::post('/logout', [OAuthLoginController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
@@ -81,7 +88,7 @@ Route::get('/tower-throwback', function () {
 // Operator panel: application administrators only, in every environment. Guests are sent to
 // sign in; a signed-in account without the flag gets 403. Its JSON lives in routes/api.php.
 Route::get('/admin', AdminPanelController::class)
-    ->middleware(['auth', 'can:administer'])
+    ->middleware(['auth', 'identity-provider-session', 'can:administer'])
     ->name('admin.index');
 
 Route::get('/2048', function () {
