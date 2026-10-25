@@ -8,12 +8,12 @@
 
 import * as THREE from 'three'
 
+import { disposeObject } from '../../_shared/three/threeUtils'
 import { inBounds, tileIndex } from '../engine/grid'
 import { FLOOR_COUNT, FLOOR_MIN, GRID_WIDTH } from '../gameTypes'
 import type { DiagnosticPaletteMode } from '../presentationPrefs'
 import { diagnosticRamp } from './diagnosticPalette'
 import { FLOOR_H } from './palette'
-import { disposeObject } from './threeUtils'
 
 export type HeatmapKind = 'noise' | 'congestion' | 'catchment'
 export type InspectableHeatmapKind = Exclude<HeatmapKind, 'catchment'>

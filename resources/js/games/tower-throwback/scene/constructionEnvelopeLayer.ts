@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 
+import { disposeObject } from '../../_shared/three/threeUtils'
 import { horizontalBuildRegions } from '../engine/mapGeometry'
 import { getMap } from '../engine/maps'
 import type { MapDefinition } from '../gameTypes'
 import { FLOOR_H, TILE_W } from './palette'
-import { disposeObject } from './threeUtils'
 
 const Z_CONSTRUCTION_ENVELOPE = 6.2
 const BUILDABLE_COLOR = new THREE.Color(0x2f8f83)

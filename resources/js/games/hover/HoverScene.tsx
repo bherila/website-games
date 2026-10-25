@@ -1,6 +1,7 @@
 import { type ReactElement, type RefObject, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
+import { clearGroup, disposeObject } from '../_shared/three/threeUtils'
 import { stepEngine } from './engine/engine'
 import { craftSpeed } from './engine/physics'
 import { createRng } from './engine/rng'
@@ -20,7 +21,6 @@ import {
 import { drawMinimap } from './scene/minimap'
 import { createMirrorCamera, mirrorRectPx, renderMirror, updateMirrorCamera } from './scene/mirror'
 import { buildMapScene, disposeSceneBackground } from './scene/sceneBuilder'
-import { clearGroup, disposeObject } from './scene/threeUtils'
 import { createWeather, type WeatherEffect } from './scene/weather'
 import { markHoverVisualReady, readHoverVisualTestOptions, resetHoverVisualReadiness } from './visualTestMode'
 

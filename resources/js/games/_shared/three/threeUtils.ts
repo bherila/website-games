@@ -64,11 +64,25 @@ export function clearGroup(group: THREE.Group): void {
   }
 }
 
-/** Disposes an object's own + descendant geometries/materials/textures. Does not detach it from its parent. */
+/**
+ * Disposes an object's own + descendant geometries, materials, textures, lights
+ * and instance buffers. Does not detach it from its parent. Geometries and
+ * textures marked `userData.cached` are shared across objects and survive.
+ */
 export function disposeObject(object: THREE.Object3D): void {
   object.traverse((child) => {
+    if ((child as THREE.Light).isLight) {
+      ;(child as THREE.Light).dispose()
+      return
+    }
+
+    const instanced = child as THREE.InstancedMesh
+    if (instanced.isInstancedMesh) {
+      instanced.dispose()
+    }
+
     const mesh = child as THREE.Mesh
-    if (mesh.geometry) {
+    if (mesh.geometry && mesh.geometry.userData.cached !== true) {
       mesh.geometry.dispose()
     }
 
@@ -86,8 +100,16 @@ export function disposeObject(object: THREE.Object3D): void {
 function disposeMaterial(material: THREE.Material): void {
   const textured = material as THREE.Material & Partial<Record<TextureMaterialKey, THREE.Texture | null>>
   for (const key of MATERIAL_TEXTURE_KEYS) {
-    textured[key]?.dispose()
+    const texture = textured[key]
+    if (texture && texture.userData.cached !== true) {
+      texture.dispose()
+    }
   }
 
   material.dispose()
+}
+
+/** A 0xRRGGBB number as a CSS hex color, clamped to the valid range. */
+export function hexColor(value: number): string {
+  return `#${Math.max(0, Math.min(0xffffff, Math.floor(value))).toString(16).padStart(6, '0')}`
 }

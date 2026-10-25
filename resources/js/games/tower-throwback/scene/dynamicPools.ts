@@ -19,6 +19,7 @@
 
 import * as THREE from 'three'
 
+import { disposeObject, hexColor } from '../../_shared/three/threeUtils'
 import { itemDef, shaftDef } from '../engine/catalog'
 import { getMap } from '../engine/maps'
 import type { Car, EngineState } from '../gameTypes'
@@ -41,7 +42,6 @@ import {
   PERSON_VISUAL_TILES_PER_SEC,
   type SceneFrame,
 } from './sceneFrame'
-import { disposeObject, hexColor } from './threeUtils'
 
 export const PERSON_CAP = 4000
 export const CAR_CAP = 256

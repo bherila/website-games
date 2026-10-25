@@ -1,5 +1,8 @@
 import * as THREE from 'three'
 
+// Disposal and color helpers live in the shared module; re-exported for this game's scene code.
+export { clearGroup, disposeObject } from '../../_shared/three/threeUtils'
+
 export function findCarId(object: THREE.Object3D): string | null {
   let current: THREE.Object3D | null = object
   while (current) {
@@ -88,42 +91,6 @@ export function roundedRect(context: CanvasRenderingContext2D, x: number, y: num
   context.lineTo(x, y + radius)
   context.quadraticCurveTo(x, y, x + radius, y)
   context.closePath()
-}
-
-export function clearGroup(group: THREE.Group): void {
-  while (group.children.length > 0) {
-    const child = group.children[0]
-    if (child) {
-      group.remove(child)
-      disposeObject(child)
-    }
-  }
-}
-
-export function disposeObject(object: THREE.Object3D): void {
-  object.traverse((child) => {
-    const mesh = child as THREE.Mesh
-    if (mesh.geometry && mesh.geometry.userData.cached !== true) {
-      mesh.geometry.dispose()
-    }
-
-    const material = mesh.material
-    if (Array.isArray(material)) {
-      for (const item of material) {
-        disposeMaterial(item)
-      }
-    } else if (material) {
-      disposeMaterial(material)
-    }
-  })
-}
-
-function disposeMaterial(material: THREE.Material): void {
-  const maybeTextured = material as THREE.Material & { map?: THREE.Texture }
-  if (maybeTextured.map && maybeTextured.map.userData.cached !== true) {
-    maybeTextured.map.dispose()
-  }
-  material.dispose()
 }
 
 export function lighten(hex: string): string {

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { disposeObject } from './threeUtils'
+import { disposeObject } from '../../_shared/three/threeUtils'
 
 const QUAD = new THREE.PlaneGeometry(1, 1)
 QUAD.userData.cached = true

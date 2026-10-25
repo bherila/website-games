@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 
+import { disposeObject } from '../../_shared/three/threeUtils'
 import { FLOOR_H, TILE_W } from './palette'
 import { PLACEMENT_RANGE_TILE_CAP, type PlacementRangeTile } from './placementRange'
-import { disposeObject } from './threeUtils'
 
 const Z_PLACEMENT_RANGE = 6.5
 const BENEFIT_COLOR = new THREE.Color(0x38bdf8)
