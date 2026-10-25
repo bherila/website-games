@@ -54,14 +54,29 @@ export function isAuthNavigation(url: URL, currentOrigin: string): boolean {
     && (url.pathname === '/login' || url.pathname === '/logout' || url.pathname.startsWith('/oauth/'))
 }
 
+/**
+ * Pages that show a signed-in account's own details: the account page (name, email, pending
+ * address, CSRF form fields) and the operator panel. A cached shell only has its initial-data
+ * JSON scrubbed, not server-rendered markup, so these must never be stored or served offline.
+ */
+export function isPrivateNavigation(url: URL, currentOrigin: string): boolean {
+  return url.origin === currentOrigin
+    && ['/account', '/admin'].some((root) => url.pathname === root || url.pathname.startsWith(`${root}/`))
+}
+
+/** Navigations that always go to the network and are never stored as a game shell. */
+export function isNetworkOnlyNavigation(url: URL, currentOrigin: string): boolean {
+  return isAuthNavigation(url, currentOrigin) || isPrivateNavigation(url, currentOrigin)
+}
+
 export function isGameNavigation(request: Request, currentOrigin: string): boolean {
   const url = new URL(request.url)
 
   // Every page this app serves is a game page — the whole origin is in scope,
-  // minus the sign-in routes, which are never answered from cache.
+  // minus sign-in and account pages, which are never answered from cache.
   return request.mode === 'navigate'
     && url.origin === currentOrigin
-    && !isAuthNavigation(url, currentOrigin)
+    && !isNetworkOnlyNavigation(url, currentOrigin)
 }
 
 export function sanitizeGameShellHtml(html: string): string | null {

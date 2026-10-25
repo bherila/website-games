@@ -5,8 +5,14 @@ namespace App\Providers;
 use App\Models\User;
 use App\Services\Admin\DelegatedApplicationAccess;
 use BWH\Auth\OAuth\DelegatedAccess\ApplicationAccessAdapter;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoTransportFactory;
+use Symfony\Component\Mailer\Transport\Dsn;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +35,14 @@ class AppServiceProvider extends ServiceProvider
         // Operator-only surfaces. Being signed in is not enough: every account is created at
         // first sign-in, so the flag is the only thing that separates an operator from a player.
         Gate::define('administer', fn (User $user): bool => $user->isAdministrator());
+
+        // Named so each keeps its own counter: an unnamed `throttle:N,M` is keyed by the user
+        // alone, so confirmation clicks and game-data saves would spend the email allowance.
+        RateLimiter::for('account-email-request', fn (Request $request): Limit => Limit::perHour(5)->by((string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('account-email-confirm', fn (Request $request): Limit => Limit::perMinute(20)->by((string) $request->user()?->getAuthIdentifier()));
+
+        $this->app->make(MailManager::class)->extend('brevo', fn () => (new BrevoTransportFactory)->create(
+            Dsn::fromString((string) config('services.brevo.dsn')),
+        ));
     }
 }

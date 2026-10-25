@@ -5,6 +5,7 @@ import {
   isGameNavigation,
   isHashedBuildAsset,
   isMandarinMediaAudio,
+  isNetworkOnlyNavigation,
   isPwaStaticAsset,
   isVersionedGameAudio,
   sanitizeGameShellHtml,
@@ -102,5 +103,18 @@ describe('mandarin media and sign-in routes', () => {
 
     const game = { url: new URL('/mandarin', origin).toString(), mode: 'navigate' } as Request
     expect(isGameNavigation(game, origin)).toBe(true)
+  })
+
+  it('never caches a page that shows the signed-in account, and caches every game page', () => {
+    // Shell scrubbing only clears the initial-data JSON; these pages render the account's
+    // name, email and form tokens into the markup itself, so they must stay network-only.
+    for (const path of ['/account', '/account/email/confirm/token', '/admin', '/admin/mandarin/audio', '/login', '/oauth/callback']) {
+      expect(isNetworkOnlyNavigation(new URL(path, origin), origin)).toBe(true)
+      expect(isGameNavigation({ url: new URL(path, origin).toString(), mode: 'navigate' } as Request, origin)).toBe(false)
+    }
+    for (const path of ['/', '/accounting-quiz', '/administer-quest', '/plate-escape', '/chicks-challenge']) {
+      expect(isNetworkOnlyNavigation(new URL(path, origin), origin)).toBe(false)
+      expect(isGameNavigation({ url: new URL(path, origin).toString(), mode: 'navigate' } as Request, origin)).toBe(true)
+    }
   })
 })

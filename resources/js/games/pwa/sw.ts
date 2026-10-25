@@ -6,6 +6,7 @@ import {
   isGameNavigation,
   isHashedBuildAsset,
   isMandarinMediaAudio,
+  isNetworkOnlyNavigation,
   isPwaStaticAsset,
   isVersionedGameAudio,
   sanitizeGameShellHtml,
@@ -146,7 +147,8 @@ async function cachePwaBootstrap(): Promise<void> {
 
 async function cacheGameShellUrl(candidate: string): Promise<void> {
   const url = new URL(candidate, worker.location.origin)
-  if (!isGamesUrl(url)) {
+  // A page may ask to be cached, but account and sign-in pages are refused here too.
+  if (!isGamesUrl(url) || isNetworkOnlyNavigation(url, worker.location.origin)) {
     return
   }
 

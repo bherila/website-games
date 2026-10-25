@@ -46,6 +46,26 @@ account when its owner changes theirs, and hand over the previous owner's saved 
 when an address is reused. The provider does not assert `email_verified`, so there is
 nothing that raises a matching address above an unverified claim.
 
+### Account email
+
+`/account` shows the signed-in account's email and lets its owner confirm or change it. A
+confirmation link (60 minutes, single use, only a SHA-256 of its token stored) goes to the address
+and only completes for the same signed-in account. A change notice goes to the previous address.
+Asking for a link reveals nothing about whether another account holds the address: that is only
+reported after the link is opened, and such a change is refused. Requests are limited to five an
+hour per account. Changes and confirmations are written to the access audit (`account_email_changed`,
+`account_email_verified`).
+
+`email_verified_at` is set only by this confirmation. Once confirmed, the address belongs to
+this application: sign-in keeps refreshing the name but no longer replaces the email with the
+provider's. Unconfirmed addresses still follow the provider, which is also how delegated-access
+placeholders are filled in on first sign-in. Accounts still bind to the provider's `sub`; a
+confirmed address is the groundwork for linking further sign-in methods.
+
+Mail is sent through Brevo's API in production: `MAIL_MAILER=brevo` (or `hybrid`, which falls
+back to the SMTP relay) with `MAILER_DSN="brevo+api://<api key>@default"`. Locally `MAIL_MAILER=log`
+writes messages to the log.
+
 ### Linking an existing account
 
 Rows copied across before OAuth existed carry an address but no subject, so no sign-in

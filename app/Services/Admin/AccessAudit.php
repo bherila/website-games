@@ -43,6 +43,15 @@ final class AccessAudit
      */
     public const MANDARIN_AUDIO_REQUESTED = 'mandarin_audio_requested';
 
+    /**
+     * A signed-in account confirmed a new email address through the emailed link (auth_method
+     * `session`). The address is what links further sign-ins, so its changes are recorded.
+     */
+    public const EMAIL_CHANGED = 'account_email_changed';
+
+    /** A signed-in account confirmed the address it already had (auth_method `session`). */
+    public const EMAIL_VERIFIED = 'account_email_verified';
+
     public const METHOD_CONSOLE = 'console';
 
     public const METHOD_DELEGATED = 'delegated';

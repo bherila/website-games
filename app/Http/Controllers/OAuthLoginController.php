@@ -75,14 +75,12 @@ class OAuthLoginController extends Controller
                     ]);
                 }
 
-                $emailChanged = strcasecmp($user->email, $email) !== 0;
-                $user->forceFill([
-                    'name' => $name,
-                    'email' => $email,
-                    // Preserve independent verification only while the address is
-                    // unchanged; the provider does not verify a replacement address.
-                    'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
-                ])->save();
+                // An address confirmed on the account page belongs to this application and is
+                // kept (see App\Services\Account\AccountEmail). Until then the provider's address
+                // is used, which is also how a delegated-access placeholder gets filled in.
+                $user->forceFill($user->email_verified_at === null
+                    ? ['name' => $name, 'email' => $email]
+                    : ['name' => $name])->save();
 
                 return $user;
             });
@@ -102,7 +100,7 @@ class OAuthLoginController extends Controller
              * request just asserted, otherwise the two requests disagree about the
              * account and neither should silently win.
              */
-            if ($user !== null && $user->name === $name && strcasecmp($user->email, $email) === 0) {
+            if ($user !== null && $user->name === $name && ($user->email_verified_at !== null || strcasecmp($user->email, $email) === 0)) {
                 return $user;
             }
 

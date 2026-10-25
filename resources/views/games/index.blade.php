@@ -26,6 +26,13 @@
                         </div>
                     </details>
                 @endif
+                <a href="{{ route('account.show') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground hover:no-underline" data-testid="account-link">
+                    Account
+                    @if (auth()->user()->email_verified_at === null)
+                        {{-- An unconfirmed address cannot yet identify the account elsewhere. --}}
+                        <span class="rounded-full bg-amber-100 px-1.5 text-xs text-amber-900 dark:bg-amber-900 dark:text-amber-100">Confirm email</span>
+                    @endif
+                </a>
             @endauth
             @can('administer')
                 {{-- Server-rendered for administrators only; everyone else never receives the link. --}}

@@ -1,4 +1,5 @@
 import { clearGamePwaSession } from './cacheCleanup'
+import { isNetworkOnlyNavigation } from './serviceWorkerPolicy'
 
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -60,7 +61,9 @@ async function registerGamesServiceWorker(): Promise<void> {
     }
 
     worker.postMessage({ type: 'CACHE_GAME_ASSETS', urls: currentGameAssetUrls() })
-    worker.postMessage({ type: 'CACHE_GAME_SHELL', url: window.location.href })
+    if (!isNetworkOnlyNavigation(new URL(window.location.href), window.location.origin)) {
+      worker.postMessage({ type: 'CACHE_GAME_SHELL', url: window.location.href })
+    }
   } catch (error) {
     console.error('Unable to register the games service worker.', error)
   }
