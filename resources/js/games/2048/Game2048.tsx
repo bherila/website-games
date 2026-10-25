@@ -1,8 +1,9 @@
-import { RotateCcw, Undo2, Volume2, VolumeX } from 'lucide-react'
+import { RotateCcw, Undo2 } from 'lucide-react'
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { SoundBottomControlButton } from '../_shared/audio/SoundToggle'
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import {
   BottomControlButton,
@@ -70,7 +71,7 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
   useEffect(() => () => sfx.dispose(), [sfx])
 
   const playSfx = useCallback((name: SfxName, intensity?: number): void => {
-    sfx.playSfx(name, intensity)
+    sfx.play(name, intensity)
   }, [sfx])
 
   const nextSeed = useCallback((): number => {
@@ -311,14 +312,7 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
             />
           </span>
           <span data-testid="mute-button">
-            <BottomControlButton
-              active={muted}
-              disabled={false}
-              icon={muted ? <VolumeX /> : <Volume2 />}
-              label={muted ? 'Unmute audio' : 'Mute audio'}
-              variant="ghost"
-              onClick={toggleMute}
-            />
+            <SoundBottomControlButton muted={muted} onMutedChange={toggleMute} />
           </span>
           <FullscreenBottomControlButton />
         </GameBottomToolbar>

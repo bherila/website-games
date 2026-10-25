@@ -256,7 +256,9 @@ speedUp 40 / jump 35 / slowDown 25.
 
 ### Audio (`audio/sfx.ts`)
 
-All-synthesized WebAudio, zero asset files. `AudioContext` is created/resumed only from a user gesture
+All-synthesized WebAudio, zero asset files, built on the shared `_shared/audio/synthSfx.ts` core
+(context, master gain, tone and noise voices, mute, suspend while hidden); the hum and `springTone`
+use its live context. `AudioContext` is created/resumed only from a user gesture
 (`unlock()` on Start). Engine hum = two detuned sawtooths → lowpass → gain, pitch/volume tracking speed
 (`setEngineIntensity`), started/stopped with the `playing` phase. One-shots are oscillator/noise
 envelopes; the load-bearing generator is `springTone(startFreq, endFreq, wobbles, duration, gain)` — a

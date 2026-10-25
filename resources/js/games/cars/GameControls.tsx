@@ -1,8 +1,10 @@
-import { ChevronDown, Crown, HelpCircle, LayoutGrid, Plus, RotateCcw, Shuffle, Users, Volume2, VolumeX } from 'lucide-react'
+import { ChevronDown, Crown, HelpCircle, LayoutGrid, Plus, RotateCcw, Shuffle, Users } from 'lucide-react'
 import { type Dispatch, type ReactElement, type SetStateAction, useEffect, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { createMuteStorage } from '../_shared/audio/muteStorage'
+import { SoundBottomControlButton } from '../_shared/audio/SoundToggle'
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import {
   BottomControlButton,
@@ -38,6 +40,7 @@ const POWER_UP_CONFIRMATIONS = {
 } satisfies Record<string, PowerUpConfirmation>
 
 export const AUDIO_MUTED_STORAGE_KEY = 'bwh.cars-game.audio.v1'
+const mute = createMuteStorage(AUDIO_MUTED_STORAGE_KEY, 'flag')
 
 interface StatsHeaderProps {
   colorblindMode: boolean
@@ -158,11 +161,11 @@ export function BottomControls({
   onVipSelectionActiveChange,
 }: BottomControlsProps): ReactElement {
   const levelEnded = Boolean(state.completedLevel || state.failedLevel)
-  const [audioMuted, setAudioMuted] = useState(loadAudioMuted)
+  const [audioMuted, setAudioMuted] = useState(mute.load)
 
   useEffect(() => {
     setMuted(audioMuted)
-    saveAudioMuted(audioMuted)
+    mute.save(audioMuted)
   }, [audioMuted])
 
   useEffect(() => {
@@ -228,14 +231,7 @@ export function BottomControls({
           variant="ghost"
           onClick={onTutorialOpen}
         />
-        <BottomControlButton
-          active={audioMuted}
-          disabled={false}
-          icon={audioMuted ? <VolumeX /> : <Volume2 />}
-          label={audioMuted ? 'Unmute audio' : 'Mute audio'}
-          variant="ghost"
-          onClick={() => setAudioMuted((current) => !current)}
-        />
+        <SoundBottomControlButton muted={audioMuted} onMutedChange={setAudioMuted} />
         <FullscreenBottomControlButton />
     </GameBottomToolbar>
   )
@@ -260,18 +256,3 @@ function DifficultyBadge({ compact = false, level }: { compact?: boolean, level:
   )
 }
 
-function loadAudioMuted(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
-  return window.localStorage.getItem(AUDIO_MUTED_STORAGE_KEY) === '1'
-}
-
-function saveAudioMuted(enabled: boolean): void {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(AUDIO_MUTED_STORAGE_KEY, enabled ? '1' : '0')
-}

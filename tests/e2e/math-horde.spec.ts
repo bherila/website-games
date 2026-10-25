@@ -43,10 +43,10 @@ test.describe('Math Horde gameplay', () => {
 
     // These are native keyboard activations of toolbar buttons. Space must
     // reach the focused button without also triggering the global shortcut.
-    const mute = page.getByRole('button', { name: 'Mute', exact: true })
+    const mute = page.getByRole('button', { name: 'Mute sound', exact: true })
     await mute.focus()
     await page.keyboard.press('Space')
-    await expect(page.getByRole('button', { name: 'Unmute', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Unmute sound', exact: true })).toBeVisible()
     await expect(page.getByRole('dialog', { name: 'Game paused', exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Pause', exact: true }).focus()
     await page.keyboard.press('Space')
@@ -89,7 +89,7 @@ test.describe('Math Horde gameplay', () => {
     await page.getByTestId('level-tile-2').click()
     await expect(page.getByText(/^SECTOR 2 ·/)).toBeVisible()
     await expect(tutorial).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Unmute', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Unmute sound', exact: true })).toBeVisible()
     expect(errors).toEqual([])
   })
 })

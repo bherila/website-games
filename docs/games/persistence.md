@@ -21,7 +21,9 @@ The API allowlists every supported game/scope/slot combination. Summary and leve
 - Authenticated API failures do not silently fall back to `localStorage`, which would create two competing sources of truth.
 - Rapid active-board updates are coalesced and re-debounced between requests. Pending writes use a keepalive request when the page is hidden; same-page writer sequencing makes an overlapping lifecycle flush safe.
 - A stale active-save revision stops that tab from writing the active save or mutable inventory and shows a reload warning. Monotonic best-score and level rows may still reconcile safely.
-- Device-only preferences such as mute and colorblind mode remain local.
+- Device-only preferences such as mute and colorblind mode remain local. Mute goes through
+  `_shared/audio/muteStorage.ts`, which keeps each game's shipped key and format (`'1'`/`'0'` or
+  JSON) and treats blocked or corrupt storage as sound on.
 
 ## Supported Games
 

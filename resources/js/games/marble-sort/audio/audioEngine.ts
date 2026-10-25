@@ -1,4 +1,6 @@
-const AUDIO_MUTED_STORAGE_KEY = 'bwh.marble-sort.audio-muted.v1'
+import { createMuteStorage } from '../../_shared/audio/muteStorage'
+
+const mute = createMuteStorage('bwh.marble-sort.audio-muted.v1', 'flag')
 
 type WebAudioWindow = Window & typeof globalThis & {
   webkitAudioContext?: typeof AudioContext
@@ -6,7 +8,7 @@ type WebAudioWindow = Window & typeof globalThis & {
 
 let audioContext: AudioContext | null = null
 let masterGain: GainNode | null = null
-let muted = loadMuted()
+let muted = mute.load()
 
 /**
  * Lazily created shared context. Returns null where WebAudio is unavailable
@@ -67,19 +69,9 @@ export function setAudioMuted(nextMuted: boolean): void {
     gain.gain.setTargetAtTime(muted ? 0 : 1, context.currentTime, 0.03)
   }
 
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(AUDIO_MUTED_STORAGE_KEY, muted ? '1' : '0')
-  }
+  mute.save(muted)
 
   if (!muted) {
     ensureAudioRunning()
   }
-}
-
-function loadMuted(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
-  return window.localStorage.getItem(AUDIO_MUTED_STORAGE_KEY) === '1'
 }

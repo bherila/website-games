@@ -40,12 +40,12 @@ describe('MathHordeGame', () => {
     expect(screen.queryByText('BOSS')).not.toBeInTheDocument()
     expect(screen.getByTestId('army-size')).toHaveTextContent('5')
 
-    const muteButton = screen.getByRole('button', { name: 'Mute' })
+    const muteButton = screen.getByRole('button', { name: 'Mute sound' })
     fireEvent.click(muteButton)
-    expect(screen.getByRole('button', { name: 'Unmute' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeInTheDocument()
     expect(window.localStorage.getItem('bwh.math-horde.muted.v1')).toBe('1')
-    fireEvent.click(screen.getByRole('button', { name: 'Unmute' }))
-    expect(screen.getByRole('button', { name: 'Mute' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Unmute sound' }))
+    expect(screen.getByRole('button', { name: 'Mute sound' })).toBeInTheDocument()
     expect(window.localStorage.getItem('bwh.math-horde.muted.v1')).toBe('0')
   })
 
@@ -69,7 +69,7 @@ describe('MathHordeGame', () => {
 
   it('leaves focused toolbar buttons and their icons to handle keyboard activation', () => {
     startPlaying()
-    const mute = screen.getByRole('button', { name: 'Mute' })
+    const mute = screen.getByRole('button', { name: 'Mute sound' })
     mute.focus()
 
     expect(fireEvent.keyDown(mute, { code: 'Space' })).toBe(true)
@@ -78,7 +78,7 @@ describe('MathHordeGame', () => {
     expect(screen.queryByRole('dialog', { name: 'Game paused' })).not.toBeInTheDocument()
 
     fireEvent.click(mute)
-    expect(screen.getByRole('button', { name: 'Unmute' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeInTheDocument()
   })
 
   it.each(['input', 'textarea', 'select', 'a', 'contenteditable'])('leaves %s keyboard input and navigation alone', (control) => {

@@ -1,10 +1,10 @@
 import { createMuteStorage } from '../_shared/audio/muteStorage'
-import { createSynthSfx, type SynthSfx, type SynthVoice } from '../_shared/audio/synthSfx'
+import { createSynthSfx, type SynthRecipe, type SynthSfx } from '../_shared/audio/synthSfx'
 
 export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'land' | 'overflow' | 'win' | 'undo'
 
 /** Toy-workshop sounds: a ratchet and pop for each screw, chimes for trays, wooden knocks for parts. */
-export const PLATE_SOUNDS: Record<PlateSound, (voice: SynthVoice) => void> = {
+export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
   // Three quick ratchet ticks climbing, then the screw pops free.
   unscrew: ({ tone }) => {
     for (const [index, pitch] of [1500, 1700, 1950].entries()) tone(pitch, pitch * 0.9, 0.025, 'square', 0.035, index * 0.05)
@@ -23,17 +23,17 @@ export const PLATE_SOUNDS: Record<PlateSound, (voice: SynthVoice) => void> = {
   // A muffled wooden "bonk": the screw won't budge.
   blocked: ({ tone, noise }) => {
     tone(260, 170, 0.12, 'sine', 0.16)
-    noise(0.06, 0.05, 900, 'lowpass')
+    noise(0.06, 0.05, 900, { attack: 0.02 })
   },
   // A short creak and swish as a part lets go.
   fall: ({ tone, noise }) => {
     tone(330, 250, 0.14, 'sawtooth', 0.025)
-    noise(0.32, 0.07, 1800, 'bandpass', 0.04, 500)
+    noise(0.32, 0.07, 1800, { filter: 'bandpass', delay: 0.04, sweepTo: 500, attack: 0.03, q: 1.4 })
   },
   // A soft wooden thud on the deck or lawn.
   land: ({ tone, noise }) => {
     tone(150, 70, 0.18, 'sine', 0.22)
-    noise(0.12, 0.09, 420, 'lowpass')
+    noise(0.12, 0.09, 420, { attack: 0.03 })
   },
   overflow: ({ tone }) => {
     tone(523, 494, 0.16, 'triangle', 0.12)
@@ -49,5 +49,5 @@ export const PLATE_SOUNDS: Record<PlateSound, (voice: SynthVoice) => void> = {
 export const plateMute = createMuteStorage('bwh.plate-escape.muted.v1')
 
 export function createPlateSfx(muted: boolean): SynthSfx<PlateSound> {
-  return createSynthSfx(PLATE_SOUNDS, { muted })
+  return createSynthSfx(PLATE_SOUNDS, { muted, attack: 0.008 })
 }

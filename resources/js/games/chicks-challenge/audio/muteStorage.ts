@@ -1,32 +1,7 @@
-/** Versioned localStorage key for the SFX mute toggle. Defensive parsing: any corruption -> unmuted. */
-const MUTE_STORAGE_KEY = 'bwh.chicks-challenge.muted.v1'
+import { createMuteStorage } from '../../_shared/audio/muteStorage'
 
-export function loadMuted(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
+/** Versioned device preference stored as JSON true/false; any corruption reads as unmuted. */
+const storage = createMuteStorage('bwh.chicks-challenge.muted.v1', 'json')
 
-  try {
-    const raw = window.localStorage.getItem(MUTE_STORAGE_KEY)
-    if (raw === null) {
-      return false
-    }
-    const parsed: unknown = JSON.parse(raw)
-
-    return parsed === true
-  } catch {
-    return false
-  }
-}
-
-export function saveMuted(muted: boolean): void {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(MUTE_STORAGE_KEY, JSON.stringify(muted))
-  } catch {
-    // Storage unavailable (private mode, quota) — mute preference just won't persist.
-  }
-}
+export const loadMuted = storage.load
+export const saveMuted = storage.save

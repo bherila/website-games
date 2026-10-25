@@ -6,6 +6,7 @@
  */
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { SoundToggle } from '../_shared/audio/SoundToggle'
 import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { useGameSounds } from './audio/useGameSounds'
 import { isBlockingModalOpen } from './blockingModals'
@@ -835,16 +836,10 @@ export function TowerGame(): ReactElement {
             />
             <FullscreenIconButton className="rounded-md bg-white/10 text-white shadow hover:bg-white/20" iconClassName="size-4" />
             <div className="inline-flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 shadow">
-              <button
-                type="button"
-                onClick={toggleMute}
-                aria-label={muted ? 'Unmute sounds' : 'Mute sounds'}
-                title="Shortcut: M"
-                className="inline-flex items-center gap-1.5 text-sm hover:opacity-80"
-              >
+              <SoundToggle muted={muted} onMutedChange={toggleMute} title="Shortcut: M" className="inline-flex h-auto w-auto items-center gap-1.5 rounded-none text-sm hover:opacity-80">
                 <span>{muted ? '🔇' : '🔊'}</span>
                 <kbd className="rounded bg-black/25 px-1 text-[10px]">M</kbd>
-              </button>
+              </SoundToggle>
               <input
                 type="range"
                 min={0}
