@@ -30,6 +30,12 @@ final class AccountMerge
 {
     private const MANUAL_TOWER_SLOTS = ['slot-a', 'slot-b', 'slot-c'];
 
+    /**
+     * A writer's later sequence is accepted without a revision check (GameDataStore), so a
+     * replaced row must forget its last writer.
+     */
+    private const NO_WRITER = ['writer_id' => null, 'writer_sequence' => null];
+
     public function __construct(
         private readonly GameDataMerger $merger,
         private readonly AccountDeletion $deletion,
@@ -113,7 +119,7 @@ final class AccountMerge
                 continue;
             }
             if ($kept->is_deleted) {
-                $kept->forceFill(['data' => $row->data, 'is_deleted' => false, 'revision' => $kept->revision + 1])->save();
+                $kept->forceFill(['data' => $row->data, 'is_deleted' => false, 'revision' => $kept->revision + 1] + self::NO_WRITER)->save();
                 $row->delete();
 
                 continue;
@@ -126,8 +132,9 @@ final class AccountMerge
                 // Older first, newer as the incoming write, exactly as two devices settle.
                 $data = $absorbedIsNewer ? $this->merger->merge($kept->data, $row->data) : $this->merger->merge($row->data, $kept->data);
             }
-            // A new revision tells the kept account's devices to read the combined row.
-            $kept->forceFill(['data' => $data, 'revision' => $kept->revision + 1])->save();
+            // A new revision with no recorded writer makes every device of the kept account,
+            // including one that last wrote this row, resolve the conflict and read the result.
+            $kept->forceFill(['data' => $data, 'revision' => $kept->revision + 1] + self::NO_WRITER)->save();
             $row->delete();
         }
 

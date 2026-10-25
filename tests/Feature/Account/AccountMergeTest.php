@@ -13,6 +13,7 @@ use App\Notifications\ConfirmEmailAddress;
 use App\Services\Account\AccountMerge;
 use App\Services\Account\AccountMergeRefused;
 use App\Services\Admin\AccessAudit;
+use App\Services\Games\GameDataStore;
 use BWH\Auth\Models\AuthAuditLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -104,6 +105,23 @@ class AccountMergeTest extends TestCase
             ['shared' => 1, 'kept-only' => 2, 'absorbed-a' => 3, 'absorbed-b' => 4],
             DB::table('mandarin_practice_events')->where('user_id', $keep->getKey())->orderBy('sequence')->pluck('sequence', 'client_event_id')->all(),
         );
+    }
+
+    public function test_an_open_game_cannot_overwrite_an_imported_snapshot_by_its_writer_sequence(): void
+    {
+        [$keep, $absorb] = [User::factory()->create(), User::factory()->create()];
+        $kept = $this->row($keep, GameDataScope::Save, 'autosave', ['version' => 1, 'board' => 'kept'], minutesAgo: 60);
+        // Set directly so the row keeps its older timestamp.
+        DB::table('user_game_data')->where('id', $kept->getKey())->update(['writer_id' => 'open-device', 'writer_sequence' => 5]);
+        $this->row($absorb, GameDataScope::Save, 'autosave', ['version' => 1, 'board' => 'imported']);
+
+        app(AccountMerge::class)->merge($keep, $absorb, AccessAudit::METHOD_CONSOLE, null);
+
+        // The device that had the kept row open writes its pre-merge state with its next sequence.
+        $result = app(GameDataStore::class)->upsert($keep, GameSlug::ChicksChallenge, GameDataScope::Save, 'autosave', ['version' => 1, 'board' => 'stale'], $kept->revision, 'open-device', 6);
+
+        $this->assertSame('stale', $result['status']);
+        $this->assertSame(['version' => 1, 'board' => 'imported'], $this->data($keep, GameDataScope::Save, 'autosave'));
     }
 
     public function test_sign_in_methods_move_to_the_kept_account(): void
@@ -253,12 +271,12 @@ class AccountMergeTest extends TestCase
         return UserGameData::query()->where('user_id', $user->getKey())->where('scope', $scope)->where('slot', $slot)->sole()->data;
     }
 
-    private function event(User $user, string $clientEventId, int $sequence): void
+    private function event(User $user, string $clientEventId, int $sequence, ?\DateTimeInterface $acceptedAt = null): void
     {
         DB::table('mandarin_practice_events')->insert([
             'user_id' => $user->getKey(), 'client_event_id' => $clientEventId, 'sequence' => $sequence,
             'course_id' => 'course', 'content_version' => 'v1', 'kind' => 'answer', 'mode' => 'practice',
-            'payload_hash' => str_repeat('0', 64), 'payload' => '{}', 'accepted_at' => now(),
+            'payload_hash' => str_repeat('0', 64), 'payload' => '{}', 'accepted_at' => $acceptedAt ?? now(),
         ]);
     }
 
