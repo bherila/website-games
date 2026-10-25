@@ -176,6 +176,28 @@ class AccountMergeTest extends TestCase
         $this->assertModelExists($other);
     }
 
+    public function test_a_merge_offer_cannot_be_redirected_at_an_address_that_was_never_confirmed(): void
+    {
+        // The attacker controls their own second account's mailbox, and knows a victim's address.
+        $attacker = User::factory()->create(['email' => 'attacker@example.test']);
+        User::factory()->create(['email' => 'attacker-alt@example.test', 'email_verified_at' => now()]);
+        $victim = User::factory()->create(['email' => 'victim@example.test', 'email_verified_at' => now()]);
+        $this->row($victim, GameDataScope::Level, '1', ['version' => 1, 'stars' => 3]);
+
+        $this->actingAs($attacker)->post('/account/email', ['email' => 'attacker-alt@example.test']);
+        $this->actingAs($attacker)->get('/account/email/confirm/'.$this->tokenSentTo('attacker-alt@example.test'));
+        // A new request for the victim's address, whose link the attacker never opens.
+        $this->actingAs($attacker)->post('/account/email', ['email' => 'victim@example.test']);
+
+        $this->actingAs($attacker)->post('/account/merge')->assertSessionHas('error');
+
+        $this->assertModelExists($victim);
+        $this->assertSame('victim@example.test', $victim->fresh()?->email);
+        $this->assertSame(['version' => 1, 'stars' => 3], $this->data($victim, GameDataScope::Level, '1'));
+        $this->assertSame('attacker@example.test', $attacker->fresh()?->email);
+        $this->actingAs($attacker)->get('/account')->assertOk()->assertDontSee('Merge your other account?');
+    }
+
     public function test_a_merge_offer_expires_and_can_be_declined(): void
     {
         $keep = User::factory()->create(['email' => 'mine@example.test']);

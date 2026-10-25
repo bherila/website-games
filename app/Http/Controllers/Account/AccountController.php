@@ -27,7 +27,7 @@ class AccountController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $offer = $this->mergeOffer($request, $user);
+        $offer = $this->mergeOffer($request->session()->get(self::MERGE_OFFER), $user);
 
         return view('account', [
             'user' => $user,
@@ -95,7 +95,10 @@ class AccountController extends Controller
         }
 
         if ($mergeable !== null) {
-            $request->session()->put(self::MERGE_OFFER, ['request' => $mergeable->getKey(), 'user' => $user->getKey(), 'expires' => now()->addMinutes(self::MERGE_OFFER_MINUTES)->getTimestamp()]);
+            $request->session()->put(self::MERGE_OFFER, AccountEmail::mergeBinding($user, $mergeable) + [
+                'user' => $user->getKey(),
+                'expires' => now()->addMinutes(self::MERGE_OFFER_MINUTES)->getTimestamp(),
+            ]);
 
             return redirect()->route('account.show');
         }
@@ -111,14 +114,13 @@ class AccountController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $offer = $this->mergeOffer($request, $user);
-        $request->session()->forget(self::MERGE_OFFER);
-        if ($offer === null) {
-            return redirect()->route('account.show')->with('error', 'That merge offer has expired. Request a new confirmation link.');
+        $binding = $request->session()->pull(self::MERGE_OFFER);
+        if ($this->mergeOffer($binding, $user) === null) {
+            return redirect()->route('account.show')->with('error', 'That merge offer has expired or no longer matches your latest request. Request a new confirmation link.');
         }
 
         try {
-            $emails->completeWithMerge($user, $offer->getKey(), $merge);
+            $emails->completeWithMerge($user, $binding, $merge);
         } catch (EmailConfirmationFailed|AccountMergeRefused $failure) {
             return redirect()->route('account.show')->with('error', $failure->getMessage());
         }
@@ -133,13 +135,16 @@ class AccountController extends Controller
         return redirect()->route('account.show')->with('status', 'Nothing was merged. Your email is unchanged.');
     }
 
-    private function mergeOffer(Request $request, User $user): ?EmailChangeRequest
+    /**
+     * The pending request a session's merge offer still describes, for this account only.
+     * See AccountEmail::boundRequest() for what must still match.
+     */
+    private function mergeOffer(mixed $offer, User $user): ?EmailChangeRequest
     {
-        $offer = $request->session()->get(self::MERGE_OFFER);
         if (! is_array($offer) || ($offer['user'] ?? null) !== $user->getKey() || ($offer['expires'] ?? 0) < now()->getTimestamp()) {
             return null;
         }
 
-        return EmailChangeRequest::query()->whereKey($offer['request'] ?? 0)->where('user_id', $user->getKey())->where('expires_at', '>', now())->first();
+        return AccountEmail::boundRequest($user, $offer);
     }
 }
