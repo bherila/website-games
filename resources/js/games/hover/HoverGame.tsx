@@ -83,7 +83,7 @@ export function HoverGame(): ReactElement {
     (levelIndex: number): void => {
       const engine = sfx()
       engine.unlock()
-      engine.playSfx('start')
+      engine.play('start')
       beginRound(levelIndex, 0, 0)
     },
     [beginRound, sfx],
@@ -116,47 +116,47 @@ export function HoverGame(): ReactElement {
       for (const event of events) {
         switch (event.kind) {
           case 'flagBlue':
-            audio.playSfx('flagBlue')
+            audio.play('flagBlue')
             break
           case 'flagRed':
-            audio.playSfx('flagRed')
+            audio.play('flagRed')
             break
           case 'pod':
             if (event.actor === 'player') {
-              audio.playSfx(event.podKind === 'slowDown' ? 'podBad' : 'pod')
+              audio.play(event.podKind === 'slowDown' ? 'podBad' : 'pod')
             }
             break
           case 'jump':
             if (event.actor === 'player') {
-              audio.playSfx('jump')
+              audio.play('jump')
             }
             break
           case 'land':
             if (event.actor === 'player') {
-              audio.playSfx('land')
+              audio.play('land')
             }
             break
           case 'trapped':
-            audio.playSfx('trapped', event.actor === 'player' ? 1 : 0.6)
+            audio.play('trapped', event.actor === 'player' ? 1 : 0.6)
             break
           case 'arrow':
             if (event.actor === 'player') {
-              audio.playSfx('arrow')
+              audio.play('arrow')
             }
             break
           case 'bounce':
             if (event.actor === 'player') {
-              audio.playSfx('bounce', event.intensity ?? 0.5)
+              audio.play('bounce', event.intensity ?? 0.5)
             }
             break
           case 'craftBump':
-            audio.playSfx('craftBump', event.intensity ?? 0.5)
+            audio.play('craftBump', event.intensity ?? 0.5)
             break
           case 'win':
-            audio.playSfx('win')
+            audio.play('win')
             break
           case 'lose':
-            audio.playSfx('lose')
+            audio.play('lose')
             break
         }
       }

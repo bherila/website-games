@@ -8,15 +8,15 @@ describe('createSfxEngine (no window)', () => {
     const engine = createSfxEngine(false)
     engine.unlock()
     for (const name of SFX_NAMES) {
-      expect(() => engine.playSfx(name)).not.toThrow()
+      expect(() => engine.play(name)).not.toThrow()
     }
     engine.setMuted(true)
-    expect(() => engine.playSfx('win')).not.toThrow()
+    expect(() => engine.play('win')).not.toThrow()
     expect(() => engine.dispose()).not.toThrow()
   })
 
   it('starts muted when constructed muted', () => {
     const engine = createSfxEngine(true)
-    expect(() => engine.playSfx('stuck')).not.toThrow()
+    expect(() => engine.play('stuck')).not.toThrow()
   })
 })

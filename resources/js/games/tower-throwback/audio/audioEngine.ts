@@ -1,6 +1,7 @@
+import { createMuteStorage } from '../../_shared/audio/muteStorage'
 import { safeLocalStorage } from '../../_shared/progressParsers'
 
-const AUDIO_MUTED_STORAGE_KEY = 'bwh.tower-throwback.audio-muted.v1'
+const mute = createMuteStorage('bwh.tower-throwback.audio-muted.v1', 'flag')
 const AUDIO_LEVEL_STORAGE_KEY = 'bwh.tower-throwback.audio-level.v1'
 
 type WebAudioWindow = Window & typeof globalThis & {
@@ -9,7 +10,7 @@ type WebAudioWindow = Window & typeof globalThis & {
 
 let audioContext: AudioContext | null = null
 let masterGain: GainNode | null = null
-let muted = loadMuted()
+let muted = mute.load()
 let level = loadLevel()
 
 function clampLevel(value: number): number {
@@ -92,11 +93,7 @@ export function setAudioMuted(nextMuted: boolean): void {
   muted = nextMuted
   applyGain()
 
-  try {
-    safeLocalStorage()?.setItem(AUDIO_MUTED_STORAGE_KEY, muted ? '1' : '0')
-  } catch {
-    // Blocked/full storage — the preference just doesn't persist.
-  }
+  mute.save(muted)
 
   if (!muted) {
     ensureAudioRunning()
@@ -119,15 +116,6 @@ export function setAudioLevel(nextLevel: number): void {
 
   if (!muted && level > 0) {
     ensureAudioRunning()
-  }
-}
-
-/** Module-scope read — must never throw (blocked storage → default unmuted). */
-function loadMuted(): boolean {
-  try {
-    return safeLocalStorage()?.getItem(AUDIO_MUTED_STORAGE_KEY) === '1'
-  } catch {
-    return false
   }
 }
 

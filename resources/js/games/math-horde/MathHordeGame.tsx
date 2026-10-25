@@ -1,6 +1,8 @@
-import { ArrowRight, Grid3x3, Pause, Play, RotateCcw, Star, Trophy, Users, Volume2, VolumeX, X } from 'lucide-react'
+import { ArrowRight, Grid3x3, Pause, Play, RotateCcw, Star, Trophy, Users, X } from 'lucide-react'
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { createMuteStorage } from '../_shared/audio/muteStorage'
+import { SoundToggle } from '../_shared/audio/SoundToggle'
 import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { PortraitGameShell } from '../PortraitGameShell'
@@ -15,13 +17,7 @@ import { MathHordeScene } from './MathHordeScene'
 const TUTORIAL_STORAGE_KEY = 'bwh.math-horde.tutorial.v1'
 const MUTED_STORAGE_KEY = 'bwh.math-horde.muted.v1'
 
-function loadMuted(): boolean {
-  try {
-    return window.localStorage.getItem(MUTED_STORAGE_KEY) === '1'
-  } catch {
-    return false
-  }
-}
+const mute = createMuteStorage(MUTED_STORAGE_KEY, 'flag')
 
 export function MathHordeGame(): ReactElement {
   const [progress, setProgress] = useState<SavedProgress>(() => loadProgress())
@@ -33,24 +29,20 @@ export function MathHordeGame(): ReactElement {
   const [earnedStars, setEarnedStars] = useState<1 | 2 | 3>(1)
   const [survivors, setSurvivors] = useState(0)
   const [showTutorial, setShowTutorial] = useState(false)
-  const [muted, setMuted] = useState(loadMuted)
-  const [sfx] = useState(() => createSfxEngine(loadMuted()))
+  const [muted, setMuted] = useState(mute.load)
+  const [sfx] = useState(() => createSfxEngine(mute.load()))
 
   useEffect(() => () => sfx.dispose(), [sfx])
 
   const playSfx = useCallback((name: SfxName, intensity?: number): void => {
-    sfx.playSfx(name, intensity)
+    sfx.play(name, intensity)
   }, [sfx])
 
   const toggleMute = useCallback((): void => {
     setMuted((current) => {
       const next = !current
       sfx.setMuted(next)
-      try {
-        window.localStorage.setItem(MUTED_STORAGE_KEY, next ? '1' : '0')
-      } catch {
-        // Private browsing can decline this preference without blocking play.
-      }
+      mute.save(next)
 
       return next
     })
@@ -218,9 +210,7 @@ function GameHud({ hud, level, muted, paused, onExit, onPause, onToggleMute }: G
           SECTOR {level} · {hud.score.toLocaleString()}
         </div>
         <div className="pointer-events-auto flex gap-2">
-          <button aria-label={muted ? 'Unmute' : 'Mute'} className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onToggleMute}>
-            {muted ? <VolumeX aria-hidden="true" className="size-4" /> : <Volume2 aria-hidden="true" className="size-4" />}
-          </button>
+          <SoundToggle muted={muted} onMutedChange={onToggleMute} iconClassName="size-4" className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" />
           <button aria-label={paused ? 'Resume' : 'Pause'} className="flex size-11 items-center justify-center rounded-full border border-white/20 bg-slate-950/75 backdrop-blur active:scale-95" type="button" onClick={onPause}>
             {paused ? <Play aria-hidden="true" className="size-4" /> : <Pause aria-hidden="true" className="size-4" />}
           </button>

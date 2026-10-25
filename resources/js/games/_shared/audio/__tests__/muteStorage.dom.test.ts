@@ -21,3 +21,14 @@ test('blocked storage neither throws nor mutes', () => {
   get.mockRestore()
   set.mockRestore()
 })
+
+test('the flag format reads and writes the 1/0 values older games already saved', () => {
+  const storage = createMuteStorage('bwh.test.flag.v1', 'flag')
+  window.localStorage.setItem('bwh.test.flag.v1', '1')
+  expect(storage.load()).toBe(true)
+  storage.save(false)
+  expect(window.localStorage.getItem('bwh.test.flag.v1')).toBe('0')
+  expect(storage.load()).toBe(false)
+  window.localStorage.setItem('bwh.test.flag.v1', 'true')
+  expect(storage.load()).toBe(false)
+})

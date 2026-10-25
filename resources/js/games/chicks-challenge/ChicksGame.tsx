@@ -184,7 +184,7 @@ export function ChicksGame(): ReactElement {
   const playEventSfx = useCallback((moveEvents: readonly EngineEvent[]): void => {
     const engine = sfx()
     for (const name of sfxForEvents(moveEvents)) {
-      engine.playSfx(name)
+      engine.play(name)
     }
   }, [sfx])
 
@@ -315,7 +315,7 @@ export function ChicksGame(): ReactElement {
 
   const handleStuck = useCallback((): void => {
     setStuck(true)
-    sfx().playSfx('stuck')
+    sfx().play('stuck')
   }, [sfx])
 
   useStuckProbe({ active: phase === 'playing' && !stuck, onStuck: handleStuck, state: gameState })

@@ -426,10 +426,10 @@ describe('Game2048', () => {
 
   it('persists the mute preference locally', () => {
     renderGame()
-    fireEvent.click(screen.getByRole('button', { name: 'Mute audio' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mute sound' }))
 
     expect(window.localStorage.getItem(TWENTY48_MUTED_STORAGE_KEY)).toBe('1')
-    expect(screen.getByRole('button', { name: 'Unmute audio' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeInTheDocument()
   })
 
   it('renders one background cell per board square', () => {

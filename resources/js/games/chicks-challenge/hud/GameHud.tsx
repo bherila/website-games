@@ -1,8 +1,9 @@
-import { Flame, Grid3x3, Key, RotateCcw, Snowflake, Volume2, VolumeX, Waves, Wind } from 'lucide-react'
+import { Flame, Grid3x3, Key, RotateCcw, Snowflake, Waves, Wind } from 'lucide-react'
 import type { ReactElement } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { SoundToggle } from '../../_shared/audio/SoundToggle'
 import type { BootKind, GameState, KeyColor } from '../engine/types'
 
 interface GameHudProps {
@@ -66,14 +67,7 @@ export function GameHud({ state, levelId, par, muted, onRestart, onLevelSelect, 
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              aria-label={muted ? 'Unmute sound' : 'Mute sound'}
-              className={iconButtonClass}
-              type="button"
-              onClick={onToggleMute}
-            >
-              {muted ? <VolumeX aria-hidden="true" className="size-5" /> : <Volume2 aria-hidden="true" className="size-5" />}
-            </button>
+            <SoundToggle muted={muted} onMutedChange={onToggleMute} className={iconButtonClass} iconClassName="size-5" />
             <button aria-label="Restart level" className={iconButtonClass} type="button" onClick={onRestart}>
               <RotateCcw aria-hidden="true" className="size-5" />
             </button>

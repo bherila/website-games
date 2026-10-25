@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 
+import { SoundToggle } from '../../_shared/audio/SoundToggle'
 import type { SpeedEffect } from '../gameTypes'
 import { MAX_SPEED } from '../gameTypes'
 
@@ -57,14 +58,9 @@ export function Dashboard({ speed, speedEffect, hasJumpPower, muted, onToggleMut
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onToggleMute}
-        className="pointer-events-auto rounded-lg bg-white/10 px-2 py-1 text-sm hover:bg-white/20"
-        aria-label={muted ? 'Unmute sound' : 'Mute sound'}
-      >
+      <SoundToggle muted={muted} onMutedChange={onToggleMute} className="pointer-events-auto h-auto w-auto rounded-lg bg-white/10 px-2 py-1 text-sm hover:bg-white/20">
         {muted ? '🔇' : '🔊'}
-      </button>
+      </SoundToggle>
     </div>
   )
 }

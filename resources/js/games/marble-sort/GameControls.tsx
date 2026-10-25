@@ -1,8 +1,9 @@
-import { ChevronDown, Coins, HelpCircle, LayoutGrid, Magnet, MoveRight, RotateCcw, Shuffle, Volume2, VolumeX } from 'lucide-react'
+import { ChevronDown, Coins, HelpCircle, LayoutGrid, Magnet, MoveRight, RotateCcw, Shuffle } from 'lucide-react'
 import { type Dispatch, type ReactElement, type ReactNode, type SetStateAction } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { SoundBottomControlButton } from '../_shared/audio/SoundToggle'
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import {
   BottomControlButton,
@@ -249,13 +250,7 @@ function BottomControls({
           variant="ghost"
           onClick={onTutorialOpen}
         />
-        <BottomControlButton
-          disabled={false}
-          icon={soundMuted ? <VolumeX /> : <Volume2 />}
-          label={soundMuted ? 'Unmute sound' : 'Mute sound'}
-          variant="ghost"
-          onClick={() => onSoundMutedChange(!soundMuted)}
-        />
+        <SoundBottomControlButton muted={soundMuted} onMutedChange={onSoundMutedChange} />
         <FullscreenBottomControlButton />
     </GameBottomToolbar>
   )

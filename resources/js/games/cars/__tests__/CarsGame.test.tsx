@@ -78,7 +78,7 @@ describe('CarsGame', () => {
     expect(screen.getByRole('button', { name: 'Fill' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open Spot' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Tutorial' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Mute audio' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mute sound' })).toBeInTheDocument()
     expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-vip-selection', 'inactive')
     expect(screen.getByTestId('portrait-game-viewport').getAttribute('style')).toContain('calc(100dvh * 3 / 4)')
   })
@@ -201,11 +201,11 @@ describe('CarsGame', () => {
 
     expect(setMuted).toHaveBeenLastCalledWith(false)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mute audio' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mute sound' }))
 
     expect(setMuted).toHaveBeenLastCalledWith(true)
     expect(window.localStorage.getItem(AUDIO_MUTED_STORAGE_KEY)).toBe('1')
-    expect(screen.getByRole('button', { name: 'Unmute audio' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeInTheDocument()
   })
 
   it('restores the persisted audio mute preference', () => {
@@ -214,7 +214,7 @@ describe('CarsGame', () => {
     render(<CarsGame />)
     enterLevel(1)
 
-    expect(screen.getByRole('button', { name: 'Unmute audio' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeInTheDocument()
     expect(setMuted).toHaveBeenLastCalledWith(true)
   })
 

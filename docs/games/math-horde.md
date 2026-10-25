@@ -34,8 +34,8 @@ thresholds. Active runs are not saved; reloading returns to level selection.
 
 The introductory tutorial appears until dismissed, tracked by the local
 `bwh.math-horde.tutorial.v1` preference. Sound mute is device-local in
-`bwh.math-horde.muted.v1`. Audio uses synthesized Web Audio effects unlocked by a
-player gesture.
+`bwh.math-horde.muted.v1`. Audio uses synthesized Web Audio effects on the shared
+`_shared/audio` core, unlocked by a player gesture.
 
 ## Verification
 
