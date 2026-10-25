@@ -143,6 +143,28 @@ class AccountMergeTest extends TestCase
         $this->assertCount(2, $slots);
     }
 
+    public function test_no_practice_event_delete_selects_from_its_own_table(): void
+    {
+        // MySQL rejects DELETE ... WHERE x IN (SELECT ... FROM the same table); SQLite allows it,
+        // so the statement shape is checked here rather than by running on MySQL.
+        [$keep, $absorb] = [User::factory()->create(), User::factory()->create()];
+        $this->event($keep, 'shared', 1);
+        $this->event($absorb, 'shared', 1);
+        $deletes = [];
+        DB::listen(function ($query) use (&$deletes): void {
+            if (str_starts_with(strtolower(ltrim($query->sql)), 'delete') && str_contains($query->sql, 'mandarin_practice_events')) {
+                $deletes[] = $query->sql;
+            }
+        });
+
+        app(AccountMerge::class)->merge($keep, $absorb, AccessAudit::METHOD_CONSOLE, null);
+
+        $this->assertNotEmpty($deletes);
+        foreach ($deletes as $sql) {
+            $this->assertStringNotContainsString('select', strtolower($sql), $sql);
+        }
+    }
+
     public function test_sign_in_methods_move_to_the_kept_account(): void
     {
         $keep = User::factory()->create();

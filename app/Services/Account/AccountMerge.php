@@ -178,16 +178,22 @@ final class AccountMerge
 
     private function mergePracticeEvents(User $keep, User $absorb): int
     {
-        $events = DB::table('mandarin_practice_events');
-        $known = DB::table('mandarin_practice_events')->where('user_id', $keep->getKey())->select('client_event_id');
-        $events->clone()->where('user_id', $absorb->getKey())->whereIn('client_event_id', $known)->delete();
+        $events = fn () => DB::table('mandarin_practice_events');
+
+        // Events both accounts recorded stay once. The ids are read first: MySQL refuses a DELETE
+        // whose subquery selects from the table being deleted from.
+        $known = $events()->where('user_id', $keep->getKey())->pluck('client_event_id')->all();
+        $duplicates = collect($known)->chunk(500)->flatMap(fn ($chunk) => $events()->where('user_id', $absorb->getKey())->whereIn('client_event_id', $chunk->all())->pluck('id'))->all();
+        foreach (array_chunk($duplicates, 500) as $chunk) {
+            $events()->whereIn('id', $chunk)->delete();
+        }
 
         // Sequences are unique per account, so moved events continue after the kept account's
         // last one, in their original order.
-        $next = (int) $events->clone()->where('user_id', $keep->getKey())->max('sequence');
-        $moving = $events->clone()->where('user_id', $absorb->getKey())->orderBy('sequence')->pluck('id');
+        $next = (int) $events()->where('user_id', $keep->getKey())->max('sequence');
+        $moving = $events()->where('user_id', $absorb->getKey())->orderBy('sequence')->pluck('id');
         foreach ($moving as $id) {
-            DB::table('mandarin_practice_events')->where('id', $id)->update(['user_id' => $keep->getKey(), 'sequence' => ++$next]);
+            $events()->where('id', $id)->update(['user_id' => $keep->getKey(), 'sequence' => ++$next]);
         }
 
         return $moving->count();
