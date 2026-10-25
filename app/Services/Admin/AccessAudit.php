@@ -60,6 +60,12 @@ final class AccessAudit
 
     public const METHOD_GOOGLE = 'google';
 
+    /**
+     * An account holder deleted their own account from the account page (auth_method `session`).
+     * The row outlives the account: `user_id` becomes null, and metadata keeps the old row id.
+     */
+    public const ACCOUNT_DELETED = 'account_deleted';
+
     public const METHOD_CONSOLE = 'console';
 
     public const METHOD_DELEGATED = 'delegated';

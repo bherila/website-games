@@ -67,6 +67,9 @@ return [
 
     'timezone' => 'UTC',
 
+    // Shown on /privacy for privacy questions and requests; the section is omitted when unset.
+    'privacy_contact' => env('PRIVACY_CONTACT'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
