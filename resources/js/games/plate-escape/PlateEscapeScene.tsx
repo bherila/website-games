@@ -3,12 +3,19 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
-import { type PuzzleState, screwLock } from './engine'
+import { bearingLock, type PuzzleState, screwLock } from './engine'
 import { createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
 import { COLORS, getLevel } from './level'
 import { traceScrew } from './screwVisibility'
 
-export interface ScrewTarget { id: string, x: number, y: number, coveredBy?: string | undefined }
+export interface ScrewTarget {
+  id: string
+  x: number
+  y: number
+  coveredBy?: string | undefined
+  /** The part resting on this plate, which keeps its last screw in place. */
+  holdsUp?: string | undefined
+}
 export interface ViewCommand { action: 'left' | 'right' | 'reset', sequence: number }
 interface Props {
   state: PuzzleState
@@ -138,6 +145,9 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
     }
     renderer.domElement.addEventListener('webglcontextlost', lost)
     const removedAt = new Map<string, number>()
+    // A bearing wall stays square on its last screw; it starts to hang only once its load has gone.
+    const heldPlates = new Set<string>()
+    const loadReleasedAt = new Map<string, number>()
     const ray = new THREE.Raycaster()
     const world = new THREE.Vector3()
     const facing = new THREE.Vector3()
@@ -162,13 +172,17 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
         const remaining = screws.filter((screw) => !removed.includes(screw.id))
         const latest = Math.max(...screws.map((screw) => removedAt.get(screw.id) ?? -Infinity))
         const fall = remaining.length === 0 ? Math.max(0, now - latest - 0.45) : 0
-        const pivot = remaining.length === 1 ? remaining[0]
+        const held = remaining.length === 1 && bearingLock(latestRef.current.state, plate.id) !== null
+        if (held) heldPlates.add(plate.id)
+        else if (heldPlates.delete(plate.id)) loadReleasedAt.set(plate.id, now)
+        const hangFrom = Math.max(latest, loadReleasedAt.get(plate.id) ?? -Infinity)
+        const pivot = held ? undefined : remaining.length === 1 ? remaining[0]
           : remaining.length === 0 ? screws.find((screw) => removedAt.get(screw.id) === latest) : undefined
         // The unsupported side swings downward whether the last screw is on
         // the left or the right; the final fall keeps that direction.
         const swing = pivot && pivot.position[0] > 0 ? 1 : -1
         const angle = remaining.length === 0 ? swing * (0.3 + fall * 1.2)
-          : pivot && Number.isFinite(latest) ? swing * 0.3 * Math.min(1, Math.max(0, (now - latest - 0.3) * 3)) : 0
+          : pivot && Number.isFinite(hangFrom) ? swing * 0.3 * Math.min(1, Math.max(0, (now - hangFrom - 0.3) * 3)) : 0
         const base = plateFrames.get(plate.id)!
         group.quaternion.copy(base).multiply(quaternion.setFromAxisAngle(NORMAL, angle))
         group.position.fromArray(plate.position)
@@ -209,8 +223,12 @@ export function PlateEscapeScene({ state, view, onTargets, onError }: Props): Re
           const sight = traceScrew(ray, hitObjects)
           if (sight?.screwId !== screw.id) continue
           const lock = screwLock(latestRef.current.state, screw)
-          const cover = lock?.kind === 'cover' ? PLATES.find((plate) => plate.id === lock.plate) : undefined
-          targets.push({ id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2, coveredBy: cover?.name ?? sight.coveredBy })
+          const locker = PLATES.find((plate) => plate.id === lock?.plate)
+          targets.push({
+            id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2,
+            coveredBy: lock?.kind === 'cover' ? locker?.name : sight.coveredBy,
+            holdsUp: lock?.kind === 'bearing' ? locker?.name : undefined,
+          })
         }
         latestRef.current.onTargets(targets)
       }

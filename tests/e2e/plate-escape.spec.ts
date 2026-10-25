@@ -126,7 +126,21 @@ test.describe('Plate Escape real puzzle', () => {
     await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
     await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
     await expect(page.getByLabel('Spare storage: 0 of 2', { exact: true })).toBeVisible()
-    for (const id of WORKSHOP_TRACE.win) await removeVisible(id)
+    for (const id of WORKSHOP_TRACE.win) {
+      await removeVisible(id)
+      if (id !== 'front-1') continue
+      // The front gable's last screw waits for the roof, and tapping it says why.
+      const held = page.locator('[data-bearing-screw-id="front-2"]')
+      for (let turn = 0; turn < 9 && !await held.isVisible(); turn++) {
+        await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+        await page.waitForTimeout(250)
+      }
+      await expect(page.locator('[data-screw-id="front-2"]')).toHaveCount(0)
+      await activate(held)
+      await expect(page.getByTestId('plate-hint')).toHaveText('Front gable wall is holding up the left roof slope. Free the roof first.')
+      await expect(page.getByTestId('screw-progress')).toHaveText('7 / 12 screws')
+      await page.screenshot({ path: testInfo.outputPath('workshop-bearing-wall.png') })
+    }
     await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
     await expect(page.getByTestId('plate-progress')).toHaveText('8 / 8 plates released')
     await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()

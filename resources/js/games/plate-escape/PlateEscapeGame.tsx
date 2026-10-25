@@ -1,7 +1,7 @@
 import './plate-escape.css'
 
-import { ArrowLeft, Check, CircleHelp, LockKeyhole, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
-import { type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Check, CircleHelp, House, LockKeyhole, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
+import { type ComponentProps, type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
@@ -10,7 +10,7 @@ import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { StarRow } from '../_shared/StarRow'
 import { PortraitGameShell } from '../PortraitGameShell'
 import { CollectionTrays, ScrewHead } from './CollectionTrays'
-import { createPuzzle, freedPlates, hasWon, type PuzzleState, removeScrew } from './engine'
+import { createPuzzle, freedPlates, hasWon, type PuzzleState, removeScrew, screwLock } from './engine'
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
 import { COLORS, getLevel, LEVELS, type PuzzleLevel, type ScrewColor } from './level'
 import { PlateEscapeScene, type ScrewTarget, type ViewCommand } from './PlateEscapeScene'
@@ -56,12 +56,16 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
   const [help, setHelp] = useState(Boolean(level.introduction) && !cleared)
   const [message, setMessage] = useState('Drag to turn the assembly. Tap an exposed screw to collect it.')
   const [fly, setFly] = useState<FlyingScrew | null>(null)
+  const [hint, setHint] = useState<{ text: string, screw: string, sequence: number } | null>(null)
   const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const contactRef = useRef({ x: 0, y: 0, dragged: false })
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const won = hasWon(puzzle)
   const lost = puzzle.overflow !== null
   const storageFull = puzzle.spare.length === SPARE_CAPACITY
-  useEffect(() => () => { if (moveTimerRef.current) clearTimeout(moveTimerRef.current) }, [])
+  useEffect(() => () => {
+    if (moveTimerRef.current) clearTimeout(moveTimerRef.current)
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+  }, [])
   useEffect(() => {
     if (!won) return
     const timer = setTimeout(() => setFinished(true), 1500)
@@ -71,6 +75,21 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
   const turn = (action: ViewCommand['action']): void => {
     setView((current) => ({ action, sequence: current.sequence + 1 }))
   }
+  /** A refused tap is explained on screen as well as to assistive technology. */
+  const explain = (text: string, screw: string): void => {
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+    setMessage(text)
+    setHint((current) => ({ text, screw, sequence: (current?.sequence ?? 0) + 1 }))
+    hintTimerRef.current = setTimeout(() => setHint(null), 3200)
+  }
+  const lockedReason = (id: string): string => {
+    const screw = SCREWS.find((candidate) => candidate.id === id)!
+    const lock = screwLock(puzzle, screw)
+    const plate = (plateId: string): string => PLATES.find((candidate) => candidate.id === plateId)!.name
+    if (lock?.kind === 'bearing') return `${plate(screw.plate)} is holding up the ${plate(lock.plate).toLowerCase()}. Free the roof first.`
+    if (lock?.kind === 'cover') return `The ${plate(lock.plate).toLowerCase()} covers that screw. Release it first.`
+    return 'No room for that screw. Collect a matching color or undo.'
+  }
   const restart = (): void => {
     if (moveTimerRef.current) clearTimeout(moveTimerRef.current)
     setPuzzle(createPuzzle(level.id))
@@ -79,6 +98,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
     setBusy(false)
     setFinished(false)
     setFly(null)
+    setHint(null)
     setError('')
     setMessage('Fresh start. Drag to turn; tap a screw to unscrew it.')
     setSceneKey((current) => current + 1)
@@ -87,7 +107,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
     if (busy || won || lost || error) return
     const next = removeScrew(puzzle, id)
     if (next === puzzle) {
-      setMessage('That screw is covered or storage cannot accept it. Release its cover, collect a matching color, or undo.')
+      explain(lockedReason(id), id)
       return
     }
     const screw = SCREWS.find((candidate) => candidate.id === id)!
@@ -139,19 +159,22 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
         {targets.map((target) => {
           const screw = SCREWS.find((candidate) => candidate.id === target.id)!
           if (target.coveredBy) return <span key={target.id} role="img" aria-label={`${COLORS[screw.color].name} screw covered by ${target.coveredBy.toLowerCase()}`} data-covered-screw-id={screw.id} className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-slate-700 shadow-sm" style={{ left: target.x, top: target.y }}><LockKeyhole size={13} aria-hidden="true" /></span>
+          const label = `${COLORS[screw.color].name} screw on ${PLATES.find((plate) => plate.id === screw.plate)!.name.toLowerCase()}`
+          if (target.holdsUp) {
+            return (
+              <TapTarget key={target.id} className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" style={{ left: target.x, top: target.y, touchAction: 'none' }} aria-label={`${label}, holding up the ${target.holdsUp.toLowerCase()}`} data-bearing-screw-id={screw.id}
+                onTap={() => { if (!busy && !won && !lost && !error) explain(lockedReason(target.id), target.id) }}>
+                <span key={hint?.screw === target.id ? hint.sequence : 0} aria-hidden="true" className="plate-bearing-badge absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full border-2 border-orange-500 bg-white text-orange-600 shadow-sm dark:bg-slate-900 dark:text-orange-400"><House size={11} strokeWidth={2.5} /></span>
+              </TapTarget>
+            )
+          }
           return (
-            <button key={target.id} type="button" className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" style={{ left: target.x, top: target.y, touchAction: 'none' }} disabled={busy || won || lost || Boolean(error)} aria-label={`Unscrew ${COLORS[screw.color].name.toLowerCase()} screw on ${PLATES.find((plate) => plate.id === screw.plate)!.name.toLowerCase()}`} data-screw-id={screw.id}
-              onPointerDown={(event) => {
-                contactRef.current = { x: event.clientX, y: event.clientY, dragged: false }
-                event.currentTarget.setPointerCapture(event.pointerId)
-              }}
-              onPointerMove={(event) => {
-                if (Math.hypot(event.clientX - contactRef.current.x, event.clientY - contactRef.current.y) > 8) contactRef.current.dragged = true
-              }}
-              onClick={(event) => { if (event.detail === 0 || !contactRef.current.dragged) unscrew(target.id, event.currentTarget) }} />
+            <TapTarget key={target.id} className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700" style={{ left: target.x, top: target.y, touchAction: 'none' }} disabled={busy || won || lost || Boolean(error)} aria-label={`Unscrew ${label.toLowerCase()}`} data-screw-id={screw.id}
+              onTap={(button) => unscrew(target.id, button)} />
           )
         })}
         <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs font-semibold text-slate-500" data-testid="plate-progress">{freedPlates(puzzle)} / {PLATES.length} plates released</div>
+        {hint && <p key={hint.sequence} aria-hidden="true" data-testid="plate-hint" className="plate-hint pointer-events-none absolute inset-x-4 bottom-[4.25rem] mx-auto w-fit max-w-full rounded-2xl border border-orange-200 bg-white/95 px-4 py-2 text-center text-xs font-semibold text-slate-700 shadow-sm">{hint.text}</p>}
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2 rounded-full border border-white/80 bg-white/80 p-1 shadow-sm">
           <button type="button" aria-label="Rotate left" onClick={() => turn('left')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100"><RotateCcw size={20} aria-hidden="true" /></button>
           <button type="button" onClick={() => turn('reset')} className="whitespace-nowrap px-2 text-xs font-semibold text-slate-600">Reset view</button>
@@ -176,7 +199,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
         )}
       </main>
       <footer className="px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
-        <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800' : 'text-slate-500'}`}>{level.overflowLoses ? storageFull ? 'Storage full · Match a tray or the next screw will overflow' : `${SPARE_CAPACITY} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · Look around the back'}</p>
+        <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800' : 'text-slate-500'}`}>{level.overflowLoses ? storageFull ? 'Storage full · Match a tray or the next screw will overflow' : `${SPARE_CAPACITY} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · The gable walls hold up the roof'}</p>
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white/65 p-2">
           <button type="button" onClick={undo} disabled={history.length === 0 || busy || won} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-35"><Undo2 size={16} aria-hidden="true" />Undo</button>
           <span className="text-xs tabular-nums text-slate-500" data-testid="screw-progress">{puzzle.removed.length} / {SCREWS.length} screws</span>
@@ -188,5 +211,21 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin }: LevelSessio
       <p className="sr-only" role="status" aria-live="polite">{message}</p>
       {fly && <span aria-hidden="true" className="plate-screw-flight" style={{ left: fly.x, top: fly.y, '--fly-x': `${fly.dx}px`, '--fly-y': `${fly.dy}px` } as CSSProperties}><ScrewHead color={fly.color} size={30} /></span>}
     </PortraitGameShell>
+  )
+}
+
+/** A drag that begins on a screw orbits the view instead of tapping it. */
+function TapTarget({ onTap, ...props }: Omit<ComponentProps<'button'>, 'onClick' | 'type'> & { onTap: (button: HTMLButtonElement) => void }): ReactElement {
+  const contactRef = useRef({ x: 0, y: 0, dragged: false })
+  return (
+    <button type="button" {...props}
+      onPointerDown={(event) => {
+        contactRef.current = { x: event.clientX, y: event.clientY, dragged: false }
+        event.currentTarget.setPointerCapture(event.pointerId)
+      }}
+      onPointerMove={(event) => {
+        if (Math.hypot(event.clientX - contactRef.current.x, event.clientY - contactRef.current.y) > 8) contactRef.current.dragged = true
+      }}
+      onClick={(event) => { if (event.detail === 0 || !contactRef.current.dragged) onTap(event.currentTarget) }} />
   )
 }
