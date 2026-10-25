@@ -36,7 +36,7 @@ class OAuthLoginController extends Controller
             email: $identity->email,
         );
 
-        Auth::login($user);
+        Auth::login($user, remember: true);
         $request->session()->regenerate();
 
         // Cached for the session rather than fetched per request: this is navigation chrome,

@@ -41,6 +41,8 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+            // Renewed on authenticated visits, independently of the short-lived session.
+            'remember' => 60 * 24 * 365,
         ],
     ],
 
