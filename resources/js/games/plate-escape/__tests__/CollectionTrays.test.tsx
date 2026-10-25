@@ -23,6 +23,8 @@ test('a completed tray adopts the incoming color and displays screws drained fro
   rerender(<CollectionTrays state={state} />)
   const tray = screen.getByRole('img', { name: 'Blue tray: 1 of 3' })
   expect(tray.querySelector('[data-tray-face]')).toHaveAttribute('fill', COLORS.blue.hex)
+  expect(tray.querySelector('[data-tray-slot="0"] svg')).toBeInTheDocument()
+  expect(tray.querySelector('[data-tray-slot="1"] svg')).not.toBeInTheDocument()
   expect(screen.queryByRole('img', { name: 'Blue screw in spare slot 1' })).not.toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'Upcoming trays: Amber' })).toBeInTheDocument()
 })

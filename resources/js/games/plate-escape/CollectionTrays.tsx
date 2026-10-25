@@ -1,5 +1,5 @@
 import { Check, ChevronRight, Plus } from 'lucide-react'
-import { type ReactElement, useId } from 'react'
+import { type CSSProperties, type ReactElement, useId } from 'react'
 
 import type { PuzzleState, Tray } from './engine'
 import { COLORS, getLevel, type ScrewColor } from './level'
@@ -13,6 +13,7 @@ const MARKS: Record<ScrewColor, string> = {
 }
 const SOCKETS = [[80, 31], [38, 85], [122, 85]] as const
 const TRIANGLE = 'M72 10Q80-4 88 10L152 98Q161 112 145 112H15Q-1 112 8 98Z'
+const INVERTED_TRIANGLE = 'M72 110Q80 124 88 110L152 22Q161 8 145 8H15Q-1 8 8 22Z'
 
 export function ScrewHead({ color, size = 28, x, y }: { color: ScrewColor, size?: number, x?: number, y?: number }): ReactElement {
   return (
@@ -25,21 +26,34 @@ export function ScrewHead({ color, size = 28, x, y }: { color: ScrewColor, size?
   )
 }
 
-function ColorTray({ tray }: { tray: Tray }): ReactElement {
+function ColorTray({ tray, inverted }: { tray: Tray, inverted: boolean }): ReactElement {
   const maskId = useId()
+  const holeId = useId()
   const color = tray.color
   const fill = color ? COLORS[color].hex : '#cbd5d6'
+  const outline = inverted ? INVERTED_TRIANGLE : TRIANGLE
+  const sockets = SOCKETS.map(([x, y]) => [x, inverted ? 120 - y : y])
   return (
-    <div data-tray-color={color ?? ''} role="img" aria-label={color ? `${COLORS[color].name} tray: ${tray.count} of 3` : 'Tray complete'} className="plate-color-tray">
+    <div data-tray-color={color ?? ''} data-tray-orientation={inverted ? 'down' : 'up'} role="img" aria-label={color ? `${COLORS[color].name} tray: ${tray.count} of 3` : 'Tray complete'} className="plate-color-tray">
       <svg aria-hidden="true" viewBox="0 0 160 120" className="h-full w-full overflow-visible">
-        <defs><mask id={maskId}><path d={TRIANGLE} fill="white" />{SOCKETS.map(([x, y]) => <circle key={x} cx={x} cy={y} r="17" fill="black" />)}</mask></defs>
-        <path d={TRIANGLE} transform="translate(0 4)" fill="#263747" opacity=".22" />
-        <path d={TRIANGLE} fill={fill} mask={`url(#${maskId})`} data-tray-face="" />
-        <path d="M75 12Q80 3 85 12L147 99" fill="none" stroke="#fff" strokeOpacity=".38" strokeWidth="3" strokeLinecap="round" />
-        {SOCKETS.map(([x, y], slot) => (
+        <defs>
+          <mask id={maskId}><path d={outline} fill="white" />{sockets.map(([x, y]) => <circle key={x} cx={x} cy={y} r="12" fill="black" />)}</mask>
+          <radialGradient id={holeId} cx="50%" cy="70%" r="70%">
+            <stop offset="0" stopColor="#243d43" />
+            <stop offset=".65" stopColor="#152b32" />
+            <stop offset="1" stopColor="#06171d" />
+          </radialGradient>
+        </defs>
+        <path d={outline} transform="translate(0 4)" fill="#263747" opacity=".22" />
+        <path d={outline} fill={fill} mask={`url(#${maskId})`} data-tray-face="" />
+        <path d={inverted ? 'M17 13H143' : 'M75 12Q80 3 85 12L147 99'} fill="none" stroke="#fff" strokeOpacity=".38" strokeWidth="3" strokeLinecap="round" />
+        {sockets.map(([x, y], slot) => (
           <g key={x} data-tray-slot={slot} transform={`translate(${x} ${y})`}>
-            <circle r="17" fill="#263747" fillOpacity=".18" stroke="#263747" strokeOpacity=".15" strokeWidth="2" />
-            {color && slot < tray.count ? <ScrewHead color={color} size={40} x={-20} y={-20} /> : color ? <path d={MARKS[color]} transform="translate(-20 -20)" fill="none" stroke="#263747" strokeOpacity=".6" strokeWidth="3" strokeLinecap="round" /> : null}
+            <circle r="15" fill={fill} stroke="#142b32" strokeOpacity=".18" strokeWidth="2" />
+            <circle r="12" fill={`url(#${holeId})`} data-screw-hole="" />
+            <path d="M-11 3A12 12 0 0 0 11 3" fill="none" stroke="#fff" strokeOpacity=".5" strokeWidth="2" />
+            <path d="M-8-5A10 10 0 0 1 8-5" fill="none" stroke="#000" strokeOpacity=".4" strokeWidth="2" />
+            {color && slot < tray.count ? <ScrewHead color={color} size={34} x={-17} y={-17} /> : null}
           </g>
         ))}
         {color === null && <path d="M72 62L79 69L91 55" fill="none" stroke="#52796b" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />}
@@ -60,8 +74,8 @@ export function CollectionTrays({ state }: { state: PuzzleState }): ReactElement
         </div>
         <span className="text-[10px] font-bold tabular-nums text-slate-500">{state.completed.length} / {level.trayColors.length} collected</span>
       </div>
-      <div className="flex items-center justify-center gap-4 py-1">
-        {state.trays.map((tray) => <ColorTray key={tray.id} tray={tray} />)}
+      <div className="plate-tray-row" style={{ '--tray-count': state.trays.length } as CSSProperties}>
+        {state.trays.map((tray, index) => <ColorTray key={tray.id} tray={tray} inverted={index % 2 === 1} />)}
       </div>
       <div role="group" data-spare-slots className="flex items-center justify-center gap-2" aria-label={`Spare storage: ${state.spare.length} of ${level.spareCapacity}`}>
         {Array.from({ length: level.spareCapacity }, (_, slot) => {
