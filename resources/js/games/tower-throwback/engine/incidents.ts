@@ -485,8 +485,9 @@ export function repairUnit(state: EngineState, unitId: number, events: EngineEve
 }
 
 /** Flat neighbor penalty when any infested unit is roach-adjacent (eval hook). */
-export function infestedNeighborPenalty(state: EngineState, unit: Unit): number {
-  for (const other of unitsInIdOrder(state)) {
+/** @param infested The tower's infested units in id order, when the caller already has them. */
+export function infestedNeighborPenalty(state: EngineState, unit: Unit, infested?: readonly Unit[]): number {
+  for (const other of infested ?? unitsInIdOrder(state)) {
     if (other.id !== unit.id && other.infested && roachAdjacent(other, unit)) {
       return TUNING.incidents.roachNeighborEvalPenalty
     }

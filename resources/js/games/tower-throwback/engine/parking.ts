@@ -97,11 +97,11 @@ export function parkingShortfall(state: EngineState): boolean {
 }
 
 /** occupancyPass hook: nonfunctional stalls are flagged unroutable. */
-export function refreshParkingFlags(state: EngineState, unit: Unit): void {
+/** @param served `rampServedFloors(state)`, precomputed by a caller that refreshes many units. */
+export function refreshParkingFlags(state: EngineState, unit: Unit, served: ReadonlySet<number> = rampServedFloors(state)): void {
   if (unit.kind !== 'parkingSpace') {
     return
   }
-  const served = rampServedFloors(state)
   const functional = served.has(unit.floor) && !unit.offline
   unit.flags.noRoute = !functional
   if (!functional) {

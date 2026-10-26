@@ -489,6 +489,10 @@ Small, deliberate gaps between this spec and the shipped v1 sim:
   they place anywhere a slab exists.
 - **Congestion sampling** measures REAL queued minutes per boarding (the earlier
   patience-derived estimate over-counted the left-behind ×0.75 patience chop).
+- **Daily pass cost**: the 08:00 occupancy pass builds a per-pass unit index (units by floor,
+  amenity and noise sources near each floor, restrooms, landmark candidates, infested units,
+  parking counts) so each eval term reads its neighbors instead of rescanning every unit. Results
+  are identical to the full scan; `occupancyIndex.test.ts` compares both on the fixtures.
 - **Engine stepping** interleaves elevator service with the 8 Hz person ticks so
   large real-time steps (CI soak chunks, hitchy frames) cannot starve queues.
 

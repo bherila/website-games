@@ -34,9 +34,17 @@ function spanGap(aLo: number, aHi: number, bLo: number, bHi: number): number {
  * itself). Sources iterate in id order — identical float-sum ordering to
  * `noiseField`, keeping eval and heatmap numerically consistent.
  */
-export function noiseExposureAt(state: EngineState, floor: number, x0: number, x1: number, excludeUnitId?: number): number {
+export function noiseExposureAt(
+  state: EngineState,
+  floor: number,
+  x0: number,
+  x1: number,
+  excludeUnitId?: number,
+  /** A pre-filtered superset of the reaching sources, in id order (the occupancy index). */
+  sources: readonly Unit[] = state.units,
+): number {
   let exposure = 0
-  for (const source of state.units) {
+  for (const source of sources) {
     if (source.id === excludeUnitId) {
       continue
     }
