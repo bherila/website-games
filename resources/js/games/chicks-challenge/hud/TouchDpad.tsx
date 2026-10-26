@@ -6,6 +6,8 @@ import { createHoldRepeat } from '../input/holdRepeat'
 
 interface TouchDpadProps {
   onIntent: (intent: MoveIntent) => void
+  /** False on levels where waiting can never matter: the centre button is shown inert. */
+  waitEnabled?: boolean
 }
 
 /**
@@ -17,7 +19,7 @@ interface TouchDpadProps {
  * in landscape) and safe-area insets are owned by `hud/GameToolbar.tsx`, which
  * lays the pad out as a sibling of the playfield rather than on top of it.
  */
-export function TouchDpad({ onIntent }: TouchDpadProps): ReactElement {
+export function TouchDpad({ onIntent, waitEnabled = true }: TouchDpadProps): ReactElement {
   const [repeat] = useState(createHoldRepeat)
   const stopRepeat = repeat.stop
 
@@ -44,6 +46,16 @@ export function TouchDpad({ onIntent }: TouchDpadProps): ReactElement {
     'pointer-events-auto flex size-12 touch-none items-center justify-center rounded-xl border border-white/70 bg-white/90 text-slate-700 shadow-md transition-transform active:scale-90 active:bg-slate-200 dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-100 dark:active:bg-slate-800'
 
   function padButton(intent: MoveIntent, label: string, icon: ReactElement, gridArea: string): ReactElement {
+    if (intent === 'wait' && !waitEnabled) {
+      // Nothing on this level moves on its own, so a thumb landing between the
+      // arrows must not spend a move.
+      return (
+        <button aria-label={label} className={`${buttonClass} opacity-40`} data-testid="touch-dpad-wait" disabled style={{ gridArea }} type="button">
+          {icon}
+        </button>
+      )
+    }
+
     return (
       <button
         aria-label={label}

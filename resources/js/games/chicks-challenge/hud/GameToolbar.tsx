@@ -13,6 +13,8 @@ interface GameToolbarProps {
   quarterTurns: BoardQuarterTurns
   /** True on touch devices while a level is in play — gates the on-screen D-pad. */
   showDpad: boolean
+  /** False on levels where waiting can never matter; the pad's centre is then inert. */
+  waitEnabled: boolean
   onCycleOrientation: () => void
   onIntent: (intent: MoveIntent) => void
 }
@@ -40,6 +42,7 @@ export function GameToolbar({
   orientationPreference,
   quarterTurns,
   showDpad,
+  waitEnabled,
   onCycleOrientation,
   onIntent,
 }: GameToolbarProps): ReactElement {
@@ -82,7 +85,7 @@ export function GameToolbar({
         />
       </div>
 
-      {showDpad && <TouchDpad onIntent={onIntent} />}
+      {showDpad && <TouchDpad waitEnabled={waitEnabled} onIntent={onIntent} />}
     </div>
   )
 }

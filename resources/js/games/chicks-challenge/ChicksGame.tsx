@@ -32,6 +32,7 @@ import { cycleBoardOrientationPreference, rotateIntent } from './input/orientati
 import { loadBoardOrientationPreference, saveBoardOrientationPreference } from './input/orientationStorage'
 import { useBoardOrientation } from './input/useBoardOrientation'
 import { useStuckProbe } from './input/useStuckProbe'
+import { levelUsesWait } from './input/waitRelevance'
 import { getLevelById } from './levels'
 import type { ChicksLevelDef } from './levels/levelTypes'
 import { parseLevel } from './levels/parseLevel'
@@ -117,7 +118,14 @@ export function ChicksGame(): ReactElement {
   const [levelDef, setLevelDef] = useState<ChicksLevelDef | null>(devLevelDef)
   const [gameState, setGameState] = useState<GameState | null>(() => (devLevelDef ? parseLevel(devLevelDef) : null))
   // Read once per level from its starting board, so the inventory row never appears mid-level.
-  const inventorySlots = useMemo(() => (levelDef ? levelInventorySlots(parseLevel(levelDef)) : []), [levelDef])
+  const startState = useMemo(() => (levelDef ? parseLevel(levelDef) : null), [levelDef])
+  const inventorySlots = useMemo(() => (startState ? levelInventorySlots(startState) : []), [startState])
+  // Waiting only runs the monster phase; on a monster-free level it would just burn a move.
+  const waitEnabled = startState ? levelUsesWait(startState) : false
+  const waitEnabledRef = useRef(waitEnabled)
+  useLayoutEffect(() => {
+    waitEnabledRef.current = waitEnabled
+  }, [waitEnabled])
   const [moveSeq, setMoveSeq] = useState(0)
   const [events, setEvents] = useState<readonly EngineEvent[]>([])
   const [winSummary, setWinSummary] = useState<WinSummary | null>(null)
@@ -344,6 +352,9 @@ export function ChicksGame(): ReactElement {
    * layout effect so it is never a frame behind what the player can see.
    */
   const enqueueIntent = useCallback((intent: MoveIntent): void => {
+    if (intent === 'wait' && !waitEnabledRef.current) {
+      return
+    }
     queueRef.current.enqueue(rotateIntent(intent, quarterTurnsRef.current))
   }, [])
 
@@ -475,6 +486,7 @@ export function ChicksGame(): ReactElement {
             orientationPreference={orientationPreference}
             quarterTurns={quarterTurns}
             showDpad={touchEnabled && phase === 'playing'}
+            waitEnabled={waitEnabled}
             onCycleOrientation={handleCycleOrientation}
             onIntent={enqueueIntent}
           />

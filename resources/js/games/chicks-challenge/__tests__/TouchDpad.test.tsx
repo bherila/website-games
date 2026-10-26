@@ -120,4 +120,17 @@ describe('TouchDpad', () => {
     expect(() => fireEvent.pointerUp(wait, { pointerId: 1 })).not.toThrow()
     expect(wait.releasePointerCapture).not.toHaveBeenCalled()
   })
+
+  it('renders wait inert on a level where waiting cannot matter', () => {
+    const onIntent = jest.fn()
+    render(<TouchDpad waitEnabled={false} onIntent={onIntent} />)
+
+    const wait = screen.getByTestId('touch-dpad-wait')
+    expect(wait).toBeDisabled()
+    stubPointerCapture(wait)
+    fireEvent.pointerDown(wait, { pointerId: 1 })
+    jest.advanceTimersByTime(1000)
+
+    expect(onIntent).not.toHaveBeenCalled()
+  })
 })

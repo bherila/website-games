@@ -134,6 +134,24 @@ describe('ChicksGame', () => {
     expect(screen.getByLabelText(`${chipCount(level1.grid)} chips remaining`)).toBeInTheDocument()
   })
 
+  it('ignores wait on a level where nothing moves on its own', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+
+    pressAndAdvance('W')
+    expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
+  })
+
+  it('counts a wait on a level with monsters', () => {
+    window.history.pushState({}, '', '/chicks-challenge?level=26')
+    render(<ChicksGame />)
+    const bugPatrol = LEVELS.find((level) => level.id === 26)!
+
+    pressAndAdvance('W')
+    expect(screen.getByLabelText(`1 of ${bugPatrol.par} moves`)).toBeInTheDocument()
+  })
+
   it('Escape returns to level select', () => {
     render(<ChicksGame />)
     fireEvent.click(screen.getByTestId('level-tile-1'))

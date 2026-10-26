@@ -169,7 +169,11 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 - **Touch:** swipe anywhere on the board = one step in the swipe direction; keeping the finger down
   after a swipe, past the repeat delay, keeps stepping in that direction at the auto-repeat cadence. An on-screen **D-pad**
   (≥ 44 px targets, built on the `hover/hud/TouchControls.tsx` pointer-capture pattern) renders only
-  when `isTouchDevice()`; tapping the player character = wait. The pad lives in the toolbar
+  when `isTouchDevice()`; tapping the player character = wait.
+- **Wait only where it can matter:** a wait only runs the monster phase, so on levels that start with
+  no monsters and no clone machines (`input/waitRelevance.ts`) the UI drops wait intents (Space, the
+  pad's centre, a tap on the board) instead of spending a move, and the pad's centre renders inert.
+  The engine still accepts waits; the solver never benefits from a no-op wait, so pars are unchanged. The pad lives in the toolbar
   (`hud/GameToolbar.tsx`) — a bottom row in portrait, a right-hand column in landscape.
 - Input flows through Hover's abstraction: keyboard and touch are two `InputSource`s merged into one
   device-agnostic intent stream; the engine consumes discrete `MoveIntent`s (`up/down/left/right/wait`)
