@@ -33,3 +33,17 @@ export function markPath(color: ScrewColor, cx: number, cy: number, radius: numb
   const points = SCREW_MARKS[color].map(([x, y]) => `${(cx + x * radius).toFixed(2)} ${(cy - y * radius).toFixed(2)}`)
   return `M${points.join('L')}Z`
 }
+
+/**
+ * The staging rack's mark: a peg rail, painted on the rack's cover and shown on the spare slot it
+ * opens. A comb outline that no drive mark resembles, in the same head-radius units.
+ */
+export const RACK_MARK: Polygon = [
+  [-0.8, 0.5], [0.8, 0.5], [0.8, 0.2], [0.65, 0.2], [0.65, -0.5], [0.45, -0.5], [0.45, 0.2], [0.1, 0.2], [0.1, -0.5],
+  [-0.1, -0.5], [-0.1, 0.2], [-0.45, 0.2], [-0.45, -0.5], [-0.65, -0.5], [-0.65, 0.2], [-0.8, 0.2],
+]
+
+/** An SVG path for the rack's mark centered at (cx, cy), `radius` user units per head radius; y points down. */
+export function rackMarkPath(cx: number, cy: number, radius: number): string {
+  return `M${RACK_MARK.map(([x, y]) => `${(cx + x * radius).toFixed(2)} ${(cy - y * radius).toFixed(2)}`).join('L')}Z`
+}
