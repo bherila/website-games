@@ -191,7 +191,10 @@ overall 0–100 clamp.
 
 **Leasability thresholds** by rent tier: low ≥ 35 · avg ≥ 50 · high ≥ 65. A unit below its
 threshold cannot lease; an occupied unit below threshold for 3 consecutive daily settlements is
-at move-out risk (see below).
+at move-out risk (see below). A vacant unit that fails to lease records the same dominant cause as
+a move-out (`vacancyReason`, without an event), and its issue states its desirability, the bar its
+rent tier needs, and whether Low rent alone would lease it. A missing restroom is named as the cause
+when its comfort drag is at full strength.
 
 ## Noise model
 

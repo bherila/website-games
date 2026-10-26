@@ -11,7 +11,7 @@
  *                     trash overflow, dirty room, desirability slipping.
  */
 
-import type { Unit, VacancyReason } from '../gameTypes'
+import type { RentTier, Unit, VacancyReason } from '../gameTypes'
 import { TUNING } from '../gameTypes'
 import { weeklyStressThreshold, weeklyTenantStress } from './tenantStress'
 
@@ -29,12 +29,41 @@ const VACANCY_ISSUE: Record<VacancyReason, { label: string; hint: string }> = {
   elevatorCrowded: { label: 'Vacant — elevators too crowded', hint: 'Add elevator capacity or tune routing so waits drop.' },
   tooNoisy: { label: 'Vacant — too noisy', hint: 'Move noisy neighbors away or add distance/floors between them.' },
   noRestroom: { label: 'Vacant — no restroom nearby', hint: `Place a restroom within ${TUNING.grid.restroomRangeTiles} tiles on this floor.` },
-  rentTooHigh: { label: 'Vacant — rent too high', hint: 'Lower the rent tier to re-lease.' },
+  rentTooHigh: { label: 'Vacant — rent too high', hint: 'Lower the rent tier to lease.' },
   noRoute: { label: 'Vacant — no route to the lobby', hint: 'Connect a passenger elevator or stairs down to the lobby.' },
   hotelDirty: { label: 'Vacant — room left dirty', hint: 'Ensure a reception and a service elevator so housekeeping can clean it.' },
   noReception: { label: 'Vacant — no hotel reception', hint: 'Add a hotel reception so rooms can operate.' },
-  lowEval: { label: 'Vacant — poor conditions', hint: 'Raise desirability (amenities, quiet, restroom nearby) to re-lease.' },
+  lowEval: { label: 'Vacant — poor conditions', hint: 'Raise desirability (amenities, quiet, restroom nearby) to lease.' },
   incidentDamage: { label: 'Vacant — incident damage', hint: 'Repair the unit to bring it back online before re-leasing.' },
+}
+
+/** Vacancy causes that are an eval shortfall, so the lease gap is worth stating. */
+const EVAL_VACANCY_REASONS: ReadonlySet<VacancyReason> = new Set<VacancyReason>([
+  'elevatorCrowded',
+  'tooNoisy',
+  'noRestroom',
+  'rentTooHigh',
+  'lowEval',
+])
+
+const RENT_TIER_NAME: Record<RentTier, string> = { low: 'Low', avg: 'Average', high: 'High' }
+
+/**
+ * A vacant unit below its leasing bar says by how much, and whether a rent cut
+ * alone would lease it — the two numbers a player needs to act.
+ */
+function vacancyHint(unit: Unit, reason: VacancyReason, base: string): string {
+  if (!EVAL_VACANCY_REASONS.has(reason)) {
+    return base
+  }
+  const thresholds = TUNING.rent.leasabilityThreshold
+  const needed = thresholds[unit.rentTier]
+  const score = Math.round(unit.evalScore)
+  if (score >= needed) {
+    return base
+  }
+  const lowRent = unit.rentTier !== 'low' && score >= thresholds.low ? ` Or set Low rent, which leases from ${thresholds.low}.` : ''
+  return `Desirability ${score}/100 is below the ${needed} that ${RENT_TIER_NAME[unit.rentTier]} rent needs. ${base}${lowRent}`
 }
 
 /** Active issues for a unit, most severe first, in a stable order. */
@@ -59,7 +88,7 @@ export function unitIssues(unit: Unit): UnitIssue[] {
 
   if (!unit.occupied && unit.vacancyReason) {
     const v = VACANCY_ISSUE[unit.vacancyReason]
-    issues.push({ key: 'vacant', severity: 'critical', label: v.label, hint: v.hint })
+    issues.push({ key: 'vacant', severity: 'critical', label: v.label, hint: vacancyHint(unit, unit.vacancyReason, v.hint) })
   } else if (unit.occupied && unit.lowEvalDays >= TUNING.stress.lowEvalRiskDays - 1) {
     issues.push({
       key: 'vacating',

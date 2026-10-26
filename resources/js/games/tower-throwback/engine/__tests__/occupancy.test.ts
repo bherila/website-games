@@ -1,6 +1,7 @@
 import type { EngineEvent, EngineState, Unit } from '../../gameTypes'
 import { TUNING } from '../../gameTypes'
 import { evalBreakdown, evalUnit, occupancyPass, weeklyStressPass } from '../occupancy'
+import { unitIssues } from '../unitIssues'
 import { injectUnit, makeTestState, place, placeShaft, placeSlabRow, setStars } from './testState'
 
 function bareOffice(state: EngineState, x = 0, floor = 0): Unit {
@@ -468,6 +469,40 @@ describe('occupancyPass — leasing', () => {
     const office = state.units.find((u) => u.id === officeId)!
     expect(office.flags.noRestroom).toBe(true)
     expect(office.occupied).toBe(false)
+  })
+
+  it('names the blocker on a vacant unit that cannot lease, and clears it once it leases', () => {
+    const state = makeTestState()
+    placeSlabRow(state, 0, 0, 40)
+    const officeId = place(state, 'officeS', 0, 0) // average rent, no restroom: 60 − 12 = 48 < 50
+    const events: EngineEvent[] = []
+    occupancyPass(state, events)
+    const office = state.units.find((u) => u.id === officeId)!
+    expect(office.occupied).toBe(false)
+    expect(office.vacancyReason).toBe('noRestroom')
+    expect(events.filter((e) => e.type === 'unitVacated')).toEqual([]) // nobody moved out
+
+    const vacant = unitIssues(office).find((issue) => issue.key === 'vacant')!
+    expect(vacant.severity).toBe('critical')
+    expect(vacant.label).toBe('Vacant — no restroom nearby')
+    expect(vacant.hint).toBe(
+      'Desirability 48/100 is below the 50 that Average rent needs. Place a restroom within 32 tiles on this floor. Or set Low rent, which leases from 35.',
+    )
+
+    place(state, 'restroom', 0, 7)
+    occupancyPass(state, [])
+    expect(office.occupied).toBe(true)
+    expect(office.vacancyReason).toBeNull()
+  })
+
+  it('attributes a move-out to a missing restroom when that is the full comfort drag', () => {
+    const state = makeTestState()
+    placeSlabRow(state, 0, 0, 40)
+    const office = injectUnit(state, { kind: 'officeS', floor: 0, x: 0, width: 6, storeys: 1, occupied: true, lowEvalDays: 2 })
+    const events: EngineEvent[] = []
+    occupancyPass(state, events)
+    expect(office.occupied).toBe(false)
+    expect(events).toContainEqual(expect.objectContaining({ type: 'unitVacated', unitId: office.id, reason: 'noRestroom' }))
   })
 
   it('noRoute stub: upper floors need an enabled shaft stop on the segment', () => {
