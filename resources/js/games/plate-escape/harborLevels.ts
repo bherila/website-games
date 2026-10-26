@@ -179,7 +179,8 @@ export function createHarborLevels(): PuzzleLevel[] {
       { id: 'stern-1', plate: 'stern', color: 'amber', position: [0, -0.25], coveredWhenOpen: ['stern-flap'] },
       { id: 'deck-1', plate: 'deck', color: 'amber', position: [0.6, 1.0] },
       { id: 'deck-2', plate: 'deck', color: 'mint', position: [-0.6, 1.0] },
-      // One bolt through the mast step and the deck below it, aft of the mast and clear of the lantern.
+      // One bolt through the mast step and the deck below it, aft of the mast, where the lantern's
+      // shutter rays never cross it. The lamp housing hides it from the bow; turn toward the stern.
       { id: 'mast-bolt', plate: 'mast-step', through: ['deck'], color: 'mint', position: [0, 0.53] },
       { id: 'mast-collar-1', plate: 'mast-collar', color: 'mint', position: [0, 0], coveredWhenOpen: ['lantern-shutter'] },
       { id: 'lantern-1', plate: 'lantern', color: 'blue', position: [0, 0.1], blockedBy: ['lantern-shutter'] },
