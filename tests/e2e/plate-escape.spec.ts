@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
 import { HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { getLevel } from '../../resources/js/games/plate-escape/level'
 
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
@@ -349,8 +350,7 @@ test.describe('Plate Escape real puzzle', () => {
       await expect(page.getByTestId('level-tile-12')).toHaveAttribute('data-unlocked', 'false')
       await activate(page.getByRole('button', { name: 'Level 11, 0 stars', exact: true }))
       for (const trace of HARBOR_TRACES) {
-        // Only the teaching levels open with an introduction.
-        if ([11, 12].includes(trace.level)) await activate(page.getByRole('button', { name: "Let's play", exact: true }))
+        if (getLevel(trace.level).introduction) await activate(page.getByRole('button', { name: "Let's play", exact: true }))
         await expect(page.getByRole('dialog')).toHaveCount(0)
         await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
         await page.screenshot({ path: testInfo.outputPath(`level-${trace.level}.png`) })
@@ -358,23 +358,19 @@ test.describe('Plate Escape real puzzle', () => {
         await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
         await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
         await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
-        if (trace.level === 11) {
-          // Freed first, the bait flap drops over the transom screw; undo lifts it back.
-          await find(page.locator('[data-screw-id="transom-1"]'))
-          await removeVisible('bait-flap-1')
-          await page.screenshot({ path: testInfo.outputPath('bait-flap-open.png') })
-          await buried('transom-1')
+        // Freed first, each captive cover drops over the screw beneath it; undo lifts it back.
+        const level = getLevel(trace.level)
+        for (const cover of level.plates.filter((plate) => level.screws.some((screw) => screw.coveredWhenOpen?.includes(plate.id)))) {
+          const release = level.screws.find((screw) => screw.plate === cover.id)!.id
+          const under = level.screws.find((screw) => screw.coveredWhenOpen?.includes(cover.id))!.id
+          await find(page.locator(`[data-screw-id="${under}"]`))
+          await removeVisible(release)
+          await page.screenshot({ path: testInfo.outputPath(`${cover.id}-open.png`) })
+          await buried(under)
           await activate(page.getByRole('button', { name: 'Undo', exact: true }))
-          await find(page.locator('[data-screw-id="transom-1"]'))
+          await find(page.locator(`[data-screw-id="${under}"]`))
         }
-        for (const id of trace.win) {
-          await removeVisible(id)
-          // The traces take most covered screws first; these two drop over one still in place.
-          if (['shutter-front-1', 'counterweight-1'].includes(id)) {
-            await page.screenshot({ path: testInfo.outputPath(`${id}-dropped.png`) })
-            await buried(id === 'shutter-front-1' ? 'base-front-1' : 'tower-back-1')
-          }
-        }
+        for (const id of trace.win) await removeVisible(id)
         await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
         await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
         if (trace.level < 15) await activate(page.getByRole('button', { name: 'Next level', exact: true }))

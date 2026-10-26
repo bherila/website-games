@@ -193,9 +193,8 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   starts from a historical two-level save and earns the three new clears through actual input,
   checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks. A third plays
   levels 6–10 under reduced motion, losing and winning each and tapping the held waterwheel axle
-  for its hint, and ends on the harbor's introduction. A fourth plays levels 11–15, checking that
-  the dropped bait flap, storm shutter and counterweight leave no button on the head they cover
-  and that undo lifts the flap back. A fifth checks that the sails turn, stop when reached for, resume when left
+  for its hint, and ends on the harbor's introduction. A fourth plays levels 11–15, and on each frees every
+  captive cover first, checks that no view offers a button on the head it lands on, and undoes. A fifth checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
   Page and API tests cover public access, the fifteen-level boundary and monotonic star saves.
