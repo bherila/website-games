@@ -89,3 +89,37 @@ describe('variety pass: ordering traps are real', () => {
     expect(solve(state).status).toBe('unsolvable')
   })
 })
+
+/**
+ * Levels 37, 39 and 40 used to be 27-29 tiles wide, over 80% wall, and mostly
+ * walking under a follow camera. They are now compact boards a phone shows whole.
+ *
+ * The level 40 checks solve with the ball removed. 40 has no buttons, so its
+ * ball can only block and kill: a mutation that leaves the ball-free board
+ * unsolvable leaves the real board unsolvable too, and the ball-free search stays
+ * well inside a node budget that the ball's timing would otherwise exhaust.
+ */
+describe('compact mastery redraws (37, 39, 40)', () => {
+  const withoutMonsters = (state: GameState): GameState => ({ ...state, monsters: [] })
+  const parOf = (state: GameState): number | null => {
+    const result = solve(state, { maxNodes: 200_000 })
+    expect(result.status).toBe('solved')
+
+    return result.solution?.length ?? null
+  }
+
+  test.each([37])('level %i fits a phone without the follow camera', (id) => {
+    const state = start(id)
+    expect(state.width).toBeLessThanOrEqual(13)
+    expect(state.height).toBeLessThanOrEqual(15)
+  })
+
+  test('level 37: the ball on the ice costs moves, so it must be timed', () => {
+    expect(parOf(withoutMonsters(start(37)))).toBeLessThan(getLevelById(37)?.par ?? 0)
+  })
+
+  test('level 37: the ice routes the tour (flattened, it is a different, shorter walk)', () => {
+    expect(parOf(flatten(start(37), ICE))).not.toBe(getLevelById(37)?.par)
+  })
+
+})
