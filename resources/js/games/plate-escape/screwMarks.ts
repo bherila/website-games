@@ -4,6 +4,11 @@ type Polygon = readonly (readonly [number, number])[]
 
 const rect = (halfWidth: number, halfHeight: number): Polygon => [[-halfWidth, -halfHeight], [halfWidth, -halfHeight], [halfWidth, halfHeight], [-halfWidth, halfHeight]]
 
+const hexagon = (radius: number): Polygon => Array.from({ length: 6 }, (_, index) => {
+  const angle = (index * Math.PI) / 3
+  return [radius * Math.cos(angle), radius * Math.sin(angle)] as const
+})
+
 const star = (points: number, outer: number, inner: number): Polygon => Array.from({ length: points * 2 }, (_, index) => {
   const radius = index % 2 === 0 ? outer : inner
   const angle = Math.PI / 2 + (index * Math.PI) / points
@@ -20,6 +25,7 @@ export const SCREW_MARKS: Record<ScrewColor, Polygon> = {
   mint: [[-0.15, -0.68], [0.15, -0.68], [0.15, -0.15], [0.68, -0.15], [0.68, 0.15], [0.15, 0.15], [0.15, 0.68], [-0.15, 0.68], [-0.15, 0.15], [-0.68, 0.15], [-0.68, -0.15], [-0.15, -0.15]],
   blue: rect(0.36, 0.36),
   amber: star(5, 0.74, 0.32),
+  pearl: hexagon(0.6),
 }
 
 /** An SVG path for the mark centered at (cx, cy), `radius` user units per head radius; y points down. */
