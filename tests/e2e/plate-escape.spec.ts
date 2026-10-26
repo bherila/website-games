@@ -404,13 +404,19 @@ test.describe('Plate Escape real puzzle', () => {
           return
         }
         const head = page.locator(`[data-screw-id="${action}"]`)
-        await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
-        for (let turn = 0; turn < 12 && !await head.isVisible(); turn++) {
-          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
-          await page.waitForTimeout(250)
-        }
         const removed = await page.getByTestId('screw-progress').textContent()
-        await activate(head)
+        await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
+        // Tap a head only from a view that shows it steadily: one on the edge of sight can flicker
+        // in and out as the targets refresh, so turn on and try again from the next view.
+        for (let turn = 0; ; turn++) {
+          expect(turn, `${action} never steadily in view`).toBeLessThan(16)
+          await page.waitForTimeout(300)
+          if (await head.isVisible()) {
+            await page.waitForTimeout(300)
+            if (await head.isVisible() && await (isMobile ? head.tap({ timeout: 2_000 }) : head.click({ timeout: 2_000 })).then(() => true, () => false)) break
+          }
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+        }
         await expect(page.getByTestId('screw-progress')).not.toHaveText(removed!)
         // The dial waits while the head flies to its tray.
         await expect.poll(async () => await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled() || await page.getByRole('alertdialog').isVisible() || await page.getByRole('heading', { name: 'All plates free!' }).isVisible()).toBe(true)
