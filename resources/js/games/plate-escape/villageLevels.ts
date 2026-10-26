@@ -25,7 +25,7 @@ export function createVillageLevels(plates: readonly Plate[], screws: readonly S
   const mill: PuzzleLevel = {
     id: 3, name: 'Village Windmill', spareCapacity: 2, overflowLoses: true,
     trayColors: colors, theme: 'windmill', rotor: windmillRotor(sails),
-    introduction: 'The four sails cover the hub screw. Remove the sails to reach it, and check the upcoming tray colors before using your two spare slots. Drag to look around the back.',
+    introduction: 'The four sails cover the hub screw. They turn slowly in the breeze and stop whenever you reach for the board. Remove the sails to reach the hub, and check the upcoming tray colors before using your two spare slots. Drag to look around the back.',
     plates: [...plates, ...sails],
     screws: [
       ...screws.filter((screw) => screw.id !== 'front-2').map((screw): Screw => ({ ...screw, color: millColors[screw.id] ?? screw.color, ...(screw.id === 'front-1' ? { position: [0, 0.75], blockedBy: sails.map((sail) => sail.id) } : {}) })),

@@ -23,6 +23,8 @@ export function createMillLevels(plates: readonly Plate[], screws: readonly Scre
 
   const waterwheel: PuzzleLevel = {
     id: 6, name: 'Waterwheel', spareCapacity: 3, overflowLoses: true, trayColors: ['coral', 'mint', 'amber', 'blue'], theme: 'millrace',
+    // A disc covers the gate behind it at every angle, so the wheel can turn too.
+    rotor: { plates: ['wheel'], center: [0, -0.45, 1.95], axis: [0, 0, 1], period: 24 },
     introduction: 'The axle runs through the wheel into the wall, so one screw holds both. It waits until the wheel’s own screw is out, then both let go together. The sluice gate behind the wheel comes last.',
     plates: [
       ...shell('#6f7f5c', '#ead6b3'),
@@ -62,12 +64,14 @@ export function createMillLevels(plates: readonly Plate[], screws: readonly Scre
     plates: [
       ...shell('#5d6b74', '#e2cba4'),
       { id: 'saw-guard', name: 'Saw guard', position: [0, -0.5, back - PROUD - 0.03], size: [2.6, 1.3], normal: [0, 0, -1], up: [0, 1, 0], restsOn: ['back'], finish: 'guard', color: '#8e9ba3' },
-      { id: 'log-rack', name: 'Log rack', position: [0, -0.6, back - PROUD * 2 - 0.06], size: [3.2, 0.8], normal: [0, 0, -1], up: [0, 1, 0], restsOn: ['saw-guard'], finish: 'rack', color: '#8a5d38' },
+      { id: 'log-rack', name: 'Log rack', position: [0, -0.85, back - PROUD * 2 - 0.06], size: [3.2, 0.7], normal: [0, 0, -1], up: [0, 1, 0], restsOn: ['saw-guard'], finish: 'rack', color: '#8a5d38' },
     ],
     screws: [
       ...recolor(screws, { 'back-1': 'amber', 'front-2': 'blue', 'left-roof-1': 'amber' }, ['front-1']),
-      { id: 'back-2', plate: 'back', color: 'mint', position: [0.7, -0.4], blockedBy: ['saw-guard'] },
-      { id: 'saw-guard-1', plate: 'saw-guard', color: 'coral', position: [-1, 0.3] },
+      // Behind the guard and the rack on it; the guard cannot go before the rack, so the second cover changes nothing.
+      { id: 'back-2', plate: 'back', color: 'mint', position: [0.7, -0.4], blockedBy: ['saw-guard', 'log-rack'] },
+      // Above the rack's top edge, so the rack never stands over it.
+      { id: 'saw-guard-1', plate: 'saw-guard', color: 'coral', position: [-1, 0.4] },
       { id: 'log-rack-1', plate: 'log-rack', color: 'amber', position: [1.3, 0] },
       { id: 'saw-bolt', plate: 'log-rack', through: ['saw-guard', 'back'], color: 'mint', position: [0, 0] },
     ],
@@ -88,7 +92,7 @@ export function createMillLevels(plates: readonly Plate[], screws: readonly Scre
         'back-1': { position: [0, -0.45], blockedBy: ['back-hatch'] },
       }),
       { id: 'loft-door-1', plate: 'loft-door', color: 'coral', position: [0.3, 0] },
-      { id: 'hoist-bolt', plate: 'hoist-beam', through: ['front'], color: 'mint', position: [0, 0] },
+      { id: 'hoist-bolt', plate: 'hoist-beam', through: ['front'], color: 'mint', position: [-0.5, 0] },
       { id: 'hoist-beam-1', plate: 'hoist-beam', color: 'coral', position: [0.5, 0] },
       { id: 'back-hatch-1', plate: 'back-hatch', color: 'amber', position: [0.4, 0] },
     ],

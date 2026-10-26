@@ -1,10 +1,11 @@
 import './plate-escape.css'
 
-import { ArrowLeft, Check, CircleHelp, House, LockKeyhole, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
+import { ArrowLeft, Check, CircleHelp, House, LockKeyhole, Pause, Play, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
 import { type ComponentProps, type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
+import { createMuteStorage } from '../_shared/audio/muteStorage'
 import { SoundToggle } from '../_shared/audio/SoundToggle'
 import { FullscreenIconButton } from '../_shared/FullscreenButton'
 import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
@@ -18,6 +19,9 @@ import { PlateEscapeScene, type PlateEvent, type ScrewTarget, type ViewCommand }
 import { createPlateSfx, plateMute, type PlateSound } from './sfx'
 
 interface FlyingScrew { color: ScrewColor, x: number, y: number, dx: number, dy: number }
+
+/** The Motion setting, kept like the sound setting: true when the player has stopped turning parts. */
+const motionStill = createMuteStorage('bwh.plate-escape.still.v1')
 
 export function PlateEscapeGame(): ReactElement {
   const [levelId, setLevelId] = useState<number | null>(null)
@@ -59,6 +63,10 @@ interface LevelSessionProps {
 
 function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockSound, muted, onMutedChange }: LevelSessionProps): ReactElement {
   const { plates: PLATES, screws: SCREWS, spareCapacity: SPARE_CAPACITY } = level
+  const [still, setStill] = useState(motionStill.load)
+  // Under reduced motion nothing turns, so there is nothing to pause.
+  const [reduceMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+  useEffect(() => motionStill.save(still), [still])
   const [puzzle, setPuzzle] = useState(() => createPuzzle(level.id))
   const [history, setHistory] = useState<PuzzleState[]>([])
   const [targets, setTargets] = useState<ScrewTarget[]>([])
@@ -110,7 +118,10 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     const screw = SCREWS.find((candidate) => candidate.id === id)!
     const lock = screwLock(puzzle, screw)
     const plate = (plateId: string): string => PLATES.find((candidate) => candidate.id === plateId)!.name
-    if (lock?.kind === 'bearing') return `${plate(screw.plate)} is holding up the ${plate(lock.plate).toLowerCase()}. Free the roof first.`
+    if (lock?.kind === 'bearing') {
+      const load = PLATES.find((candidate) => candidate.id === lock.plate)!
+      return `${plate(lock.support ?? screw.plate)} is holding up the ${load.name.toLowerCase()}. Free the ${load.finish === 'roof' ? 'roof' : load.name.toLowerCase()} first.`
+    }
     if (lock?.kind === 'cover') return `The ${plate(lock.plate).toLowerCase()} covers that screw. Release it first.`
     return 'No room for that screw. Collect a matching color or undo.'
   }
@@ -189,7 +200,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       <CollectionTrays state={busy && fly ? history.at(-1) ?? puzzle : puzzle} />
       <section className="relative min-h-0 flex-1" aria-label="Plate puzzle">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#fff9ed_0%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,#2a3640_0%,transparent_70%)]" />
-        <PlateEscapeScene key={sceneKey} state={puzzle} view={view} onTargets={setTargets} onError={reportError} onPlateEvent={plateEvent} />
+        <PlateEscapeScene key={sceneKey} state={puzzle} view={view} motion={!still} onTargets={setTargets} onError={reportError} onPlateEvent={plateEvent} />
         {targets.map((target) => {
           const screw = SCREWS.find((candidate) => candidate.id === target.id)!
           if (target.coveredBy) return <span key={target.id} role="img" aria-label={`${COLORS[screw.color].name} screw covered by ${target.coveredBy.toLowerCase()}`} data-covered-screw-id={screw.id} className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200" style={{ left: target.x, top: target.y }}><LockKeyhole size={13} aria-hidden="true" /></span>
@@ -213,6 +224,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
           <button type="button" aria-label="Rotate left" onClick={() => turn('left')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCcw size={20} aria-hidden="true" /></button>
           <button type="button" onClick={() => turn('reset')} className="whitespace-nowrap px-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Reset view</button>
           <button type="button" aria-label="Rotate right" onClick={() => turn('right')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCw size={20} aria-hidden="true" /></button>
+          {level.rotor && !reduceMotion && <button type="button" aria-label={still ? 'Resume motion' : 'Pause motion'} onClick={() => setStill(!still)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{still ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}</button>}
         </div>
         {lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl dark:bg-slate-900/95">
           <div className="mb-3 flex justify-center"><ScrewHead color={puzzle.overflow!} size={48} /></div>

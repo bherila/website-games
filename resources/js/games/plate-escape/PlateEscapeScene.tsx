@@ -4,9 +4,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
-import { coverStandoff, createGarden, createPlateMesh, decoratePlate, plateQuaternion } from './houseGeometry'
-import { COLORS, getLevel } from './level'
-import { FADE_SECONDS, FALL_SECONDS, fallPose } from './plateMotion'
+import { coverStandoff, createGarden, createPlateMesh, decoratePlate, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
+import { COLORS, getLevel, heldPlates } from './level'
+import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
 import { traceScrew } from './screwVisibility'
 
 export interface ScrewTarget {
@@ -18,11 +18,13 @@ export interface ScrewTarget {
   holdsUp?: string | undefined
 }
 export interface ViewCommand { action: 'left' | 'right' | 'reset', sequence: number }
-/** A released part starts to fall, or hits the deck or lawn. */
-export type PlateEvent = 'fall' | 'land'
+/** A released part starts to fall, a hinged panel swings open, or a part hits the deck or lawn. */
+export type PlateEvent = 'fall' | 'swing' | 'land'
 interface Props {
   state: PuzzleState
   view: ViewCommand
+  /** The player's Motion setting; turning parts also stay still under reduced motion. */
+  motion: boolean
   onTargets: (targets: ScrewTarget[]) => void
   onError: (message: string) => void
   onPlateEvent?: (event: PlateEvent) => void
@@ -31,13 +33,13 @@ interface Props {
 const UP = new THREE.Vector3(0, 1, 0)
 const NORMAL = new THREE.Vector3(0, 0, 1)
 
-export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent }: Props): ReactElement {
+export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPlateEvent }: Props): ReactElement {
   const level = getLevel(state.level)
   const { plates: PLATES, screws: SCREWS } = level
   const hostRef = useRef<HTMLDivElement>(null)
-  const latestRef = useRef({ state, onTargets, onError, onPlateEvent })
+  const latestRef = useRef({ state, motion, onTargets, onError, onPlateEvent })
   const commandRef = useRef<((action: ViewCommand['action']) => void) | null>(null)
-  useEffect(() => { latestRef.current = { state, onTargets, onError, onPlateEvent } }, [state, onTargets, onError, onPlateEvent])
+  useEffect(() => { latestRef.current = { state, motion, onTargets, onError, onPlateEvent } }, [state, motion, onTargets, onError, onPlateEvent])
   useEffect(() => { commandRef.current?.(view.action) }, [view])
 
   useEffect(() => {
@@ -120,7 +122,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
       plateGroups.set(plate.id, group)
       const screws = SCREWS.filter((screw) => screw.plate === plate.id)
       const mesh = createPlateMesh(plate, screws)
-      group.add(mesh, decoratePlate(plate, coverStandoff(plate, PLATES)))
+      group.add(mesh, decoratePlate(plate, coverStandoff(plate, PLATES), screws), ...throughShafts(plate, SCREWS, PLATES))
       hitObjects.push(group)
       for (const screw of screws) {
         const screwGroup = makeScrew(COLORS[screw.color].hex, screw.color)
@@ -131,6 +133,13 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
 
       }
     }
+
+    // Every screw that pins a plate, including shared screws whose head is on another part,
+    // and where each one crosses it.
+    const plateScrews = new Map(PLATES.map((plate) => [plate.id, SCREWS.filter((screw) => heldPlates(screw).includes(plate.id))]))
+    const anchors = new Map(PLATES.flatMap((plate) => plateScrews.get(plate.id)!.map((screw) => [`${screw.id}/${plate.id}`, screwAnchorOn(screw, plate, PLATES)] as const)))
+    const rotor = level.rotor
+    const rotorPlates = new Set(rotor?.plates ?? [])
 
     const resize = (): void => {
       const width = Math.max(1, container.clientWidth)
@@ -150,12 +159,31 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
     renderer.domElement.addEventListener('webglcontextlost', lost)
     const removedAt = new Map<string, number>()
     // A bearing wall stays square on its last screw; it starts to hang only once its load has gone.
-    const heldPlates = new Set<string>()
+    const bearingPlates = new Set<string>()
     const loadReleasedAt = new Map<string, number>()
     const falling = new Set<string>()
     const landed = new Set<string>()
     const faded = new Map<string, number>()
+    const swung = new Set<string>()
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    // A rotor stops while the player reaches for the board: any press, drag, wheel, key or
+    // mouse movement over it, or keyboard focus resting on a screw, and resumes once idle.
+    const surface = container.parentElement ?? container
+    let lastActivity = -Infinity
+    const touched = (): void => { lastActivity = performance.now() / 1000 }
+    const activity = ['pointerdown', 'pointermove', 'wheel', 'focusin', 'keydown'] as const
+    for (const type of activity) surface.addEventListener(type, touched, { passive: true })
+    const aiming = (): boolean => {
+      const active = document.activeElement
+      return active instanceof HTMLElement && active !== document.body && surface.contains(active) && active.matches(':focus-visible')
+    }
+    let rotorAngle = 0
+    let rotorSpeed = 0
+    let previousFrame = performance.now() / 1000
+    // A turning part lets go at whatever angle it had reached.
+    const releaseAngle = new Map<string, number>()
+    const basePosition = new THREE.Vector3()
+    const baseQuaternion = new THREE.Quaternion()
     // Materials are created per panel, so fading one part never touches another.
     const setOpacity = (group: THREE.Group, id: string, opacity: number): void => {
       if ((faded.get(id) ?? 1) === opacity) return
@@ -190,28 +218,66 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
       for (const id of previousRemoved) if (!removed.includes(id)) removedAt.delete(id)
       for (const id of removed) if (!removedAt.has(id)) removedAt.set(id, now)
       previousRemoved = removed
+      const dt = Math.min(0.1, Math.max(0, now - previousFrame))
+      previousFrame = now
+      if (rotor) {
+        const turning = !reduceMotion && latestRef.current.motion && now - lastActivity >= ROTOR_IDLE_SECONDS && !aiming()
+        rotorSpeed = nextRotorSpeed(rotor, rotorSpeed, turning ? Math.PI * 2 / rotor.period : 0, dt)
+        rotorAngle = (rotorAngle + rotorSpeed * dt) % (Math.PI * 2)
+        if (rotorSpeed > 0) lastMotionAt = now
+      }
+      const remainingOn = (id: string): number => plateScrews.get(id)!.filter((screw) => !removed.includes(screw.id)).length
+      const releasedAt = (id: string): number => Math.max(...plateScrews.get(id)!.map((screw) => removedAt.get(screw.id) ?? -Infinity))
       for (const plate of PLATES) {
         const group = plateGroups.get(plate.id)!
-        const screws = SCREWS.filter((screw) => screw.plate === plate.id)
+        const screws = plateScrews.get(plate.id)!
         const remaining = screws.filter((screw) => !removed.includes(screw.id))
-        const latest = Math.max(...screws.map((screw) => removedAt.get(screw.id) ?? -Infinity))
-        const fall = remaining.length === 0 ? Math.max(0, now - latest - 0.45) : 0
-        const held = remaining.length === 1 && bearingLock(latestRef.current.state, plate.id) !== null
-        if (held) heldPlates.add(plate.id)
-        else if (heldPlates.delete(plate.id)) loadReleasedAt.set(plate.id, now)
-        const hangFrom = Math.max(latest, loadReleasedAt.get(plate.id) ?? -Infinity)
-        const pivot = held ? undefined : remaining.length === 1 ? remaining[0]
-          : remaining.length === 0 ? screws.find((screw) => removedAt.get(screw.id) === latest) : undefined
-        // The unsupported side swings downward around the last screw, whichever
-        // side it is on; a released plate keeps that tilt as it falls.
-        const swing = pivot && pivot.position[0] > 0 ? 1 : -1
-        const angle = pivot && Number.isFinite(hangFrom) ? swing * 0.3 * Math.min(1, Math.max(0, (now - hangFrom - 0.3) * 3)) : 0
-        const base = plateFrames.get(plate.id)!
-        group.quaternion.copy(base).multiply(quaternion.setFromAxisAngle(NORMAL, angle))
-        group.position.fromArray(plate.position)
-        if (pivot) {
-          const anchor = new THREE.Vector3(pivot.position[0], pivot.position[1], 0)
-          group.position.add(anchor.clone().applyQuaternion(base)).sub(anchor.applyQuaternion(group.quaternion))
+        const latest = releasedAt(plate.id)
+        if (remaining.length > 0) releaseAngle.delete(plate.id)
+        else if (!releaseAngle.has(plate.id)) releaseAngle.set(plate.id, rotorAngle)
+        basePosition.fromArray(plate.position)
+        baseQuaternion.copy(plateFrames.get(plate.id)!)
+        const turns = rotor !== undefined && rotorPlates.has(plate.id)
+        if (turns) {
+          const turned = rotorPose(rotor, basePosition, baseQuaternion, releaseAngle.get(plate.id) ?? rotorAngle)
+          basePosition.copy(turned.position)
+          baseQuaternion.copy(turned.quaternion)
+        }
+        let fall = 0
+        if (plate.hinge) {
+          // A captive panel swings open and stays with its host; it falls only when the host does.
+          const open = remaining.length === 0
+          if (!open) swung.delete(plate.id)
+          else if (!swung.has(plate.id)) {
+            swung.add(plate.id)
+            latestRef.current.onPlateEvent?.('swing')
+          }
+          const pose = open ? hingePose(plate, basePosition, baseQuaternion, reduceMotion ? HINGE_SECONDS : now - latest) : { position: basePosition, quaternion: baseQuaternion }
+          if (open && now - latest < HINGE_SECONDS) lastMotionAt = now
+          group.position.copy(pose.position)
+          group.quaternion.copy(pose.quaternion)
+          const host = plate.restsOn?.[0]
+          if (host !== undefined && remainingOn(host) === 0) fall = Math.max(0, now - releasedAt(host) - 0.45)
+        } else {
+          const held = remaining.length === 1 && bearingLock(latestRef.current.state, plate.id, heldPlates(remaining[0]!)) !== null
+          if (held) bearingPlates.add(plate.id)
+          else if (bearingPlates.delete(plate.id)) loadReleasedAt.set(plate.id, now)
+          const hangFrom = Math.max(latest, loadReleasedAt.get(plate.id) ?? -Infinity)
+          // Turning parts hang from the hub rather than tilting about it.
+          const pivot = held || turns ? undefined : remaining.length === 1 ? remaining[0]
+            : remaining.length === 0 ? screws.find((screw) => removedAt.get(screw.id) === latest) : undefined
+          const anchor = pivot ? anchors.get(`${pivot.id}/${plate.id}`)! : undefined
+          // The unsupported side swings downward around the last screw, whichever
+          // side it is on; a released plate keeps that tilt as it falls.
+          const swing = anchor && anchor[0] > 0 ? 1 : -1
+          const angle = anchor && Number.isFinite(hangFrom) ? swing * 0.3 * Math.min(1, Math.max(0, (now - hangFrom - 0.3) * 3)) : 0
+          group.quaternion.copy(baseQuaternion).multiply(quaternion.setFromAxisAngle(NORMAL, angle))
+          group.position.copy(basePosition)
+          if (anchor) {
+            const point = new THREE.Vector3(anchor[0], anchor[1], 0)
+            group.position.add(point.clone().applyQuaternion(baseQuaternion)).sub(point.applyQuaternion(group.quaternion))
+          }
+          fall = remaining.length === 0 ? Math.max(0, now - latest - 0.45) : 0
         }
         if (fall > 0) {
           if (!falling.has(plate.id)) {
@@ -289,6 +355,7 @@ export function PlateEscapeScene({ state, view, onTargets, onError, onPlateEvent
       controls.dispose()
       commandRef.current = null
       renderer.domElement.removeEventListener('webglcontextlost', lost)
+      for (const type of activity) surface.removeEventListener(type, touched)
       light.shadow.dispose()
       disposeObject(scene)
       renderer.dispose()
