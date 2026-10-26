@@ -108,7 +108,7 @@ describe('compact mastery redraws (37, 39, 40)', () => {
     return result.solution?.length ?? null
   }
 
-  test.each([37, 39])('level %i fits a phone without the follow camera', (id) => {
+  test.each([37, 39, 40])('level %i fits a phone without the follow camera', (id) => {
     const state = start(id)
     expect(state.width).toBeLessThanOrEqual(13)
     expect(state.height).toBeLessThanOrEqual(15)
@@ -131,4 +131,25 @@ describe('compact mastery redraws (37, 39, 40)', () => {
     expect(solve(state).status).toBe('unsolvable')
   })
 
+  describe('level 40', () => {
+    const base = withoutMonsters(start(40))
+    const baseline = parOf(base)
+
+    test('the ball costs moves, so the hub must be timed', () => {
+      expect(baseline).toBeLessThan(getLevelById(40)?.par ?? 0)
+    })
+
+    test('sealing the teleports leaves the far chip unreachable', () => {
+      const sealed = { ...base, tiles: base.tiles.map((tile) => (tile === 'teleport' ? 'wall' : tile)), teleports: [] }
+      expect(solve(sealed, { maxNodes: 200_000 }).status).toBe('unsolvable')
+    })
+
+    test.each([
+      ['ice', ICE],
+      ['belts', FORCE_FLOORS],
+      ['thief', ['thief'] as readonly TileKind[]],
+    ] as const)('flattening the %s changes the route', (_label, kinds) => {
+      expect(parOf(flatten(base, kinds))).not.toBe(baseline)
+    })
+  })
 })
