@@ -76,8 +76,8 @@ export const HARBOR_TRACES = [
   },
   {
     level: 14,
-    win: ['tower-left-1', 'tower-door-1', 'tower-right-1', 'cab-roof-1', 'jib-pivot', 'jib-2', 'hook-block-1', 'cab-front-1', 'tower-front-1', 'counterweight-1', 'cab-back-1', 'tower-back-1'],
-    lose: ['tower-door-1', 'hook-block-1', 'counterweight-1'],
+    win: ['tower-front-1', 'tower-back-1', 'tower-door-1', 'cab-roof-1', 'jib-pivot', 'hook-block-1', 'cab-front-1', 'jib-2', 'counterweight-1', 'cab-back-1', 'tower-left-1', 'tower-right-1'],
+    lose: ['tower-front-1', 'jib-pivot', 'jib-2'],
   },
   {
     level: 15,

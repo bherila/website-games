@@ -115,7 +115,8 @@ export function createHarborLevels(): PuzzleLevel[] {
 
   // A dockside crane: a boarded tower, a cab on top and a jib reaching over the water. Its two
   // railed parts run different ways: the hook block drops straight down the front, the
-  // counterweight slides down the cab's back on a slant.
+  // counterweight slides down the cab's back on a slant. The cab stands on the tower's sides, so
+  // the front and back screws the covers land on are held by nothing else.
   const slant = [-0.447, -0.894, 0] as const
   const crane: PuzzleLevel = {
     id: 14, name: 'Harbor Crane', spareCapacity: 2, overflowLoses: true, trayColors: ['coral', 'blue', 'mint', 'amber'], stage: 'quay',
@@ -124,8 +125,8 @@ export function createHarborLevels(): PuzzleLevel[] {
       { id: 'tower-back', name: 'Tower back', position: [0, -0.55, -0.7], size: [1.6, 2.0], normal: [0, 0, -1], up: [0, 1, 0], finish: 'plank', color: '#4f7a5a' },
       { id: 'tower-left', name: 'Tower left side', position: [-0.8, -0.55, 0], size: [1.4, 2.0], normal: [-1, 0, 0], up: [0, 1, 0], finish: 'plank', color: '#5b8766' },
       { id: 'tower-right', name: 'Tower right side', position: [0.8, -0.55, 0], size: [1.4, 2.0], normal: [1, 0, 0], up: [0, 1, 0], finish: 'plank', color: '#5b8766' },
-      { id: 'cab-front', name: 'Cab front', position: [0, 0.95, 0.85], size: [1.9, 1.0], normal: [0, 0, 1], up: [0, 1, 0], restsOn: ['tower-front'], finish: 'guard', color: '#d8a640' },
-      { id: 'cab-back', name: 'Cab back', position: [0, 0.95, -0.85], size: [1.9, 1.0], normal: [0, 0, -1], up: [0, 1, 0], restsOn: ['tower-back'], finish: 'guard', color: '#d8a640' },
+      { id: 'cab-front', name: 'Cab front', position: [0, 0.95, 0.85], size: [1.9, 1.0], normal: [0, 0, 1], up: [0, 1, 0], restsOn: ['tower-left', 'tower-right'], finish: 'guard', color: '#d8a640' },
+      { id: 'cab-back', name: 'Cab back', position: [0, 0.95, -0.85], size: [1.9, 1.0], normal: [0, 0, -1], up: [0, 1, 0], restsOn: ['tower-left', 'tower-right'], finish: 'guard', color: '#d8a640' },
       { id: 'cab-roof', name: 'Cab roof', position: [0, 1.52, 0], size: [2.0, 1.85], normal: [0, 1, 0], up: [0, 0, -1], restsOn: ['cab-front', 'cab-back'], finish: 'guard', color: '#b9473b' },
       { id: 'jib', name: 'Jib', position: [1.45, 1.0, 0.85 + PROUD], size: [2.8, 0.5], normal: [0, 0, 1], up: [0, 1, 0], finish: 'beam', color: '#c0392b' },
       { id: 'hook-block', name: 'Hook block', position: [-0.5, 0.95, 0.85 + PROUD], size: [0.6, 0.7], normal: [0, 0, 1], up: [0, 1, 0], rail: { along: [0, -1, 0], travel: 1.9 }, host: 'cab-front', finish: 'guard', color: '#3d4a52' },
@@ -134,19 +135,19 @@ export function createHarborLevels(): PuzzleLevel[] {
     ],
     screws: [
       // The hook block lands here once it drops.
-      { id: 'tower-front-1', plate: 'tower-front', color: 'amber', position: [-0.5, -0.4], coveredWhenOpen: ['hook-block'] },
+      { id: 'tower-front-1', plate: 'tower-front', color: 'mint', position: [-0.5, -0.4], coveredWhenOpen: ['hook-block'] },
       // The counterweight lands here; the cab's back faces -z, so its local x runs toward -x.
-      { id: 'tower-back-1', plate: 'tower-back', color: 'mint', position: [0.5, -0.3], coveredWhenOpen: ['counterweight'] },
-      { id: 'tower-left-1', plate: 'tower-left', color: 'blue', position: [0, 0] },
-      { id: 'tower-right-1', plate: 'tower-right', color: 'coral', position: [0, -0.3], blockedBy: ['tower-door'] },
-      { id: 'tower-door-1', plate: 'tower-door', color: 'amber', position: [0.15, 0] },
-      { id: 'cab-front-1', plate: 'cab-front', color: 'blue', position: [-0.5, 0], blockedBy: ['hook-block'] },
+      { id: 'tower-back-1', plate: 'tower-back', color: 'blue', position: [0.5, -0.3], coveredWhenOpen: ['counterweight'] },
+      { id: 'tower-left-1', plate: 'tower-left', color: 'amber', position: [0, 0] },
+      { id: 'tower-right-1', plate: 'tower-right', color: 'blue', position: [0, -0.3], blockedBy: ['tower-door'] },
+      { id: 'tower-door-1', plate: 'tower-door', color: 'blue', position: [0.15, 0] },
+      { id: 'cab-front-1', plate: 'cab-front', color: 'coral', position: [-0.5, 0], blockedBy: ['hook-block'] },
       { id: 'cab-back-1', plate: 'cab-back', color: 'mint', position: [-0.4, 0], blockedBy: ['counterweight'] },
       { id: 'cab-roof-1', plate: 'cab-roof', color: 'coral', position: [0, 0] },
       // The pivot bolt pins the jib to the cab front; both let go together once the roof is off.
-      { id: 'jib-pivot', plate: 'jib', through: ['cab-front'], color: 'coral', position: [-1.05, 0] },
-      { id: 'jib-2', plate: 'jib', color: 'blue', position: [0.9, 0] },
-      { id: 'hook-block-1', plate: 'hook-block', color: 'mint', position: [0, 0.1] },
+      { id: 'jib-pivot', plate: 'jib', through: ['cab-front'], color: 'amber', position: [-1.05, 0] },
+      { id: 'jib-2', plate: 'jib', color: 'mint', position: [0.9, 0] },
+      { id: 'hook-block-1', plate: 'hook-block', color: 'coral', position: [0, 0.1] },
       { id: 'counterweight-1', plate: 'counterweight', color: 'amber', position: [0, 0.1] },
     ],
   }

@@ -41,7 +41,8 @@ Sea Chest (on a boathouse bench) offers two routes, a hasp that drops over the f
 flap that drops over the end, each burying a different color. Harbor Crane (on a stone quay) has
 covers that run different ways: the hook block drops straight down the tower front and the
 counterweight slides down the cab's back on a slant, while one pivot bolt frees jib and cab front
-together and the tower door opens clear. Lightship, the harbor's assessment, combines a stern
+together and the tower door opens clear. The cab stands on the tower's sides, so the screws the
+covers land on are held by nothing else. Lightship, the harbor's assessment, combines a stern
 flap, a lantern shutter that drops down the mast onto its collar, and one bolt through the mast
 step and the deck that the lantern rests on. These three have two spare slots and may hold a
 commitment that only shows a few moves later.
