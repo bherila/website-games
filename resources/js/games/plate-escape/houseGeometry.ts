@@ -427,7 +427,7 @@ function createWorkbench(): THREE.Group {
   return stage
 }
 
-/** A stone quay at the harbor's edge; bollards and a mooring ring. */
+/** A stone quay at the harbor's edge, with two bollards clear of where the jib lands. */
 function createQuay(): THREE.Group {
   const stage = new THREE.Group()
   stage.add(water(4.4, -2.2))
@@ -435,9 +435,11 @@ function createQuay(): THREE.Group {
   quay.receiveShadow = true
   for (let x = -3.0; x < 1.9; x += 0.65) box(stage, [0.012, 0.02, 3.38], [x, -1.545, 0], '#a69e8f')
   box(stage, [0.14, 0.1, 3.42], [1.98, -1.53, 0], '#e2dccf')
-  for (const z of [-1.2, 1.2]) {
+  // The freed jib tips forward onto the quay along +z, so the bollards stand behind the tower and
+  // at the far end of the quay.
+  for (const [x, z] of [[1.6, -1.3], [-2.6, 1.3]] as const) {
     const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.4, 14), new THREE.MeshStandardMaterial({ color: '#3d4a52', roughness: 0.6, metalness: 0.4 }))
-    bollard.position.set(1.65, -1.35, z)
+    bollard.position.set(x, -1.35, z)
     stage.add(bollard)
   }
   return stage
