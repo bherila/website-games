@@ -37,6 +37,7 @@ async function drive(page: Page, isMobile: boolean): Promise<void> {
 }
 
 interface MinimapReading {
+  sampledAt: number
   points: Array<{ x: number; y: number }>
   width: number
   height: number
@@ -47,12 +48,14 @@ interface MinimapReading {
 }
 
 async function readMinimap(page: Page): Promise<MinimapReading> {
-  return page.getByRole('img', { name: 'Minimap', exact: true }).evaluate(async (element, progressKey) => {
-    // Observe real rendered frames without advancing or replacing game time.
-    for (let frame = 0; frame < 2; frame++) {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-    }
-    const canvas = element as HTMLCanvasElement
+  // Advance every timer and rendered frame, including both crafts' real physics,
+  // in a bounded slice. CDP/CI delays between inputs cannot advance the race or
+  // move the white marker outside the previous observation's tracking window.
+  // Three frames also include the minimap's every-other-frame paint.
+  await page.clock.runFor(50)
+  return page.evaluate((progressKey) => {
+    const canvas = document.querySelector<HTMLCanvasElement>('canvas[aria-label="Minimap"]')
+    if (!canvas) throw new Error('The rendered minimap is not mounted')
     const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
     const points: Array<{ x: number; y: number }> = []
     for (let y = 0; y < canvas.height; y++) {
@@ -64,6 +67,7 @@ async function readMinimap(page: Page): Promise<MinimapReading> {
       }
     }
     return {
+      sampledAt: performance.now(),
       points, width: canvas.width, height: canvas.height,
       speed: Number(document.querySelector('[data-testid="speed-value"]')?.textContent ?? 0) / 3.6,
       collected: document.querySelectorAll('[data-testid="flag-dot-blue"][data-filled="true"]').length,
@@ -81,6 +85,7 @@ async function collectCastleFlags(page: Page, isMobile: boolean): Promise<void> 
   // proximity alone cannot prove the craft entered the 1.6-unit pickup radius.
   const route = [[9, 33, 1], [15, 15, 0], [33, 15, 2], [45, 15, 0], [45, 9, 0], [81, 9, 0], [81, 21, 3]] as const
   const initial = await readMinimap(page)
+  let sampledAt = initial.sampledAt
   const scale = initial.width / 174
   const offsetY = (initial.height - 126 * scale) / 2
   let previous = { x: 9, z: 9 }
@@ -142,13 +147,15 @@ async function collectCastleFlags(page: Page, isMobile: boolean): Promise<void> 
       let arrived = false
       for (let attempt = 0; attempt < 200; attempt++) {
         const reading = await readMinimap(page)
+        expect(reading.sampledAt - sampledAt, 'only the requested simulation slice advances time').toBe(50)
+        sampledAt = reading.sampledAt
         expect(reading.lost, 'finish the Castle route before the drone').toBe(false)
         if (reading.cleared) {
           return
         }
         const current = position(reading)
-        // CDP input itself can span rendered frames on software WebGL. The
-        // visible speed gives magnitude without assuming a wall/frame interval.
+        // Minimap displacement gives direction; the visible speed gives
+        // magnitude. No engine state is exposed to the driving controller.
         const travelX = current.x - previous.x
         const travelZ = current.z - previous.z
         const travel = Math.hypot(travelX, travelZ)
@@ -256,16 +263,20 @@ test.describe('Hover gameplay', () => {
     if (!isMobile) {
       await page.setViewportSize({ width: 1280, height: 720 })
     }
-    // Fix only Date.now for reproducible normal-game spawns. Timers, RAF and
-    // performance.now remain real, and visualTest is deliberately disabled:
-    // preview sessions suppress progress writes.
-    await page.clock.setFixedTime(new Date(420 * 2 ** 32 + 1177))
+    // Keep normal-game spawns reproducible, then control time from Playwright.
+    // No application hook, visual preview mode, engine mutation or held drone:
+    // the real input handlers, fixed-step loop and both crafts still run.
+    const seededTime = new Date(420 * 2 ** 32 + 1177)
+    await page.clock.install({ time: new Date(seededTime.getTime() - 3_600_000) })
+    await page.clock.pauseAt(seededTime)
+    await page.clock.setFixedTime(seededTime)
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(String(error)))
     await page.goto('/hover')
     expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_KEY)).toBeNull()
     await expect(page.getByTestId('level-select-1')).toBeDisabled()
     await page.getByRole('button', { name: 'Start Engine', exact: true }).click()
+    await page.clock.fastForward(2500)
     await expect(page.getByText('Collect 3 blue flags — beat the drone!', { exact: true })).toBeHidden()
     if (!isMobile) {
       // Existing journeys cover the full desktop layout. Bound the repeated
@@ -278,6 +289,7 @@ test.describe('Hover gameplay', () => {
     const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), PROGRESS_KEY) as { bestScore: number }
     expect(saved.bestScore).toBeGreaterThan(1000)
     // The automatic next arena starts with fresh flags and carries the score.
+    await page.clock.fastForward(3100)
     await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0, { timeout: 15_000 })
     await expect(page.getByTestId('score-value')).toHaveText(saved.bestScore.toLocaleString())
 
@@ -289,6 +301,7 @@ test.describe('Hover gameplay', () => {
     await expect(page.getByTestId('level-select-2')).toBeDisabled()
     if (isMobile) await page.getByTestId('level-select-1').tap()
     else await page.getByTestId('level-select-1').click()
+    await page.clock.runFor(100)
     // The intro can finish while a slow renderer presents the first frame.
     // City's blue minimap walls persist; Castle has beige walls and only a
     // handful of blue flag pixels, well below this broad coverage threshold.
