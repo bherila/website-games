@@ -200,7 +200,7 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
   animated chevrons). Items (chips, keys, boots) are small billboarded quads with a gentle bob.
   Player and monsters are quads tweened between tiles (~110 ms ease) with a short facing flip; forced
   slides tween faster (~70 ms/tile) and chain visually.
-- **Camera fit:** if the level fits the viewport at ≥ 32 px/tile (`MIN_PX_PER_TILE`), show the whole
+- **Camera fit:** if the level fits the viewport at ≥ 28 px/tile (`MIN_PX_PER_TILE`), show the whole
   board centered; otherwise the camera smooth-follows the player showing at least `MIN_TILES_ACROSS`
   tiles, clamped to the board edges.
 - **Board rotation (normative):** the *board only* may render rotated one quarter turn when that makes

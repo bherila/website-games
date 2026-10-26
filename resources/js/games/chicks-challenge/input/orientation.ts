@@ -52,11 +52,12 @@ export const ROTATE_GAIN_THRESHOLD = 1.15
 
 /**
  * Tile size at which an upright board is already comfortable to read, so trading
- * a familiar orientation for even more pixels is a bad deal. Twice the scene's
- * legibility floor (`MIN_PX_PER_TILE`): rotation exists to rescue cramped boards
- * on phones, not to maximise pixels on a desktop monitor.
+ * a familiar orientation for even more pixels is a bad deal. Rotation exists to
+ * rescue cramped boards on phones, not to maximise pixels on a desktop monitor.
+ * (Fixed rather than derived from `MIN_PX_PER_TILE`, so lowering the fit floor
+ * does not change which comfortable boards are left upright.)
  */
-export const COMFORTABLE_PX_PER_TILE = 2 * MIN_PX_PER_TILE
+export const COMFORTABLE_PX_PER_TILE = 64
 
 /**
  * Direction a turned board defaults to when the device orientation is unknown —
