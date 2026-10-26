@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
+import type { StageId } from './stage'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
 export function plateQuaternion(plate: Plate): THREE.Quaternion {
@@ -361,12 +362,17 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
 
 /** The permanent scenery a level stands on; its surfaces match `STAGES` in stage.ts. */
 export function createStage(level: Pick<PuzzleLevel, 'stage' | 'theme'>): THREE.Group {
-  if (level.stage === 'jetty') return createJetty()
-  if (level.stage === 'pier') return createPier()
-  if (level.stage === 'workbench') return createWorkbench()
-  if (level.stage === 'quay') return createQuay()
-  if (level.stage === 'sea') return createSea()
-  return createGarden(level.theme)
+  return SCENERY[level.stage ?? 'garden'](level.theme)
+}
+
+/** A boat's permanent lower hull, afloat: painted sides, a waterline stripe and its bottom boards. */
+function lowerHull(stage: THREE.Group, size: readonly [number, number, number], top: number, color: string, stripe: string): void {
+  const [length, depth, beam] = size
+  const hull = box(stage, [length, depth, beam], [0, top - depth / 2 - 0.02, 0], color)
+  hull.receiveShadow = true
+  box(stage, [length + 0.02, 0.06, beam + 0.02], [0, -1.86, 0], stripe)
+  const boards = box(stage, [length - 0.1, 0.04, beam - 0.1], [0, top - 0.02, 0], '#c9a979')
+  boards.receiveShadow = true
 }
 
 const water = (radius: number, y: number): THREE.Mesh => {
@@ -381,11 +387,7 @@ function createJetty(): THREE.Group {
   const stage = new THREE.Group()
   stage.add(water(4.2, -1.86))
   // The lower hull, down to the waterline and below, carries the bottom boards at -1.45.
-  const hull = box(stage, [3.4, 0.5, 2.1], [0, -1.7, 0], '#2f5f74')
-  hull.receiveShadow = true
-  box(stage, [3.42, 0.06, 2.12], [0, -1.86, 0], '#c4573f')
-  const boards = box(stage, [3.3, 0.04, 2.0], [0, -1.47, 0], '#c9a979')
-  boards.receiveShadow = true
+  lowerHull(stage, [3.4, 0.5, 2.1], -1.45, '#2f5f74', '#c4573f')
   for (const z of [-0.6, -0.2, 0.2, 0.6]) box(stage, [3.25, 0.012, 0.012], [0, -1.448, z], '#a88a5f')
   box(stage, [3.8, 0.12, 0.16], [-0.1, -1.95, 0], '#26495a')
   // The jetty behind the boat, on piles, with mooring posts and a coil of rope.
@@ -449,10 +451,7 @@ function createQuay(): THREE.Group {
 function createSea(): THREE.Group {
   const stage = new THREE.Group()
   stage.add(water(4.4, -1.86))
-  const hull = box(stage, [3.6, 0.55, 2.1], [0, -1.72, 0], '#9e2f2a')
-  hull.receiveShadow = true
-  box(stage, [3.62, 0.06, 2.12], [0, -1.86, 0], '#2b2b2b')
-  box(stage, [3.5, 0.04, 2.0], [0, -1.47, 0], '#c9a979')
+  lowerHull(stage, [3.6, 0.55, 2.1], -1.45, '#9e2f2a', '#2b2b2b')
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.4, 12), new THREE.MeshStandardMaterial({ color: '#e9e4d8', roughness: 0.6 }))
   mast.position.set(-0.6, 0.25, 0)
   stage.add(mast)
@@ -558,6 +557,15 @@ export function createGarden(theme?: PuzzleLevel['theme']): THREE.Group {
   return garden
 }
 
+
+const SCENERY: Record<StageId, (theme?: PuzzleLevel['theme']) => THREE.Group> = {
+  garden: createGarden,
+  jetty: createJetty,
+  pier: createPier,
+  workbench: createWorkbench,
+  quay: createQuay,
+  sea: createSea,
+}
 
 const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!
 
