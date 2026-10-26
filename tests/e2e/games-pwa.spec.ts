@@ -33,6 +33,56 @@ test.describe('BWH Games PWA offline reload', () => {
     await expectOfflineReloads(context, page, SHARED_STORE_GAMES)
   })
 
+  test('opens every game offline after installing, including games never visited', async ({ context, page }) => {
+    await seedPwa(page)
+    // Installing caches every game's page and files, so none has to be opened online first.
+    for (const [route] of ALL_GAMES) await waitForCachedShell(page, route)
+
+    await context.setOffline(true)
+    for (const [route, root] of ALL_GAMES) {
+      await page.goto(route, { waitUntil: 'domcontentloaded' })
+      await expect(page.locator(`${root} > *`).first()).toBeAttached()
+      await expect(page.getByText('Saved game data could not be loaded.')).toHaveCount(0)
+    }
+    await context.setOffline(false)
+  })
+
+  test('saves a clear made offline while signed in and sends it to the account on reconnecting', async ({ context, page }) => {
+    test.setTimeout(180_000)
+    await signInLocally(page)
+    await seedPwa(page)
+    await waitForCachedShell(page, '/plate-escape')
+    // The seeded account starts with no Plate Escape progress, so the offline clear is new.
+    expect(await levelOneStars(page)).toBeNull()
+
+    // On a flight: the installed app opens a game it has not shown since installing.
+    await context.setOffline(true)
+    await page.goto('/plate-escape', { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: /^Level 1, \d stars$/ }).click()
+    const play = page.getByRole('button', { name: "Let's play", exact: true })
+    if (await play.isVisible().catch(() => false)) await play.click()
+    // The tutorial wins in any legal order: take whatever head is offered, turning when none is.
+    const won = page.getByRole('heading', { name: 'All plates free!' })
+    for (let step = 0; step < 80 && !await won.isVisible(); step++) {
+      const head = page.locator('[data-screw-id]').first()
+      if (await head.isVisible().catch(() => false)) {
+        await head.click()
+        await page.waitForTimeout(700)
+      } else {
+        await page.getByRole('button', { name: 'Rotate right', exact: true }).click()
+        await page.waitForTimeout(300)
+      }
+    }
+    await expect(won).toBeVisible()
+
+    // Back on the ground, the clear made offline reaches the account.
+    const saved = page.waitForResponse((response) => response.request().method() === 'PUT'
+      && new URL(response.url()).pathname === '/api/games/plate-escape/data', { timeout: 60_000 })
+    await context.setOffline(false)
+    expect((await saved).ok()).toBe(true)
+    expect(await levelOneStars(page)).toBe(3)
+  })
+
   test('stores only sanitized shells and removes game caches before logout', async ({ page }) => {
     await signInLocally(page)
     await seedPwa(page)
@@ -147,4 +197,12 @@ async function readGameCacheText(page: Page): Promise<string> {
 
     return chunks.join('\n')
   })
+}
+
+/** Plate Escape level 1 stars as the account's saved data reports them, or null when unsaved. */
+async function levelOneStars(page: Page): Promise<number | null> {
+  const response = await page.request.get('/api/games/data?games[]=plate-escape', { headers: { Accept: 'application/json' } })
+  expect(response.ok()).toBe(true)
+  const rows = (await response.json() as { data: { scope: string, slot: string, data: { stars?: number } }[] }).data
+  return rows.find((row) => row.scope === 'level' && row.slot === '1')?.data.stars ?? null
 }

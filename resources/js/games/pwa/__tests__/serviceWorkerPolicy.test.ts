@@ -1,5 +1,6 @@
 import {
   GAME_CACHE_PREFIX,
+  gameBuildAssets,
   gameCacheNames,
   isAuthNavigation,
   isGameNavigation,
@@ -13,6 +14,35 @@ import {
 
 describe('games service worker policy', () => {
   const origin = 'https://games.example.test'
+
+  it('precaches every game entry with the chunks, styles and emitted files it needs, but not the operator panel', () => {
+    expect(gameBuildAssets({
+      'resources/css/app.css': { file: 'assets/app-1.css', isEntry: true, assets: ['assets/font-11.woff2'] },
+      // A sprite sheet loaded at runtime is emitted beside its chunk, not imported.
+      'resources/js/games/tower-throwback/index.tsx': { file: 'assets/tower-12.js', isEntry: true, assets: ['assets/style-gate-13.webp', 'assets/lobby-14.svg'] },
+      'resources/js/games/plate-escape/index.tsx': { file: 'assets/plate-2.js', isEntry: true, imports: ['_three.js', '_shared.js'], css: ['assets/plate-3.css'] },
+      'resources/js/games/2048/index.tsx': { file: 'assets/2048-4.js', isEntry: true, imports: ['_shared.js'] },
+      '_three.js': { file: 'assets/three-5.js', imports: ['_shared.js'] },
+      // A cycle between shared chunks must not loop.
+      '_shared.js': { file: 'assets/shared-6.js', imports: ['_three.js'], css: ['assets/shared-7.css'] },
+      'resources/js/admin/index.tsx': { file: 'assets/admin-8.js', isEntry: true, imports: ['_admin.js'] },
+      '_admin.js': { file: 'assets/admin-chunk-9.js' },
+      // Not an entry: only reached through an entry's imports.
+      'resources/js/games/plate-escape/lazy.ts': { file: 'assets/lazy-10.js' },
+    })).toEqual([
+      '/build/assets/2048-4.js',
+      '/build/assets/app-1.css',
+      '/build/assets/font-11.woff2',
+      '/build/assets/lobby-14.svg',
+      '/build/assets/plate-2.js',
+      '/build/assets/plate-3.css',
+      '/build/assets/shared-6.js',
+      '/build/assets/shared-7.css',
+      '/build/assets/style-gate-13.webp',
+      '/build/assets/three-5.js',
+      '/build/assets/tower-12.js',
+    ])
+  })
 
   it('uses deploy-versioned cache names', () => {
     expect(gameCacheNames('commit-123')).toEqual({
