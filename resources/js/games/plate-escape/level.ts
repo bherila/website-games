@@ -1,4 +1,6 @@
+import { createHarborLevels } from './harborLevels'
 import { createMillLevels } from './millLevels'
+import type { StageId } from './stage'
 import { createVillageLevels } from './villageLevels'
 
 export type ScrewColor = 'coral' | 'mint' | 'blue' | 'amber'
@@ -20,12 +22,20 @@ export interface Plate {
   up: Point3
   translucent?: boolean
   gableRise?: number
+  /** A shaped panel's outline in local X/Y, inside `size`; otherwise a rounded rectangle. */
+  outline?: readonly (readonly [number, number])[]
   /** Plates this one rests on; their last screw stays locked while this plate is attached. */
   restsOn?: readonly string[]
   /** A captive panel: with its screws gone it swings open on this edge and stays with its host. */
   hinge?: 'left' | 'right' | 'top' | 'bottom'
+  /** How far a hinged panel swings, in radians; a drop flap turns π to hang below its hinge. */
+  hingeAngle?: number
+  /** A captive shutter: with its screws gone it drops `travel` along `along` (downhill, world) to a stop. */
+  rail?: { along: Point3, travel: number }
+  /** The part a hinged or railed panel stays with once open; it falls when that part does. */
+  host?: string
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
-    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack'
+    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone'
   color: string
 }
 
@@ -37,6 +47,8 @@ export interface Screw {
   through?: readonly string[]
   color: ScrewColor
   blockedBy?: readonly string[]
+  /** Captive panels that lie over this head once they open, until the part they hang on comes off. */
+  coveredWhenOpen?: readonly string[]
   position: readonly [number, number]
 }
 
@@ -99,6 +111,8 @@ export interface PuzzleLevel {
   spareCapacity: number
   overflowLoses: boolean
   theme?: 'windmill' | 'glasshouse' | 'cafe' | 'millrace' | 'barn' | 'sawmill'
+  /** The permanent base it stands on; the garden by default. */
+  stage?: StageId
   rotor?: Rotor
   introduction?: string
 }
@@ -126,7 +140,7 @@ const introductoryLevels: readonly PuzzleLevel[] = [
   },
 ]
 
-export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS)]
+export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels()]
 
 export function getLevel(id: number): PuzzleLevel {
   const level = LEVELS.find((candidate) => candidate.id === id)

@@ -3,7 +3,19 @@ import * as THREE from 'three'
 import { disposeObject } from '../../_shared/three/threeUtils'
 import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
 import { heldPlates, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
-import { HINGE_SECONDS, hingePose, rotorPose } from '../plateMotion'
+import { HINGE_SECONDS, hingePose, RAIL_SECONDS, railPose, rotorPose } from '../plateMotion'
+
+/** Even-odd crossings of a ray toward +X against the panel's outline. */
+function insideOutline(plate: Plate, x: number, y: number): boolean {
+  const outline = plateOutline(plate).getPoints(24)
+  let inside = false
+  for (let index = 0, previous = outline.length - 1; index < outline.length; previous = index++) {
+    const a = outline[index]!
+    const b = outline[previous]!
+    if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) inside = !inside
+  }
+  return inside
+}
 
 test('wall and roof frames keep screw heads facing outward without distorting the panel', () => {
   for (const level of LEVELS) {
@@ -18,6 +30,10 @@ test('wall and roof frames keep screw heads facing outward without distorting th
         expect(Math.abs(screw.position[0]) + 0.245).toBeLessThan(plate.size[0] / 2)
         expect(Math.abs(screw.position[1]) + 0.245).toBeLessThan(plate.size[1] / 2)
         if (plate.finish === 'wheel') expect(Math.hypot(...screw.position) + 0.245).toBeLessThan(plate.size[0] / 2)
+        // A shaped panel holds the whole head, rim included.
+        if (plate.outline) {
+          for (const [x, y] of [[0, 0], [0.245, 0], [-0.245, 0], [0, 0.245], [0, -0.245]]) expect([screw.id, insideOutline(plate, screw.position[0] + x!, screw.position[1] + y!)]).toEqual([screw.id, true])
+        }
       }
     }
   }
@@ -131,39 +147,42 @@ test('a shared screw crosses every plate it pins inside that plate', () => {
       for (const id of screw.through!) {
         const plate = plateOf(level, id)
         const [x, y] = screwAnchorOn(screw, plate, level.plates)
-        // Even-odd crossings of a ray toward +X against the panel's outline.
-        const outline = plateOutline(plate).getPoints(24)
-        let inside = false
-        for (let index = 0, previous = outline.length - 1; index < outline.length; previous = index++) {
-          const a = outline[index]!
-          const b = outline[previous]!
-          if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) inside = !inside
-        }
-        expect(inside).toBe(true)
+        expect(insideOutline(plate, x, y)).toBe(true)
       }
     }
   }
 })
 
-test('an open hinged panel sits in front of its wall and blocks no screw head', () => {
+test('an open captive panel sits in front of its host and covers exactly the heads that say so', () => {
   let checked = 0
   for (const level of LEVELS) {
-    for (const plate of level.plates.filter((candidate) => candidate.hinge)) {
-      const host = plateOf(level, plate.restsOn![0]!)
-      const open = hingePose(plate, vector(plate.position), plateQuaternion(plate), HINGE_SECONDS)
+    for (const plate of level.plates.filter((candidate) => candidate.hinge || candidate.rail)) {
+      // Captive panels name their host and never hang on another captive panel.
+      const host = plateOf(level, plate.host!)
+      expect(host.hinge ?? host.rail).toBeUndefined()
+      const open = plate.hinge
+        ? hingePose(plate, vector(plate.position), plateQuaternion(plate), HINGE_SECONDS)
+        : railPose(plate, vector(plate.position), plateQuaternion(plate), RAIL_SECONDS)
       const panel = placed(createPlateMesh(plate, []), open.position, open.quaternion)
       const box = new THREE.Box3().setFromObject(panel)
       const normal = vector(host.normal)
       for (const corner of [box.min, box.max]) expect(corner.clone().sub(vector(host.position)).dot(normal)).toBeGreaterThan(PANEL_FACE - 1e-6)
-      // It opened: the panel has turned most of the way about its hinge.
-      expect(open.quaternion.angleTo(plateQuaternion(plate))).toBeGreaterThan(Math.PI * 0.8)
+      // It opened: a hinge has turned most of its way, a shutter has left its closed place.
+      if (plate.hinge) expect(open.quaternion.angleTo(plateQuaternion(plate))).toBeGreaterThan((plate.hingeAngle ?? Math.PI * 0.9) * 0.9)
+      else expect(open.position.distanceTo(vector(plate.position))).toBeCloseTo(plate.rail!.travel)
       for (const screw of level.screws.filter((candidate) => candidate.plate !== plate.id)) {
-        for (const ray of accessRays(level, screw)) expect(ray.intersectObject(panel)).toEqual([])
+        const rays = accessRays(level, screw)
+        if (screw.coveredWhenOpen?.includes(plate.id)) {
+          for (const ray of rays) expect([screw.id, ray.intersectObject(panel).length > 0]).toEqual([screw.id, true])
+        } else {
+          for (const ray of rays) expect([screw.id, ray.intersectObject(panel)]).toEqual([screw.id, []])
+        }
       }
       checked++
     }
   }
-  expect(checked).toBe(3)
+  // Mill doors and hatches, the boat's bait flap and the lantern's two shutters.
+  expect(checked).toBe(6)
 })
 
 test('turning parts cover what they cover at every angle, and no other head sits under their sweep', () => {

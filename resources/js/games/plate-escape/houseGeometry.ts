@@ -19,6 +19,11 @@ export function plateOutline(plate: Plate): THREE.Shape {
     shape.absarc(0, 0, width / 2, 0, Math.PI * 2, false)
     return shape
   }
+  if (plate.outline) {
+    shape.setFromPoints(plate.outline.map(([px, py]) => new THREE.Vector2(px, py)))
+    shape.closePath()
+    return shape
+  }
   if (plate.gableRise) {
     shape.moveTo(x, y)
     shape.lineTo(-x, y)
@@ -80,6 +85,34 @@ function lines(parent: THREE.Group, vertices: number[], color: string): void {
   const segments = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)), new THREE.LineBasicMaterial({ color }))
   segments.raycast = () => {}
   parent.add(segments)
+}
+
+/** Overlapping strakes on both faces and a rubbing strip along the sheer of a shaped hull panel. */
+function decorateHull(details: THREE.Group, plate: Plate): void {
+  const [width, height] = plate.size
+  const strakes: number[] = []
+  for (let y = -height / 2 + 0.25; y < height / 2 - 0.1; y += 0.25) {
+    for (const z of [0.135, -0.135]) strakes.push(-width / 2 + 0.05, y, z, width / 2 - 0.05, y, z)
+  }
+  // Clip the strakes to the shaped outline by drawing only their inside spans.
+  const outline = plate.outline ?? [[-width / 2, -height / 2], [width / 2, -height / 2], [width / 2, height / 2], [-width / 2, height / 2]]
+  const clipped: number[] = []
+  for (let index = 0; index < strakes.length; index += 6) {
+    const y = strakes[index + 1]!
+    const crossings: number[] = []
+    for (let a = 0, b = outline.length - 1; a < outline.length; b = a++) {
+      const [ax, ay] = outline[a]!
+      const [bx, by] = outline[b]!
+      if ((ay > y) !== (by > y)) crossings.push(ax + (y - ay) * (bx - ax) / (by - ay))
+    }
+    if (crossings.length < 2) continue
+    clipped.push(Math.min(...crossings) + 0.05, y, strakes[index + 2]!, Math.max(...crossings) - 0.05, y, strakes[index + 2]!)
+  }
+  lines(details, clipped, shade(plate.color, -0.15))
+  // The top edge of the outline is the sheer: a pale rubbing strip follows it.
+  const [right, left] = [outline[2]!, outline[3]!]
+  const strip = box(details, [Math.hypot(right[0] - left[0], right[1] - left[1]), 0.09, 0.08], [(right[0] + left[0]) / 2, (right[1] + left[1]) / 2 - 0.045, 0.15], '#f1e7d2')
+  strip.rotation.z = Math.atan2(right[1] - left[1], right[0] - left[0])
 }
 
 /** A solid-shrouded waterwheel: rim, spokes, a hub ring and paddles round the edge. */
@@ -201,6 +234,22 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
     decorateRack(details, plate, screws)
     return details
   }
+  if (plate.finish === 'hull') {
+    decorateHull(details, plate)
+    return details
+  }
+  if (plate.finish === 'stone') {
+    const joints: number[] = []
+    const courses = Math.max(2, Math.round(height / 0.2))
+    for (let row = 0; row < courses; row++) {
+      const y = -height / 2 + (row + 1) * height / courses
+      if (row < courses - 1) joints.push(-width / 2 + 0.04, y, 0.135, width / 2 - 0.04, y, 0.135)
+      for (let x = -width / 2 + (row % 2 ? 0.2 : 0.4); x < width / 2 - 0.1; x += 0.4) joints.push(x, y - height / courses, 0.135, x, y, 0.135)
+    }
+    lines(details, joints, shade(plate.color, -0.18))
+    box(details, [width + 0.04, 0.08, 0.06], [0, height / 2 - 0.02, 0.15], shade(plate.color, 0.05))
+    return details
+  }
   if (plate.finish === 'beam') {
     const grain: number[] = []
     for (const y of [-height / 4, 0.03, height / 4]) grain.push(-width / 2 + 0.12, y, 0.135, width / 2 - 0.12, y - 0.02, 0.135)
@@ -308,6 +357,77 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
     box(details, [0.04, 0.37, 0.035], [0, 1.75, 0.17], cream)
   }
   return details
+}
+
+/** The permanent scenery a level stands on; its surfaces match `STAGES` in stage.ts. */
+export function createStage(level: Pick<PuzzleLevel, 'stage' | 'theme'>): THREE.Group {
+  if (level.stage === 'jetty') return createJetty()
+  if (level.stage === 'pier') return createPier()
+  return createGarden(level.theme)
+}
+
+const water = (radius: number, y: number): THREE.Mesh => {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.06, 64), new THREE.MeshStandardMaterial({ color: '#6fa9c4', roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.88 }))
+  mesh.position.y = y - 0.03
+  mesh.receiveShadow = true
+  return mesh
+}
+
+/** A harbor with a plank jetty; the dinghy's lower hull and bottom boards stay afloat beside it. */
+function createJetty(): THREE.Group {
+  const stage = new THREE.Group()
+  stage.add(water(4.2, -1.86))
+  // The lower hull, down to the waterline and below, carries the bottom boards at -1.45.
+  const hull = box(stage, [3.4, 0.5, 2.1], [0, -1.7, 0], '#2f5f74')
+  hull.receiveShadow = true
+  box(stage, [3.42, 0.06, 2.12], [0, -1.86, 0], '#c4573f')
+  const boards = box(stage, [3.3, 0.04, 2.0], [0, -1.47, 0], '#c9a979')
+  boards.receiveShadow = true
+  for (const z of [-0.6, -0.2, 0.2, 0.6]) box(stage, [3.25, 0.012, 0.012], [0, -1.448, z], '#a88a5f')
+  box(stage, [3.8, 0.12, 0.16], [-0.1, -1.95, 0], '#26495a')
+  // The jetty behind the boat, on piles, with mooring posts and a coil of rope.
+  const deck = box(stage, [6.4, 0.12, 1.1], [0, -1.68, -2.15], '#a98762')
+  deck.receiveShadow = true
+  for (let x = -3; x <= 3.01; x += 0.4) box(stage, [0.012, 0.01, 1.08], [x, -1.618, -2.15], '#8a6b4a')
+  for (const x of [-2.9, -1.2, 1.2, 2.9]) {
+    for (const z of [-1.65, -2.65]) {
+      const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.9, 10), new THREE.MeshStandardMaterial({ color: '#7a5a3a', roughness: 0.9 }))
+      pile.position.set(x, z === -1.65 ? -1.35 : -1.95, z)
+      stage.add(pile)
+    }
+  }
+  const rope = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.045, 8, 20), new THREE.MeshStandardMaterial({ color: '#d9c49a', roughness: 0.9 }))
+  rope.rotation.x = Math.PI / 2
+  rope.position.set(2.3, -1.58, -2.3)
+  stage.add(rope)
+  return stage
+}
+
+/** A round stone pier head above the sea, with the lantern's stone drum and its lamp. */
+function createPier(): THREE.Group {
+  const stage = new THREE.Group()
+  stage.add(water(4.2, -2.3))
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.85, 0.3, 48), new THREE.MeshStandardMaterial({ color: '#cfc6b4', roughness: 0.95 }))
+  head.position.y = -1.7
+  head.receiveShadow = true
+  stage.add(head)
+  const footing = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.7, 0.5, 48), new THREE.MeshStandardMaterial({ color: '#9d978a', roughness: 1, flatShading: true }))
+  footing.position.y = -2.1
+  footing.receiveShadow = true
+  stage.add(footing)
+  for (const [x, z, radius] of [[-2.2, 1.1, 0.32], [2.3, 0.6, 0.28], [-1.9, -1.6, 0.36], [1.8, -1.7, 0.3]]) {
+    const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 0), new THREE.MeshStandardMaterial({ color: '#8f8a80', roughness: 1, flatShading: true }))
+    rock.position.set(x!, -1.88, z!)
+    stage.add(rock)
+  }
+  // The drum behind the removable base panels, and the lamp the glazing protects.
+  box(stage, [1.9, 0.85, 1.9], [0, -1.12, 0], '#c9c0ae')
+  box(stage, [2.0, 0.08, 2.0], [0, -0.68, 0], '#9e968a')
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.75, 16), new THREE.MeshStandardMaterial({ color: '#f6dc8a', emissive: '#f2c14e', emissiveIntensity: 0.6, roughness: 0.3 }))
+  lamp.position.y = -0.2
+  stage.add(lamp)
+  box(stage, [0.5, 0.18, 0.5], [0, -0.55, 0], '#5c5a55')
+  return stage
 }
 
 /** A permanent garden plinth grounds the removable house panels. */

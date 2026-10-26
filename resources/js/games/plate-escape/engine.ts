@@ -72,6 +72,19 @@ export function remainingScrews(state: PuzzleState, plateId: string): number {
   return getLevel(state.level).screws.filter((screw) => heldPlates(screw).includes(plateId) && !state.removed.includes(screw.id)).length
 }
 
+/**
+ * A panel is pinned while any screw holds it. A hinged or railed panel with
+ * none left is open, hanging on its host, until the host itself lets go; any
+ * other panel with none left is gone.
+ */
+export type PanelState = 'pinned' | 'open' | 'gone'
+
+export function panelState(state: PuzzleState, plateId: string): PanelState {
+  if (remainingScrews(state, plateId) > 0) return 'pinned'
+  const host = getLevel(state.level).plates.find((plate) => plate.id === plateId)?.host
+  return host !== undefined && remainingScrews(state, host) > 0 ? 'open' : 'gone'
+}
+
 export function freedPlates(state: PuzzleState): number {
   return getLevel(state.level).plates.filter((plate) => remainingScrews(state, plate.id) === 0).length
 }
@@ -91,6 +104,7 @@ export function hasWon(state: PuzzleState): boolean {
 export function screwLock(state: PuzzleState, screw: Screw): ScrewLock | null {
   if (state.removed.includes(screw.id)) return null
   const cover = (screw.blockedBy ?? []).find((id) => remainingScrews(state, id) > 0)
+    ?? (screw.coveredWhenOpen ?? []).find((id) => panelState(state, id) === 'open')
   if (cover) return { kind: 'cover', plate: cover }
   const held = heldPlates(screw)
   for (const plate of held) {

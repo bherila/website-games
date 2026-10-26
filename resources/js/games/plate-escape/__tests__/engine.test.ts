@@ -1,4 +1,4 @@
-import { createPuzzle, freedPlates, hasWon, remainingScrews, removeScrew, screwLock } from '../engine'
+import { createPuzzle, freedPlates, hasWon, panelState, remainingScrews, removeScrew, screwLock } from '../engine'
 import { getLevel, heldPlates, LEVELS, type ScrewColor, SCREWS } from '../level'
 import { WORKSHOP_TRACE } from './campaignFixtures'
 
@@ -108,6 +108,20 @@ test('each authored level has complete color sets and a support for every panel'
     const ids = level.plates.map((plate) => plate.id)
     for (const screw of level.screws) for (const cover of screw.blockedBy ?? []) expect(ids).toContain(cover)
     for (const plate of level.plates) for (const support of plate.restsOn ?? []) expect(ids).toContain(support)
+    // Hinged and railed panels name an ordinary host; covers that act once open are captive panels,
+    // and never lie over a screw that holds their own host, which could then never come out.
+    for (const plate of level.plates.filter((candidate) => candidate.hinge || candidate.rail)) {
+      const host = level.plates.find((candidate) => candidate.id === plate.host)
+      expect(host?.hinge ?? host?.rail).toBeUndefined()
+      expect(host).toBeDefined()
+    }
+    for (const screw of level.screws) {
+      for (const id of screw.coveredWhenOpen ?? []) {
+        const cover = level.plates.find((candidate) => candidate.id === id)!
+        expect(cover.hinge ?? cover.rail).toBeDefined()
+        expect(heldPlates(screw)).not.toContain(cover.host)
+      }
+    }
   }
   expect(() => getLevel(LEVELS.length + 1)).toThrow('Unknown Plate Escape level')
 })
@@ -151,4 +165,27 @@ test('a part released by the same screw does not hold that screw', () => {
 
 test('a roof still holds a gable that a shared screw would release with something else', () => {
   expect(lockOf(8, ['back-1', 'back-2', 'saw-guard-1', 'log-rack-1'], 'saw-bolt')).toEqual({ kind: 'bearing', plate: 'left-roof', support: 'back' })
+})
+
+test('a flap that drops open covers the screw below it until the batten it hangs on comes off', () => {
+  const pinned = board(11, [])
+  expect(panelState(pinned, 'bait-flap')).toBe('pinned')
+  // Taken first, the transom screw is free; the closed flap only hides the batten's screw.
+  expect(lockOf(11, [], 'transom-1')).toBeNull()
+  expect(lockOf(11, [], 'batten-1')).toEqual({ kind: 'cover', plate: 'bait-flap' })
+  expect(panelState(board(11, ['bait-flap-1']), 'bait-flap')).toBe('open')
+  expect(lockOf(11, ['bait-flap-1'], 'transom-1')).toEqual({ kind: 'cover', plate: 'bait-flap' })
+  expect(lockOf(11, ['bait-flap-1'], 'batten-1')).toBeNull()
+  // The batten goes, the flap goes with it, and the transom screw is free again.
+  expect(panelState(board(11, ['bait-flap-1', 'batten-1']), 'bait-flap')).toBe('gone')
+  expect(lockOf(11, ['bait-flap-1', 'batten-1'], 'transom-1')).toBeNull()
+})
+
+test('a shutter dropped down its rail covers the base until its glass comes off, and never bears on it', () => {
+  const caps = ['cap-left-1', 'cap-right-1']
+  expect(lockOf(12, [...caps, 'shutter-front-1'], 'base-front-1')).toEqual({ kind: 'cover', plate: 'shutter-front' })
+  // The open shutter is no load: the glass's last screw is free once the cap is off.
+  expect(lockOf(12, [...caps, 'shutter-front-1'], 'glass-front-1')).toBeNull()
+  expect(panelState(board(12, [...caps, 'shutter-front-1', 'glass-front-1']), 'shutter-front')).toBe('gone')
+  expect(lockOf(12, [...caps, 'shutter-front-1', 'glass-front-1'], 'base-front-1')).toBeNull()
 })

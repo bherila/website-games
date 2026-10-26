@@ -32,6 +32,12 @@ and Sawmill's bolt runs through a log rack and saw guard into the back wall. Mil
 captive hinged doors and hatches, and Windmill Hill combines both under turning sails. Teaching
 levels 6 and 9 have three spare slots; the others two.
 
+The harbor (levels 11–12 so far) leaves the village: each board is a free-standing object on its
+own base. Rowing Boat is a pram dinghy afloat beside a jetty, and Lighthouse Lantern a glazed
+lantern room on a stone pier. They add captive covers: the boat's bait flap drops open and hangs
+over the transom screw below it, and the lantern's storm shutters slide down their rails onto the
+base, each until the part it hangs on comes off. Both are teaching levels with three spare slots.
+
 ## Play
 
 - Drag the assembly to orbit the view. Rotation buttons and Reset view also work with a keyboard.
@@ -53,6 +59,14 @@ levels 6 and 9 have three spare slots; the others two.
   names the part being held up, for example "Front gable wall is holding up the waterwheel."
 - A hinged door or hatch with no screws left swings open on its hinge (with a creak) and stays
   attached, covering nothing; it falls only when the wall it hangs on does.
+- A captive cover is different: a drop flap or a shutter on a rail that, once its screws are out,
+  falls open or slides down (with a rattle) and lies over the heads below it. Those heads stay
+  covered until the part it hangs on (its host) comes off, and the cover goes with it. A dashed
+  outline shows where each captive cover will come to rest while it is still screwed shut. The hint
+  for a head under one names it and its host, for example "The bait flap is hanging over that
+  screw. It comes away with the stern batten."
+- Parts that fall into the harbor splash and sink; a part lying flat, such as the boat's seat,
+  drops onto whatever is below and fades there.
 - The windmill sails (levels 3 and 10) and the waterwheel turn slowly, once every 20–24
   seconds, carrying their screws. They ease to a stop within half a second whenever the player
   reaches for the board (a press, drag, scroll, key, mouse movement over it, or keyboard focus on
@@ -77,13 +91,19 @@ levels 6 and 9 have three spare slots; the others two.
 ## Implementation
 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
-`villageLevels.ts` authors levels 3–5 and `millLevels.ts` levels 6–10. `engine.ts`
+`villageLevels.ts` authors levels 3–5, `millLevels.ts` levels 6–10 and `harborLevels.ts` levels
+11–12. `stage.ts` describes each level's permanent base (garden, jetty, pier): the surfaces parts
+land on, where water is, and where the camera looks. `engine.ts`
 is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
 cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
 oblique angle, and a plate's `restsOn` supports keep their last screw while it is attached. A
 screw's `through` list names the plates behind its head that it also pins (`heldPlates()`), so
 every plate counts every screw that holds it; a bearing lock exempts parts the same screw
-releases and names the supporting plate. `Plate.hinge` marks a captive panel and
+releases and names the supporting plate. `panelState()` reports a plate as pinned, open (a hinged
+or railed panel with no screws, still on its `host`) or gone; `Screw.coveredWhenOpen` names the
+captive panels that cover a head while open, and an open panel never bears on its host.
+`Plate.outline` gives a shaped panel its polygon, and `Plate.rail` a shutter's downhill travel.
+`Plate.hinge` marks a captive panel and
 `PuzzleLevel.rotor` a decorative turning group; neither changes the puzzle model. `screwVisibility.ts` traces
 nearest physical hits: glass can reveal a head visually while keeping it locked; opaque
 frames and decorations still occlude it. `houseGeometry.ts` builds the gabled outlines, panel frames,
@@ -93,7 +113,7 @@ with hinge straps, beams, a riveted saw guard, an end-on woodpile) and each shar
 panel rather than left floating when it falls.
 `PlateEscapeScene.tsx` uses Three.js and OrbitControls, with authored support pivots. Falls come
 from `plateMotion.ts`, a pure function of time since release that integrates gravity in fixed
-1/120 s substeps against the deck and lawn heights, rather than a general rigid-body simulation;
+1/120 s substeps against the level's ground heights (water is not ground), rather than a general rigid-body simulation;
 the scene reports fall, swing and landing events for sound. `plateMotion.ts` also owns the hinge's
 open pose, rotor poses and the rotor's stop/start easing, all pure functions. A nearest-hit raycast against plates
 and screw meshes determines which heads can be selected. The view owns no progression state.
@@ -110,7 +130,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–10 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–12 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -123,11 +143,13 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   bearing rule constrains every level. From every reachable board short of overflow, the assembly
   must still be finishable with unlimited storage, so no move sets a mechanical trap that a later
   overflow would hide; `solverGates.test.ts` keeps such a trap, built from today's rules, that
-  the older checks passed. On teaching levels (1, 4, 6, 9) no move short of overflowing may doom
+  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12) no move short of overflowing may doom
   the board; elsewhere a doomed board must overflow within four more removals. The solver also
   reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
-  that keep a win, and the fewest spares a win needs. All ten released levels are winnable from
+  that keep a win, and the fewest spares a win needs. All twelve released levels are winnable from
   every board short of overflow, by that simple policy, and without using a spare.
+  Each level with captive covers must reach a board that can still win where an open cover is the
+  only thing in the way of some head.
   Each level with shared screws must reach a lock that would vanish if every screw held one
   plate, and a move that releases two plates at once. (Turning sharing off cannot make a level
   unsolvable, since it only removes locks, so this is the necessity gate for shared screws.) The
@@ -135,16 +157,20 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   assumes every uncovered head is reachable by orbiting; geometry tests and browser journeys
   check access.
 - Pure model tests cover tray cascades, capacity, duplicate taps, immutable undo snapshots,
-  support removal, bearing locks, shared-screw counting and release, workshop overflow,
-  recovery and a winning order.
+  support removal, bearing locks, shared-screw counting and release, a drop flap and a railed
+  shutter covering and then freeing the screws below them, workshop overflow, recovery and a
+  winning order. Every captive panel names an ordinary host, and no cover lies over a screw that
+  holds its own host.
 - Geometry tests verify outward panel frames, screw clearance, a shared roof ridge above both
   gables, that every authored cover intersects its screw's access ray, and that cover spacers reach
   the wall without crossing any head's access ray. Nothing but a screw's authored covers stands over
   its head. Shared-screw shanks reach the deepest plate without crossing another head's ray and
-  cross each pinned plate inside it; open hinged panels sit in front of their wall and block no
-  head; turning covers cover at every angle, and no other head facing a rotor lies under its
-  sweep. Motion tests check that every part lands without passing through the garden, never jumps
-  between frames, and leaves the garden, that a rotor stops within half a second, and that a
+  cross each pinned plate inside it; an open captive panel sits in front of its host and crosses
+  the access ray of exactly the heads that list it in `coveredWhenOpen`, so ordinary hinged doors
+  block none; a shaped panel holds each head, rim included; turning covers cover at every angle,
+  and no other head facing a rotor lies under its sweep. Motion tests check, on each level's own
+  stage, that every part lands without passing through the ground, never jumps between frames, and
+  falls clear (or, lying flat, comes to rest), that a rotor stops within half a second, and that a
   hinge turns about its edge.
 - `tests/e2e/plate-escape.spec.ts` covers actual desktop input and native Chromium touch: hidden
   heads, drag/tap separation, rotation, spare storage, undo, full completion, reload and catalog.
@@ -154,21 +180,23 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   starts from a historical two-level save and earns the three new clears through actual input,
   checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks. A third plays
   levels 6–10 under reduced motion, losing and winning each and tapping the held waterwheel axle
-  for its hint. A fourth checks that the sails turn, stop when reached for, resume when left
+  for its hint, and ends on the harbor's introduction. A fourth plays levels 11–12, checking that
+  the dropped bait flap and storm shutter leave no button on the head they cover and that undo
+  lifts the flap back. A fifth checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the ten-level boundary and monotonic star saves.
+  Page and API tests cover public access, the twelve-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–10 and rejects unreleased level 11.
+the API accepts slots 1–12 and rejects unreleased level 13.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–10 are released. Levels 11–30 below are a design plan, not playable content. The
+Levels 1–12 are released. Levels 13–30 below are a design plan, not playable content. The
 campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
 festival. Each group of five has a teaching level, practice and a final combination puzzle.
 Geometry and panel arrangement provide variation between new mechanics.
@@ -221,8 +249,8 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 | 8 | Sawmill — released | One bolt runs through a log rack and saw guard into the back wall: a short release chain. Predict which parts leave after the last common fastener. |
 | 9 | Mill Loft — released | Introduce captive hinged panels. Removing their last screw swings them to a fixed open position, revealing the next layer. |
 | 10 | Windmill Hill — released | Combine shared fasteners, a hinged door and turning sails pinned by one hub. No new rule; conclude the mill group. |
-| 11 | Rowing Boat | Moored at a jetty. Introduce captive covers: a seat-locker flap with a visible catch drops over a hull screw, previewed before release, and comes away with the seat. Teaching level, three spares. |
-| 12 | Lighthouse Lantern | Introduce rails: a storm shutter drops down its rail onto the base band, covering the screw there until its glass face comes off. Teaching level, three spares. |
+| 11 | Rowing Boat — released | Afloat beside a jetty. Introduce captive covers: the bait flap on the stern batten drops open over the transom screw, previewed before release, and comes away with the batten. Teaching level, three spares. |
+| 12 | Lighthouse Lantern — released | Introduce rails: a storm shutter drops down its rail onto the base, covering the screw there until its glass face comes off. Teaching level, three spares. |
 | 13 | Sea Chest | Two routes: the lid falls back over the back panel's screws, or the hasp drops over the front's. Each must start viable with a different storage cost. |
 | 14 | Harbor Crane | Rails on opposite faces move covers in different directions; one pivot bolt frees jib and cab together; the cab door opens clear. |
 | 15 | Lightship | Harbor assessment: a drop flap, a hatch, a shuttered mast lantern and a shared mast bolt, with several safe opening orders. |
@@ -252,7 +280,7 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    A screw can anchor multiple aligned panels, and every panel derives its remaining supports
    from that graph. Shared screws need a stable world position and a clear visual identity.
    Releasing the outer plate must not carry away a screw still needed by an inner plate.
-3. **Hinges implemented for levels 9–10; captive covers and rails before level 11:** ordinary
+3. **Hinges implemented for levels 9–10; captive covers and rails implemented for 11–12:** ordinary
    hinged doors open clear and cover nothing. A captive cover (a drop flap on a catch, or a
    shutter at the foot of a rail) is a distinct panel that, once open, covers the heads it lands
    on until its explicitly named host comes off. Panels have three states (pinned, open but
