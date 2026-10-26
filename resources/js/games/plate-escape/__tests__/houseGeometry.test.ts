@@ -17,6 +17,43 @@ function insideOutline(plate: Plate, x: number, y: number): boolean {
   return inside
 }
 
+test('harbor decals fit their panels, clear every head and the bait flap, and never occlude selection', () => {
+  for (const [levelId, plateId] of [[11, 'transom'], [12, 'base-front']] as const) {
+    const level = LEVELS.find((candidate) => candidate.id === levelId)!
+    const plate = level.plates.find((candidate) => candidate.id === plateId)!
+    const details = decoratePlate(plate, 0, level.screws, levelId)
+    const decals = details.children.filter((child) => child.name.startsWith('harbor-decal:'))
+    expect(decals).toHaveLength(1)
+    const decal = decals[0] as THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
+    expect(decal).toBeInstanceOf(THREE.Mesh)
+    const { width, height } = decal.geometry.parameters
+    for (const dx of [-width / 2, width / 2]) {
+      for (const dy of [-height / 2, height / 2]) expect(insideOutline(plate, decal.position.x + dx, decal.position.y + dy)).toBe(true)
+    }
+    for (const screw of level.screws.filter((candidate) => candidate.plate === plateId)) {
+      const dx = Math.max(Math.abs(screw.position[0] - decal.position.x) - width / 2, 0)
+      const dy = Math.max(Math.abs(screw.position[1] - decal.position.y) - height / 2, 0)
+      expect(Math.hypot(dx, dy)).toBeGreaterThan(0.245)
+    }
+    if (levelId === 11) {
+      const flap = level.plates.find((candidate) => candidate.id === 'bait-flap')!
+      expect(decal.position.x + width / 2).toBeLessThan(-flap.size[0] / 2)
+    }
+    details.updateMatrixWorld(true)
+    const ray = new THREE.Raycaster(decal.position.clone().add(new THREE.Vector3(0, 0, 5)), new THREE.Vector3(0, 0, -1))
+    expect(ray.intersectObject(decal)).toHaveLength(0)
+    expect(decal.material.transparent).toBe(true)
+    expect(decal.material.map?.colorSpace).toBe(THREE.SRGBColorSpace)
+    const disposed = jest.spyOn(decal.material.map!, 'dispose')
+    disposeObject(details)
+    expect(disposed).toHaveBeenCalledTimes(1)
+    // Reused panel names in levels 13–15 must not inherit these markings.
+    const future = decoratePlate(plate, 0, level.screws, 13)
+    expect(future.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
+    disposeObject(future)
+  }
+})
+
 test('wall and roof frames keep screw heads facing outward without distorting the panel', () => {
   for (const level of LEVELS) {
     for (const plate of level.plates) {
@@ -58,7 +95,7 @@ test('cover spacers reach the wall behind them without crossing any screw’s ac
     for (const plate of level.plates) {
       const standoff = coverStandoff(plate, level.plates)
       if (standoff === 0) continue
-      const details = decoratePlate(plate, standoff)
+      const details = decoratePlate(plate, standoff, level.screws.filter((screw) => screw.plate === plate.id), level.id)
       details.position.fromArray(plate.position)
       details.quaternion.copy(plateQuaternion(plate))
       details.updateMatrixWorld(true)
