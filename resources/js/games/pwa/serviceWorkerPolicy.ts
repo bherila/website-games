@@ -7,6 +7,57 @@ export interface GameCacheNames {
   shells: string
 }
 
+/**
+ * Every page that serves a game shell. The worker caches all of them when it installs, so
+ * any game opens offline after an update, not only the ones visited since.
+ * tests/Feature/GamePwaRoutesTest.php keeps this in step with the routes.
+ */
+export const GAME_SHELL_ROUTES = [
+  '/',
+  '/2048',
+  '/block-blaster',
+  '/chicks-challenge',
+  '/hover',
+  '/mandarin',
+  '/marble-sort',
+  '/marble-works',
+  '/math-horde',
+  '/parking-pickup',
+  '/plate-escape',
+  '/tower-throwback',
+] as const
+
+interface ViteManifestChunk {
+  file: string
+  css?: string[]
+  imports?: string[]
+  isEntry?: boolean
+}
+
+/**
+ * The build files the games need: every game entry in Vite's manifest with the chunks it
+ * imports and their styles, plus the site stylesheet. The operator panel is left out.
+ */
+export function gameBuildAssets(manifest: Record<string, ViteManifestChunk>): string[] {
+  const files = new Set<string>()
+  const visit = (key: string, seen: Set<string>): void => {
+    const chunk = manifest[key]
+    if (!chunk || seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    files.add(chunk.file)
+    for (const css of chunk.css ?? []) files.add(css)
+    for (const imported of chunk.imports ?? []) visit(imported, seen)
+  }
+  const seen = new Set<string>()
+  for (const [key, chunk] of Object.entries(manifest)) {
+    if (chunk.isEntry && (key.startsWith('resources/js/games/') || key.startsWith('resources/css/'))) visit(key, seen)
+  }
+
+  return [...files].sort().map((file) => `/build/${file}`)
+}
+
 export function gameCacheNames(version: string): GameCacheNames {
   return {
     assets: `${GAME_CACHE_PREFIX}assets-${version}`,

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class GamePwaTest extends TestCase
@@ -26,6 +27,27 @@ class GamePwaTest extends TestCase
         // so a game missing here has no route to a full-screen window.
         $urls = array_column($manifest['shortcuts'], 'url');
         $this->assertContains('/mandarin', $urls);
+    }
+
+    public function test_the_service_worker_precaches_every_game_page(): void
+    {
+        $policy = file_get_contents(resource_path('js/games/pwa/serviceWorkerPolicy.ts'));
+        $this->assertIsString($policy);
+        $this->assertSame(1, preg_match('/GAME_SHELL_ROUTES = \[(.*?)\] as const/s', $policy, $match));
+        preg_match_all("/'([^']+)'/", $match[1], $listed);
+
+        // Every parameterless game page, minus the API, media, the worker itself and the
+        // Mandarin preview and QA pages, which are operator tools rather than games.
+        $pages = collect(Route::getRoutes()->getRoutes())
+            ->filter(fn ($route): bool => in_array('GET', $route->methods(), true)
+                && str_starts_with((string) $route->getName(), 'games.')
+                && $route->parameterNames() === []
+                && ! str_starts_with($route->uri(), 'api/')
+                && ! in_array($route->getName(), ['games.service-worker', 'games.mandarin.preview', 'games.mandarin.qa'], true))
+            ->map(fn ($route): string => '/'.ltrim($route->uri(), '/'))
+            ->unique()->sort()->values()->all();
+
+        $this->assertSame($pages, collect($listed[1])->sort()->values()->all());
     }
 
     public function test_games_hub_registers_the_manifest_and_service_worker_entry(): void

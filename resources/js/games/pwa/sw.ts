@@ -2,6 +2,8 @@
 
 import {
   GAME_CACHE_PREFIX,
+  GAME_SHELL_ROUTES,
+  gameBuildAssets,
   gameCacheNames,
   isGameNavigation,
   isHashedBuildAsset,
@@ -135,14 +137,24 @@ async function cachePwaBootstrap(): Promise<void> {
     '/audio/games/cars/passenger-board.mp3',
   ]
   await cacheGameAssets(assets)
+  await precacheEveryGame()
+}
 
+/**
+ * Caches every game's page and build files before this version takes over. Each deploy
+ * starts fresh caches, so without this only games opened since the last update would load
+ * offline; a player who installed the app expects all of them on a flight.
+ */
+async function precacheEveryGame(): Promise<void> {
   try {
-    const request = new Request('/', { credentials: 'include' })
-    const response = await fetch(request)
-    await cacheSanitizedGameShell(request, response)
+    const manifest = await fetch('/build/manifest.json', { cache: 'no-cache' })
+    if (manifest.ok) {
+      await cacheGameAssets(gameBuildAssets(await manifest.json() as Parameters<typeof gameBuildAssets>[0]))
+    }
   } catch {
-    // The current page can still seed its shell and assets after activation.
+    // Each page still caches its own files when it is opened.
   }
+  await Promise.all(GAME_SHELL_ROUTES.map((route) => cacheGameShellUrl(route)))
 }
 
 async function cacheGameShellUrl(candidate: string): Promise<void> {
