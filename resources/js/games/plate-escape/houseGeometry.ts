@@ -620,6 +620,12 @@ function decorateDial(details: THREE.Group, plate: Plate): void {
   grip.rotation.x = Math.PI / 2
   grip.position.z = DIAL_FACE + 0.11
   details.add(grip)
+  // A dial held by a stop pin has a red stop on its rim at the top, where it rests against the pin
+  // above the dial until the pin comes out. It turns with the disc.
+  if (plate.dial?.pins?.length) {
+    const stop = box(details, [0.16, 0.14, 0.08], [0, radius - 0.1, DIAL_FACE + 0.04], '#c0392b')
+    stop.userData.dialStop = true
+  }
 }
 
 /** Distance from a cover to the parallel wall behind it, or 0 when it has none. */

@@ -265,12 +265,13 @@ test('turning parts cover what they cover at every angle, and no other head sits
 })
 
 test('nothing but a screw’s authored covers stands over its head', () => {
-  for (const level of LEVELS) {
+  for (const level of [...LEVELS, ...LAB_LEVELS]) {
     const parts = level.plates.map((plate) => placed(createPlateMesh(plate, level.screws.filter((screw) => screw.plate === plate.id)), vector(plate.position), plateQuaternion(plate)))
     for (const screw of level.screws) {
+      // A dial turns over the heads behind it; the next test checks it at every stop.
       const clear = parts.filter((_part, index) => {
-        const id = level.plates[index]!.id
-        return id !== screw.plate && !(screw.blockedBy ?? []).includes(id)
+        const { id, dial } = level.plates[index]!
+        return id !== screw.plate && !dial && !(screw.blockedBy ?? []).includes(id)
       })
       for (const ray of accessRays(level, screw)) {
         const hits = ray.intersectObjects(clear).map((hit) => level.plates[parts.indexOf(hit.object.parent!)]!.id)
@@ -280,24 +281,27 @@ test('nothing but a screw’s authored covers stands over its head', () => {
   }
 })
 
-test('a dial\'s window crosses exactly the heads the engine shows at each stop, and nothing else stands over a head', () => {
-  for (const level of LAB_LEVELS) {
-    const plate = level.plates.find((candidate) => candidate.dial)!
-    const dial = plate.dial!
-    const parts = new Map(level.plates.filter((candidate) => candidate !== plate)
-      .map((candidate) => [candidate.id, placed(createPlateMesh(candidate, level.screws.filter((screw) => screw.plate === candidate.id)), vector(candidate.position), plateQuaternion(candidate))]))
-    for (let stop = 0; stop < dial.stops; stop++) {
-      const turned = plateQuaternion(plate).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), dialAngle(dial, stop)))
-      const disc = placed(new THREE.Group().add(createPlateMesh(plate, []), decoratePlate(plate)), vector(plate.position), turned)
-      const board = { ...createPuzzle(level.id), dials: { [plate.id]: stop } }
-      for (const screw of level.screws) {
-        const rays = accessRays(level, screw)
-        const blocked = rays.filter((ray) => ray.intersectObject(disc).length > 0).length
-        // A head in the window is clear at its centre and all round its rim; any other head behind the dial is hidden.
-        expect({ level: level.id, stop, screw: screw.id, blocked }).toEqual({ level: level.id, stop, screw: screw.id, blocked: showing(board, screw) ? 0 : rays.length })
-        const clear = [...parts].filter(([id]) => id !== screw.plate).map(([, part]) => part)
-        const covering = rays.filter((ray) => ray.intersectObjects(clear).length > 0).length
-        expect({ screw: screw.id, covering }).toEqual({ screw: screw.id, covering: 0 })
+test('a dial\'s window crosses exactly the heads the engine shows at each stop, and no other head', () => {
+  const dialled = [...LEVELS, ...LAB_LEVELS].filter((level) => level.plates.some((plate) => plate.dial))
+  expect(dialled.length).toBeGreaterThanOrEqual(LAB_LEVELS.length)
+  for (const level of dialled) {
+    // Each dial on its own: a selector turns only itself, so the others never stand over its heads.
+    for (const plate of level.plates.filter((candidate) => candidate.dial)) {
+      const dial = plate.dial!
+      for (let stop = 0; stop < dial.stops; stop++) {
+        const turned = plateQuaternion(plate).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), dialAngle(dial, stop)))
+        const disc = placed(new THREE.Group().add(createPlateMesh(plate, []), decoratePlate(plate)), vector(plate.position), turned)
+        const board = { ...createPuzzle(level.id), dials: { ...createPuzzle(level.id).dials, [plate.id]: stop } }
+        const shown = level.screws.filter((screw) => screw.underDial?.dial === plate.id && showing(board, screw))
+        // A two-window dial shows a head in each window.
+        expect({ level: level.id, dial: plate.id, stop, shown: shown.length }).toEqual({ level: level.id, dial: plate.id, stop, shown: dial.windows.length })
+        for (const screw of level.screws) {
+          const rays = accessRays(level, screw)
+          const blocked = rays.filter((ray) => ray.intersectObject(disc).length > 0).length
+          // A head in the window is clear at its centre and all round its rim; any other head behind the dial is hidden.
+          const hidden = screw.underDial?.dial === plate.id && !showing(board, screw)
+          expect({ level: level.id, stop, screw: screw.id, blocked }).toEqual({ level: level.id, stop, screw: screw.id, blocked: hidden ? rays.length : 0 })
+        }
       }
     }
   }
