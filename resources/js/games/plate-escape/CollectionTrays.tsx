@@ -13,7 +13,8 @@ export function ScrewHead({ color, size = 28, x, y }: { color: ScrewColor, size?
   return (
     <svg aria-hidden="true" width={size} height={size} x={x} y={y} viewBox="0 0 40 40" className="shrink-0">
       <circle cx="20" cy="20" r="19" fill="#f3e6cf" />
-      <circle cx="20" cy="20" r="16" fill={COLORS[color].hex} />
+      {/* A faint edge keeps a pale head distinct from its cream rim. */}
+      <circle cx="20" cy="20" r="16" fill={COLORS[color].hex} stroke="#263747" strokeOpacity=".22" strokeWidth="1" />
       <path d="M8 17A13 13 0 0 1 30 10" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="2" strokeLinecap="round" />
       <path d={markPath(color, 20, 20, 14)} fill="#263747" data-mark={color} />
     </svg>
@@ -39,7 +40,7 @@ function ColorTray({ tray, inverted }: { tray: Tray, inverted: boolean }): React
           </radialGradient>
         </defs>
         <path d={outline} transform="translate(0 4)" fill="#263747" opacity=".22" />
-        <path d={outline} fill={fill} mask={`url(#${maskId})`} data-tray-face="" />
+        <path d={outline} fill={fill} mask={`url(#${maskId})`} stroke="#263747" strokeOpacity=".18" strokeWidth="2" data-tray-face="" />
         <path d={inverted ? 'M17 13H143' : 'M75 12Q80 3 85 12L147 99'} fill="none" stroke="#fff" strokeOpacity=".38" strokeWidth="3" strokeLinecap="round" />
         {sockets.map(([x, y], slot) => (
           <g key={x} data-tray-slot={slot} transform={`translate(${x} ${y})`}>
