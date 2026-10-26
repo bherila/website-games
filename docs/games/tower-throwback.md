@@ -288,6 +288,11 @@ low rent ×1.5 · avg ×1.0 · high ×0.7.
   shaft to set that end's absolute floor. Added floors cost the shaft's per-floor rate; removed
   floors refund at the demolition rate. Stops are re-derived, at least one enabled stop must
   remain, cars clamp into the new span, and journeys using removed landings re-plan immediately.
+  Landings the resize adds start enabled; landings it keeps retain their enabled/disabled choice.
+- **Later floors gain landings**: a shaft serves floors its column gains after it was built. A
+  floor (or skylobby) laid through a shaft's span — or beside a glass elevator — adds that landing,
+  enabled, as if the shaft had been placed over the finished floor; an express shaft keeps its
+  5-stop cap and existing disabled landings stay disabled.
 - **Determinism**: shafts iterate by ascending id, cars by index, queues FIFO; elevator logic
   consumes NO rng. Defaults are sensible so casual players can ignore programming entirely.
 

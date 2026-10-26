@@ -13486,10 +13486,12 @@
       "topFloor": 14,
       "stops": [
         0,
+        5,
         14
       ],
       "enabledStops": [
         0,
+        5,
         14
       ],
       "cars": [
@@ -13559,10 +13561,12 @@
       "topFloor": 14,
       "stops": [
         0,
+        5,
         14
       ],
       "enabledStops": [
         0,
+        5,
         14
       ],
       "cars": [
