@@ -455,6 +455,8 @@ odd/even car trick works) · tenant requests as soft tutorial.
     not operating, else a **yellow→green** ramp by cached `evalScore`
     (`t = clamp((eval − 35) / 50, 0, 1)`).
 - A car at capacity shows an **`F` badge** riding the cabin (see Elevator SCAN policy).
+- Renderer cost telemetry (draw calls, triangles, frame ms) appears only in visual-test mode or
+  with `?renderStats=1`; render-pool pressure warnings (clipped people/cars) always appear.
 - **Bulk build**: holding **Shift** while dragging with an item tool stamps a grid — columns
   tile by the item's width, floors step by its storeys (per-tile items place one full-width row
   per floor). Cells are enqueued bottom-to-top so stacked slab rows support each other; invalid
