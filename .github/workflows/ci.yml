@@ -140,6 +140,24 @@ jobs:
           bash -n scripts/deploy/*.sh tests/Deployment/test-deploy-scripts.sh
           tests/Deployment/test-deploy-scripts.sh
 
+  deployment-tests-macos:
+    name: Deployment Scripts (macOS)
+    runs-on: macos-15
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+      - name: Test activation and production verification with macOS Bash
+        run: |
+          /bin/bash -n scripts/deploy/*.sh tests/Deployment/test-deploy-scripts.sh
+          /bin/bash tests/Deployment/test-deploy-scripts.sh
+
   backend-tests:
     name: Backend Tests
     # Several page tests (e.g. BlockBlasterGamePageTest) render a real Blade view
@@ -216,6 +234,7 @@ jobs:
       - frontend-static
       - frontend-tests
       - backend-static
+      - deployment-tests-macos
       - backend-tests
       - browser-pwa
       - browser-gameplay
@@ -238,6 +257,7 @@ jobs:
           check "frontend-static" "${{ needs.frontend-static.result }}"
           check "frontend-tests" "${{ needs.frontend-tests.result }}"
           check "backend-static" "${{ needs.backend-static.result }}"
+          check "deployment-tests-macos" "${{ needs.deployment-tests-macos.result }}"
           check "backend-tests" "${{ needs.backend-tests.result }}"
           check "browser-pwa" "${{ needs.browser-pwa.result }}"
           # The matrix result is successful only when all gameplay shards succeed.

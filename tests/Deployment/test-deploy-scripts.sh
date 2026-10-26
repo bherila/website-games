@@ -11,18 +11,6 @@ fail() {
     exit 1
 }
 
-make_process() {
-    local root=$1 pid=$2 uid=$3 cwd=$4 executable=$5
-    shift 5
-    mkdir -p "$root/$pid"
-    printf 'Name:\tfixture\nUid:\t%s\t%s\t%s\t%s\n' "$uid" "$uid" "$uid" "$uid" >"$root/$pid/status"
-    printf '%s (%s) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 1 0 %s 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n' \
-        "$pid" "${executable##*/}" "${process_starttime:-1000}" >"$root/$pid/stat"
-    ln -s "$cwd" "$root/$pid/cwd"
-    ln -s "$executable" "$root/$pid/exe"
-    printf '%s\0' "$@" >"$root/$pid/cmdline"
-}
-
 home="$temporary/home"
 candidate="$home/.deployments/games-laravel/releases/candidate"
 stable_release="$home/.deployments/games-laravel/releases/old"
@@ -31,153 +19,173 @@ mkdir -p "$candidate" "$stable_release" "$stable" "$temporary/bin" "$temporary/p
 touch "$candidate/artisan" "$stable_release/artisan" "$stable/artisan" "$temporary/bin/php"
 chmod +x "$temporary/bin/php"
 
-HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null
+# The production guard requires Linux procfs, GNU readlink -f and Bash mapfile.
+# Keep every guard assertion on Linux; other hosts still run activation and HTTP probes.
+if [ "$(uname -s)" = Linux ]; then
+    make_process() {
+        local root=$1 pid=$2 uid=$3 cwd=$4 executable=$5
+        shift 5
+        mkdir -p "$root/$pid"
+        printf 'Name:\tfixture\nUid:\t%s\t%s\t%s\t%s\n' "$uid" "$uid" "$uid" "$uid" >"$root/$pid/status"
+        printf '%s (%s) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 0 0 1 0 %s 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n' \
+            "$pid" "${executable##*/}" "${process_starttime:-1000}" >"$root/$pid/stat"
+        ln -s "$cwd" "$root/$pid/cwd"
+        ln -s "$executable" "$root/$pid/exe"
+        printf '%s\0' "$@" >"$root/$pid/cmdline"
+    }
 
-mkdir -p "$temporary/sibling"
-make_process "$temporary/proc" 101 123 "$temporary/sibling" "$temporary/bin/php" php artisan queue:work
-HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null
 
-make_process "$temporary/proc" 102 123 "$stable" "$temporary/bin/php" php artisan queue:work
-if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
-    fail 'games-owned Artisan process was accepted'
-fi
-rm -rf "$temporary/proc/102"
-
-make_process "$temporary/proc" 103 123 "$home" "$temporary/bin/php" \
-    php "$home/games-laravel/artisan" queue:work
-if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
-    fail 'games-owned Artisan process launched by absolute script path was accepted'
-fi
-rm -rf "$temporary/proc/103"
-
-touch "$temporary/bin/php8.5"
-chmod +x "$temporary/bin/php8.5"
-make_process "$temporary/proc" 104 123 "$stable" "$temporary/bin/php8.5" \
-    php8.5 artisan queue:work
-if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
-    fail 'games-owned Artisan process using the configured versioned PHP executable was accepted'
-fi
-rm -rf "$temporary/proc/104"
-
-touch "$temporary/bin/php8.4"
-chmod +x "$temporary/bin/php8.4"
-make_process "$temporary/proc" 105 123 "$stable" "$temporary/bin/php8.4" \
-    php8.4 artisan queue:work
-if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
-    fail 'games-owned Artisan process using a stale versioned PHP executable was accepted'
-fi
-rm -rf "$temporary/proc/105"
-
-retained_release="$home/.deployments/games-laravel/releases/retained"
-mkdir -p "$retained_release"
-touch "$retained_release/artisan"
-make_process "$temporary/proc" 106 123 "$retained_release" "$temporary/bin/php8.4" \
-    php8.4 artisan queue:work
-if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
-    fail 'games-owned Artisan process rooted in a retained release was accepted'
-fi
-rm -rf "$temporary/proc/106"
-
-make_process "$temporary/proc" 107 123 "$home" "$temporary/bin/php8.4" \
-    php8.4 "$home/.deployments/games-laravel/releases/pruned/artisan" queue:work
-if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
-    bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-    .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
-    fail 'games-owned Artisan process from a pruned release was accepted'
-fi
-rm -rf "$temporary/proc/107"
-
-run_guard() {
     HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
         bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
-        .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel \
-        >/dev/null 2>"$temporary/guard.err"
-}
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null
 
-# Replace one procfs file with a FIFO whose writer removes the process directory while the
-# guard is blocked reading it, then releases the original contents. The guard therefore
-# always observes the exit at exactly this point, whatever the scheduling or effective UID.
-exit_while_reading() {
-    local directory=$1 file=$2 contents=$3 after=${4:-}
-    rm -f "$directory/$file"
-    mkfifo "$directory/$file"
-    (
-        exec 3>"$directory/$file"
-        rm -rf "$directory"
-        if [ -n "$after" ]; then "$after"; fi
-        printf "$contents" >&3
-        exec 3>&-
-    ) &
-    writer_pid=$!
-}
+    mkdir -p "$temporary/sibling"
+    make_process "$temporary/proc" 101 123 "$temporary/sibling" "$temporary/bin/php" php artisan queue:work
+    HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null
 
-finish_writer() {
-    kill "$writer_pid" 2>/dev/null || true
-    wait "$writer_pid" 2>/dev/null || true
-}
+    make_process "$temporary/proc" 102 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
+        fail 'games-owned Artisan process was accepted'
+    fi
+    rm -rf "$temporary/proc/102"
 
-make_process "$temporary/proc" 108 123 "$stable" "$temporary/bin/php" php artisan queue:work
-exit_while_reading "$temporary/proc/108" status 'Name:\tfixture\nUid:\t123\t123\t123\t123\n'
-run_guard || fail 'games-owned process exiting between status and cmdline aborted deployment'
-finish_writer
-[ ! -e "$temporary/proc/108" ] || fail 'status fixture did not simulate an exit'
+    make_process "$temporary/proc" 103 123 "$home" "$temporary/bin/php" \
+        php "$home/games-laravel/artisan" queue:work
+    if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel >/dev/null 2>&1; then
+        fail 'games-owned Artisan process launched by absolute script path was accepted'
+    fi
+    rm -rf "$temporary/proc/103"
 
-make_process "$temporary/proc" 109 123 "$stable" "$temporary/bin/php" php artisan queue:work
-exit_while_reading "$temporary/proc/109" cmdline 'php\0artisan\0queue:work\0'
-run_guard || fail 'games-owned process exiting between cmdline and cwd aborted deployment'
-finish_writer
-[ ! -e "$temporary/proc/109" ] || fail 'cmdline fixture did not simulate an exit'
+    touch "$temporary/bin/php8.5"
+    chmod +x "$temporary/bin/php8.5"
+    make_process "$temporary/proc" 104 123 "$stable" "$temporary/bin/php8.5" \
+        php8.5 artisan queue:work
+    if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
+        fail 'games-owned Artisan process using the configured versioned PHP executable was accepted'
+    fi
+    rm -rf "$temporary/proc/104"
 
-make_process "$temporary/proc" 110 123 "$stable" "$temporary/bin/php" php artisan queue:work
-rm -f "$temporary/proc/110/cmdline"
-if run_guard; then
-    fail 'live process with an unreadable cmdline was accepted'
+    touch "$temporary/bin/php8.4"
+    chmod +x "$temporary/bin/php8.4"
+    make_process "$temporary/proc" 105 123 "$stable" "$temporary/bin/php8.4" \
+        php8.4 artisan queue:work
+    if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
+        fail 'games-owned Artisan process using a stale versioned PHP executable was accepted'
+    fi
+    rm -rf "$temporary/proc/105"
+
+    retained_release="$home/.deployments/games-laravel/releases/retained"
+    mkdir -p "$retained_release"
+    touch "$retained_release/artisan"
+    make_process "$temporary/proc" 106 123 "$retained_release" "$temporary/bin/php8.4" \
+        php8.4 artisan queue:work
+    if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
+        fail 'games-owned Artisan process rooted in a retained release was accepted'
+    fi
+    rm -rf "$temporary/proc/106"
+
+    make_process "$temporary/proc" 107 123 "$home" "$temporary/bin/php8.4" \
+        php8.4 "$home/.deployments/games-laravel/releases/pruned/artisan" queue:work
+    if HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+        bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+        .deployments/games-laravel/releases/candidate "$temporary/bin/php8.5" games-laravel >/dev/null 2>&1; then
+        fail 'games-owned Artisan process from a pruned release was accepted'
+    fi
+    rm -rf "$temporary/proc/107"
+
+    run_guard() {
+        HOME="$home" DEPLOY_QUIESCE_PROC_ROOT="$temporary/proc" DEPLOY_QUIESCE_UID=123 \
+            bash "$repository/scripts/deploy/assert-no-running-artisan.sh" \
+            .deployments/games-laravel/releases/candidate "$temporary/bin/php" games-laravel \
+            >/dev/null 2>"$temporary/guard.err"
+    }
+
+    # Replace one procfs file with a FIFO whose writer removes the process directory while the
+    # guard is blocked reading it, then releases the original contents. The guard therefore
+    # always observes the exit at exactly this point, whatever the scheduling or effective UID.
+    exit_while_reading() {
+        local directory=$1 file=$2 contents=$3 after=${4:-}
+        rm -f "$directory/$file"
+        mkfifo "$directory/$file"
+        (
+            exec 3>"$directory/$file"
+            rm -rf "$directory"
+            if [ -n "$after" ]; then "$after"; fi
+            printf "$contents" >&3
+            exec 3>&-
+        ) &
+        writer_pid=$!
+    }
+
+    finish_writer() {
+        kill "$writer_pid" 2>/dev/null || true
+        wait "$writer_pid" 2>/dev/null || true
+    }
+
+    make_process "$temporary/proc" 108 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    exit_while_reading "$temporary/proc/108" status 'Name:\tfixture\nUid:\t123\t123\t123\t123\n'
+    run_guard || fail 'games-owned process exiting between status and cmdline aborted deployment'
+    finish_writer
+    [ ! -e "$temporary/proc/108" ] || fail 'status fixture did not simulate an exit'
+
+    make_process "$temporary/proc" 109 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    exit_while_reading "$temporary/proc/109" cmdline 'php\0artisan\0queue:work\0'
+    run_guard || fail 'games-owned process exiting between cmdline and cwd aborted deployment'
+    finish_writer
+    [ ! -e "$temporary/proc/109" ] || fail 'cmdline fixture did not simulate an exit'
+
+    make_process "$temporary/proc" 110 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    rm -f "$temporary/proc/110/cmdline"
+    if run_guard; then
+        fail 'live process with an unreadable cmdline was accepted'
+    fi
+    grep -q 'Cannot inspect same-user PHP process 110' "$temporary/guard.err" \
+        || fail 'live unreadable cmdline failed for the wrong reason'
+    rm -rf "$temporary/proc/110"
+
+    make_process "$temporary/proc" 111 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    rm -f "$temporary/proc/111/cwd"
+    ln -s "$temporary/missing/working-directory" "$temporary/proc/111/cwd"
+    if run_guard; then
+        fail 'live Artisan process with an unresolvable cwd was accepted'
+    fi
+    grep -q 'Cannot inspect the working directory of Artisan process 111' "$temporary/guard.err" \
+        || fail 'live unresolvable cwd failed for the wrong reason'
+    rm -rf "$temporary/proc/111"
+
+    reuse_pid_112() {
+        process_starttime=2000 make_process "$temporary/proc" 112 123 "$stable" "$temporary/bin/php" \
+            php artisan queue:work
+        rm -f "$temporary/proc/112/cmdline"
+    }
+    make_process "$temporary/proc" 112 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    exit_while_reading "$temporary/proc/112" status 'Name:\tfixture\nUid:\t123\t123\t123\t123\n' reuse_pid_112
+    run_guard || fail 'PID reused by a newer process after exit aborted deployment'
+    finish_writer
+    rm -rf "$temporary/proc/112"
+
+    make_process "$temporary/proc" 113 123 "$stable" "$temporary/bin/php" php artisan queue:work
+    rm -f "$temporary/proc/113/stat"
+    if run_guard; then
+        fail 'games-owned process without a readable stat file was accepted'
+    fi
+    rm -rf "$temporary/proc/113"
+
+else
+    echo "Skipping Linux-only process-guard fixtures on $(uname -s); activation and production-verification tests still run."
 fi
-grep -q 'Cannot inspect same-user PHP process 110' "$temporary/guard.err" \
-    || fail 'live unreadable cmdline failed for the wrong reason'
-rm -rf "$temporary/proc/110"
-
-make_process "$temporary/proc" 111 123 "$stable" "$temporary/bin/php" php artisan queue:work
-rm -f "$temporary/proc/111/cwd"
-ln -s "$temporary/missing/working-directory" "$temporary/proc/111/cwd"
-if run_guard; then
-    fail 'live Artisan process with an unresolvable cwd was accepted'
-fi
-grep -q 'Cannot inspect the working directory of Artisan process 111' "$temporary/guard.err" \
-    || fail 'live unresolvable cwd failed for the wrong reason'
-rm -rf "$temporary/proc/111"
-
-reuse_pid_112() {
-    process_starttime=2000 make_process "$temporary/proc" 112 123 "$stable" "$temporary/bin/php" \
-        php artisan queue:work
-    rm -f "$temporary/proc/112/cmdline"
-}
-make_process "$temporary/proc" 112 123 "$stable" "$temporary/bin/php" php artisan queue:work
-exit_while_reading "$temporary/proc/112" status 'Name:\tfixture\nUid:\t123\t123\t123\t123\n' reuse_pid_112
-run_guard || fail 'PID reused by a newer process after exit aborted deployment'
-finish_writer
-rm -rf "$temporary/proc/112"
-
-make_process "$temporary/proc" 113 123 "$stable" "$temporary/bin/php" php artisan queue:work
-rm -f "$temporary/proc/113/stat"
-if run_guard; then
-    fail 'games-owned process without a readable stat file was accepted'
-fi
-rm -rf "$temporary/proc/113"
 
 activation_log="$temporary/activation.log"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >"%s"\n' "$activation_log" >"$temporary/bin/activate-php"
