@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import type { Plate, Screw } from './level'
+import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
 export function plateQuaternion(plate: Plate): THREE.Quaternion {
@@ -15,6 +15,10 @@ export function plateOutline(plate: Plate): THREE.Shape {
   const x = -width / 2
   const y = -height / 2
   const shape = new THREE.Shape()
+  if (plate.finish === 'wheel') {
+    shape.absarc(0, 0, width / 2, 0, Math.PI * 2, false)
+    return shape
+  }
   if (plate.gableRise) {
     shape.moveTo(x, y)
     shape.lineTo(-x, y)
@@ -67,11 +71,143 @@ function spacers(parent: THREE.Group, plate: Plate, standoff: number, color: str
   }
 }
 
+function shade(color: string, lightness: number): string {
+  return `#${new THREE.Color(color).offsetHSL(0, 0, lightness).getHexString()}`
+}
+
+/** Painted lines that never obstruct a screw's selection ray. */
+function lines(parent: THREE.Group, vertices: number[], color: string): void {
+  const segments = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)), new THREE.LineBasicMaterial({ color }))
+  segments.raycast = () => {}
+  parent.add(segments)
+}
+
+/** A solid-shrouded waterwheel: rim, spokes, a hub ring and paddles round the edge. */
+function decorateWheel(details: THREE.Group, plate: Plate): void {
+  const radius = plate.size[0] / 2
+  const dark = shade(plate.color, -0.12)
+  const light = shade(plate.color, 0.08)
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(radius - 0.08, 0.06, 8, 48), new THREE.MeshStandardMaterial({ color: dark, roughness: 0.7 }))
+  rim.position.z = 0.13
+  details.add(rim)
+  const hub = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 24), new THREE.MeshStandardMaterial({ color: dark, roughness: 0.6 }))
+  hub.position.z = 0.14
+  details.add(hub)
+  for (let index = 0; index < 8; index++) {
+    const angle = index * Math.PI / 4 + Math.PI / 8
+    const spoke = box(details, [radius - 0.45, 0.09, 0.05], [Math.cos(angle) * (radius + 0.27) / 2, Math.sin(angle) * (radius + 0.27) / 2, 0.14], light)
+    spoke.rotation.z = angle
+  }
+  for (let index = 0; index < 12; index++) {
+    const angle = index * Math.PI / 6
+    const paddle = box(details, [0.15, 0.05, 0.24], [Math.cos(angle) * (radius - 0.075), Math.sin(angle) * (radius - 0.075), 0.24], dark)
+    paddle.rotation.z = angle
+  }
+}
+
+/** Vertical boards on two ledges with a diagonal brace; iron straps and knuckles on a hinged edge. */
+function decoratePlanks(details: THREE.Group, plate: Plate): void {
+  const [width, height] = plate.size
+  const grooves: number[] = []
+  const boards = Math.max(2, Math.round(width / 0.3))
+  for (let index = 1; index < boards; index++) {
+    const x = -width / 2 + index * width / boards
+    // Both faces: an open door or hatch shows its back.
+    for (const z of [0.135, -0.135]) grooves.push(x, -height / 2 + 0.04, z, x, height / 2 - 0.04, z)
+  }
+  lines(details, grooves, shade(plate.color, -0.18))
+  const ledge = shade(plate.color, 0.1)
+  const rail = Math.min(0.14, height / 6)
+  const inset = Math.min(0.2, height / 4)
+  for (const y of [-height / 2 + inset, height / 2 - inset]) box(details, [width - 0.1, rail, 0.05], [0, y, 0.15], ledge)
+  const rise = height - inset * 2
+  const run = width - 0.3
+  const brace = box(details, [Math.hypot(run, rise) - rail, rail * 0.8, 0.045], [0, 0, 0.15], ledge)
+  brace.rotation.z = Math.atan2(rise, run) * (plate.hinge === 'right' ? -1 : 1)
+  if (!plate.hinge) return
+  const iron = '#3d3a36'
+  const vertical = plate.hinge === 'left' || plate.hinge === 'right'
+  const edge = plate.hinge === 'left' ? -width / 2 : plate.hinge === 'right' ? width / 2 : plate.hinge === 'top' ? height / 2 : -height / 2
+  const reach = (vertical ? width : height) * 0.45
+  for (const along of [-1, 1]) {
+    const offset = along * ((vertical ? height : width) / 2 - inset)
+    const strap = vertical
+      ? box(details, [reach, 0.07, 0.03], [edge - Math.sign(edge) * reach / 2, offset, 0.19], iron)
+      : box(details, [0.07, reach, 0.03], [offset, edge - Math.sign(edge) * reach / 2, 0.19], iron)
+    strap.userData.hingeStrap = true
+    const knuckle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.22, 10), new THREE.MeshStandardMaterial({ color: iron, metalness: 0.5, roughness: 0.5 }))
+    if (vertical) knuckle.position.set(edge, offset, 0.15)
+    else {
+      knuckle.position.set(offset, edge, 0.15)
+      knuckle.rotation.z = Math.PI / 2
+    }
+    details.add(knuckle)
+  }
+}
+
+/** Painted sheet steel: rivets round the edge and a hazard band along the top, above anything stacked on it. */
+function decorateGuard(details: THREE.Group, plate: Plate): void {
+  const [width, height] = plate.size
+  const rivet = new THREE.MeshStandardMaterial({ color: '#d7dde0', metalness: 0.6, roughness: 0.35 })
+  for (const x of [-width / 2 + 0.1, width / 2 - 0.1]) for (const y of [-height / 2 + 0.1, height / 2 - 0.1]) {
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 6), rivet)
+    head.position.set(x, y, 0.135)
+    details.add(head)
+  }
+  const stripes = Math.floor((width - 0.2) / 0.2)
+  for (let index = 0; index < stripes; index++) {
+    const stripe = box(details, [0.1, 0.14, 0.012], [-width / 2 + 0.2 + index * 0.2, height / 2 - 0.16, 0.136], index % 2 ? '#3c4a52' : '#f2c14e')
+    stripe.rotation.z = 0.5
+  }
+}
+
+/** A woodpile seen end-on: log ends in two rows, clear of every screw head on the rack. */
+function decorateRack(details: THREE.Group, plate: Plate, screws: readonly Screw[]): void {
+  const [width, height] = plate.size
+  const end = new THREE.MeshStandardMaterial({ color: '#dcb47e', roughness: 0.85 })
+  const bark = new THREE.MeshStandardMaterial({ color: '#6b4428', roughness: 0.9 })
+  for (const [row, y] of [-height / 4, height / 4].entries()) {
+    for (let x = -width / 2 + 0.22 + row * 0.18; x < width / 2 - 0.2; x += 0.36) {
+      if (screws.some((screw) => Math.hypot(screw.position[0] - x, screw.position[1] - y) < 0.45)) continue
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.12, 16), end)
+      log.rotation.x = Math.PI / 2
+      log.position.set(x, y, 0.16)
+      details.add(log)
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 6, 16), bark)
+      ring.position.set(x, y, 0.21)
+      details.add(ring)
+    }
+  }
+}
+
 /** All architectural details belong to their panel, so they leave with it. */
-export function decoratePlate(plate: Plate, standoff = 0): THREE.Group {
+export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw[] = []): THREE.Group {
   const details = new THREE.Group()
   const [width, height] = plate.size
   const cream = '#fff2d7'
+  if (plate.finish === 'wheel') {
+    decorateWheel(details, plate)
+    return details
+  }
+  if (plate.finish === 'plank') {
+    decoratePlanks(details, plate)
+    return details
+  }
+  if (plate.finish === 'guard') {
+    decorateGuard(details, plate)
+    return details
+  }
+  if (plate.finish === 'rack') {
+    decorateRack(details, plate, screws)
+    return details
+  }
+  if (plate.finish === 'beam') {
+    const grain: number[] = []
+    for (const y of [-height / 4, 0.03, height / 4]) grain.push(-width / 2 + 0.12, y, 0.135, width / 2 - 0.12, y - 0.02, 0.135)
+    lines(details, grain, shade(plate.color, -0.12))
+    for (const x of [-width / 2 + 0.06, width / 2 - 0.06]) box(details, [0.06, height - 0.04, 0.03], [x, 0, 0.14], shade(plate.color, -0.08))
+    return details
+  }
   if (plate.finish === 'sign') {
     for (const y of [-0.34, 0.34]) box(details, [width - 0.04, 0.06, 0.05], [0, y, 0.14], cream)
     const canvas = document.createElement('canvas')
@@ -175,7 +311,7 @@ export function decoratePlate(plate: Plate, standoff = 0): THREE.Group {
 }
 
 /** A permanent garden plinth grounds the removable house panels. */
-export function createGarden(theme?: 'windmill' | 'glasshouse' | 'cafe'): THREE.Group {
+export function createGarden(theme?: PuzzleLevel['theme']): THREE.Group {
   const garden = new THREE.Group()
   const grass = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.84, 0.24, 64), new THREE.MeshStandardMaterial({ color: '#b7ca97', roughness: 1 }))
   grass.position.y = -1.88
@@ -187,8 +323,31 @@ export function createGarden(theme?: 'windmill' | 'glasshouse' | 'cafe'): THREE.
   const foundation = box(garden, [3.94, 0.20, 2.88], [0, -1.65, 0], '#dfc299')
   foundation.receiveShadow = true
   for (const x of [-1.5, -1, -0.5, 0, 0.5, 1, 1.5]) box(garden, [0.014, 0.008, 2.85], [x, -1.546, 0], '#b89871')
-  box(garden, [0.94, 0.13, 0.42], [0, -1.69, 1.57], '#dfcdb0')
-  box(garden, [0.72, 0.07, 0.37], [0, -1.73, 2.04], '#e4d4b7')
+  if (theme === 'millrace') {
+    // The race runs across the lawn under the wheel, between stone kerbs, in place of the steps.
+    box(garden, [3.2, 0.02, 0.6], [0, -1.75, 1.95], '#7fb8d6')
+    for (const z of [1.62, 2.28]) box(garden, [3.2, 0.06, 0.07], [0, -1.73, z], '#b9b3a6')
+  } else {
+    box(garden, [0.94, 0.13, 0.42], [0, -1.69, 1.57], '#dfcdb0')
+    box(garden, [0.72, 0.07, 0.37], [0, -1.73, 2.04], '#e4d4b7')
+  }
+  if (theme === 'barn') {
+    for (const [x, z] of [[-2.25, 0.1], [2.25, -0.2]]) {
+      box(garden, [0.42, 0.34, 0.66], [x!, -1.59, z!], '#e3c46a')
+      for (const offset of [-0.18, 0.18]) box(garden, [0.43, 0.35, 0.02], [x!, -1.59, z! + offset], '#b8913c')
+    }
+  }
+  if (theme === 'sawmill') {
+    const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.3, 14), new THREE.MeshStandardMaterial({ color: '#7b5434', roughness: 0.9 }))
+    stump.position.set(-2.2, -1.61, 0.25)
+    garden.add(stump)
+    for (const [index, [y, z]] of [[-1.66, -0.12], [-1.66, 0.12], [-1.46, 0]].entries()) {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.8, 12), new THREE.MeshStandardMaterial({ color: index === 2 ? '#8a6040' : '#7b5434', roughness: 0.9 }))
+      log.rotation.z = Math.PI / 2
+      log.position.set(2.2, y!, 0.25 + z!)
+      garden.add(log)
+    }
+  }
   for (const [x, z, radius] of [[-2.18, 1.15, 0.28], [2.18, 0.95, 0.26], [-2.05, -1.3, 0.32], [2.05, -1.3, 0.3]]) {
     const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 1), new THREE.MeshStandardMaterial({ color: '#719777', roughness: 0.9, flatShading: true }))
     bush.position.set(x!, -1.65, z!)
@@ -213,6 +372,36 @@ export function createGarden(theme?: 'windmill' | 'glasshouse' | 'cafe'): THREE.
   return garden
 }
 
+
+const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!
+
+/** Where a screw's axis crosses a plate it pins, in that plate's local X/Y. */
+export function screwAnchorOn(screw: Screw, plate: Plate, plates: readonly Plate[]): readonly [number, number] {
+  if (screw.plate === plate.id) return screw.position
+  const head = plateById(plates, screw.plate)
+  const world = new THREE.Vector3(...screw.position, 0).applyQuaternion(plateQuaternion(head)).add(new THREE.Vector3().fromArray(head.position))
+  const local = world.sub(new THREE.Vector3().fromArray(plate.position)).applyQuaternion(plateQuaternion(plate).invert())
+  return [local.x, local.y]
+}
+
+/**
+ * A screw through several parts shows its shank between them: from behind the
+ * head plate to the face of the deepest plate it pins. It belongs to the head
+ * plate, so it leaves with that part, and it lies on the screw's own axis.
+ */
+export function throughShafts(plate: Plate, screws: readonly Screw[], plates: readonly Plate[]): THREE.Mesh[] {
+  const normal = new THREE.Vector3().fromArray(plate.normal)
+  return screws.filter((screw) => screw.plate === plate.id && screw.through?.length).flatMap((screw) => {
+    const deepest = plateById(plates, heldPlates(screw).at(-1)!)
+    const length = new THREE.Vector3().fromArray(plate.position).sub(new THREE.Vector3().fromArray(deepest.position)).dot(normal) - PANEL_FACE * 2
+    if (length <= 0) return []
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, length, 12), new THREE.MeshStandardMaterial({ color: '#8d969b', metalness: 0.6, roughness: 0.35 }))
+    shaft.rotation.x = Math.PI / 2
+    shaft.position.set(screw.position[0], screw.position[1], -PANEL_FACE - length / 2)
+    shaft.userData.shaft = screw.id
+    return [shaft]
+  })
+}
 
 /** Distance from a cover to the parallel wall behind it, or 0 when it has none. */
 export function coverStandoff(plate: Plate, plates: readonly Plate[]): number {

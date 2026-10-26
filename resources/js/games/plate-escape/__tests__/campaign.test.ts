@@ -5,9 +5,9 @@ import { createPuzzle, hasWon, removeScrew, screwLock } from '../engine'
 import { createPlateMesh, plateQuaternion } from '../houseGeometry'
 import { getLevel } from '../level'
 import { traceScrew } from '../screwVisibility'
-import { VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
+import { MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
 
-test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES])('level $level has reachable authored win and overflow traces', ({ level, win, lose }) => {
+test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES])('level $level has reachable authored win and overflow traces', ({ level, win, lose }) => {
   let state = createPuzzle(level)
   for (const id of win) {
     const screw = getLevel(level).screws.find((candidate) => candidate.id === id)!
@@ -28,7 +28,7 @@ test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES])('level $level has reachable autho
 })
 
 test('authored covers actually intersect the screw’s outward access ray', () => {
-  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES]) {
+  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES]) {
     const level = getLevel(id)
     for (const screw of level.screws) {
       const plate = level.plates.find((candidate) => candidate.id === screw.plate)!

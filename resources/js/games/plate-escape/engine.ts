@@ -1,8 +1,11 @@
-import { getLevel, type Screw, type ScrewColor, TRAY_CAPACITY } from './level'
+import { getLevel, heldPlates, type Screw, type ScrewColor, TRAY_CAPACITY } from './level'
 
 export interface Tray { id: 'left' | 'right', color: ScrewColor | null, count: number }
-/** Why a head cannot be unscrewed yet: a cover in front of it, or a part resting on its plate. */
-export interface ScrewLock { kind: 'cover' | 'bearing', plate: string }
+/**
+ * Why a head cannot be unscrewed yet: a cover in front of it, or a part resting
+ * on a plate (`support`) whose last screw it is.
+ */
+export interface ScrewLock { kind: 'cover' | 'bearing', plate: string, support?: string }
 export interface PuzzleState {
   level: number
   overflow: ScrewColor | null
@@ -66,7 +69,7 @@ export function removeScrew(state: PuzzleState, id: string): PuzzleState {
 }
 
 export function remainingScrews(state: PuzzleState, plateId: string): number {
-  return getLevel(state.level).screws.filter((screw) => screw.plate === plateId && !state.removed.includes(screw.id)).length
+  return getLevel(state.level).screws.filter((screw) => heldPlates(screw).includes(plateId) && !state.removed.includes(screw.id)).length
 }
 
 export function freedPlates(state: PuzzleState): number {
@@ -82,17 +85,25 @@ export function hasWon(state: PuzzleState): boolean {
 /**
  * Covers block axial access even when a head can be glimpsed from an oblique
  * angle. A plate's last screw also stays put while a part still rests on it,
- * so a roof can never be left hanging over released walls.
+ * so a roof can never be left hanging over released walls. A part the same
+ * screw also releases falls with it, so it does not hold that screw.
  */
 export function screwLock(state: PuzzleState, screw: Screw): ScrewLock | null {
   if (state.removed.includes(screw.id)) return null
   const cover = (screw.blockedBy ?? []).find((id) => remainingScrews(state, id) > 0)
   if (cover) return { kind: 'cover', plate: cover }
-  return remainingScrews(state, screw.plate) === 1 ? bearingLock(state, screw.plate) : null
+  const held = heldPlates(screw)
+  for (const plate of held) {
+    if (remainingScrews(state, plate) !== 1) continue
+    const load = bearingLock(state, plate, held)
+    if (load) return load
+  }
+  return null
 }
 
-/** The first attached part that rests on this plate, if any. */
-export function bearingLock(state: PuzzleState, plateId: string): ScrewLock | null {
-  const load = getLevel(state.level).plates.find((plate) => plate.restsOn?.includes(plateId) && remainingScrews(state, plate.id) > 0)
-  return load ? { kind: 'bearing', plate: load.id } : null
+/** The first attached part that rests on this plate, if any, ignoring parts released with it. */
+export function bearingLock(state: PuzzleState, plateId: string, releasedWith: readonly string[] = []): ScrewLock | null {
+  const load = getLevel(state.level).plates.find((plate) => plate.restsOn?.includes(plateId)
+    && remainingScrews(state, plate.id) > (releasedWith.includes(plate.id) ? 1 : 0))
+  return load ? { kind: 'bearing', plate: load.id, support: plateId } : null
 }

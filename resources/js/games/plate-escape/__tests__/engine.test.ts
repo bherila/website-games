@@ -1,5 +1,5 @@
 import { createPuzzle, freedPlates, hasWon, remainingScrews, removeScrew, screwLock } from '../engine'
-import { getLevel, LEVELS, type ScrewColor, SCREWS } from '../level'
+import { getLevel, heldPlates, LEVELS, type ScrewColor, SCREWS } from '../level'
 import { WORKSHOP_TRACE } from './campaignFixtures'
 
 test('collects matching colors directly and holds unopened colors in spare storage', () => {
@@ -42,12 +42,12 @@ test('the last support releases a plate, while all nine screws are required for 
 test('a gable wall keeps its last screw while either roof slope rests on it', () => {
   let state = removeScrew(createPuzzle(), 'front-1')
   const last = SCREWS.find((screw) => screw.id === 'front-2')!
-  expect(screwLock(state, last)).toEqual({ kind: 'bearing', plate: 'left-roof' })
+  expect(screwLock(state, last)).toEqual({ kind: 'bearing', plate: 'left-roof', support: 'front' })
   expect(removeScrew(state, 'front-2')).toBe(state)
   // Side walls are infill: their only screw is free from the start.
   expect(screwLock(createPuzzle(), SCREWS.find((screw) => screw.id === 'left-1')!)).toBeNull()
   for (const id of ['left-roof-1', 'left-roof-2', 'right-roof-1']) state = removeScrew(state, id)
-  expect(screwLock(state, last)).toEqual({ kind: 'bearing', plate: 'right-roof' })
+  expect(screwLock(state, last)).toEqual({ kind: 'bearing', plate: 'right-roof', support: 'front' })
   state = removeScrew(state, 'right-roof-2')
   expect(screwLock(state, last)).toBeNull()
   expect(removeScrew(state, 'front-2').removed).toContain('front-2')
@@ -103,11 +103,52 @@ test('each authored level has complete color sets and a support for every panel'
   for (const level of LEVELS) {
     expect(new Set(level.screws.map((screw) => screw.id)).size).toBe(level.screws.length)
     for (const color of level.trayColors) expect(level.screws.filter((screw) => screw.color === color)).toHaveLength(3)
-    for (const plate of level.plates) expect(level.screws.some((screw) => screw.plate === plate.id)).toBe(true)
-    for (const screw of level.screws) expect(level.plates.some((plate) => plate.id === screw.plate)).toBe(true)
+    for (const plate of level.plates) expect(level.screws.some((screw) => heldPlates(screw).includes(plate.id))).toBe(true)
+    for (const screw of level.screws) for (const plate of heldPlates(screw)) expect(level.plates.some((candidate) => candidate.id === plate)).toBe(true)
     const ids = level.plates.map((plate) => plate.id)
     for (const screw of level.screws) for (const cover of screw.blockedBy ?? []) expect(ids).toContain(cover)
     for (const plate of level.plates) for (const support of plate.restsOn ?? []) expect(ids).toContain(support)
   }
-  expect(() => getLevel(6)).toThrow('Unknown Plate Escape level')
+  expect(() => getLevel(LEVELS.length + 1)).toThrow('Unknown Plate Escape level')
+})
+
+const ROOFS = ['left-roof-1', 'left-roof-2', 'right-roof-1', 'right-roof-2']
+const board = (level: number, removed: string[]) => ({ ...createPuzzle(level), removed })
+const lockOf = (level: number, removed: string[], id: string) => screwLock(board(level, removed), getLevel(level).screws.find((screw) => screw.id === id)!)
+
+test('a shared screw counts toward every plate it pins, so its plates release together', () => {
+  // The waterwheel's axle runs through the wheel into the front gable.
+  let state = createPuzzle(6)
+  expect(remainingScrews(state, 'wheel')).toBe(2)
+  expect(remainingScrews(state, 'front')).toBe(3)
+  for (const id of ['wheel-1', ...ROOFS, 'front-1', 'front-2']) state = removeScrew(state, id)
+  expect(remainingScrews(state, 'front')).toBe(1)
+  expect(freedPlates(state)).toBe(2)
+  state = removeScrew(state, 'wheel-axle')
+  expect(remainingScrews(state, 'wheel')).toBe(0)
+  expect(remainingScrews(state, 'front')).toBe(0)
+  expect(freedPlates(state)).toBe(4)
+})
+
+test('a gable whose other screws are gone still holds while the shared screw pins it', () => {
+  // Without the axle, the front gable's second screw would be its last one under the roof.
+  expect(lockOf(6, ['front-1'], 'front-2')).toBeNull()
+  expect(lockOf(6, ['front-1', 'front-2', 'wheel-1'], 'wheel-axle')).toEqual({ kind: 'bearing', plate: 'left-roof', support: 'front' })
+})
+
+test('a part released by the same screw does not hold that screw', () => {
+  const clear = ['front-1', 'front-2', ...ROOFS]
+  // The wheel rests on the gable, but the axle drops them together once the wheel's own screw is out.
+  expect(lockOf(6, clear, 'wheel-axle')).toEqual({ kind: 'bearing', plate: 'wheel', support: 'front' })
+  expect(lockOf(6, [...clear, 'wheel-1'], 'wheel-axle')).toBeNull()
+  // The sawmill bolt pins rack, guard and back wall: a chain of resting parts it releases at once.
+  const sawmill = ['back-1', 'back-2', ...ROOFS, 'saw-guard-1']
+  expect(lockOf(8, sawmill, 'saw-bolt')).toEqual({ kind: 'bearing', plate: 'log-rack', support: 'saw-guard' })
+  expect(lockOf(8, [...sawmill, 'log-rack-1'], 'saw-bolt')).toBeNull()
+  // A part held elsewhere still counts: the guard keeps its own screw, so the back wall waits.
+  expect(lockOf(8, ['back-1', 'back-2', ...ROOFS, 'log-rack-1'], 'saw-bolt')).toEqual({ kind: 'bearing', plate: 'saw-guard', support: 'back' })
+})
+
+test('a roof still holds a gable that a shared screw would release with something else', () => {
+  expect(lockOf(8, ['back-1', 'back-2', 'saw-guard-1', 'log-rack-1'], 'saw-bolt')).toEqual({ kind: 'bearing', plate: 'left-roof', support: 'back' })
 })

@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
-import { coverStandoff, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion } from '../houseGeometry'
-import { LEVELS, PLATES } from '../level'
+import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
+import { heldPlates, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
+import { HINGE_SECONDS, hingePose, rotorPose } from '../plateMotion'
 
 test('wall and roof frames keep screw heads facing outward without distorting the panel', () => {
   for (const level of LEVELS) {
@@ -16,6 +17,7 @@ test('wall and roof frames keep screw heads facing outward without distorting th
       for (const screw of level.screws.filter((candidate) => candidate.plate === plate.id)) {
         expect(Math.abs(screw.position[0]) + 0.245).toBeLessThan(plate.size[0] / 2)
         expect(Math.abs(screw.position[1]) + 0.245).toBeLessThan(plate.size[1] / 2)
+        if (plate.finish === 'wheel') expect(Math.hypot(...screw.position) + 0.245).toBeLessThan(plate.size[0] / 2)
       }
     }
   }
@@ -70,4 +72,151 @@ test('cover spacers reach the wall behind them without crossing any screw’s ac
   }
   // Workshop braces and glasshouse covers, front and back.
   expect(checked).toBe(4)
+})
+
+const plateOf = (level: PuzzleLevel, id: string): Plate => level.plates.find((plate) => plate.id === id)!
+const vector = (point: readonly number[]): THREE.Vector3 => new THREE.Vector3().fromArray(point)
+
+/** Head centre and four rim points, each with the outward ray a screwdriver needs; head radius 0.245. */
+function accessRays(level: PuzzleLevel, screw: Screw): THREE.Raycaster[] {
+  const plate = plateOf(level, screw.plate)
+  const rotation = plateQuaternion(plate)
+  const normal = vector(plate.normal)
+  return [[0, 0], [0.245, 0], [-0.245, 0], [0, 0.245], [0, -0.245]].map(([x, y]) => {
+    const point = new THREE.Vector3(screw.position[0] + x!, screw.position[1] + y!, 0.18).applyQuaternion(rotation).add(vector(plate.position))
+    // Start behind the head: a ray that begins inside a part would miss its back faces.
+    return new THREE.Raycaster(point.addScaledVector(normal, -0.3), normal, 0, 10)
+  })
+}
+
+function placed(object: THREE.Object3D, position: THREE.Vector3, quaternion: THREE.Quaternion): THREE.Object3D {
+  const holder = new THREE.Group()
+  holder.add(object)
+  holder.position.copy(position)
+  holder.quaternion.copy(quaternion)
+  holder.updateMatrixWorld(true)
+  return holder
+}
+
+test('a shared screw shows its shank from its head plate to the deepest plate it pins, clear of every other head', () => {
+  let checked = 0
+  for (const level of LEVELS) {
+    const shafts: THREE.Object3D[] = []
+    for (const plate of level.plates) {
+      for (const shaft of throughShafts(plate, level.screws, level.plates)) {
+        const screw = level.screws.find((candidate) => candidate.id === shaft.userData.shaft)!
+        const holder = placed(shaft, vector(plate.position), plateQuaternion(plate))
+        const deepest = plateOf(level, heldPlates(screw).at(-1)!)
+        const normal = vector(plate.normal)
+        const box = new THREE.Box3().setFromObject(holder)
+        const depths = [box.min, box.max].map((corner) => corner.clone().sub(vector(deepest.position)).dot(normal))
+        // It starts at the deepest plate's face and stops behind the head plate.
+        expect(Math.min(...depths)).toBeCloseTo(PANEL_FACE, 5)
+        expect(Math.max(...depths)).toBeCloseTo(vector(plate.position).sub(vector(deepest.position)).dot(normal) - PANEL_FACE, 5)
+        shafts.push(holder)
+        checked++
+      }
+    }
+    for (const screw of level.screws) {
+      const others = shafts.filter((holder) => holder.children[0]!.userData.shaft !== screw.id)
+      for (const ray of accessRays(level, screw)) expect(ray.intersectObjects(others)).toEqual([])
+    }
+  }
+  expect(checked).toBe(LEVELS.flatMap((level) => level.screws).filter((screw) => screw.through).length)
+})
+
+test('a shared screw crosses every plate it pins inside that plate', () => {
+  for (const level of LEVELS) {
+    for (const screw of level.screws.filter((candidate) => candidate.through)) {
+      for (const id of screw.through!) {
+        const plate = plateOf(level, id)
+        const [x, y] = screwAnchorOn(screw, plate, level.plates)
+        // Even-odd crossings of a ray toward +X against the panel's outline.
+        const outline = plateOutline(plate).getPoints(24)
+        let inside = false
+        for (let index = 0, previous = outline.length - 1; index < outline.length; previous = index++) {
+          const a = outline[index]!
+          const b = outline[previous]!
+          if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) inside = !inside
+        }
+        expect(inside).toBe(true)
+      }
+    }
+  }
+})
+
+test('an open hinged panel sits in front of its wall and blocks no screw head', () => {
+  let checked = 0
+  for (const level of LEVELS) {
+    for (const plate of level.plates.filter((candidate) => candidate.hinge)) {
+      const host = plateOf(level, plate.restsOn![0]!)
+      const open = hingePose(plate, vector(plate.position), plateQuaternion(plate), HINGE_SECONDS)
+      const panel = placed(createPlateMesh(plate, []), open.position, open.quaternion)
+      const box = new THREE.Box3().setFromObject(panel)
+      const normal = vector(host.normal)
+      for (const corner of [box.min, box.max]) expect(corner.clone().sub(vector(host.position)).dot(normal)).toBeGreaterThan(PANEL_FACE - 1e-6)
+      // It opened: the panel has turned most of the way about its hinge.
+      expect(open.quaternion.angleTo(plateQuaternion(plate))).toBeGreaterThan(Math.PI * 0.8)
+      for (const screw of level.screws.filter((candidate) => candidate.plate !== plate.id)) {
+        for (const ray of accessRays(level, screw)) expect(ray.intersectObject(panel)).toEqual([])
+      }
+      checked++
+    }
+  }
+  expect(checked).toBe(3)
+})
+
+test('turning parts cover what they cover at every angle, and no other head sits under their sweep', () => {
+  const rotors = LEVELS.filter((level) => level.rotor)
+  expect(rotors.map((level) => level.id)).toEqual([3, 6, 10])
+  for (const level of rotors) {
+    const rotor = level.rotor!
+    const axis = vector(rotor.axis).normalize()
+    const center = vector(rotor.center)
+    const radial = (point: THREE.Vector3): number => {
+      const offset = point.clone().sub(center)
+      return offset.sub(axis.clone().multiplyScalar(offset.dot(axis))).length()
+    }
+    let sweep = 0
+    for (const id of rotor.plates) {
+      const plate = plateOf(level, id)
+      for (const point of plateOutline(plate).getPoints(24)) sweep = Math.max(sweep, radial(new THREE.Vector3(point.x, point.y, 0).applyQuaternion(plateQuaternion(plate)).add(vector(plate.position))))
+    }
+    for (const screw of level.screws) {
+      if (rotor.plates.includes(screw.plate)) continue
+      const covers = (screw.blockedBy ?? []).filter((id) => rotor.plates.includes(id))
+      if (covers.length) {
+        for (let step = 0; step < 24; step++) {
+          for (const id of covers) {
+            const cover = plateOf(level, id)
+            const pose = rotorPose(rotor, vector(cover.position), plateQuaternion(cover), step * Math.PI / 12)
+            const mesh = placed(createPlateMesh(cover, []), pose.position, pose.quaternion)
+            expect(accessRays(level, screw)[0]!.intersectObject(mesh).length).toBeGreaterThan(0)
+          }
+        }
+        continue
+      }
+      // A head facing the same way as the rotor, behind it, must lie wholly outside its sweep.
+      const plate = plateOf(level, screw.plate)
+      if (vector(plate.normal).dot(axis) < 0.5) continue
+      const head = new THREE.Vector3(...screw.position, 0.18).applyQuaternion(plateQuaternion(plate)).add(vector(plate.position))
+      expect(radial(head) - 0.245).toBeGreaterThan(sweep)
+    }
+  }
+})
+
+test('nothing but a screw’s authored covers stands over its head', () => {
+  for (const level of LEVELS) {
+    const parts = level.plates.map((plate) => placed(createPlateMesh(plate, level.screws.filter((screw) => screw.plate === plate.id)), vector(plate.position), plateQuaternion(plate)))
+    for (const screw of level.screws) {
+      const clear = parts.filter((_part, index) => {
+        const id = level.plates[index]!.id
+        return id !== screw.plate && !(screw.blockedBy ?? []).includes(id)
+      })
+      for (const ray of accessRays(level, screw)) {
+        const hits = ray.intersectObjects(clear).map((hit) => level.plates[parts.indexOf(hit.object.parent!)]!.id)
+        expect([screw.id, hits]).toEqual([screw.id, []])
+      }
+    }
+  }
 })

@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
-import { VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
 
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
@@ -228,12 +228,134 @@ test.describe('Plate Escape real puzzle', () => {
       await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
       await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
       await expect(page.getByRole('img', { name: '3 of 3 stars', exact: true })).toBeVisible()
-      if (trace.level < 5) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
-      else await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
+      await activate(page.getByRole('button', { name: 'Next level', exact: true }))
     }
+    // The café leads on to the mill, whose first level opens with its introduction.
+    await expect(page.getByRole('dialog', { name: 'Waterwheel' })).toBeVisible()
     await page.reload()
     for (const id of [1, 2, 3, 4, 5]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
     expect(cloudWrites).toEqual([])
+    expect(errors).toEqual([])
+  })
+
+  test.describe('the mill', () => {
+    // Turning parts hold still, so a trace taps each head where it was found.
+    test.use({ reducedMotion: 'reduce' })
+
+    test('plays shared screws, hinged doors and the windmill hill', async ({ page, isMobile }, testInfo) => {
+      test.setTimeout(600_000)
+      if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+      await page.addInitScript(() => {
+        const key = 'bwh.plate-escape.progress.v1'
+        if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ version: 1, unlockedLevel: 6, stars: { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3 } }))
+      })
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(String(error)))
+      const activate = async (locator: Locator): Promise<void> => {
+        if (isMobile) await locator.tap({ timeout: 15_000 })
+        else await locator.click({ timeout: 15_000 })
+      }
+      const find = async (locator: Locator): Promise<void> => {
+        for (let turn = 0; turn < 12 && !await locator.isVisible(); turn++) {
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+          await page.waitForTimeout(250)
+        }
+        await expect(locator).toBeVisible({ timeout: 10_000 })
+      }
+      const removeVisible = async (id: string): Promise<void> => {
+        const head = page.locator(`[data-screw-id="${id}"]`)
+        await find(head)
+        await activate(head)
+        await expect.poll(async () => await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled() || await page.getByRole('alertdialog').isVisible() || await page.getByTestId('screw-progress').textContent() === '12 / 12 screws').toBe(true)
+      }
+      await page.goto('/plate-escape')
+      await expect(page.getByTestId('level-tile-7')).toHaveAttribute('data-unlocked', 'false')
+      await activate(page.getByRole('button', { name: 'Level 6, 0 stars', exact: true }))
+      for (const trace of MILL_TRACES) {
+        const play = page.getByRole('button', { name: "Let's play", exact: true })
+        if ([6, 9].includes(trace.level)) await activate(play)
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+        await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+        // Under reduced motion there is nothing to pause.
+        await expect(page.getByRole('button', { name: 'Pause motion', exact: true })).toHaveCount(0)
+        await page.screenshot({ path: testInfo.outputPath(`level-${trace.level}.png`) })
+        for (const id of trace.lose) await removeVisible(id)
+        await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
+        await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
+        await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+        for (const id of trace.win) {
+          if (trace.level === 6 && id === 'wheel-1') {
+            // The axle is the gable's last screw and runs through the wheel, which still has its own.
+            const axle = page.locator('[data-bearing-screw-id="wheel-axle"]')
+            await find(axle)
+            await activate(axle)
+            await expect(page.getByTestId('plate-hint')).toHaveText('Front gable wall is holding up the waterwheel. Free the waterwheel first.')
+            await page.screenshot({ path: testInfo.outputPath('waterwheel-axle-held.png') })
+          }
+          await removeVisible(id)
+          if (trace.level === 9 && id === 'loft-door-1') await page.screenshot({ path: testInfo.outputPath('loft-door-open.png') })
+        }
+        await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
+        await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
+        if (trace.level < 10) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
+        else await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
+      }
+      await page.reload()
+      for (const id of [6, 7, 8, 9, 10]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
+      expect(errors).toEqual([])
+    })
+  })
+
+  test('windmill sails turn, stop while the player reaches for them, and stay paused when asked', async ({ page, isMobile }) => {
+    test.setTimeout(120_000)
+    if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+    await page.addInitScript(() => {
+      const key = 'bwh.plate-escape.progress.v1'
+      if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ version: 1, unlockedLevel: 10, stars: {} }))
+    })
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    const sail = page.locator('[data-screw-id="sail-coral-1"]')
+    const where = async (): Promise<{ x: number, y: number }> => {
+      const box = await sail.boundingBox()
+      expect(box).not.toBeNull()
+      return { x: box!.x, y: box!.y }
+    }
+    const travel = async (seconds: number): Promise<number> => {
+      const start = await where()
+      await page.waitForTimeout(seconds * 1000)
+      const end = await where()
+      return Math.hypot(end.x - start.x, end.y - start.y)
+    }
+    const scene = page.getByTestId('plate-escape-scene')
+    const reach = async (): Promise<void> => {
+      const box = (await scene.boundingBox())!
+      if (isMobile) await page.touchscreen.tap(box.x + 12, box.y + 12)
+      else await page.mouse.move(box.x + 12, box.y + 12)
+    }
+    await page.goto('/plate-escape')
+    await page.getByRole('button', { name: 'Level 10, 0 stars', exact: true }).click()
+    await expect(sail).toBeVisible({ timeout: 30_000 })
+    await page.mouse.move(0, 0)
+    expect(await travel(1.5)).toBeGreaterThan(4)
+    // Reaching for the board stops the sails within half a second.
+    await reach()
+    await page.waitForTimeout(700)
+    expect(await travel(1.5)).toBeLessThan(1)
+    // Left alone, they pick up again.
+    await page.mouse.move(0, 0)
+    await page.waitForTimeout(4500)
+    expect(await travel(1.5)).toBeGreaterThan(2)
+    await page.getByRole('button', { name: 'Pause motion', exact: true }).click()
+    await page.mouse.move(0, 0)
+    await page.waitForTimeout(5000)
+    expect(await travel(1.5)).toBeLessThan(1)
+    await page.reload()
+    await page.getByRole('button', { name: 'Level 10, 0 stars', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Resume motion', exact: true })).toBeVisible()
+    await expect(sail).toBeVisible({ timeout: 30_000 })
+    await page.mouse.move(0, 0)
+    expect(await travel(1.5)).toBeLessThan(1)
     expect(errors).toEqual([])
   })
 

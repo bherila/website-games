@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { plateQuaternion } from '../houseGeometry'
 import { LEVELS } from '../level'
-import { FALL_SECONDS, fallPose, groundAt, panelSamples } from '../plateMotion'
+import { FALL_SECONDS, fallPose, groundAt, HINGE_SECONDS, hingePose, nextRotorSpeed, panelSamples, ROTOR_START_SECONDS, ROTOR_STOP_SECONDS, rotorPose } from '../plateMotion'
 
 const plates = [...new Map(LEVELS.flatMap((level) => level.plates).map((plate) => [`${plate.id}:${plate.finish}:${plate.position.join()}`, plate])).values()]
 
@@ -50,4 +50,48 @@ test('a call long after the fall costs no more than the fall itself', () => {
   const later = fallPose(wall, start, rotation, 300)
   expect(later.position.distanceTo(end.position)).toBeLessThan(1e-9)
   expect(later.quaternion.angleTo(end.quaternion)).toBeLessThan(1e-9)
+})
+
+test('a turning rotor coasts to a stop within half a second of a touch and never runs backward', () => {
+  const rotor = LEVELS.find((level) => level.id === 10)!.rotor!
+  const full = Math.PI * 2 / rotor.period
+  // Twenty seconds a turn: gentle.
+  expect(rotor.period).toBeGreaterThanOrEqual(20)
+  let speed = full
+  let elapsed = 0
+  while (speed > 0) {
+    speed = nextRotorSpeed(rotor, speed, 0, 1 / 60)
+    elapsed += 1 / 60
+    expect(speed).toBeGreaterThanOrEqual(0)
+  }
+  expect(elapsed).toBeLessThanOrEqual(ROTOR_STOP_SECONDS + 1 / 60)
+  // A slow frame cannot overshoot either way.
+  expect(nextRotorSpeed(rotor, full, 0, 5)).toBe(0)
+  expect(nextRotorSpeed(rotor, 0, full, 5)).toBe(full)
+  expect(nextRotorSpeed(rotor, 0, full, ROTOR_START_SECONDS / 2)).toBeCloseTo(full / 2)
+})
+
+test('rotor poses turn about the hub and come back after a full turn', () => {
+  const level = LEVELS.find((candidate) => candidate.id === 10)!
+  const sail = level.plates.find((plate) => plate.id === 'sail-amber')!
+  const start = new THREE.Vector3().fromArray(sail.position)
+  const hub = new THREE.Vector3().fromArray(level.rotor!.center)
+  const half = rotorPose(level.rotor!, start, plateQuaternion(sail), Math.PI)
+  expect(half.position.distanceTo(hub)).toBeCloseTo(start.distanceTo(hub))
+  expect(half.position.x).toBeCloseTo(2 * hub.x - start.x)
+  const full = rotorPose(level.rotor!, start, plateQuaternion(sail), Math.PI * 2)
+  expect(full.position.distanceTo(start)).toBeLessThan(1e-9)
+  expect(full.quaternion.angleTo(plateQuaternion(sail))).toBeLessThan(1e-6)
+})
+
+test('a hinged panel starts closed and finishes opening on time', () => {
+  const door = LEVELS.find((level) => level.id === 9)!.plates.find((plate) => plate.id === 'loft-door')!
+  const start = new THREE.Vector3().fromArray(door.position)
+  const rotation = plateQuaternion(door)
+  expect(hingePose(door, start, rotation, 0).quaternion.angleTo(rotation)).toBeLessThan(1e-9)
+  const open = hingePose(door, start, rotation, HINGE_SECONDS)
+  expect(hingePose(door, start, rotation, 60).position.distanceTo(open.position)).toBeLessThan(1e-9)
+  // The hinge edge stays put while the panel turns about it.
+  const edge = new THREE.Vector3(-door.size[0] / 2, 0, 0)
+  expect(edge.clone().applyQuaternion(open.quaternion).add(open.position).distanceTo(edge.applyQuaternion(rotation).add(start))).toBeLessThan(1e-9)
 })

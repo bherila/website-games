@@ -1,3 +1,4 @@
+import { createMillLevels } from './millLevels'
 import { createVillageLevels } from './villageLevels'
 
 export type ScrewColor = 'coral' | 'mint' | 'blue' | 'amber'
@@ -21,16 +22,27 @@ export interface Plate {
   gableRise?: number
   /** Plates this one rests on; their last screw stays locked while this plate is attached. */
   restsOn?: readonly string[]
+  /** A captive panel: with its screws gone it swings open on this edge and stays with its host. */
+  hinge?: 'left' | 'right' | 'top' | 'bottom'
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
+    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack'
   color: string
 }
 
 export interface Screw {
   id: string
+  /** The plate the head sits on; `position` is in its local X/Y. */
   plate: string
+  /** Plates behind the head that the same screw also pins, outermost first. */
+  through?: readonly string[]
   color: ScrewColor
   blockedBy?: readonly string[]
   position: readonly [number, number]
+}
+
+/** Every plate a screw holds: its head plate, then any it passes through. */
+export function heldPlates(screw: Screw): readonly string[] {
+  return screw.through ? [screw.plate, ...screw.through] : [screw.plate]
 }
 
 const roofLength = Math.hypot(2.1, 1.35)
@@ -65,6 +77,19 @@ export const SCREWS: readonly Screw[] = [
 export const SPARE_CAPACITY = 4
 export const TRAY_CAPACITY = 3
 
+/**
+ * Parts that turn slowly about an axis for decoration. The angle is never
+ * puzzle state: covers stay as authored, and a released part falls from
+ * wherever it was when it let go.
+ */
+export interface Rotor {
+  plates: readonly string[]
+  center: Point3
+  axis: Point3
+  /** Seconds per full turn. */
+  period: number
+}
+
 export interface PuzzleLevel {
   id: number
   name: string
@@ -73,7 +98,8 @@ export interface PuzzleLevel {
   trayColors: readonly ScrewColor[]
   spareCapacity: number
   overflowLoses: boolean
-  theme?: 'windmill' | 'glasshouse' | 'cafe'
+  theme?: 'windmill' | 'glasshouse' | 'cafe' | 'millrace' | 'barn' | 'sawmill'
+  rotor?: Rotor
   introduction?: string
 }
 
@@ -100,7 +126,7 @@ const introductoryLevels: readonly PuzzleLevel[] = [
   },
 ]
 
-export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!)]
+export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS)]
 
 export function getLevel(id: number): PuzzleLevel {
   const level = LEVELS.find((candidate) => candidate.id === id)

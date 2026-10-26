@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { PANEL_FACE } from './houseGeometry'
-import type { Plate } from './level'
+import type { Plate, Rotor } from './level'
 
 const UP = new THREE.Vector3(0, 1, 0)
 /** Foundation deck and lawn tops from createGarden; beyond the lawn a part falls freely. */
@@ -96,4 +96,50 @@ export function fallPose(plate: Plate, position: THREE.Vector3, quaternion: THRE
   }
   pose.position.y -= drop
   return { position: pose.position, quaternion: pose.quaternion, grounded: t > 0 && resting && pose.flat }
+}
+
+/** A captive panel swings this far open, nearly flat against the wall beside its hinge. */
+export const HINGE_OPEN = Math.PI * 0.9
+export const HINGE_SECONDS = 0.7
+
+const HINGES: Record<NonNullable<Plate['hinge']>, { edge: (size: Plate['size']) => THREE.Vector3, axis: THREE.Vector3, sign: number }> = {
+  left: { edge: ([width]) => new THREE.Vector3(-width / 2, 0, 0), axis: new THREE.Vector3(0, 1, 0), sign: -1 },
+  right: { edge: ([width]) => new THREE.Vector3(width / 2, 0, 0), axis: new THREE.Vector3(0, 1, 0), sign: 1 },
+  top: { edge: ([, height]) => new THREE.Vector3(0, height / 2, 0), axis: new THREE.Vector3(1, 0, 0), sign: -1 },
+  bottom: { edge: ([, height]) => new THREE.Vector3(0, -height / 2, 0), axis: new THREE.Vector3(1, 0, 0), sign: 1 },
+}
+
+/**
+ * A hinged panel `t` seconds after its last screw left: it swings outward about
+ * its hinge edge and stays there. The edge runs through the panel's centre
+ * plane, so the open panel still sits in front of its wall.
+ */
+export function hingePose(plate: Plate, position: THREE.Vector3, quaternion: THREE.Quaternion, t: number): { position: THREE.Vector3, quaternion: THREE.Quaternion } {
+  const hinge = HINGES[plate.hinge!]
+  const progress = Math.min(1, Math.max(0, t / HINGE_SECONDS))
+  const angle = hinge.sign * HINGE_OPEN * (1 - (1 - progress) ** 3)
+  const swing = new THREE.Quaternion().setFromAxisAngle(hinge.axis, angle)
+  const edge = hinge.edge(plate.size)
+  const offset = edge.clone().sub(edge.clone().applyQuaternion(swing)).applyQuaternion(quaternion)
+  return { position: position.clone().add(offset), quaternion: quaternion.clone().multiply(swing) }
+}
+
+/** Turns a part's pose `angle` radians about the rotor's axis. */
+export function rotorPose(rotor: Rotor, position: THREE.Vector3, quaternion: THREE.Quaternion, angle: number): { position: THREE.Vector3, quaternion: THREE.Quaternion } {
+  const turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3().fromArray(rotor.axis).normalize(), angle)
+  const center = new THREE.Vector3().fromArray(rotor.center)
+  return { position: position.clone().sub(center).applyQuaternion(turn).add(center), quaternion: turn.multiply(quaternion) }
+}
+
+/** A rotor coasts to a stop within this long of the player reaching for the board. */
+export const ROTOR_STOP_SECONDS = 0.5
+/** And it picks up again this gently once they have left it alone. */
+export const ROTOR_START_SECONDS = 1.5
+export const ROTOR_IDLE_SECONDS = 4
+
+/** The rotor's angular speed after `dt` seconds of easing toward `target` (0 to stop). */
+export function nextRotorSpeed(rotor: Rotor, speed: number, target: number, dt: number): number {
+  const full = Math.PI * 2 / rotor.period
+  if (target < speed) return Math.max(target, speed - full / ROTOR_STOP_SECONDS * dt)
+  return Math.min(target, speed + full / ROTOR_START_SECONDS * dt)
 }

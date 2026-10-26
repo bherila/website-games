@@ -1,7 +1,7 @@
 import { createMuteStorage } from '../_shared/audio/muteStorage'
 import { createSynthSfx, type SynthRecipe, type SynthSfx } from '../_shared/audio/synthSfx'
 
-export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'land' | 'overflow' | 'win' | 'undo'
+export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'swing' | 'land' | 'overflow' | 'win' | 'undo'
 
 /** Toy-workshop sounds: a ratchet and pop for each screw, chimes for trays, wooden knocks for parts. */
 export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
@@ -29,6 +29,12 @@ export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
   fall: ({ tone, noise }) => {
     tone(330, 250, 0.14, 'sawtooth', 0.025)
     noise(0.32, 0.07, 1800, { filter: 'bandpass', delay: 0.04, sweepTo: 500, attack: 0.03, q: 1.4 })
+  },
+  // A rising hinge creak as a door or hatch swings open.
+  swing: ({ tone, noise }) => {
+    tone(420, 760, 0.3, 'sawtooth', 0.02)
+    tone(840, 1150, 0.22, 'triangle', 0.025, 0.06)
+    noise(0.18, 0.03, 2400, { filter: 'bandpass', delay: 0.05, sweepTo: 3200, attack: 0.04, q: 3 })
   },
   // A soft wooden thud on the deck or lawn.
   land: ({ tone, noise }) => {

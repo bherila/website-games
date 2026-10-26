@@ -1,21 +1,31 @@
-import type { Plate, PuzzleLevel, Screw, ScrewColor } from './level'
+import type { Plate, PuzzleLevel, Rotor, Screw, ScrewColor } from './level'
+
+/** The sails turn once about every twenty seconds around the hub on the front gable. */
+export function windmillRotor(sails: readonly Plate[]): Rotor {
+  return { plates: sails.map((sail) => sail.id), center: [0, 0.5, 1.95], axis: [0, 0, 1], period: 20 }
+}
+
+/** Four diagonal sails reaching 1.8 from the hub and overlapping behind it, each a little proud of the one before. */
+export function windmillSails(): Plate[] {
+  return (['coral', 'mint', 'blue', 'amber'] as const).map((color, index) => {
+    const angle = Math.PI / 4 + index * Math.PI / 2
+    const x = Math.sin(angle)
+    const y = Math.cos(angle)
+    return { id: `sail-${color}`, name: `${color} sail`, position: [x * 0.75, 0.5 + y * 0.75, 1.95 + index * 0.035], size: [0.70, 2.1], normal: [0, 0, 1], up: [x, y, 0], finish: 'sail', color: '#f0dfb7' }
+  })
+}
 
 /** New structures reuse the cottage shell, with individually authored access layers. */
 export function createVillageLevels(plates: readonly Plate[], screws: readonly Screw[], workshop: PuzzleLevel): PuzzleLevel[] {
   const colors = ['coral', 'mint', 'blue', 'amber'] as const
-  const sails: Plate[] = colors.map((color, index) => {
-    const angle = Math.PI / 4 + index * Math.PI / 2
-    const x = Math.sin(angle)
-    const y = Math.cos(angle)
-    return { id: `sail-${color}`, name: `${color} sail`, position: [x * 0.85, 0.5 + y * 0.85, 1.95 + index * 0.035], size: [0.70, 1.9], normal: [0, 0, 1], up: [x, y, 0], finish: 'sail', color: '#f0dfb7' }
-  })
+  const sails = windmillSails()
   // The back wall’s only screw waits for the roof, so it takes the late blue
   // and the roof gives up the mint; this keeps the mill's difficulty.
   const millColors: Record<string, ScrewColor> = { 'front-1': 'blue', 'back-1': 'blue', 'right-roof-1': 'mint', 'left-roof-1': 'coral', 'left-roof-2': 'amber', 'right-roof-2': 'amber' }
   const mill: PuzzleLevel = {
     id: 3, name: 'Village Windmill', spareCapacity: 2, overflowLoses: true,
-    trayColors: colors, theme: 'windmill',
-    introduction: 'The four sails cover the hub screw. Remove the sails to reach it, and check the upcoming tray colors before using your two spare slots. Drag to look around the back.',
+    trayColors: colors, theme: 'windmill', rotor: windmillRotor(sails),
+    introduction: 'The four sails cover the hub screw. They turn slowly in the breeze and stop whenever you reach for the board. Remove the sails to reach the hub, and check the upcoming tray colors before using your two spare slots. Drag to look around the back.',
     plates: [...plates, ...sails],
     screws: [
       ...screws.filter((screw) => screw.id !== 'front-2').map((screw): Screw => ({ ...screw, color: millColors[screw.id] ?? screw.color, ...(screw.id === 'front-1' ? { position: [0, 0.75], blockedBy: sails.map((sail) => sail.id) } : {}) })),

@@ -22,6 +22,12 @@ to leave room for wider rows as more trays are introduced.
 Queued and stored screws use the same colored head icons. Color names remain in accessible
 labels, and the title, level badge and navigation share one compact header row.
 
+The mill group (levels 6–10) adds two rules. Shared screws run through several parts:
+Waterwheel's axle pins the wheel to the front gable, Barn Doors' crossbar bolts pin each door,
+and Sawmill's bolt runs through a log rack and saw guard into the back wall. Mill Loft adds
+captive hinged doors and hatches, and Windmill Hill combines both under turning sails. Teaching
+levels 6 and 9 have three spare slots; the others two.
+
 ## Play
 
 - Drag the assembly to orbit the view. Rotation buttons and Reset view also work with a keyboard.
@@ -36,6 +42,20 @@ labels, and the title, level badge and navigation share one compact header row.
   roof slope is attached; the head shows a small roof badge, stays square rather than hanging,
   and tapping it explains why in a short hint above the rotate controls. Side walls bear nothing.
   Refused taps on covered heads and full storage use the same visible hint.
+- A shared screw shows its shank between the parts it pins, and it counts toward each of them:
+  taking it out can release several parts at once. It waits, like a gable's last screw, until
+  nothing still rests on a part it would release, except parts it releases too: the waterwheel's
+  axle goes once the wheel's own screw is out, and wheel and gable let go together. The hint
+  names the part being held up, for example "Front gable wall is holding up the waterwheel."
+- A hinged door or hatch with no screws left swings open on its hinge (with a creak) and stays
+  attached, covering nothing; it falls only when the wall it hangs on does.
+- The windmill sails (levels 3 and 10) and the waterwheel turn slowly, once every 20–24
+  seconds, carrying their screws. They ease to a stop within half a second whenever the player
+  reaches for the board (a press, drag, scroll, key, mouse movement over it, or keyboard focus on
+  a screw) and resume after four idle seconds, so no one aims at a moving head. Nothing turns
+  under reduced motion, and a Pause motion button beside the view controls stops them
+  (`bwh.plate-escape.still.v1`). The angle is decoration, not puzzle state: covers are authored,
+  a turning cover covers at every angle, and a released part falls from wherever it was.
 - Removing all but one screw lets a panel pivot around its last support. With none, it falls:
   walls tip outward about their bottom edge, roof slopes slide down the pitch and off the eave,
   and raised covers drop. Parts land on the deck or lawn rather than passing through it, slide
@@ -53,19 +73,25 @@ labels, and the title, level badge and navigation share one compact header row.
 ## Implementation
 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
-`villageLevels.ts` authors levels 3–5. `engine.ts`
+`villageLevels.ts` authors levels 3–5 and `millLevels.ts` levels 6–10. `engine.ts`
 is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
 cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
-oblique angle, and a plate's `restsOn` supports keep their last screw while it is attached. This
-is the first part of the support graph planned below; shared screws are still future work. `screwVisibility.ts` traces
+oblique angle, and a plate's `restsOn` supports keep their last screw while it is attached. A
+screw's `through` list names the plates behind its head that it also pins (`heldPlates()`), so
+every plate counts every screw that holds it; a bearing lock exempts parts the same screw
+releases and names the supporting plate. `Plate.hinge` marks a captive panel and
+`PuzzleLevel.rotor` a decorative turning group; neither changes the puzzle model. `screwVisibility.ts` traces
 nearest physical hits: glass can reveal a head visually while keeping it locked; opaque
 frames and decorations still occlude it. `houseGeometry.ts` builds the gabled outlines, panel frames,
-windows, door, tiled roof, trim and garden. Architectural details are attached to their removable
+windows, door, tiled roof, trim and garden, plus the mill parts (a disc waterwheel, planked doors
+with hinge straps, beams, a riveted saw guard, an end-on woodpile) and each shared screw's shank
+(`throughShafts`). Architectural details are attached to their removable
 panel rather than left floating when it falls.
 `PlateEscapeScene.tsx` uses Three.js and OrbitControls, with authored support pivots. Falls come
 from `plateMotion.ts`, a pure function of time since release that integrates gravity in fixed
 1/120 s substeps against the deck and lawn heights, rather than a general rigid-body simulation;
-the scene reports fall and landing events for sound. A nearest-hit raycast against plates
+the scene reports fall, swing and landing events for sound. `plateMotion.ts` also owns the hinge's
+open pose, rotor poses and the rotor's stop/start easing, all pure functions. A nearest-hit raycast against plates
 and screw meshes determines which heads can be selected. The view owns no progression state.
 `PlateEscapeGame.tsx` owns undo snapshots, controls, collection UI and completion. Panel totals
 come from the level definition. The campaign uses the shared `LevelSelectGrid` for locks, stars,
@@ -80,7 +106,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–5 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–10 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -89,38 +115,58 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   released level through the real engine. It proves each level winnable with no soft-locks,
   keeps each within an authored difficulty band (the chance that uniformly random legal play
   wins), proves that every legal order wins the tutorial, that no board leaves a roof over a
-  released gable, and that the bearing rule constrains every level. The authored win and
+  released gable, and that the bearing rule constrains every level. Each level with shared screws
+  must reach a lock that would vanish if every screw held one plate, and a move that releases two
+  plates at once. (Turning sharing off cannot make a level unsolvable, since it only removes
+  locks, so this is the necessity gate for shared screws.) The authored win and
   overflow traces in `campaignFixtures.ts` were generated from it. The solver assumes every
   uncovered head is reachable by orbiting; geometry tests and browser journeys check access.
 - Pure model tests cover tray cascades, capacity, duplicate taps, immutable undo snapshots,
-  support removal, bearing locks, workshop overflow, recovery and a winning order.
+  support removal, bearing locks, shared-screw counting and release, workshop overflow,
+  recovery and a winning order.
 - Geometry tests verify outward panel frames, screw clearance, a shared roof ridge above both
   gables, that every authored cover intersects its screw's access ray, and that cover spacers reach
-  the wall without crossing any head's access ray. Motion tests check that every part lands without
-  passing through the garden, never jumps between frames, and leaves the garden.
+  the wall without crossing any head's access ray. Nothing but a screw's authored covers stands over
+  its head. Shared-screw shanks reach the deepest plate without crossing another head's ray and
+  cross each pinned plate inside it; open hinged panels sit in front of their wall and block no
+  head; turning covers cover at every angle, and no other head facing a rotor lies under its
+  sweep. Motion tests check that every part lands without passing through the garden, never jumps
+  between frames, and leaves the garden, that a rotor stops within half a second, and that a
+  hinge turns about its edge.
 - `tests/e2e/plate-escape.spec.ts` covers actual desktop input and native Chromium touch: hidden
   heads, drag/tap separation, rotation, spare storage, undo, full completion, reload and catalog.
   The first journey checks the shared picker’s locked and starred tiles, unlocks the workshop,
   deliberately loses, undoes, retries and wins through actual visible heads, tapping the front
   gable's bearing screw on the way to check its hint. A second journey
   starts from a historical two-level save and earns the three new clears through actual input,
-  checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks.
+  checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks. A third plays
+  levels 6–10 under reduced motion, losing and winning each and tapping the held waterwheel axle
+  for its hint. A fourth checks that the sails turn, stop when reached for, resume when left
+  alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the five-level boundary and monotonic star saves.
+  Page and API tests cover public access, the ten-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–5 and rejects unreleased level 6.
+the API accepts slots 1–10 and rejects unreleased level 11.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–5 are released. Levels 6–30 below are a design plan, not playable content. The
-campaign expands from a tiny village into mills, a harbor, a railway, clockworks and a festival.
-Each group of five has a teaching level, practice and a final combination puzzle. Geometry
-and panel arrangement provide variation between new mechanics.
+Levels 1–10 are released. Levels 11–30 below are a design plan, not playable content. The
+campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
+festival. Each group of five has a teaching level, practice and a final combination puzzle.
+Geometry and panel arrangement provide variation between new mechanics.
+
+Levels 1–10 are buildings sharing the cottage shell. From level 11 each board is a free-standing
+object or machine on its own base (a jetty, a workbench, a station platform): a boat, a lantern,
+a music box, a clock. The puzzle model already describes any assembly through supports, covers
+and shared screws. The renderer needs a parts kit beyond flat panels (the waterwheel's disc is
+the first; drums and curved panels follow), a ground for each level instead of the garden, so
+parts land on the right surfaces (`groundAt` per level), and one general fall in place of the
+wall and roof cases. Each object needs its own art, where the houses reused one shell.
 
 ### Campaign rules
 
@@ -157,31 +203,31 @@ and panel arrangement provide variation between new mechanics.
 | 3 | Village Windmill — released | Diagonal blades overlap the central housing. Choose which blade to remove to expose a needed color; retain level 2’s rules. |
 | 4 | Glasshouse — released | Introduce transparent covers: screws can be seen through glass but remain covered until the glass panel is released. Show a clear blocked-head cue. |
 | 5 | Corner Café — released | A roof, sign and glass awning combine opaque and transparent layers. First assessment of planning reveals around the whole building. |
-| 6 | Waterwheel | Introduce shared screws: one clearly marked fastener supports two aligned plates. Its removal can release both. |
-| 7 | Barn Doors | Shared fasteners cross an outer frame and inner door. Choose a door to open while preserving access to useful colors. |
-| 8 | Sawmill | Several shared supports create a short release chain. Predict which panels will leave after the last common fastener. |
-| 9 | Mill Loft | Introduce captive hinged panels. Removing their last screw swings them to a fixed open position, revealing the next layer. |
-| 10 | Windmill Hill | Combine shared fasteners, hinged doors and overlapping blades. No new rule; conclude the mill group. |
-| 11 | Boathouse | Practice hinged covers across front and side faces, with useful colors behind different doors. Rotation and reveal order both matter. |
+| 6 | Waterwheel — released | Introduce shared screws: the axle pins the turning wheel to the gable, and both let go together once the wheel's own screw is out. The wheel covers the sluice gate. |
+| 7 | Barn Doors — released | Crossbar bolts pin each door behind it. Choose a door to open while preserving access to useful colors. |
+| 8 | Sawmill — released | One bolt runs through a log rack and saw guard into the back wall: a short release chain. Predict which parts leave after the last common fastener. |
+| 9 | Mill Loft — released | Introduce captive hinged panels. Removing their last screw swings them to a fixed open position, revealing the next layer. |
+| 10 | Windmill Hill — released | Combine shared fasteners, a hinged door and turning sails pinned by one hub. No new rule; conclude the mill group. |
+| 11 | Rowing Boat | Moored at a jetty. Practice hinged covers (seat lockers) across front and side faces, with useful colors behind different doors. Rotation and reveal order both matter. |
 | 12 | Lighthouse Lantern | Introduce rail-guided panels. Unfastened panels slide to an authored stop instead of falling, exposing screws along the lantern housing. |
-| 13 | Signal Shack | A sliding cover exposes the supports for a hinged panel. Read a two-stage opening sequence before spending spare slots. |
-| 14 | Storm Shutters | Rails on different faces move covers in different directions. Plan which face to open first using the visible tray queue. |
-| 15 | Harbor Beacon | Combine shared supports, sliders and hinged access panels around a compact lighthouse. Harbor assessment with several safe opening orders. |
-| 16 | Toy Engine | Introduce a manually turnable collar. Its cutouts align with screw heads at discrete stops; clear controls distinguish collar rotation from camera orbit. |
-| 17 | Railway Carriage | A collar reveals shared wheel-housing screws. Practice alignment and support order without another new rule. |
+| 13 | Sea Chest | A sliding cover exposes the supports for a hinged panel. Read a two-stage opening sequence before spending spare slots. |
+| 14 | Harbor Crane | Rails on different faces move covers in different directions. Plan which face to open first using the visible tray queue. |
+| 15 | Lightship | Combine shared supports, sliders and hinged access panels around a floating lighthouse. Harbor assessment with several safe opening orders. |
+| 16 | Toy Steam Engine | Introduce a manually turnable collar. Its cutouts align with screw heads at discrete stops; clear controls distinguish collar rotation from camera orbit. |
+| 17 | Music Box | A collar reveals shared housing screws. Practice alignment and support order without another new rule. |
 | 18 | Station Clock | Introduce the fifth color with a unique head mark and an extra teaching spare. Familiar clock-face alignment makes the new color easy to inspect. |
-| 19 | Rail Bridge | Collars expose screws that release sliding sleeves. Compare two opening routes and their storage costs. |
-| 20 | Central Station | Choose between engine and carriage sections using the same trays. Combine collars, hinges and shared supports as the railway assessment. |
-| 21 | Clockmaker’s Lift | Introduce linked counterweights. Releasing a visible weight drives another part to a fixed position and opens access; there is no timing challenge. |
-| 22 | Water Tower | Practice two clearly connected weight/cover pairs on different faces. Releasing the right pair exposes the needed color first. |
+| 19 | Orrery | Collars expose screws that release sliding sleeves. Compare two opening routes and their storage costs. |
+| 20 | Locomotive | Choose between engine and tender sections using the same trays. Combine collars, hinges and shared supports as the railway assessment. |
+| 21 | Cuckoo Clock | Introduce linked counterweights (pinecone weights). Releasing a visible weight drives another part to a fixed position and opens access; there is no timing challenge. |
+| 22 | Lift Cage | Practice two clearly connected weight/cover pairs on different faces. Releasing the right pair exposes the needed color first. |
 | 23 | Drawbridge | A counterweight opens a hinged bridge section. Plan the release before taking screws from the next layer. |
-| 24 | Observatory | Collar alignment and a counterweighted hatch expose different layers of the same housing. Use free inspection to choose an order. |
-| 25 | Clockwork Town Hall | Combine counterweights, sliders and shared fasteners. Clockworks assessment with a readable dependency chain and no new rule. |
-| 26 | Festival Workbench | Introduce a releasable staging rack. Freeing its marked cover adds one spare slot for this attempt; decide whether to open it early. |
-| 27 | Canal Market | The staging rack is behind a sliding sign. Balance the cost of reaching extra storage against collecting the next tray color directly. |
-| 28 | Music Pavilion | Shared roof supports and a collar offer two routes to the staging rack. The pavilion is untimed; there is no rhythm-input rule. |
-| 29 | Night Train | Multiple small sections share storage. Use familiar collar, slider and shared-support rules, with a rack route and clear night-scene lighting. |
-| 30 | Grand Festival Hall | Final assessment: a rotating clock collar, linked counterweight hatch and shared roof supports around one coherent hall, with an optional early rack route. No surprise final mechanic. |
+| 24 | Gramophone | Collar alignment and a counterweighted hatch expose different layers of the same housing. Use free inspection to choose an order. |
+| 25 | Clockwork Robot | Combine counterweights, sliders and shared fasteners. Clockworks assessment with a readable dependency chain and no new rule. |
+| 26 | Carousel | Introduce a releasable staging rack. Freeing its marked cover adds one spare slot for this attempt; decide whether to open it early. |
+| 27 | Balloon Basket | The staging rack is behind a sliding sign. Balance the cost of reaching extra storage against collecting the next tray color directly. |
+| 28 | Puppet Theater | Shared frame supports and a collar offer two routes to the staging rack. The theater is untimed; there is no rhythm-input rule. |
+| 29 | Ferris Wheel | Multiple small cars share storage. Use familiar collar, slider and shared-support rules, with a rack route and clear night-scene lighting. |
+| 30 | Festival Float | Final assessment: a rotating clock collar, linked counterweight hatch and shared canopy supports around one coherent float, with an optional early rack route. No surprise final mechanic. |
 
 ### Mechanic contracts and implementation order
 
@@ -189,11 +235,11 @@ and panel arrangement provide variation between new mechanics.
    definition suitable for themed structures. Locks, stars and navigation stay in the shared
    `LevelSelectGrid`. Transparent covers need to distinguish seeing a head from being able
    to reach it; decorative transparency must not make the selection ray pass through it.
-2. **Before level 6:** replace the one-screw/one-plate relationship with a support graph.
+2. **Implemented for levels 6–10:** replace the one-screw/one-plate relationship with a support graph.
    A screw can anchor multiple aligned panels, and every panel derives its remaining supports
    from that graph. Shared screws need a stable world position and a clear visual identity.
    Releasing the outer plate must not carry away a screw still needed by an inner plate.
-3. **Before levels 9–15:** add authored motion rules for hinges and rails. A captive panel
+3. **Hinges implemented for levels 9–10; rails before level 12:** add authored motion rules for hinges and rails. A captive panel
    enters its authored open state when its fasteners are gone; its fixed hinge or rail does not
    need dismantling. The renderer animates toward that state and delays newly exposed targets
    until actual geometry clears them. It does not decide progression or run a general rigid-body
