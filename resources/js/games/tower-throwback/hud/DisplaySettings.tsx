@@ -10,6 +10,7 @@ import { type ReactElement, useEffect, useRef, useState } from 'react'
 
 import type { DiagnosticPaletteMode, MotionPreference } from '../presentationPrefs'
 import { cssRamp } from '../scene/diagnosticPalette'
+import { HUD_TOOLBAR_BUTTON } from './hudButtonStyles'
 
 interface DisplaySettingsProps {
   paletteMode: DiagnosticPaletteMode
@@ -73,7 +74,7 @@ export function DisplaySettings({
         title="Display and accessibility settings"
         onClick={() => setOpen((visible) => !visible)}
         className={`inline-flex items-center rounded-md px-2.5 py-1.5 text-sm font-semibold shadow ${
-          open ? 'bg-sky-500/80 text-slate-950' : 'bg-white/10 text-white hover:bg-white/20'
+          open ? 'bg-sky-500/80 text-slate-950' : HUD_TOOLBAR_BUTTON
         }`}
       >
         <span aria-hidden="true">👁</span>

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 
 import type { GameClock } from '../gameTypes'
 import { clockTimeLabel } from './clockLabel'
+import { HUD_TOOLBAR_BUTTON } from './hudButtonStyles'
 import { type ToastItem, toastTypeStyles } from './Toasts'
 
 export const TOAST_HISTORY_LIMIT = 50
@@ -46,7 +47,7 @@ export function ToastHistoryButton({ count, open, onToggle }: ToastHistoryButton
       title="Recent events (R)"
       onClick={onToggle}
       className={`relative inline-flex size-9 items-center justify-center rounded-md shadow ${
-        open ? 'bg-sky-400 text-slate-950' : 'bg-white/10 text-white hover:bg-white/20'
+        open ? 'bg-sky-400 text-slate-950' : HUD_TOOLBAR_BUTTON
       }`}
     >
       <Bell aria-hidden="true" className="size-4" />
