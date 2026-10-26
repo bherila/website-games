@@ -95,7 +95,7 @@ test('cover spacers reach the wall behind them without crossing any screw’s ac
     for (const plate of level.plates) {
       const standoff = coverStandoff(plate, level.plates)
       if (standoff === 0) continue
-      const details = decoratePlate(plate, standoff, level.screws, level.id)
+      const details = decoratePlate(plate, standoff, level.screws.filter((screw) => screw.plate === plate.id), level.id)
       details.position.fromArray(plate.position)
       details.quaternion.copy(plateQuaternion(plate))
       details.updateMatrixWorld(true)
