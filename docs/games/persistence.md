@@ -40,6 +40,20 @@ so there is nothing to revalidate). A cached shell is rewritten to `authenticate
 with a blank CSRF token; `readAuthenticationContext` recognises `pwaCachedShell` and restores
 the account from `LAST_AUTHENTICATED_USER_KEY`, so an offline player is still the right user.
 
+**Every game is cached when the worker installs.** Cache names carry the deploy's commit, so
+each update starts empty caches. Before a new worker takes over, `precacheEveryGame()` reads
+`/build/manifest.json`, caches every game entry with the chunks and styles it imports
+(`gameBuildAssets`, about 2.6 MB; the operator panel is left out), and caches a sanitized
+shell for every page in `GAME_SHELL_ROUTES`. So after any update every game opens offline, not
+only the ones visited since. `tests/Feature/GamePwaTest.php` keeps `GAME_SHELL_ROUTES` in step
+with the game routes. Mandarin's speech is still cached as it is played.
+
+**Progress made offline syncs on reconnecting.** A signed-in player offline plays against the
+account-scoped local shadow; the `online` event replays the queued writes through the normal
+revision checks. `tests/e2e/games-pwa.spec.ts` covers both: every game, visited or not, opens
+offline after installing, and a Plate Escape clear made offline reaches the account once the
+browser is back online.
+
 **Sign-in routes are never served from cache.** `/login`, `/logout` and `/oauth/*` are excluded
 from the shell handler (`isAuthNavigation`). `/oauth/callback` is what establishes the session;
 answered from the shell cache after the 3s timeout it would silently never run, leaving a
