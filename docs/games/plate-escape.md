@@ -157,8 +157,10 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12) no move short of overflowing may doom
   the board; elsewhere a doomed board must overflow within four more removals (13–15 use this). The solver also
   reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
-  that keep a win, and the fewest spares a win needs. All twelve released levels are winnable from
-  every board short of overflow, by that simple policy, and without using a spare.
+  that keep a win, and the fewest spares a win needs. Levels 1–12 are winnable from every board
+  short of overflow, by that simple policy, and without using a spare. From level 13 a move may
+  commit to a loss (shown within four removals), and Harbor Crane and Lightship each need one
+  spare to win.
   Each level with captive covers must reach a board that can still win where an open cover is the
   only thing in the way of some head.
   Each level with shared screws must reach a lock that would vanish if every screw held one
