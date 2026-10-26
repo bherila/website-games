@@ -60,12 +60,14 @@ export function GameToolbar({
         landscape:pt-[max(0.5rem,env(safe-area-inset-top))] landscape:pl-2"
       data-testid="chips-toolbar"
     >
-      <div className="flex items-end gap-2 landscape:flex-col landscape:items-center">
+      {/* Portrait: undo in the thumb corner under the view controls, leaving the row's width to
+          the D-pad. Landscape: one row, since stacked these pushed the pad off a phone's short side. */}
+      <div className="flex flex-col-reverse items-start gap-2 landscape:flex-row landscape:items-center">
         {/* The biggest non-pad target: a mis-swipe on a phone should cost one tap, not a restart. */}
         <button
           aria-label="Undo move"
           className={cn(
-            'flex size-14 items-center justify-center rounded-full border border-white/70 bg-white/90',
+            'flex size-14 items-center justify-center rounded-full border border-white/70 bg-white/90 landscape:size-11',
             'text-slate-800 shadow-md transition-transform active:scale-95 disabled:opacity-40 disabled:active:scale-100',
             'dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-100',
           )}
@@ -76,10 +78,11 @@ export function GameToolbar({
         >
           <Undo2 aria-hidden="true" className="size-6" />
         </button>
+        <div className="flex items-center gap-2">
         <button
           aria-label={ORIENTATION_ARIA[orientationPreference]}
           className={cn(
-            'flex h-11 min-w-11 items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3',
+            'flex h-11 min-w-11 items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3 landscape:justify-center landscape:px-0',
             'text-xs font-bold text-slate-700 shadow-md transition-transform active:scale-95',
             'dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200',
           )}
@@ -97,12 +100,13 @@ export function GameToolbar({
               quarterTurns === 3 && '-rotate-90',
             )}
           />
-          {ORIENTATION_LABEL[orientationPreference]}
+          <span className="landscape:sr-only">{ORIENTATION_LABEL[orientationPreference]}</span>
         </button>
         <FullscreenIconButton
           className="h-11 min-w-11 rounded-full border border-white/70 bg-white/90 text-slate-700 shadow-md transition-transform active:scale-95 dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200"
           iconClassName="size-4"
         />
+        </div>
       </div>
 
       {showDpad && <TouchDpad waitEnabled={waitEnabled} onIntent={onIntent} />}

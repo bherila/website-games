@@ -31,8 +31,11 @@ describe('TouchDpad', () => {
     ] as const) {
       const button = screen.getByTestId(`touch-dpad-${intent}`)
       expect(button).toHaveAccessibleName(label)
-      expect(button.className).toMatch(/size-12/)
+      expect(button.className).toMatch(/size-full/)
     }
+    // Each button fills a 3.5rem (56px) cell in portrait, 3rem (48px) in landscape.
+    expect(screen.getByTestId('touch-dpad').className).toMatch(/grid-cols-\[repeat\(3,min\(3\.5rem,15vw\)\)\]/)
+    expect(screen.getByTestId('touch-dpad').className).toMatch(/landscape:grid-cols-\[repeat\(3,3rem\)\]/)
   })
 
   it('fires the intent immediately on press', () => {
