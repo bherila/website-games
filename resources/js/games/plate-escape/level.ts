@@ -39,10 +39,20 @@ export interface Plate {
   rail?: { along: Point3, travel: number }
   /** The part a hinged or railed panel, or a dial, stays with once open; it falls when that part does. */
   host?: string
+  /**
+   * The counterweight whose cord moves this part. It has no screws of its own: it stays shut,
+   * covering the heads that list it in `blockedBy`, while any screw still holds that weight. Once
+   * the weight drops, the cord pulls it to its fixed open pose (its `hinge` or `rail`), where it
+   * covers nothing, and it stays there until its host comes off. The weight is an ordinary railed
+   * panel on the same host: freed, it drops down its cord to a stop and hangs there.
+   */
+  drivenBy?: string
+  /** Pulleys the cord runs over, in order from the weight to the part it drives, in world space; fixed to the host. */
+  cord?: readonly Point3[]
   /** A disc that turns over the screws behind it; it has no screws of its own and stays with its host. */
   dial?: Dial
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
-    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer'
+    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer' | 'weight'
   color: string
 }
 

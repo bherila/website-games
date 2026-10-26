@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
+import { cordPoints, createCord, createPulleys, placeCord } from './counterweight'
 import { dialAngle } from './dial'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
 import { coverStandoff, createPlateMesh, createStage, decoratePlate, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
@@ -138,9 +139,10 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
         screwGroups.set(screw.id, screwGroup)
       }
     }
-    // A dashed outline shows where each captive cover will come to rest, before it is freed.
+    // A dashed outline shows where each captive cover will come to rest, before it is freed, and
+    // where each part a counterweight drives will open to.
     const landings = new Map<string, THREE.LineLoop>()
-    for (const plate of PLATES.filter((candidate) => SCREWS.some((screw) => screw.coveredWhenOpen?.includes(candidate.id)))) {
+    for (const plate of PLATES.filter((candidate) => candidate.drivenBy || SCREWS.some((screw) => screw.coveredWhenOpen?.includes(candidate.id)))) {
       const start = new THREE.Vector3().fromArray(plate.position)
       const pose = plate.hinge ? hingePose(plate, start, plateFrames.get(plate.id)!, HINGE_SECONDS) : railPose(plate, start, plateFrames.get(plate.id)!, RAIL_SECONDS)
       const points = plateOutline(plate).getPoints(12).map((point) => new THREE.Vector3(point.x, point.y, 0.15))
@@ -153,6 +155,14 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
       assembly.add(loop)
       landings.set(plate.id, loop)
     }
+    // Each counterweight's cord runs from the weight over pulleys on the host to the part it drives.
+    const cords = PLATES.filter((plate) => plate.drivenBy).map((driven) => {
+      const host = PLATES.find((plate) => plate.id === driven.host)!
+      plateGroups.get(host.id)!.add(createPulleys(driven, host, plateFrames.get(host.id)!))
+      const cord = createCord((driven.cord?.length ?? 0) + 1)
+      scene.add(cord)
+      return { driven, weight: PLATES.find((plate) => plate.id === driven.drivenBy)!, cord }
+    })
 
     // Every screw that pins a plate, including shared screws whose head is on another part,
     // and where each one crosses it.
@@ -267,7 +277,6 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
         }
         let fall = 0
         const landing = landings.get(plate.id)
-        if (landing) landing.visible = remaining.length > 0
         if (plate.dial) {
           // A dial turns clockwise through its stops and comes away with its host.
           const target = dialAngle(plate.dial, latestRef.current.state.dials[plate.id] ?? 0)
@@ -281,17 +290,21 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
           if (remainingOn(plate.host!) === 0) fall = Math.max(0, now - releasedAt(plate.host!) - 0.45)
         } else if (plate.hinge || plate.rail) {
           // A captive panel swings open or drops down its rail and stays with its host; it falls only when the host does.
-          const open = remaining.length === 0
+          // A part a counterweight drives opens the same way once the weight's last screw is out.
+          const driver = plate.drivenBy
+          const open = driver ? remainingOn(driver) === 0 : remaining.length === 0
+          const since = driver ? releasedAt(driver) : latest
           const lasts = plate.hinge ? HINGE_SECONDS : RAIL_SECONDS
+          if (landing) landing.visible = !open && remainingOn(plate.host!) > 0
           if (!open) swung.delete(plate.id)
           else if (!swung.has(plate.id)) {
             swung.add(plate.id)
             latestRef.current.onPlateEvent?.(plate.hinge ? 'swing' : 'slide')
           }
-          const settle = reduceMotion ? lasts : now - latest
+          const settle = reduceMotion ? lasts : now - since
           const pose = !open ? { position: basePosition, quaternion: baseQuaternion }
             : plate.hinge ? hingePose(plate, basePosition, baseQuaternion, settle) : railPose(plate, basePosition, baseQuaternion, settle)
-          if (open && now - latest < lasts) lastMotionAt = now
+          if (open && now - since < lasts) lastMotionAt = now
           group.position.copy(pose.position)
           group.quaternion.copy(pose.quaternion)
           const host = plate.host
@@ -344,6 +357,14 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
           setOpacity(group, plate.id, 1)
           group.visible = true
         }
+      }
+      for (const { driven, weight, cord } of cords) {
+        // The cord stays taut between the two parts while their host is on; it is not drawn once the host lets go.
+        cord.visible = remainingOn(driven.host!) > 0
+        if (!cord.visible) continue
+        const from = plateGroups.get(weight.id)!
+        const to = plateGroups.get(driven.id)!
+        placeCord(cord, cordPoints(driven, weight, to, from, { driven: plateFrames.get(driven.id)!, weight: plateFrames.get(weight.id)! }))
       }
       for (const screw of SCREWS) {
         const group = screwGroups.get(screw.id)!

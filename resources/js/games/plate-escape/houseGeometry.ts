@@ -217,6 +217,42 @@ function decorateRack(details: THREE.Group, plate: Plate, screws: readonly Screw
   }
 }
 
+/**
+ * A cast weight shaped like a pinecone: staggered rows of scales, clear of its
+ * screw, and a ring at the top where the cord is tied.
+ */
+function decorateWeight(details: THREE.Group, plate: Plate, screws: readonly Screw[]): void {
+  const [width, height] = plate.size
+  const scale = new THREE.MeshStandardMaterial({ color: shade(plate.color, 0.1), roughness: 0.8 })
+  for (let row = 0, y = height / 2 - 0.16; y > -height / 2 + 0.1; row++, y -= 0.13) {
+    for (let x = -width / 2 + 0.1 + (row % 2) * 0.07; x < width / 2 - 0.08; x += 0.14) {
+      if (screws.some((screw) => Math.hypot(screw.position[0] - x, screw.position[1] - y) < 0.34)) continue
+      if (plate.outline && !insidePolygon(plate.outline, x, y, 0.06)) continue
+      const bump = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), scale)
+      bump.scale.set(1, 0.7, 0.45)
+      bump.position.set(x, y, 0.14)
+      details.add(bump)
+    }
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.022, 6, 16), new THREE.MeshStandardMaterial({ color: '#b08d3c', metalness: 0.6, roughness: 0.35 }))
+  ring.position.set(0, height / 2 + 0.04, 0)
+  details.add(ring)
+}
+
+/** Whether a point lies inside a polygon with at least `margin` to spare along each axis. */
+function insidePolygon(outline: readonly (readonly [number, number])[], x: number, y: number, margin = 0): boolean {
+  const inside = (px: number, py: number): boolean => {
+    let result = false
+    for (let index = 0, previous = outline.length - 1; index < outline.length; previous = index++) {
+      const [ax, ay] = outline[index]!
+      const [bx, by] = outline[previous]!
+      if ((ay > py) !== (by > py) && px < (bx - ax) * (py - ay) / (by - ay) + ax) result = !result
+    }
+    return result
+  }
+  return [[0, 0], [margin, 0], [-margin, 0], [0, margin], [0, -margin]].every(([dx, dy]) => inside(x + dx!, y + dy!))
+}
+
 /** All architectural details belong to their panel, so they leave with it. */
 export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw[] = [], levelId?: number): THREE.Group {
   const details = new THREE.Group()
@@ -233,6 +269,10 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
   }
   if (plate.finish === 'loco' || plate.finish === 'lacquer') {
     decorateLined(details, plate, screws)
+    return details
+  }
+  if (plate.finish === 'weight') {
+    decorateWeight(details, plate, screws)
     return details
   }
   if (plate.finish === 'plank') {

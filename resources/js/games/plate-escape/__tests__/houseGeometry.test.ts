@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
+import { cordLength, cordPoints, createCord, createPulleys, placeCord } from '../counterweight'
 import { dialAngle } from '../dial'
 import { createPuzzle, showing } from '../engine'
 import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
@@ -336,6 +337,74 @@ test('a dial\'s window crosses exactly the heads the engine shows at each stop, 
           expect({ level: level.id, stop, screw: screw.id, blocked }).toEqual({ level: level.id, stop, screw: screw.id, blocked: hidden ? rays.length : 0 })
         }
       }
+    }
+  }
+})
+
+/** A part placed in a pose with its details, as the scene draws it. */
+function drawn(level: PuzzleLevel, plate: Plate, pose: { position: THREE.Vector3, quaternion: THREE.Quaternion }): THREE.Object3D {
+  const screws = level.screws.filter((screw) => screw.plate === plate.id)
+  return placed(new THREE.Group().add(createPlateMesh(plate, screws), decoratePlate(plate, 0, screws, level.id)), pose.position, pose.quaternion)
+}
+
+const counterweighted = LEVELS.filter((level) => level.plates.some((plate) => plate.drivenBy))
+
+test('a counterweight\'s part covers exactly the heads that list it while shut, and stands over no head once its cord has pulled it open', () => {
+  for (const level of counterweighted) {
+    for (const driven of level.plates.filter((plate) => plate.drivenBy)) {
+      const weight = plateOf(level, driven.drivenBy!)
+      for (const [part, end] of [[driven, driven.hinge ? hingePose(driven, vector(driven.position), plateQuaternion(driven), HINGE_SECONDS) : railPose(driven, vector(driven.position), plateQuaternion(driven), RAIL_SECONDS)], [weight, railPose(weight, vector(weight.position), plateQuaternion(weight), RAIL_SECONDS)]] as const) {
+        const shut = drawn(level, part, { position: vector(part.position), quaternion: plateQuaternion(part) })
+        const open = drawn(level, part, end)
+        for (const screw of level.screws.filter((candidate) => candidate.plate !== part.id)) {
+          const rays = accessRays(level, screw)
+          // Shut, it covers the whole head of every screw that names it, and touches no other.
+          const covered = (screw.blockedBy ?? []).includes(part.id)
+          expect({ level: level.id, part: part.id, screw: screw.id, shut: rays.filter((ray) => ray.intersectObject(shut).length > 0).length }).toEqual({ level: level.id, part: part.id, screw: screw.id, shut: covered ? rays.length : 0 })
+          // Open, it is clear of every head, rim included: a counterweight only ever opens access.
+          expect({ level: level.id, part: part.id, screw: screw.id, open: rays.filter((ray) => ray.intersectObject(open).length > 0).length }).toEqual({ level: level.id, part: part.id, screw: screw.id, open: 0 })
+        }
+        disposeObject(shut)
+        disposeObject(open)
+      }
+    }
+  }
+})
+
+test('a counterweight\'s cord and pulleys cross no head, shut or open, and the cord takes up what the weight lets out', () => {
+  for (const level of counterweighted) {
+    for (const driven of level.plates.filter((plate) => plate.drivenBy)) {
+      const weight = plateOf(level, driven.drivenBy!)
+      const host = plateOf(level, driven.host!)
+      const frames = { driven: plateQuaternion(driven), weight: plateQuaternion(weight) }
+      const shut = { driven: { position: vector(driven.position), quaternion: frames.driven }, weight: { position: vector(weight.position), quaternion: frames.weight } }
+      const open = {
+        driven: driven.hinge ? hingePose(driven, vector(driven.position), frames.driven, HINGE_SECONDS) : railPose(driven, vector(driven.position), frames.driven, RAIL_SECONDS),
+        weight: railPose(weight, vector(weight.position), frames.weight, RAIL_SECONDS),
+      }
+      const pulleys = placed(createPulleys(driven, host, plateQuaternion(host)), vector(host.position), plateQuaternion(host))
+      const lengths: number[] = []
+      for (const pose of [shut, open]) {
+        const points = cordPoints(driven, weight, pose.driven, pose.weight, frames)
+        lengths.push(cordLength(points))
+        const cord = createCord(points.length - 1)
+        placeCord(cord, points)
+        cord.updateMatrixWorld(true)
+        // The scene never lets the cord or a pulley take a tap, so neither may hide a head.
+        cord.traverse((rod) => { rod.raycast = THREE.Mesh.prototype.raycast })
+        pulleys.traverse((part) => { part.raycast = THREE.Mesh.prototype.raycast })
+        for (const screw of level.screws.filter((candidate) => candidate.plate !== weight.id)) {
+          // While shut, a head under the part is out of reach anyway.
+          if (pose === shut && screw.blockedBy?.includes(driven.id)) continue
+          const crossing = accessRays(level, screw).filter((ray) => ray.intersectObjects([cord, pulleys]).length > 0).length
+          expect({ level: level.id, driven: driven.id, screw: screw.id, open: pose === open, crossing }).toEqual({ level: level.id, driven: driven.id, screw: screw.id, open: pose === open, crossing: 0 })
+        }
+        disposeObject(cord)
+      }
+      // A sliding part moves as far as the weight drops; a hinged one takes up some of the slack.
+      if (driven.rail) expect(lengths[1]).toBeCloseTo(lengths[0]!, 2)
+      else expect(lengths[1]).toBeLessThanOrEqual(lengths[0]! + 1e-6)
+      disposeObject(pulleys)
     }
   }
 })
