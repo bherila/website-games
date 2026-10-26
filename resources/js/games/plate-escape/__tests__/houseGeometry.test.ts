@@ -181,7 +181,8 @@ test('an open captive panel sits in front of its host and covers exactly the hea
       checked++
     }
   }
-  // Three mill doors and hatches; in the harbor, two drop flaps, a hasp, four railed shutters and weights, and a tower door.
+  // The mill's three doors and hatches; in the harbor, three drop flaps (bait, end, stern), six railed
+  // parts (two storm shutters, the hasp, the hook block, the counterweight, the lantern shutter) and the tower door.
   expect(checked).toBe(13)
 })
 
