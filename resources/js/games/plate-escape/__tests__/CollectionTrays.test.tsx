@@ -11,8 +11,21 @@ test('trays communicate each color visually while keeping names in accessible la
     rerender(<CollectionTrays state={{ ...state, trays: [{ id: 'left', color, count: 0 }] }} />)
     const tray = screen.getByRole('img', { name: `${COLORS[color].name} tray: 0 of 3` })
     expect(tray.querySelector('[data-tray-face]')).toHaveAttribute('fill', COLORS[color].hex)
+    // An empty tray still carries its color's drive mark, so it can be matched by shape alone.
+    expect(tray.querySelector('[data-tray-emblem]')).toHaveAttribute('data-tray-emblem', color)
+    expect(tray.querySelector('[data-mark]')).not.toBeInTheDocument()
     for (const { name } of Object.values(COLORS)) expect(container).not.toHaveTextContent(name)
   }
+})
+
+test('stored, queued and collected screws show their drive marks', () => {
+  let state = removeScrew(createPuzzle(2), 'right-roof-1')
+  state = removeScrew(state, 'front-brace-1')
+  const { container } = render(<CollectionTrays state={state} />)
+  expect(screen.getByRole('img', { name: 'Blue screw in spare slot 1' }).querySelector('[data-mark]')).toHaveAttribute('data-mark', 'blue')
+  expect(screen.getByRole('img', { name: 'Coral tray: 1 of 3' }).querySelector('[data-tray-slot="0"] [data-mark]')).toHaveAttribute('data-mark', 'coral')
+  expect([...screen.getByRole('group', { name: /^Upcoming trays/ }).querySelectorAll('[data-mark]')].map((mark) => mark.getAttribute('data-mark'))).toEqual(state.queue)
+  expect(container.querySelectorAll('[data-tray-emblem]')).toHaveLength(2)
 })
 
 test('a completed tray adopts the incoming color and displays screws drained from storage', () => {
