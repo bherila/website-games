@@ -53,6 +53,19 @@ export function getVisualTestConfig(
   }
 }
 
+/**
+ * Renderer cost telemetry (draw calls, triangles, frame ms) is a developer
+ * readout: shown only to visual tests and to `?renderStats=1`, never in an
+ * ordinary session, where it would take HUD space from the game itself.
+ * Pool-pressure warnings (people/cars clipped) stay visible regardless.
+ */
+export function shouldShowRenderCost(
+  search: string = typeof window === 'undefined' ? '' : window.location.search,
+): boolean {
+  const params = new URLSearchParams(search)
+  return params.get('visualTest') === '1' || params.get('renderStats') === '1'
+}
+
 export function markVisualReady(): void {
   if (typeof window === 'undefined') {
     return

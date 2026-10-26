@@ -448,16 +448,16 @@ function refreshFlags(state: EngineState, unit: Unit): void {
 // ── Vacancy reasons ──────────────────────────────────────────────────────────
 
 const TOO_NOISY_THRESHOLD = 15
-const RESTROOM_THRESHOLD = 15
 
 function dominantVacancyReason(unit: Unit, breakdown: EvalBreakdown, fallback: VacancyReason): VacancyReason {
   if (unit.flags.noRoute) {
     return 'noRoute'
   }
   // Restroom is now a soft penalty, so attribute the vacancy to it only when the
-  // comfort drag is severe (no reachable restroom on the floor) — a mild penalty
-  // shouldn't mask noise/congestion as the real cause.
-  if (breakdown.restroomComfortPenalty >= RESTROOM_THRESHOLD) {
+  // comfort drag is at its full value (no restroom serving the office) — a mild
+  // penalty shouldn't mask noise/congestion as the real cause. The full value is
+  // the TUNING weight itself; a fixed bar above it could never be reached.
+  if (breakdown.restroomComfortPenalty >= TUNING.evalWeights.restroomComfortPenalty) {
     return 'noRestroom'
   }
   if (breakdown.noisePenalty >= TOO_NOISY_THRESHOLD) {
@@ -496,7 +496,7 @@ function fillPopulation(state: EngineState, unit: Unit): void {
   }
 }
 
-function tryLease(state: EngineState, unit: Unit, events: EngineEvent[]): void {
+function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, events: EngineEvent[]): void {
   const def = itemDef(unit.kind)
   if (unit.offline || unit.infested) {
     return
@@ -511,6 +511,9 @@ function tryLease(state: EngineState, unit: Unit, events: EngineEvent[]): void {
     return
   }
   if (unit.evalScore < TUNING.rent.leasabilityThreshold[unit.rentTier]) {
+    // Name the blocker the same way a move-out is explained, so a unit that has
+    // never leased is not a silent dead end. State only — no event, no rng.
+    unit.vacancyReason = dominantVacancyReason(unit, breakdown, 'lowEval')
     return
   }
   unit.occupied = true
@@ -580,7 +583,7 @@ export function occupancyPass(state: EngineState, events: EngineEvent[]): void {
       continue
     }
     if (!unit.occupied) {
-      tryLease(state, unit, events)
+      tryLease(state, unit, breakdown, events)
       continue
     }
     if (breakdown.score < TUNING.rent.leasabilityThreshold[unit.rentTier]) {

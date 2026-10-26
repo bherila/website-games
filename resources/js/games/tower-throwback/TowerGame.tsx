@@ -18,6 +18,7 @@ import { isSlabFamily, selectableAt } from './engine/grid'
 import { catchmentField as computeCatchmentField } from './engine/heatmaps'
 import { CITY_TOWER, getMap } from './engine/maps'
 import { evalBreakdown } from './engine/occupancy'
+import { hasRouteToLobby } from './engine/routing'
 import { buildScenario } from './engine/scenarios'
 import {
   claimSandboxSlot,
@@ -49,6 +50,7 @@ import { DisplaySettings } from './hud/DisplaySettings'
 import { FinancialsPanel } from './hud/FinancialsPanel'
 import { FloorNavigator, floorRangeForState } from './hud/FloorNavigator'
 import { GettingStarted } from './hud/GettingStarted'
+import { HUD_TOOLBAR_BUTTON, HUD_TOOLBAR_SAVE_BUTTON } from './hud/hudButtonStyles'
 import { FireBanner, IncidentBanner } from './hud/IncidentBanner'
 import { InspectPanel, type InspectSelection } from './hud/InspectPanel'
 import { LoanDialog } from './hud/LoanDialog'
@@ -82,7 +84,7 @@ import { useCloudSaveSync } from './useCloudSaveSync'
 import { type AutosaveOutcome, useDirtyAutosave } from './useDirtyAutosave'
 import { usePresentationPrefs } from './usePresentationPrefs'
 import { useTowerKeyboardShortcuts } from './useTowerKeyboardShortcuts'
-import { getVisualTestConfig, visualToastHistoryFixture } from './visualTestMode'
+import { getVisualTestConfig, shouldShowRenderCost, visualToastHistoryFixture } from './visualTestMode'
 
 type GameMode = 'run' | 'build'
 
@@ -204,14 +206,17 @@ export function TowerGame(): ReactElement {
   const [overlaySample, setOverlaySample] = useState<HeatmapTileSample | null>(null)
   const [cameraViewport, setCameraViewport] = useState<CameraViewport | null>(null)
   const [renderMetrics, setRenderMetrics] = useState<RenderMetrics | null>(null)
+  const [showRenderCost] = useState(() => shouldShowRenderCost())
   const handleRenderMetrics = useCallback((metrics: RenderMetrics) => {
-    setRenderMetrics(metrics)
+    if (showRenderCost) {
+      setRenderMetrics(metrics)
+    }
     // Expose the GPU draw-call count so the Playwright draw-call budget spec can
     // assert against the real renderer, not scraped HUD text.
     if (visualTestMode && typeof window !== 'undefined') {
       window.__TOWER_DRAW_CALLS__ = metrics.drawCalls
     }
-  }, [visualTestMode])
+  }, [showRenderCost, visualTestMode])
   const [showFinancials, setShowFinancials] = useState(false)
   const [showInventory, setShowInventory] = useState(false)
   const [showSaveLoad, setShowSaveLoad] = useState(visualTestConfig?.surface === 'disasters')
@@ -783,7 +788,7 @@ export function TowerGame(): ReactElement {
               onClick={toggleMode}
               title="Shortcut: B"
               className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold shadow ${
-                mode === 'build' ? 'bg-amber-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'
+                mode === 'build' ? 'bg-amber-500 text-black' : HUD_TOOLBAR_BUTTON
               }`}
             >
               <span>{mode === 'build' ? 'Done' : 'Build'}</span>
@@ -793,7 +798,7 @@ export function TowerGame(): ReactElement {
               type="button"
               onClick={toggleFinancials}
               title="Shortcut: F"
-              className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-white/20"
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
             >
               <span>Financials</span>
               <kbd className="rounded bg-black/25 px-1 text-[10px]">F</kbd>
@@ -802,7 +807,7 @@ export function TowerGame(): ReactElement {
               ref={inventoryButtonRef}
               type="button"
               onClick={() => setShowInventory(true)}
-              className="rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-white/20"
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
             >
               Inventory
             </button>
@@ -814,14 +819,14 @@ export function TowerGame(): ReactElement {
                 refreshSlots()
                 setShowSaveLoad(true)
               }}
-              className="rounded-md bg-white/10 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-white/20"
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
             >
               Saves
             </button>
             <button
               type="button"
               onClick={saveCurrentTowerAndExit}
-              className="rounded-md bg-emerald-500/25 px-3 py-1.5 text-sm font-semibold text-emerald-100 shadow hover:bg-emerald-500/40"
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_SAVE_BUTTON}`}
             >
               Save &amp; Exit
             </button>
@@ -834,8 +839,8 @@ export function TowerGame(): ReactElement {
               onSetPaletteMode={presentation.setDiagnosticPalette}
               onSetMotion={presentation.setMotion}
             />
-            <FullscreenIconButton className="rounded-md bg-white/10 text-white shadow hover:bg-white/20" iconClassName="size-4" />
-            <div className="inline-flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 shadow">
+            <FullscreenIconButton className={`rounded-md shadow ${HUD_TOOLBAR_BUTTON}`} iconClassName="size-4" />
+            <div className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 shadow ${HUD_TOOLBAR_BUTTON}`}>
               <SoundToggle muted={muted} onMutedChange={toggleMute} title="Shortcut: M" className="inline-flex h-auto w-auto items-center gap-1.5 rounded-none text-sm hover:opacity-80">
                 <span>{muted ? '🔇' : '🔊'}</span>
                 <kbd className="rounded bg-black/25 px-1 text-[10px]">M</kbd>
@@ -857,7 +862,7 @@ export function TowerGame(): ReactElement {
               onClick={toggleShortcutHelp}
               aria-label="Keyboard shortcuts"
               title="Keyboard shortcuts (?)"
-              className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2.5 py-1.5 text-sm font-semibold text-white shadow hover:bg-white/20"
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
             >
               <kbd className="rounded bg-black/25 px-1 text-[10px]">?</kbd>
             </button>
@@ -939,6 +944,11 @@ export function TowerGame(): ReactElement {
             evalBreakdown={
               selection?.type === 'unit' && !isSlabFamily(selection.unit.kind)
                 ? evalBreakdown(engineState, selection.unit)
+                : undefined
+            }
+            routedToLobby={
+              selection?.type === 'unit' && !isSlabFamily(selection.unit.kind)
+                ? hasRouteToLobby(engineState, selection.unit, { bypassCache: true })
                 : undefined
             }
             lobbyHeight={engineState.lobbyHeight}

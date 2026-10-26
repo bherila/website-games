@@ -191,7 +191,10 @@ overall 0–100 clamp.
 
 **Leasability thresholds** by rent tier: low ≥ 35 · avg ≥ 50 · high ≥ 65. A unit below its
 threshold cannot lease; an occupied unit below threshold for 3 consecutive daily settlements is
-at move-out risk (see below).
+at move-out risk (see below). A vacant unit that fails to lease records the same dominant cause as
+a move-out (`vacancyReason`, without an event), and its issue states its desirability, the bar its
+rent tier needs, and whether Low rent alone would lease it. A missing restroom is named as the cause
+when its comfort drag is at full strength.
 
 ## Noise model
 
@@ -288,6 +291,11 @@ low rent ×1.5 · avg ×1.0 · high ×0.7.
   shaft to set that end's absolute floor. Added floors cost the shaft's per-floor rate; removed
   floors refund at the demolition rate. Stops are re-derived, at least one enabled stop must
   remain, cars clamp into the new span, and journeys using removed landings re-plan immediately.
+  Landings the resize adds start enabled; landings it keeps retain their enabled/disabled choice.
+- **Later floors gain landings**: a shaft serves floors its column gains after it was built. A
+  floor (or skylobby) laid through a shaft's span — or beside a glass elevator — adds that landing,
+  enabled, as if the shaft had been placed over the finished floor; an express shaft keeps its
+  5-stop cap and existing disabled landings stay disabled.
 - **Determinism**: shafts iterate by ascending id, cars by index, queues FIFO; elevator logic
   consumes NO rng. Defaults are sensible so casual players can ignore programming entirely.
 
@@ -447,6 +455,8 @@ odd/even car trick works) · tenant requests as soft tutorial.
     not operating, else a **yellow→green** ramp by cached `evalScore`
     (`t = clamp((eval − 35) / 50, 0, 1)`).
 - A car at capacity shows an **`F` badge** riding the cabin (see Elevator SCAN policy).
+- Renderer cost telemetry (draw calls, triangles, frame ms) appears only in visual-test mode or
+  with `?renderStats=1`; render-pool pressure warnings (clipped people/cars) always appear.
 - **Bulk build**: holding **Shift** while dragging with an item tool stamps a grid — columns
   tile by the item's width, floors step by its storeys (per-tile items place one full-width row
   per floor). Cells are enqueued bottom-to-top so stacked slab rows support each other; invalid

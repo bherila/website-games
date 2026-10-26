@@ -17,7 +17,7 @@ function tower(topFloor = 10): EngineState {
 }
 
 describe('resizeShaft', () => {
-  it('extends upward, downward, and both ways at the per-floor cost while preserving enabled stops', () => {
+  it('extends upward, downward, and both ways at the per-floor cost, keeping disabled landings and enabling new ones', () => {
     const upward = tower()
     const upwardId = placeShaft(upward, 'standard', 10, 0, 2)
     const upwardShaft = upward.shafts[0]!
@@ -26,7 +26,9 @@ describe('resizeShaft', () => {
     run(upward, { type: 'resizeShaft', shaftId: upwardId, bottomFloor: 0, topFloor: 5 })
     expect(upwardShaft.topFloor).toBe(5)
     expect(upwardShaft.stops).toEqual([0, 1, 2, 3, 4, 5])
-    expect(upwardShaft.enabledStops).toEqual([0, 2])
+    // The player's disabled landing 1 stays disabled; landings 3–5 the
+    // extension paid for are served, as on a freshly placed shaft.
+    expect(upwardShaft.enabledStops).toEqual([0, 2, 3, 4, 5])
     expect(upward.funds).toBe(upwardFunds - 3 * 5000)
 
     const downward = tower()

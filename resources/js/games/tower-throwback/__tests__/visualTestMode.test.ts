@@ -1,4 +1,4 @@
-import { getVisualTestConfig } from '../visualTestMode'
+import { getVisualTestConfig, shouldShowRenderCost } from '../visualTestMode'
 
 describe('visual test mode', () => {
   it.each(['bulkGhost', 'eval', 'heatmap', 'disasters', 'toastHistory', 'shaftResize'] as const)(
@@ -43,5 +43,17 @@ describe('visual test mode', () => {
       surface: null,
       time,
     })
+  })
+})
+
+describe('shouldShowRenderCost', () => {
+  it('hides renderer cost telemetry from an ordinary session', () => {
+    expect(shouldShowRenderCost('')).toBe(false)
+    expect(shouldShowRenderCost('?seed=4')).toBe(false)
+  })
+
+  it('shows it to visual tests and to an explicit renderStats request', () => {
+    expect(shouldShowRenderCost('?visualTest=1&scenario=endgame')).toBe(true)
+    expect(shouldShowRenderCost('?renderStats=1')).toBe(true)
   })
 })

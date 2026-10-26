@@ -39,6 +39,8 @@ interface InspectPanelProps {
   vipRecords?: readonly VipRecord[]
   /** Live desirability factor breakdown for the selected unit (recomputed each frame). */
   evalBreakdown?: EvalBreakdown | undefined
+  /** Whether the selected unit can reach the lobby now; its own flag waits for the 08:00 pass. */
+  routedToLobby?: boolean | undefined
   /** Needed only to price lobby demolition exactly. */
   lobbyHeight?: 1 | 2 | 3
   /** Excavation pricing is map-relative, so the panel needs the active map. */
@@ -71,6 +73,36 @@ const PROGRAM_SLOTS: Array<{ slot: ProgramSlot; label: string }> = [
 const PRIORITIES: DirectionPriority[] = ['balanced', 'expressToTop', 'expressToBottom']
 
 const RENT_TIERS: RentTier[] = ['low', 'avg', 'high']
+
+const RENT_TIER_NAMES: Record<RentTier, string> = { low: 'Low', avg: 'Average', high: 'High' }
+
+/**
+ * When and whether a vacant office/apartment will lease: tenants only view
+ * vacancies at the daily 08:00 pass (offices on weekdays), against the rent
+ * tier's desirability bar. Read-only presentation of the engine's rule.
+ * `routed` is the live route to the lobby: the unit's flag is only refreshed
+ * at that 08:00 pass, so it is stale for a unit placed or connected since.
+ */
+export function leaseOutlook(unit: Unit, desirability: number, routed = !unit.flags.noRoute): string | null {
+  const category = itemDef(unit.kind).category
+  if (unit.occupied || (category !== 'office' && category !== 'residential')) {
+    return null
+  }
+  if (!routed) {
+    return 'Cannot lease until stairs or an elevator connect it to the lobby'
+  }
+  if (unit.offline || unit.infested) {
+    return 'Cannot lease until the issue above is fixed'
+  }
+  const when = category === 'office' ? '08:00 on a weekday' : '08:00'
+  const needed = TUNING.rent.leasabilityThreshold[unit.rentTier]
+  // Lease against the exact score, as the 08:00 pass does. Shown short of the bar, it rounds down,
+  // so a 49.8 never reads as the 50 it needs.
+  if (desirability >= needed) {
+    return `Tenants move in at the next ${when}`
+  }
+  return `Needs desirability ${needed} at ${RENT_TIER_NAMES[unit.rentTier]} rent (now ${Math.floor(desirability)}); tenants look at ${when}`
+}
 
 /** Clinic copay levels reuse the rentTier field; higher copay earns more per visit. */
 const COPAY_TIERS: Array<{ tier: RentTier; label: string }> = [
@@ -173,6 +205,7 @@ function UnitInspect({
   mapId,
   vipRecords,
   evalBreakdown,
+  routedToLobby,
   onSetRentTier,
   onApplyUpgrade,
   onPestControl,
@@ -185,6 +218,7 @@ function UnitInspect({
   mapId: string
   vipRecords: readonly VipRecord[]
   evalBreakdown?: EvalBreakdown | undefined
+  routedToLobby?: boolean | undefined
   onSetRentTier: InspectPanelProps['onSetRentTier']
   onApplyUpgrade: InspectPanelProps['onApplyUpgrade']
   onPestControl: InspectPanelProps['onPestControl']
@@ -202,6 +236,9 @@ function UnitInspect({
   const issues = unitIssues(unit)
   const weeklyStress = weeklyTenantStress(unit)
   const factorLines = evalBreakdown ? evalFactorLines(evalBreakdown) : []
+  // The live score: a new unit's cached evalScore is 0 until its first 08:00 pass.
+  const desirability = evalBreakdown?.score ?? unit.evalScore
+  const outlook = leaseOutlook(unit, desirability, routedToLobby ?? !unit.flags.noRoute)
   const vipRecord = vipRecords.find((record) => record.state === 'resident' && record.unitId === unit.id)
   const vipReport = vipRecord?.lastReport[0]
 
@@ -269,8 +306,15 @@ function UnitInspect({
           <>
             <dt className="text-white/50">Desirability</dt>
             <dd className="tabular-nums" data-testid="eval-score">
-              {Math.round(unit.evalScore)}/100
+              {/* Rounded down, so it never shows a bar as met that the lease check would reject. */}
+              {Math.floor(desirability)}/100
             </dd>
+          </>
+        )}
+        {outlook && (
+          <>
+            <dt className="text-white/50">Leasing</dt>
+            <dd data-testid="lease-outlook">{outlook}</dd>
           </>
         )}
         {income && (
@@ -710,6 +754,7 @@ export function InspectPanel(props: InspectPanelProps): ReactElement {
           mapId={props.mapId ?? CITY_TOWER.id}
           vipRecords={props.vipRecords ?? []}
           evalBreakdown={props.evalBreakdown}
+          routedToLobby={props.routedToLobby}
           onSetRentTier={props.onSetRentTier}
           onApplyUpgrade={props.onApplyUpgrade}
           onPestControl={props.onPestControl}

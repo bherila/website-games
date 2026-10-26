@@ -40,6 +40,15 @@ function doneById(steps: ReturnType<typeof gettingStartedSteps>): Record<string,
 }
 
 describe('gettingStartedSteps', () => {
+  it('names the build order a new tower needs before anyone can lease', () => {
+    const [structure, tenants] = gettingStartedSteps(snapshot())
+    // An empty lot has no lobby; offices without a restroom never reach the average-rent bar.
+    expect(structure!.label).toMatch(/lobby/)
+    expect(structure!.label).toMatch(/stairs or an elevator/)
+    expect(tenants!.label).toMatch(/offices with a restroom/)
+    expect(tenants!.label).toMatch(/08:00/)
+  })
+
   it('marks every step pending for a brand-new empty tower', () => {
     const done = doneById(gettingStartedSteps(snapshot()))
     expect(Object.values(done).every((value) => value === false)).toBe(true)

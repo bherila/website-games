@@ -496,7 +496,9 @@ export function validateShaftResize(state: EngineState, cmd: ResizeShaftCommand)
   }
 
   const stops = computeShaftStops(state, placementCommand)
-  const enabledStops = shaft.enabledStops.filter((floor) => stops.includes(floor))
+  // Landings the resize ADDS start enabled, like a freshly placed shaft's; the
+  // player's choices for landings it keeps are preserved as they were.
+  const enabledStops = stops.filter((floor) => shaft.enabledStops.includes(floor) || !shaft.stops.includes(floor))
   if (enabledStops.length === 0) {
     return { ok: false, reason: 'A resized elevator must keep at least one enabled stop' }
   }
@@ -615,8 +617,10 @@ export function applyPlacement(state: EngineState, cmd: PlacementCommand): Engin
   state.nextId += 1
   let cost: number
   let event: EngineEvent
+  let slabFootprint: Footprint | null = null
   if (cmd.type === 'place') {
     const fp = itemFootprint(state, cmd)
+    slabFootprint = isSlabFamily(cmd.kind) ? fp : null
     cost = itemCost(state, cmd, fp)
     state.units.push(newUnit(id, cmd, fp, getMap(state.mapId)))
     event = { type: 'placed', kind: cmd.kind, cost, unitId: id }
@@ -627,7 +631,50 @@ export function applyPlacement(state: EngineState, cmd: PlacementCommand): Engin
   }
   state.structureVersion += 1
   rebuildGrid(state)
+  if (slabFootprint) {
+    addLandingsGainedBySlab(state, slabFootprint.floorLo, slabFootprint.floorHi)
+  }
   return [event]
+}
+
+/**
+ * A shaft serves every floor its column gains after it was built. Laying a
+ * slab-family run through (or, for a glass elevator, beside) an existing shaft
+ * on a floor inside its span adds that landing, enabled, exactly as if the
+ * shaft had been placed over the finished floor. Landings it already has, and
+ * the player's disabled choices among them, are untouched; an express shaft
+ * keeps its stop cap. Consumes no rng.
+ */
+function addLandingsGainedBySlab(state: EngineState, lowFloor: number, highFloor: number): void {
+  for (const shaft of state.shafts) {
+    if (highFloor < shaft.bottomFloor || lowFloor > shaft.topFloor) {
+      continue
+    }
+    const derived = computeShaftStops(state, {
+      type: 'placeShaft',
+      kind: shaft.kind,
+      x: shaft.x,
+      bottomFloor: shaft.bottomFloor,
+      topFloor: shaft.topFloor,
+    })
+    const maxStops = shaftDef(shaft.kind).maxStops
+    const stops = new Set(shaft.stops)
+    const enabled = new Set(shaft.enabledStops)
+    for (const floor of derived) {
+      if (stops.has(floor)) {
+        continue
+      }
+      if (maxStops !== undefined && stops.size >= maxStops) {
+        break
+      }
+      stops.add(floor)
+      enabled.add(floor)
+    }
+    if (stops.size !== shaft.stops.length) {
+      shaft.stops = [...stops].sort((a, b) => a - b)
+      shaft.enabledStops = [...enabled].sort((a, b) => a - b)
+    }
+  }
 }
 
 // ── Demolition ────────────────────────────────────────────────────────────────

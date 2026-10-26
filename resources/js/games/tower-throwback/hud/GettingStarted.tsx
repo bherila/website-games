@@ -32,8 +32,16 @@ export function gettingStartedSteps(snapshot: HudSnapshot): GettingStartedStep[]
   const armed = vipGoal !== null && vipGoal.status !== 'notArmed'
   const hosting = vipGoal !== null && (vipGoal.status === 'visiting' || vipGoal.status === 'resident')
   return [
-    { id: 'firstActivity', label: 'Build a unit and an elevator so people can arrive', done: snapshot.activePeople >= 1 || population >= 1 },
-    { id: 'firstTenants', label: 'Lease to your first tenants', done: population >= 1 },
+    {
+      id: 'firstActivity',
+      label: 'Lay a ground-floor lobby, a floor above it, and stairs or an elevator from the lobby',
+      done: snapshot.activePeople >= 1 || population >= 1,
+    },
+    {
+      id: 'firstTenants',
+      label: 'Add apartments, or offices with a restroom on their floor; tenants move in at 08:00',
+      done: population >= 1,
+    },
     { id: 'growPopulation', label: 'Grow halfway to the Star 2 population', done: starProgress !== null && starProgress.progress >= 0.5 },
     { id: 'reachThreshold', label: 'Reach the Star 2 population goal', done: armed || (starProgress !== null && starProgress.remaining === 0) },
     { id: 'hostInspector', label: 'Host the Star 2 VIP inspection', done: hosting || star >= 2 },

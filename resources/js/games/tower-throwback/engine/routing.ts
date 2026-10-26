@@ -301,15 +301,18 @@ export function findRoute(
   return materialize(fromFloor, fromX, toX, path)
 }
 
-/** True when the unit can reach any ground-floor segment (street level counts as lobby access). */
-export function hasRouteToLobby(state: EngineState, unit: Unit): boolean {
+/**
+ * True when the unit can reach any ground-floor segment (street level counts as lobby access).
+ * UI callers pass `bypassCache` so a look in the inspector never seeds a path the sim reuses.
+ */
+export function hasRouteToLobby(state: EngineState, unit: Unit, opts: RouteOpts = {}): boolean {
   const lobbyFloor = getMap(state.mapId).lobbyAnchorFloor
   if (unit.floor === lobbyFloor) {
     return segmentAt(state, unit.floor, unit.x) !== null
   }
   const lobbySegs = getSegments(state).get(lobbyFloor) ?? []
   for (const seg of lobbySegs) {
-    if (findRoute(state, unit.floor, unit.x, lobbyFloor, seg.x0) !== null) {
+    if (findRoute(state, unit.floor, unit.x, lobbyFloor, seg.x0, opts) !== null) {
       return true
     }
   }
