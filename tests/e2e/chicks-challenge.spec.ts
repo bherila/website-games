@@ -181,6 +181,51 @@ test.describe("Chick's Challenge board layout", () => {
     await expect(page.getByTestId('hint-banner')).toBeVisible()
   })
 
+  test('turns one natural swipe or D-pad press into exactly one step on a phone', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-mobile-375', 'Touch input needs the phone-sized touch project')
+
+    // Level 16's start has open floor to its right, so every right step is accepted.
+    await page.addInitScript(() => localStorage.setItem('bwh.chicks-challenge.board-orientation.v1', JSON.stringify('upright')))
+    await page.goto('/chicks-challenge?level=16')
+    await waitForBoard(page)
+    await expect(page.getByLabel('0 of 15 moves')).toBeVisible()
+
+    // A 100px swipe over 250ms crosses the 24px threshold early and keeps moving
+    // for ~190ms. Repeats used to start 150ms after the threshold, so this one
+    // gesture stepped twice. Synthetic touches give exact timing.
+    await page.getByTestId('chips-board').evaluate(async (board) => {
+      const rect = board.getBoundingClientRect()
+      const x0 = rect.left + rect.width / 2
+      const y0 = rect.top + rect.height * 0.8
+      const touchAt = (x: number): Touch => new Touch({ identifier: 7, target: board, clientX: x, clientY: y0 })
+      const fire = (type: string, touch: Touch, active: Touch[]): void => {
+        board.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches: active, targetTouches: active, changedTouches: [touch] }))
+      }
+      let touch = touchAt(x0)
+      fire('touchstart', touch, [touch])
+      const start = performance.now()
+      while (performance.now() - start < 250) {
+        await new Promise((resolve) => setTimeout(resolve, 16))
+        touch = touchAt(x0 + 100 * Math.min(1, (performance.now() - start) / 250))
+        fire('touchmove', touch, [touch])
+      }
+      fire('touchend', touch, [])
+    })
+    await page.waitForTimeout(600)
+    await expect(page.getByLabel('1 of 15 moves')).toBeVisible()
+
+    // A deliberate ~250ms thumb press on the D-pad is also one step.
+    const cdp = await page.context().newCDPSession(page)
+    const pad = await page.getByTestId('touch-dpad-right').boundingBox()
+    expect(pad).not.toBeNull()
+    const point = { x: (pad?.x ?? 0) + (pad?.width ?? 0) / 2, y: (pad?.y ?? 0) + (pad?.height ?? 0) / 2, id: 1 }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] })
+    await page.waitForTimeout(250)
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await page.waitForTimeout(600)
+    await expect(page.getByLabel('2 of 15 moves')).toBeVisible()
+  })
+
   test('keeps an overlay dialog reachable on a viewport shorter than the dialog', async ({ page }) => {
     // Level 11 is a square 11x11 board (it never rotates) whose start sits three
     // steps above a water band: one sidestep, then three downs, drowns the chick.

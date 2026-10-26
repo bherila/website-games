@@ -161,10 +161,13 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 
 ## Controls
 
-- **Keyboard:** arrows / WASD = step; hold auto-repeats a step every 150 ms (only when the previous
-  move resolved); Space = wait; R = restart; Esc = level select.
-- **Touch:** swipe anywhere on the board = one step in the swipe direction; touch-hold after a swipe
-  keeps stepping in that direction at the auto-repeat cadence. An on-screen **D-pad**
+- **Keyboard:** arrows / WASD = step; holding past the 400 ms repeat delay (`INPUT_REPEAT_DELAY_MS`)
+  auto-repeats a step every 150 ms; Space = wait; R = restart; Esc = level select.
+- **One press is one step (normative):** every source repeats through `input/holdRepeat.ts`, which
+  fires once on press and only starts repeating after the repeat delay. Without the delay a 200 ms
+  D-pad press or a 250 ms swipe produced two steps on a phone.
+- **Touch:** swipe anywhere on the board = one step in the swipe direction; keeping the finger down
+  after a swipe, past the repeat delay, keeps stepping in that direction at the auto-repeat cadence. An on-screen **D-pad**
   (≥ 44 px targets, built on the `hover/hud/TouchControls.tsx` pointer-capture pattern) renders only
   when `isTouchDevice()`; tapping the player character = wait. The pad lives in the toolbar
   (`hud/GameToolbar.tsx`) — a bottom row in portrait, a right-hand column in landscape.

@@ -12,6 +12,11 @@ export const STEP_TWEEN_MS = 110
 export const SLIDE_TWEEN_MS = 70
 /** Auto-repeat cadence while a key/direction is held. */
 export const INPUT_REPEAT_MS = 150
+/**
+ * How long a press must be held before auto-repeat starts. A normal tap or
+ * swipe lasts well under this, so one gesture is always exactly one step.
+ */
+export const INPUT_REPEAT_DELAY_MS = 400
 /** Max queued intents so fast play stays responsive without skipping. */
 export const INPUT_BUFFER_MAX = 2
 

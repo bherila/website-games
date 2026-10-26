@@ -1,8 +1,8 @@
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
-import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, useRef } from 'react'
+import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, useState } from 'react'
 
 import type { MoveIntent } from '../engine/types'
-import { INPUT_REPEAT_MS } from '../gameTypes'
+import { createHoldRepeat } from '../input/holdRepeat'
 
 interface TouchDpadProps {
   onIntent: (intent: MoveIntent) => void
@@ -10,28 +10,21 @@ interface TouchDpadProps {
 
 /**
  * On-screen D-pad for touch devices, built on the same pointer-capture pattern as
- * `hover/hud/TouchControls.tsx`. Each direction repeats at the keyboard
- * auto-repeat cadence while held; the center button is wait. Buttons are 48px
+ * `hover/hud/TouchControls.tsx`. A press is one step; holding past the repeat
+ * delay (`input/holdRepeat.ts`) auto-repeats at the keyboard cadence. The
+ * center button is wait. Buttons are 48px
  * (above the 44px minimum). Placement (bottom row in portrait, right-hand column
  * in landscape) and safe-area insets are owned by `hud/GameToolbar.tsx`, which
  * lays the pad out as a sibling of the playfield rather than on top of it.
  */
 export function TouchDpad({ onIntent }: TouchDpadProps): ReactElement {
-  const intervalRef = useRef<number | null>(null)
+  const [repeat] = useState(createHoldRepeat)
+  const stopRepeat = repeat.stop
 
-  const stopRepeat = (): void => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-  }
-
-  useEffect(() => stopRepeat, [])
+  useEffect(() => repeat.stop, [repeat])
 
   const startRepeat = (intent: MoveIntent): void => {
-    stopRepeat()
-    onIntent(intent)
-    intervalRef.current = window.setInterval(() => onIntent(intent), INPUT_REPEAT_MS)
+    repeat.start(() => onIntent(intent))
   }
 
   const releasePointerCapture = (event: ReactPointerEvent<HTMLButtonElement>): void => {

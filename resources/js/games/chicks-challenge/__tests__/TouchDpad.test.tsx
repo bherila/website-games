@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 
-import { INPUT_REPEAT_MS } from '../gameTypes'
+import { INPUT_REPEAT_DELAY_MS, INPUT_REPEAT_MS } from '../gameTypes'
 import { TouchDpad } from '../hud/TouchDpad'
 
 /** jsdom doesn't implement the Pointer Events capture API; stub it per house convention (see hover/__tests__/touchInput.dom.test.tsx). */
@@ -47,7 +47,22 @@ describe('TouchDpad', () => {
     expect(onIntent).toHaveBeenCalledWith('up')
   })
 
-  it('auto-repeats at the keyboard cadence while held', () => {
+  it('keeps a press shorter than the repeat delay to exactly one step', () => {
+    const onIntent = jest.fn()
+    render(<TouchDpad onIntent={onIntent} />)
+
+    const right = screen.getByTestId('touch-dpad-right')
+    stubPointerCapture(right)
+    fireEvent.pointerDown(right, { pointerId: 1 })
+    // A deliberate thumb press (~200-300 ms) used to repeat at 150 ms.
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS - 1)
+    fireEvent.pointerUp(right, { pointerId: 1 })
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS * 2)
+
+    expect(onIntent).toHaveBeenCalledTimes(1)
+  })
+
+  it('auto-repeats at the keyboard cadence once held past the repeat delay', () => {
     const onIntent = jest.fn()
     render(<TouchDpad onIntent={onIntent} />)
 
@@ -56,7 +71,9 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(right, { pointerId: 1 })
     expect(onIntent).toHaveBeenCalledTimes(1)
 
-    jest.advanceTimersByTime(INPUT_REPEAT_MS * 3)
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS)
+    expect(onIntent).toHaveBeenCalledTimes(2)
+    jest.advanceTimersByTime(INPUT_REPEAT_MS * 2)
     expect(onIntent).toHaveBeenCalledTimes(4)
   })
 
@@ -69,7 +86,7 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(down, { pointerId: 1 })
     fireEvent.pointerUp(down, { pointerId: 1 })
 
-    jest.advanceTimersByTime(INPUT_REPEAT_MS * 3)
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS + INPUT_REPEAT_MS * 3)
 
     expect(onIntent).toHaveBeenCalledTimes(1)
     expect(down.releasePointerCapture).toHaveBeenCalledTimes(1)
@@ -84,7 +101,7 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(left, { pointerId: 1 })
     fireEvent.pointerCancel(left, { pointerId: 1 })
 
-    jest.advanceTimersByTime(INPUT_REPEAT_MS * 3)
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS + INPUT_REPEAT_MS * 3)
 
     expect(onIntent).toHaveBeenCalledTimes(1)
     expect(left.releasePointerCapture).toHaveBeenCalledTimes(1)

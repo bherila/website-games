@@ -21,11 +21,12 @@ import { applyMove } from './engine/applyMove'
 import type { EngineEvent, GameState, MoveIntent } from './engine/types'
 import { tileAt } from './engine/types'
 import { loadSavedProgress, recordWin, saveProgress } from './gameProgress'
-import { type GamePhase, INPUT_BUFFER_MAX, INPUT_REPEAT_MS, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS } from './gameTypes'
+import { type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS } from './gameTypes'
 import { GameHud } from './hud/GameHud'
 import { GameToolbar } from './hud/GameToolbar'
 import { HintBanner } from './hud/HintBanner'
 import { levelInventorySlots } from './hud/inventorySlots'
+import { createHoldRepeat } from './input/holdRepeat'
 import { createInputQueue, keyboardIntent } from './input/inputQueue'
 import { cycleBoardOrientationPreference, rotateIntent } from './input/orientation'
 import { loadBoardOrientationPreference, saveBoardOrientationPreference } from './input/orientationStorage'
@@ -129,7 +130,7 @@ export function ChicksGame(): ReactElement {
   const gameStateRef = useRef(gameState)
   const deathTimeoutRef = useRef<number | null>(null)
   const heldKeyRef = useRef<string | null>(null)
-  const repeatIntervalRef = useRef<number | null>(null)
+  const keyRepeatRef = useRef(createHoldRepeat())
   const recordedRef = useRef<string>('')
   const sfxRef = useRef<SfxEngine | null>(null)
   const mutedRef = useRef(muted)
@@ -203,10 +204,7 @@ export function ChicksGame(): ReactElement {
   }, [])
 
   const clearKeyRepeat = useCallback((): void => {
-    if (repeatIntervalRef.current !== null) {
-      window.clearInterval(repeatIntervalRef.current)
-      repeatIntervalRef.current = null
-    }
+    keyRepeatRef.current.stop()
     heldKeyRef.current = null
   }, [])
 
@@ -378,12 +376,7 @@ export function ChicksGame(): ReactElement {
       }
 
       heldKeyRef.current = event.key
-      enqueueIntent(intent)
-
-      if (repeatIntervalRef.current !== null) {
-        window.clearInterval(repeatIntervalRef.current)
-      }
-      repeatIntervalRef.current = window.setInterval(() => enqueueIntent(intent), INPUT_REPEAT_MS)
+      keyRepeatRef.current.start(() => enqueueIntent(intent))
     }
 
     function handleKeyUp(event: KeyboardEvent): void {
@@ -402,13 +395,10 @@ export function ChicksGame(): ReactElement {
     }
   }, [phase, enqueueIntent, handleRestart, handleGoToSelect, clearKeyRepeat])
 
-  const touchRepeatRef = useRef<number | null>(null)
+  const touchRepeatRef = useRef(createHoldRepeat())
 
   const stopTouchRepeat = useCallback((): void => {
-    if (touchRepeatRef.current !== null) {
-      window.clearInterval(touchRepeatRef.current)
-      touchRepeatRef.current = null
-    }
+    touchRepeatRef.current.stop()
   }, [])
 
   // Shared with 2048 via `useSwipeGesture`; Chick's Challenge layers on
@@ -418,9 +408,8 @@ export function ChicksGame(): ReactElement {
     threshold: SWIPE_THRESHOLD_PX,
     enabled: phase === 'playing',
     onSwipe: (direction): void => {
-      enqueueIntent(direction)
-      stopTouchRepeat()
-      touchRepeatRef.current = window.setInterval(() => enqueueIntent(direction), INPUT_REPEAT_MS)
+      // One swipe is one step; keeping the finger down past the repeat delay walks on.
+      touchRepeatRef.current.start(() => enqueueIntent(direction))
     },
     onGestureEnd: stopTouchRepeat,
     onTap: (point): void => {
