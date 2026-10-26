@@ -23,7 +23,7 @@ esac
 
 stable_location=$HOME/$stable_path
 [ -d "$stable_location" ] || { echo "::error::Stable games path is not a directory." >&2; exit 1; }
-stable_root=$(readlink -f -- "$stable_location")
+stable_root=$(cd -- "$stable_location" && pwd -P)
 
 if [ "$candidate_path" = "$stable_path" ]; then
     # In the stable-directory layout, activation has renamed the exact candidate
@@ -39,7 +39,7 @@ else
     case $candidate_path in "$candidate_prefix"*) ;; *) echo "::error::Unexpected candidate path '$candidate_path'." >&2; exit 2 ;; esac
     candidate_release=${candidate_path#"$candidate_prefix"}
     case $candidate_release in '' | .* | */* | *[!A-Za-z0-9._-]*) echo "::error::Unsafe candidate release name." >&2; exit 2 ;; esac
-    candidate_root=$(readlink -f -- "$HOME/$candidate_path")
+    candidate_root=$(cd -- "$HOME/$candidate_path" && pwd -P)
 fi
 [ "$stable_root" = "$candidate_root" ] || {
     echo "::error::Stable games path does not select the candidate release." >&2
