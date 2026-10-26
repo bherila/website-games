@@ -47,6 +47,21 @@ flap, a lantern shutter that drops down the mast onto its collar, and one bolt t
 step and the deck that the lantern rests on. These three have two spare slots and may hold a
 commitment that only shows a few moves later.
 
+The railway (levels 16–20) adds dials. A dial is a disc turning over screws on the part behind
+it; a head behind it can be reached only while one of the disc's windows is over it. Every
+campaign dial is held by a stop pin, a screw just above it that a red stop on the disc's rim rests
+against; take the pin and the dial turns freely, one stop at a time, in either direction. Toy
+Steam Engine (on a wooden toy track) teaches it with one smokebox door, one window and four
+stops. Music Box (on a parlour table) has a tune dial with two windows side by side, so each stop
+shows two heads, and a lid that swings up clear of everything. Station Clock (on a platform, its
+case on a stone plinth) brings in Pearl, the fifth color, with a hex-socket mark; from here
+levels have five colors and fifteen screws. Signal Box (on a lineside bank) has two selector
+dials on different faces, each with its own pin, and a shutter that drops down its rail onto the
+brick base. Locomotive, the railway's assessment, can be started from the engine or the tender: a
+coupling pin runs through both drawbars, the tender's sides stand on its drawbar, and the coal
+hatch drops open over the tender screw below it. Every railway level has three spare slots; 16 and
+18 are teaching levels.
+
 Small painted decals mark the harbor objects: PIP on the low outer stern corner and a weathered
 brass LIGHT plaque on the lantern's front stone base. Their transparent WebP textures live in
 `assets/`; the planes travel with their panels and never participate in selection raycasts or
@@ -100,6 +115,11 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
   its own sound: a slow scrape for the slot, a climbing ratchet for the cross, even clicks for the
   square and a bright tinkle for the star. The footer's sound toggle
   persists (`bwh.plate-escape.muted.v1`). The chrome follows the site's light and dark theme.
+- A dial's control sits above the rotate controls: arrows turn it a stop either way, and arrow keys
+  turn the focused dial. With two dials each has its own control, side by side, named and marked
+  with a swatch of its disc's color. A turn is a move: undo turns it back. A refused turn says
+  what holds the dial ("The stop pin holds the smokebox door. Take it out first."), and a dial
+  turns only while the part it is mounted on is still there.
 - Undo restores the last screw, tray state and plate. Restart resets the puzzle and view.
 - Clearing all plates and sorting all screws awards three stars. Reload starts a fresh puzzle
   and retains the clear. Clearing level 1 unlocks level 2. The shared level grid allows replay; no
@@ -108,9 +128,11 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
 ## Implementation
 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
-`villageLevels.ts` authors levels 3–5, `millLevels.ts` levels 6–10 and `harborLevels.ts` levels
-11–15. `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
-sea): the surfaces parts
+`villageLevels.ts` authors levels 3–5, `millLevels.ts` levels 6–10, `harborLevels.ts` levels
+11–15 and `railwayLevels.ts` levels 16–20 (their colors, chosen by a solver search, are in
+`RAILWAY_PALETTES`). `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
+sea, and the railway's toy track, parlour, platform, lineside and main line, built in
+`railwayScenery.ts`): the surfaces parts
 land on, where water is, and where the camera looks. `engine.ts`
 is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
 cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
@@ -148,7 +170,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–15 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–20 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -161,15 +183,29 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   bearing rule constrains every level. From every reachable board short of overflow, the assembly
   must still be finishable with unlimited storage, so no move sets a mechanical trap that a later
   overflow would hide; `solverGates.test.ts` keeps such a trap, built from today's rules, that
-  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12) no move short of overflowing may doom
-  the board; elsewhere a doomed board must overflow within four more removals (13–15 use this). The solver also
+  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12, 16, 18) no move short of overflowing may doom
+  the board; elsewhere a doomed board must overflow within four more removals (13–15, 17, 19 and 20 use this). The solver also
   reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
   that keep a win, and the fewest spares a win needs. Levels 1–12 are winnable from every board
   short of overflow, by that simple policy, and without using a spare. From level 13 a move may
   commit to a loss (shown within four removals), and Harbor Crane and Lightship each need one
   spare to win.
   Each level with captive covers must reach a board that can still win where an open cover is the
-  only thing in the way of some head.
+  only thing in the way of some head, and no board may leave a screwed-down captive panel on a host
+  that has gone (the music box's lid rests on the back it is hinged to, for this reason).
+- Railway numbers (random win, doomed boards, doom depth, fewest spares): Toy Steam Engine 0.48,
+  0, 0, 0; Music Box 0.41, 32, 4, 1; Station Clock 0.26, 0, 0, 1; Signal Box 0.19, 72, 3, 0;
+  Locomotive 0.14, 32, 4, 1. Station Clock is the first level with fifteen screws in five colors
+  in two trays, and random play loses there by tapping screws with no room, not by hidden
+  commitments: it has no doomed board. `railwaySolver.test.ts` holds the dial gates: every dial
+  starts held by its pin; on each level each dial is, on some board that can still win, the only
+  thing in the way of a head; lifting any one dial off changes the odds of random play by more than
+  0.04 or changes which boards are already lost; the music box with one window plays differently
+  from two; a selector's turn moves only that selector, and on some board taking a head behind one
+  selector keeps the win while one behind the other loses it; the locomotive can be started from
+  either half. Its authored traces include dial turns and are replayed through the engine. The
+  dial geometry test covers every dial in the campaign: at each stop a disc shows exactly the
+  heads the engine says (two for the music box), clear at centre and rim, and hides the rest.
   Each level with shared screws must reach a lock that would vanish if every screw held one
   plate, and a move that releases two plates at once. (Turning sharing off cannot make a level
   unsolvable, since it only removes locks, so this is the necessity gate for shared screws.) The
@@ -201,21 +237,25 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks. A third plays
   levels 6–10 under reduced motion, losing and winning each and tapping the held waterwheel axle
   for its hint, and ends on the harbor's introduction. A fourth plays levels 11–15, and on each frees every
-  captive cover first, checks that no view offers a button on the head it lands on, and undoes. A fifth checks that the sails turn, stop when reached for, resume when left
+  captive cover first, checks that no view offers a button on the head it lands on, and undoes, and
+  ends on the railway's introduction. A railway journey plays levels 16–20, losing and winning each
+  through the dial buttons: the first turn is refused with the stop-pin hint, every dial's control
+  is on screen, a selector's turn leaves the other selector alone, and the first turn is undone
+  and replayed with an arrow key. Another checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the fifteen-level boundary and monotonic star saves.
+  Page and API tests cover public access, the twenty-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–15 and rejects unreleased level 16.
+the API accepts slots 1–20 and rejects unreleased level 21.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–15 are released. Levels 16–30 below are a design plan, not playable content. The
+Levels 1–20 are released. Levels 21–30 below are a design plan, not playable content. The
 campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
 festival. Each group of five has a teaching level, practice and a final combination puzzle.
 Geometry and panel arrangement provide variation between new mechanics.
@@ -273,11 +313,11 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 | 13 | Sea Chest — released | Two routes: a hasp drops down its staple over the front, or an end flap drops over the end, each burying a different color. A route can commit to a loss that shows within four moves. |
 | 14 | Harbor Crane — released | Rails on opposite faces move covers in different directions (straight down the front, slantwise down the cab's back); one pivot bolt frees jib and cab front together; the tower door opens clear. The first level that needs a spare. |
 | 15 | Lightship — released | Harbor assessment: a stern flap, a lantern shutter that drops down the mast, and one bolt through the mast step and deck that the lantern rests on. |
-| 16 | Toy Steam Engine | Introduce dials: one large dial with a visible stop-pin screw; take the pin and the dial turns, showing the heads behind its window one at a time. Teaching level, three spares. |
-| 17 | Music Box | A two-window dial shows two heads per stop; the lid opens clear so the dial is the only new consequence. Three spares. |
-| 18 | Station Clock | Introduce Pearl, the fifth color, with a hex-socket mark and an extra teaching spare. |
-| 19 | Signal Box | Two separate selector dials and a railed shutter; which selector to work first decides which colors arrive early. Three spares. |
-| 20 | Locomotive | Railway assessment: engine or tender first, with a coupling pin through both drawbars. Three spares. |
+| 16 | Toy Steam Engine — released | Introduce dials: one large smokebox dial with a visible stop-pin screw; take the pin and the dial turns, showing the heads behind its window one at a time. Teaching level, three spares. |
+| 17 | Music Box — released | A two-window dial shows two heads per stop; the lid opens clear so the dial is the only new consequence. Three spares. |
+| 18 | Station Clock — released | Introduce Pearl, the fifth color, with a hex-socket mark; the clock face is a familiar dial. Teaching level, three spares; from here five colors and fifteen screws. |
+| 19 | Signal Box — released | Two separate selector dials on different faces and a railed shutter; which selector to work first decides which colors arrive early. Three spares. |
+| 20 | Locomotive — released | Railway assessment: engine or tender first, with a coupling pin through both drawbars and a coal hatch that drops open over a tender screw. Three spares. |
 | 21 | Cuckoo Clock | Introduce linked counterweights (pinecone weights). Releasing a visible weight drives another part to a fixed position and opens access; there is no timing challenge. |
 | 22 | Lift Cage | Practice two clearly connected weight/cover pairs on different faces. Releasing the right pair exposes the needed color first. |
 | 23 | Drawbridge | A counterweight opens a hinged bridge section. Plan the release before taking screws from the next layer. |
@@ -306,7 +346,7 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    captive, gone); an open cover travels with its host and never bears on it, and a screw that
    frees cover and host together creates no cover in between. Each cover's resting place is shown
    before release. The structural gate above must hold.
-4. **Dial test board implemented; levels 16–20 to follow:** a dial is a screwless disc with
+4. **Dials implemented for levels 16–20, with a test board:** a dial is a screwless disc with
    `windows` cut over `stops` slots, hosted like a captive panel; a head behind it carries its
    `underDial` slot and can be reached only while a window is over it. Each dial's stop is
    puzzle state, every turn is an undo step, and the scene rotates the actual disc mesh, so
@@ -314,6 +354,11 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    one stop; a refused turn says what holds it. Two unreleased lab boards, reached only by
    `/plate-escape?lab=dial-pin` and `?lab=dial-jam` and never listed or saved, try the two stop
    rules on the same toy safe: a stop-pin screw, or a head in the window catching the dial.
+   Every campaign dial uses the stop pin (`Dial.pins`), shown by a red stop on the disc's rim
+   that rests against the pin; the jamming rule stays on the lab board. A dial's heads are on its
+   host, so the dial is turned for each of them and leaves with the last. Each dial has its own
+   stop, and a turn moves only that dial, so two selectors are independent. A level with several
+   dials shows one control per dial, named and marked with its disc's color.
    The jam can deadlock against the bearing rule; `solverGates.test.ts` keeps such a board and
    the structural gate rejects it. No concentric dials. The solver makes each move a removal
    reached through any number of turns, so turning cannot cycle, each head counts once however
