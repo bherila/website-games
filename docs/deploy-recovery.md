@@ -64,7 +64,7 @@ new schema. Fix forward, or restore the schema deliberately first.
   - one metadata request per object, with progress output and HTTP timeouts;
   - the Production Health workflow.
 
-## 2026-10-24 and 2026-10-26 incidents
+## 2026-10-25 and 2026-10-26 incidents
 
 - **What happened:** twice, the deploy finished, ran `artisan up`, and then the
   production check read `/deployment-identity.json` as a 200 HTML page instead
