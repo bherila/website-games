@@ -108,7 +108,7 @@ describe('compact mastery redraws (37, 39, 40)', () => {
     return result.solution?.length ?? null
   }
 
-  test.each([37])('level %i fits a phone without the follow camera', (id) => {
+  test.each([37, 39])('level %i fits a phone without the follow camera', (id) => {
     const state = start(id)
     expect(state.width).toBeLessThanOrEqual(13)
     expect(state.height).toBeLessThanOrEqual(15)
@@ -120,6 +120,15 @@ describe('compact mastery redraws (37, 39, 40)', () => {
 
   test('level 37: the ice routes the tour (flattened, it is a different, shorter walk)', () => {
     expect(parOf(flatten(start(37), ICE))).not.toBe(getLevelById(37)?.par)
+  })
+
+  test('level 39: pressing the red button before the toggle-gated chip is a dead end', () => {
+    // Bridge the water with the block, walk to the red button, then let the cloned
+    // tank reach the green button: the open toggle in front of the corner chip shuts.
+    const state = play(start(39), 'RRRRRRRRDRWWWWWWW')
+    expect(state.tiles[3 * state.width + 10]).toBe('toggleClosed')
+    expect(state.tiles[3 * state.width + 11]).toBe('chip')
+    expect(solve(state).status).toBe('unsolvable')
   })
 
 })
