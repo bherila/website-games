@@ -96,11 +96,12 @@ export function leaseOutlook(unit: Unit, desirability: number, routed = !unit.fl
   }
   const when = category === 'office' ? '08:00 on a weekday' : '08:00'
   const needed = TUNING.rent.leasabilityThreshold[unit.rentTier]
-  const score = Math.round(desirability)
-  if (score >= needed) {
+  // Lease against the exact score, as the 08:00 pass does. Shown short of the bar, it rounds down,
+  // so a 49.8 never reads as the 50 it needs.
+  if (desirability >= needed) {
     return `Tenants move in at the next ${when}`
   }
-  return `Needs desirability ${needed} at ${RENT_TIER_NAMES[unit.rentTier]} rent (now ${score}); tenants look at ${when}`
+  return `Needs desirability ${needed} at ${RENT_TIER_NAMES[unit.rentTier]} rent (now ${Math.floor(desirability)}); tenants look at ${when}`
 }
 
 /** Clinic copay levels reuse the rentTier field; higher copay earns more per visit. */
@@ -305,7 +306,8 @@ function UnitInspect({
           <>
             <dt className="text-white/50">Desirability</dt>
             <dd className="tabular-nums" data-testid="eval-score">
-              {Math.round(desirability)}/100
+              {/* Rounded down, so it never shows a bar as met that the lease check would reject. */}
+              {Math.floor(desirability)}/100
             </dd>
           </>
         )}

@@ -132,6 +132,14 @@ describe('InspectPanel — unit', () => {
     expect(screen.queryByTestId('lease-outlook')).toBeNull()
   })
 
+  it('does not round a score just under the bar up to a lease', () => {
+    const vacant = makeUnit({ occupied: false, population: { low: 0, med: 0, high: 0, vip: 0 }, evalScore: 0 })
+    render(<InspectPanel selection={{ type: 'unit', unit: vacant }} evalBreakdown={{ ...zeroBreakdown(), score: 49.8 }} maxStarReached={1} {...handlers()} />)
+    expect(screen.getByTestId('lease-outlook')).not.toHaveTextContent('Tenants move in')
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Needs desirability 50 at Average rent (now 49)')
+    expect(screen.getByTestId('eval-score')).toHaveTextContent('49/100')
+  })
+
   it('judges a lease by the live route to the lobby, not the flag left by the last 08:00 pass', () => {
     const vacant = makeUnit({ occupied: false, population: { low: 0, med: 0, high: 0, vip: 0 }, evalScore: 0 })
     const breakdown: EvalBreakdown = { ...zeroBreakdown(), score: 60 }
