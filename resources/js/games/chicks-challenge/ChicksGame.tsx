@@ -21,7 +21,7 @@ import { applyMove } from './engine/applyMove'
 import type { EngineEvent, GameState, MoveIntent } from './engine/types'
 import { tileAt } from './engine/types'
 import { loadSavedProgress, recordWin, saveProgress } from './gameProgress'
-import { type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS } from './gameTypes'
+import { type BumpSignal, type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS } from './gameTypes'
 import { GameHud } from './hud/GameHud'
 import { GameToolbar } from './hud/GameToolbar'
 import { HintBanner } from './hud/HintBanner'
@@ -128,6 +128,7 @@ export function ChicksGame(): ReactElement {
   }, [waitEnabled])
   const [moveSeq, setMoveSeq] = useState(0)
   const [events, setEvents] = useState<readonly EngineEvent[]>([])
+  const [bump, setBump] = useState<BumpSignal | null>(null)
   const [winSummary, setWinSummary] = useState<WinSummary | null>(null)
   const [touchEnabled] = useState(isTouchDevice)
   const [muted, setMuted] = useState(() => loadMuted())
@@ -279,6 +280,10 @@ export function ChicksGame(): ReactElement {
     const result = applyMove(current, intent)
     if (!result.accepted) {
       playEventSfx(result.events)
+      const bumped = result.events.find((event): event is Extract<EngineEvent, { type: 'bumped' }> => event.type === 'bumped')
+      if (bumped) {
+        setBump((previous) => ({ seq: (previous?.seq ?? 0) + 1, dir: bumped.dir }))
+      }
 
       return
     }
@@ -476,7 +481,7 @@ export function ChicksGame(): ReactElement {
             {...boardSwipeHandlers}
           >
             <BoardRotor height={boardBox?.height ?? null} quarterTurns={quarterTurns} width={boardBox?.width ?? null}>
-              <ChicksScene events={events} moveSeq={moveSeq} state={gameState} />
+              <ChicksScene bump={bump} events={events} moveSeq={moveSeq} state={gameState} />
             </BoardRotor>
 
             {showHint && gameState.hint !== null && <HintBanner text={gameState.hint} />}

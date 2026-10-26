@@ -1,4 +1,4 @@
-import type { EngineEvent, GameState } from './engine/types'
+import type { Direction, EngineEvent, GameState } from './engine/types'
 
 export const TOTAL_LEVELS = 40
 
@@ -47,4 +47,14 @@ export interface SceneProps {
   state: GameState
   events: readonly EngineEvent[]
   moveSeq: number
+  /**
+   * The latest rejected move, if any. A new `seq` plays a short nudge toward
+   * `dir`, so an illegal move is visible even with the sound muted.
+   */
+  bump?: BumpSignal | null
+}
+
+export interface BumpSignal {
+  readonly seq: number
+  readonly dir: Direction
 }

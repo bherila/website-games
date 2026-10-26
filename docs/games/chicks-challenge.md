@@ -232,6 +232,10 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 - **Effects:** splash particle on drown/block-into-water, puff on burn, sparkle on chip pickup,
   confetti burst on exit (reuse the marble-sort confetti approach), screen-shake-free (portrait
   shell). Death and win animations ≤ 600 ms before the overlay.
+- **Bump feedback:** a rejected move never reaches the engine state, so `ChicksGame` passes the scene a
+  `bump` signal (`{ seq, dir }`); each new `seq` leans the chick ~0.18 tile into the blocked tile and
+  back over 140 ms (`scene/bumpNudge.ts`). Before this, the only feedback was a sound, so on a muted
+  phone an illegal move looked like a missed swipe.
 - Levels are ≤ 32×32 → worst case ~1k static quads + < 40 dynamic quads; trivially 60 fps. No
   shadows, one ambient light (or unlit materials).
 

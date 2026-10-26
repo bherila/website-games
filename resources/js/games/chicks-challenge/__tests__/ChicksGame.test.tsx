@@ -2,12 +2,18 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 
 import { ChicksGame } from '../ChicksGame'
 import { solve } from '../engine/solver'
-import { PROGRESS_STORAGE_KEY, STEP_TWEEN_MS, TOTAL_LEVELS } from '../gameTypes'
+import { PROGRESS_STORAGE_KEY, type SceneProps, STEP_TWEEN_MS, TOTAL_LEVELS } from '../gameTypes'
 import { LEVELS } from '../levels'
 import { parseLevel } from '../levels/parseLevel'
 
+const mockSceneProps: { current: SceneProps | null } = { current: null }
+
 jest.mock('../ChicksScene', () => ({
-  ChicksScene: () => null,
+  ChicksScene: (props: SceneProps) => {
+    mockSceneProps.current = props
+
+    return null
+  },
 }))
 
 // Injects one synthetic, guaranteed-to-drown level (id 9001, outside the 1..40
@@ -150,6 +156,23 @@ describe('ChicksGame', () => {
 
     pressAndAdvance('W')
     expect(screen.getByLabelText(`1 of ${bugPatrol.par} moves`)).toBeInTheDocument()
+  })
+
+  it('signals the scene to nudge the chick when a move is rejected', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+
+    // Level 1 starts two tiles below its top wall.
+    pressAndAdvance('U')
+    pressAndAdvance('U')
+    expect(mockSceneProps.current?.bump ?? null).toBeNull()
+    pressAndAdvance('U')
+
+    expect(screen.getByLabelText(`2 of ${level1.par} moves`)).toBeInTheDocument()
+    expect(mockSceneProps.current?.bump).toEqual({ seq: 1, dir: 'up' })
+    pressAndAdvance('U')
+    expect(mockSceneProps.current?.bump).toEqual({ seq: 2, dir: 'up' })
   })
 
   it('Escape returns to level select', () => {
