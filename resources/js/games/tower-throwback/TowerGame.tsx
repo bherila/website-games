@@ -18,6 +18,7 @@ import { isSlabFamily, selectableAt } from './engine/grid'
 import { catchmentField as computeCatchmentField } from './engine/heatmaps'
 import { CITY_TOWER, getMap } from './engine/maps'
 import { evalBreakdown } from './engine/occupancy'
+import { hasRouteToLobby } from './engine/routing'
 import { buildScenario } from './engine/scenarios'
 import {
   claimSandboxSlot,
@@ -943,6 +944,11 @@ export function TowerGame(): ReactElement {
             evalBreakdown={
               selection?.type === 'unit' && !isSlabFamily(selection.unit.kind)
                 ? evalBreakdown(engineState, selection.unit)
+                : undefined
+            }
+            routedToLobby={
+              selection?.type === 'unit' && !isSlabFamily(selection.unit.kind)
+                ? hasRouteToLobby(engineState, selection.unit, { bypassCache: true })
                 : undefined
             }
             lobbyHeight={engineState.lobbyHeight}

@@ -132,6 +132,20 @@ describe('InspectPanel — unit', () => {
     expect(screen.queryByTestId('lease-outlook')).toBeNull()
   })
 
+  it('judges a lease by the live route to the lobby, not the flag left by the last 08:00 pass', () => {
+    const vacant = makeUnit({ occupied: false, population: { low: 0, med: 0, high: 0, vip: 0 }, evalScore: 0 })
+    const breakdown: EvalBreakdown = { ...zeroBreakdown(), score: 60 }
+    // Placed on an upper floor before any stairs: its flag still says routed, but nothing reaches it.
+    const { rerender } = render(
+      <InspectPanel selection={{ type: 'unit', unit: vacant }} evalBreakdown={breakdown} routedToLobby={false} maxStarReached={1} {...handlers()} />,
+    )
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Cannot lease until stairs or an elevator connect it to the lobby')
+    // Connected since that pass: the stale flag says no route, but tenants will come.
+    const stale = { ...vacant, flags: { ...vacant.flags, noRoute: true } }
+    rerender(<InspectPanel selection={{ type: 'unit', unit: stale }} evalBreakdown={breakdown} routedToLobby maxStarReached={1} {...handlers()} />)
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Tenants move in at the next 08:00 on a weekday')
+  })
+
   it('shows occupancy, eval, fixed rent economics, and fires the rent tier command', () => {
     const h = handlers()
     render(<InspectPanel selection={{ type: 'unit', unit: makeUnit() }} maxStarReached={2} {...h} />)
