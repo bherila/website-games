@@ -42,8 +42,9 @@ the account from `LAST_AUTHENTICATED_USER_KEY`, so an offline player is still th
 
 **Every game is cached when the worker installs.** Cache names carry the deploy's commit, so
 each update starts empty caches. Before a new worker takes over, `precacheEveryGame()` reads
-`/build/manifest.json`, caches every game entry with the chunks and styles it imports
-(`gameBuildAssets`, about 2.6 MB; the operator panel is left out), and caches a sanitized
+`/build/manifest.json`, caches every game entry with the chunks, styles and emitted files
+(fonts, sprite sheets, icons) it needs (`gameBuildAssets`, about 4 MB; the operator panel is
+left out), and caches a sanitized
 shell for every page in `GAME_SHELL_ROUTES`. So after any update every game opens offline, not
 only the ones visited since. `tests/Feature/GamePwaTest.php` keeps `GAME_SHELL_ROUTES` in step
 with the game routes. Mandarin's speech is still cached as it is played.

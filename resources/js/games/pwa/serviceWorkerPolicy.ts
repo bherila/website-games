@@ -30,13 +30,16 @@ export const GAME_SHELL_ROUTES = [
 interface ViteManifestChunk {
   file: string
   css?: string[]
+  /** Files a chunk emits alongside it: fonts, sprite sheets, SVG icons. */
+  assets?: string[]
   imports?: string[]
   isEntry?: boolean
 }
 
 /**
  * The build files the games need: every game entry in Vite's manifest with the chunks it
- * imports and their styles, plus the site stylesheet. The operator panel is left out.
+ * imports, their styles and the files they emit (fonts, sprite sheets, icons), plus the site
+ * stylesheet. The operator panel is left out.
  */
 export function gameBuildAssets(manifest: Record<string, ViteManifestChunk>): string[] {
   const files = new Set<string>()
@@ -48,6 +51,7 @@ export function gameBuildAssets(manifest: Record<string, ViteManifestChunk>): st
     seen.add(key)
     files.add(chunk.file)
     for (const css of chunk.css ?? []) files.add(css)
+    for (const asset of chunk.assets ?? []) files.add(asset)
     for (const imported of chunk.imports ?? []) visit(imported, seen)
   }
   const seen = new Set<string>()
