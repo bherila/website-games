@@ -27,11 +27,11 @@ class PlateEscapeGamePageTest extends TestCase
         $this->putJson('/api/games/plate-escape/data/level/2', ['data' => ['version' => 1, 'stars' => 3]])->assertSuccessful()->assertJsonPath('data.slot', '2');
         $this->putJson('/api/games/plate-escape/data/level/2', ['data' => ['version' => 1, 'stars' => 1]])->assertSuccessful()->assertJsonPath('data.data.stars', 3);
         $this->getJson('/api/games/data?games[]=plate-escape')->assertSuccessful()->assertJsonCount(2, 'data');
-        foreach (range(3, 20) as $level) {
+        foreach (range(3, 25) as $level) {
             $this->putJson("/api/games/plate-escape/data/level/{$level}", ['data' => ['version' => 1, 'stars' => 3]])->assertSuccessful();
         }
-        $this->getJson('/api/games/data?games[]=plate-escape')->assertSuccessful()->assertJsonCount(20, 'data');
-        $this->putJson('/api/games/plate-escape/data/level/21', ['data' => ['version' => 1, 'stars' => 3]])->assertUnprocessable();
+        $this->getJson('/api/games/data?games[]=plate-escape')->assertSuccessful()->assertJsonCount(25, 'data');
+        $this->putJson('/api/games/plate-escape/data/level/26', ['data' => ['version' => 1, 'stars' => 3]])->assertUnprocessable();
         $this->putJson('/api/games/plate-escape/data/save/autosave', ['data' => ['version' => 1]])->assertUnprocessable();
     }
 }

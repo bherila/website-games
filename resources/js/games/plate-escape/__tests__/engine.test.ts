@@ -125,7 +125,7 @@ test('each authored level has complete color sets and a support for every panel'
       }
     }
   }
-  expect(() => getLevel(LEVELS.length + 1)).toThrow('Unknown Plate Escape level')
+  expect(() => getLevel(Math.max(...LEVELS.map((level) => level.id)) + 1)).toThrow('Unknown Plate Escape level')
 })
 
 const ROOFS = ['left-roof-1', 'left-roof-2', 'right-roof-1', 'right-roof-2']

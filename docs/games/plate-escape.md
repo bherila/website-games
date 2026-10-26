@@ -197,7 +197,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–20 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–25 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -284,18 +284,18 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   pin in, and wins. Another checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the twenty-level boundary and monotonic star saves.
+  Page and API tests cover public access, the twenty-five-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–20 and rejects unreleased level 21.
+the API accepts slots 1–25 and rejects unreleased level 26.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–20 are released. Levels 21–30 below are a design plan, not playable content. The
+Levels 1–25 are released. Levels 26–30 below are a design plan, not playable content. The
 campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
 festival. Each group of five has a teaching level, practice and a final combination puzzle.
 Geometry and panel arrangement provide variation between new mechanics.

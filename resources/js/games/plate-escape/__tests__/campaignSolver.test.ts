@@ -78,7 +78,7 @@ test('the bearing rule constrains every level rather than being satisfied by acc
 
 test('shared screws shape every level that has them', () => {
   const shared = LEVELS.filter((level) => level.screws.some((screw) => screw.through))
-  expect(shared.map((level) => level.id)).toEqual([6, 7, 8, 9, 10, 14, 15, 20])
+  expect(shared.map((level) => level.id)).toEqual([6, 7, 8, 9, 10, 14, 15, 20, 25])
   for (const level of shared) {
     const boards = analyses.get(level.id)!.boards.filter((board) => board.overflow === null)
     // Some head is locked only because of a shared screw, so it would be free if every screw held
@@ -116,7 +116,7 @@ test('counterweights shape every level that has them: some winnable board waits 
 
 test('captive covers shape every level that has them', () => {
   const covered = LEVELS.filter((level) => level.screws.some((screw) => screw.coveredWhenOpen))
-  expect(covered.map((level) => level.id)).toEqual([11, 12, 13, 14, 15, 19, 20])
+  expect(covered.map((level) => level.id)).toEqual([11, 12, 13, 14, 15, 19, 20, 25])
   for (const level of covered) {
     const analysis = analyses.get(level.id)!
     // On a board that can still win, an open part is the only thing in the way of some head:
