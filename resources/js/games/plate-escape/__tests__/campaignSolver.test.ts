@@ -2,15 +2,20 @@ import { type PuzzleState, remainingScrews, screwLock } from '../engine'
 import { getLevel, heldPlates, LEVELS } from '../level'
 import { analyseLevel } from './puzzleSolver'
 
-// Chance that uniformly random legal play wins. These bands are authored
-// difficulty targets; a level edit that leaves its band needs a deliberate retune.
+// Chance that uniformly random legal play wins. It counts tempting wrong taps rather than
+// hidden commitments, so these bands are regression checks: a level edit that leaves its band
+// needs a deliberate retune.
 const DIFFICULTY: Record<number, readonly [number, number]> = {
   1: [1, 1], 2: [0.3, 0.65], 3: [0.15, 0.35], 4: [0.6, 0.95], 5: [0.3, 0.6],
   6: [0.5, 0.8], 7: [0.25, 0.45], 8: [0.25, 0.5], 9: [0.55, 0.85], 10: [0.12, 0.3],
 }
+/** Levels that introduce something: no move short of overflowing may doom the board. */
+const TEACHING = new Set([1, 4, 6, 9])
+/** Elsewhere a move may commit to a loss, but the overflow must show within this many removals. */
+const DOOM_HORIZON = 4
 const analyses = new Map(LEVELS.map((level) => [level.id, analyseLevel(level.id)]))
 
-test.each(LEVELS.map((level) => level.id))('level %i is winnable from every opening with no soft-locks', (id) => {
+test.each(LEVELS.map((level) => level.id))('level %i has a winning order, no soft-locks and stays in its band', (id) => {
   const analysis = analyses.get(id)!
   expect(analysis.softLocks).toBe(0)
   expect(analysis.win).toHaveLength(getLevel(id).screws.length)
@@ -18,6 +23,14 @@ test.each(LEVELS.map((level) => level.id))('level %i is winnable from every open
   expect(analysis.randomWin).toBeLessThanOrEqual(DIFFICULTY[id]![1])
   // Overflow is the only loss; the forgiving tutorial has none.
   expect(analysis.lose.length > 0).toBe(getLevel(id).overflowLoses)
+})
+
+test.each(LEVELS.map((level) => level.id))('level %i can always be finished mechanically, and commits only within its rules', (id) => {
+  const analysis = analyses.get(id)!
+  // Whatever has been taken out, some order frees the rest given room to store it.
+  expect(analysis.structuralDeadEnds.map((board) => board.removed)).toEqual([])
+  if (TEACHING.has(id)) expect(analysis.doomed).toBe(0)
+  else expect(analysis.doomDepth).toBeLessThanOrEqual(DOOM_HORIZON)
 })
 
 test('every legal order in the tutorial wins', () => {
