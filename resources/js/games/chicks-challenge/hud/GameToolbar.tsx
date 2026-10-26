@@ -1,4 +1,4 @@
-import { RotateCw } from 'lucide-react'
+import { RotateCw, Undo2 } from 'lucide-react'
 import type { ReactElement } from 'react'
 
 import { cn } from '@/lib/utils'
@@ -15,6 +15,9 @@ interface GameToolbarProps {
   showDpad: boolean
   /** False on levels where waiting can never matter; the pad's centre is then inert. */
   waitEnabled: boolean
+  /** True while there is a move (or restart) to take back. */
+  canUndo: boolean
+  onUndo: () => void
   onCycleOrientation: () => void
   onIntent: (intent: MoveIntent) => void
 }
@@ -43,6 +46,8 @@ export function GameToolbar({
   quarterTurns,
   showDpad,
   waitEnabled,
+  canUndo,
+  onUndo,
   onCycleOrientation,
   onIntent,
 }: GameToolbarProps): ReactElement {
@@ -56,6 +61,21 @@ export function GameToolbar({
       data-testid="chips-toolbar"
     >
       <div className="flex items-end gap-2 landscape:flex-col landscape:items-center">
+        {/* The biggest non-pad target: a mis-swipe on a phone should cost one tap, not a restart. */}
+        <button
+          aria-label="Undo move"
+          className={cn(
+            'flex size-14 items-center justify-center rounded-full border border-white/70 bg-white/90',
+            'text-slate-800 shadow-md transition-transform active:scale-95 disabled:opacity-40 disabled:active:scale-100',
+            'dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-100',
+          )}
+          data-testid="undo-button"
+          disabled={!canUndo}
+          type="button"
+          onClick={onUndo}
+        >
+          <Undo2 aria-hidden="true" className="size-6" />
+        </button>
         <button
           aria-label={ORIENTATION_ARIA[orientationPreference]}
           className={cn(

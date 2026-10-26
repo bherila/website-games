@@ -179,6 +179,14 @@ test.describe("Chick's Challenge board layout", () => {
     await page.getByTestId('touch-dpad-down').tap()
     await expect(page.getByLabel('1 of 16 moves')).toBeVisible()
     await expect(page.getByTestId('hint-banner')).toBeVisible()
+
+    // Undo sits by the thumb, clears the 44px minimum, and takes the step back.
+    const undo = page.getByTestId('undo-button')
+    const undoBox = await undo.boundingBox()
+    expect(undoBox?.width ?? 0).toBeGreaterThanOrEqual(44)
+    await undo.tap()
+    await expect(page.getByLabel('0 of 16 moves')).toBeVisible()
+    await expect(undo).toBeDisabled()
   })
 
   test('turns one natural swipe or D-pad press into exactly one step on a phone', async ({ page }, testInfo) => {

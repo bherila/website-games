@@ -22,6 +22,9 @@ export const INPUT_BUFFER_MAX = 2
 
 export type GamePhase = 'select' | 'playing' | 'won' | 'dead'
 
+/** Undo history cap per run; far beyond any level's par, small in memory. */
+export const UNDO_HISTORY_MAX = 2000
+
 /**
  * Stars from the winning run's move count vs the level's par:
  * 3 within 10% over par, 2 within 50%, otherwise 1.
@@ -52,6 +55,8 @@ export interface SceneProps {
    * `dir`, so an illegal move is visible even with the sound muted.
    */
   bump?: BumpSignal | null
+  /** Changing this snaps every sprite to `state` without tweens (undo). */
+  resetKey?: number
 }
 
 export interface BumpSignal {

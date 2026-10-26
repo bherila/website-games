@@ -1,9 +1,11 @@
-import { Grid3x3, RotateCcw } from 'lucide-react'
+import { Grid3x3, RotateCcw, Undo2 } from 'lucide-react'
 import type { ReactElement } from 'react'
 
 interface StuckOverlayProps {
   onRestart: () => void
   onMenu: () => void
+  /** Takes back the last move; null when there is nothing to undo. */
+  onUndo?: (() => void) | null
 }
 
 /**
@@ -11,7 +13,7 @@ interface StuckOverlayProps {
  * current position unsolvable — a self-inflicted dead end (e.g. a block
  * pushed into a corner). Mirrors `DeathOverlay`'s layout/styling.
  */
-export function StuckOverlay({ onRestart, onMenu }: StuckOverlayProps): ReactElement {
+export function StuckOverlay({ onRestart, onMenu, onUndo = null }: StuckOverlayProps): ReactElement {
   return (
     <div
       aria-label="No way to finish"
@@ -29,6 +31,16 @@ export function StuckOverlay({ onRestart, onMenu }: StuckOverlayProps): ReactEle
         <p className="text-sm font-semibold text-white/90">No way to finish</p>
 
         <div className="flex items-center gap-4">
+          {onUndo && (
+            <button
+              aria-label="Undo move"
+              className="flex size-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 shadow-xl transition-transform active:scale-95"
+              type="button"
+              onClick={onUndo}
+            >
+              <Undo2 aria-hidden="true" className="size-6" />
+            </button>
+          )}
           <button
             aria-label="Restart level"
             className="flex size-14 animate-pulse items-center justify-center rounded-full bg-gradient-to-b from-rose-400 to-rose-600 text-white shadow-xl transition-transform active:scale-95"

@@ -21,7 +21,7 @@ import { applyMove } from './engine/applyMove'
 import type { EngineEvent, GameState, MoveIntent } from './engine/types'
 import { tileAt } from './engine/types'
 import { loadSavedProgress, recordWin, saveProgress } from './gameProgress'
-import { type BumpSignal, type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS } from './gameTypes'
+import { type BumpSignal, type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS, UNDO_HISTORY_MAX } from './gameTypes'
 import { GameHud } from './hud/GameHud'
 import { GameToolbar } from './hud/GameToolbar'
 import { HintBanner } from './hud/HintBanner'
@@ -62,6 +62,12 @@ const INTENT_TO_SOLUTION_CHAR: Readonly<Record<MoveIntent, string>> = {
   left: 'L',
   right: 'R',
   wait: 'W',
+}
+
+/** One undo step: the state before an accepted move (or a restart), plus the recorded input then. */
+interface UndoEntry {
+  state: GameState
+  recorded: string
 }
 
 interface WinSummary {
@@ -129,6 +135,8 @@ export function ChicksGame(): ReactElement {
   const [moveSeq, setMoveSeq] = useState(0)
   const [events, setEvents] = useState<readonly EngineEvent[]>([])
   const [bump, setBump] = useState<BumpSignal | null>(null)
+  const [sceneResetKey, setSceneResetKey] = useState(0)
+  const [undoDepth, setUndoDepth] = useState(0)
   const [winSummary, setWinSummary] = useState<WinSummary | null>(null)
   const [touchEnabled] = useState(isTouchDevice)
   const [muted, setMuted] = useState(() => loadMuted())
@@ -141,6 +149,8 @@ export function ChicksGame(): ReactElement {
   const heldKeyRef = useRef<string | null>(null)
   const keyRepeatRef = useRef(createHoldRepeat())
   const recordedRef = useRef<string>('')
+  const historyRef = useRef<UndoEntry[]>([])
+  const touchRepeatRef = useRef(createHoldRepeat())
   const sfxRef = useRef<SfxEngine | null>(null)
   const mutedRef = useRef(muted)
 
@@ -217,10 +227,24 @@ export function ChicksGame(): ReactElement {
     heldKeyRef.current = null
   }, [])
 
-  const startLevel = useCallback((def: ChicksLevelDef): void => {
+  const pushHistory = useCallback((entry: UndoEntry): void => {
+    const history = historyRef.current
+    history.push(entry)
+    if (history.length > UNDO_HISTORY_MAX) {
+      history.shift()
+    }
+    setUndoDepth(history.length)
+  }, [])
+
+  /** `keepHistory` lets a restart stay undoable; every other entry into a level starts a clean history. */
+  const startLevel = useCallback((def: ChicksLevelDef, keepHistory = false): void => {
     clearDeathTimeout()
     clearKeyRepeat()
     queueRef.current.clear()
+    if (!keepHistory) {
+      historyRef.current = []
+      setUndoDepth(0)
+    }
     recordedRef.current = ''
     setLevelDef(def)
     setGameState(parseLevel(def))
@@ -238,11 +262,47 @@ export function ChicksGame(): ReactElement {
     }
   }, [startLevel])
 
+  // A restart mid-run is undoable (a stray tap on the restart button costs
+  // nothing); replaying after a win starts clean.
   const handleRestart = useCallback((): void => {
-    if (levelDef) {
-      startLevel(levelDef)
+    if (!levelDef) {
+      return
     }
-  }, [levelDef, startLevel])
+    const current = gameStateRef.current
+    if (current && current.won) {
+      startLevel(levelDef)
+
+      return
+    }
+    if (current && current.alive && current.moves > 0) {
+      pushHistory({ state: current, recorded: recordedRef.current })
+    }
+    startLevel(levelDef, true)
+  }, [levelDef, pushHistory, startLevel])
+
+  /** Steps back to the state before the last accepted move (or restart), reviving a death. */
+  const handleUndo = useCallback((): void => {
+    const current = gameStateRef.current
+    if (!current || current.won) {
+      return
+    }
+    const entry = historyRef.current.pop()
+    if (!entry) {
+      return
+    }
+    clearDeathTimeout()
+    clearKeyRepeat()
+    touchRepeatRef.current.stop()
+    queueRef.current.clear()
+    recordedRef.current = entry.recorded
+    gameStateRef.current = entry.state
+    setGameState(entry.state)
+    setEvents([])
+    setSceneResetKey((key) => key + 1)
+    setStuck(false)
+    setUndoDepth(historyRef.current.length)
+    setPhase('playing')
+  }, [clearDeathTimeout, clearKeyRepeat])
 
   const handleGoToSelect = useCallback((): void => {
     clearDeathTimeout()
@@ -288,6 +348,7 @@ export function ChicksGame(): ReactElement {
       return
     }
 
+    pushHistory({ state: current, recorded: recordedRef.current })
     gameStateRef.current = result.state
     setGameState(result.state)
     setEvents(result.events)
@@ -325,7 +386,7 @@ export function ChicksGame(): ReactElement {
       clearDeathTimeout()
       deathTimeoutRef.current = window.setTimeout(() => setPhase('dead'), DEATH_DELAY_MS)
     }
-  }, [clearDeathTimeout, devModes.record, levelDef, playEventSfx])
+  }, [clearDeathTimeout, devModes.record, levelDef, playEventSfx, pushHistory])
 
   const handleStuck = useCallback((): void => {
     setStuck(true)
@@ -382,6 +443,13 @@ export function ChicksGame(): ReactElement {
         return
       }
 
+      if (event.key === 'z' || event.key === 'Z' || event.key === 'Backspace') {
+        event.preventDefault()
+        handleUndo()
+
+        return
+      }
+
       if (phase !== 'playing' || event.repeat) {
         return
       }
@@ -409,9 +477,7 @@ export function ChicksGame(): ReactElement {
       window.removeEventListener('keyup', handleKeyUp)
       clearKeyRepeat()
     }
-  }, [phase, enqueueIntent, handleRestart, handleGoToSelect, clearKeyRepeat])
-
-  const touchRepeatRef = useRef(createHoldRepeat())
+  }, [phase, enqueueIntent, handleRestart, handleGoToSelect, handleUndo, clearKeyRepeat])
 
   const stopTouchRepeat = useCallback((): void => {
     touchRepeatRef.current.stop()
@@ -481,7 +547,7 @@ export function ChicksGame(): ReactElement {
             {...boardSwipeHandlers}
           >
             <BoardRotor height={boardBox?.height ?? null} quarterTurns={quarterTurns} width={boardBox?.width ?? null}>
-              <ChicksScene bump={bump} events={events} moveSeq={moveSeq} state={gameState} />
+              <ChicksScene bump={bump} events={events} moveSeq={moveSeq} resetKey={sceneResetKey} state={gameState} />
             </BoardRotor>
 
             {showHint && gameState.hint !== null && <HintBanner text={gameState.hint} />}
@@ -492,6 +558,8 @@ export function ChicksGame(): ReactElement {
             quarterTurns={quarterTurns}
             showDpad={touchEnabled && phase === 'playing'}
             waitEnabled={waitEnabled}
+            canUndo={undoDepth > 0 && phase === 'playing'}
+            onUndo={handleUndo}
             onCycleOrientation={handleCycleOrientation}
             onIntent={enqueueIntent}
           />
@@ -512,10 +580,10 @@ export function ChicksGame(): ReactElement {
         )}
 
         {phase === 'dead' && (
-          <DeathOverlay cause={gameState.deathCause} onMenu={handleGoToSelect} onRestart={handleRestart} />
+          <DeathOverlay cause={gameState.deathCause} onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />
         )}
 
-        {phase === 'playing' && stuck && <StuckOverlay onMenu={handleGoToSelect} onRestart={handleRestart} />}
+        {phase === 'playing' && stuck && <StuckOverlay onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />}
       </section>
     </PortraitGameShell>
   )

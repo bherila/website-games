@@ -238,12 +238,13 @@ function applyCameraView(camera: THREE.OrthographicCamera, view: CameraView): vo
   camera.updateProjectionMatrix()
 }
 
-export function ChicksScene({ state, events, moveSeq, bump = null }: SceneProps): ReactElement {
+export function ChicksScene({ state, events, moveSeq, bump = null, resetKey = 0 }: SceneProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const stateRef = useRef(state)
   const eventsRef = useRef(events)
   const moveSeqRef = useRef(moveSeq)
   const bumpRef = useRef(bump)
+  const resetKeyRef = useRef(resetKey)
 
   useEffect(() => {
     stateRef.current = state
@@ -260,6 +261,10 @@ export function ChicksScene({ state, events, moveSeq, bump = null }: SceneProps)
   useEffect(() => {
     bumpRef.current = bump
   }, [bump])
+
+  useEffect(() => {
+    resetKeyRef.current = resetKey
+  }, [resetKey])
 
   useEffect(() => {
     const container = containerRef.current
@@ -293,6 +298,7 @@ export function ChicksScene({ state, events, moveSeq, bump = null }: SceneProps)
     let board: BoardHandle | null = null
     let prevState: GameState | null = null
     let lastProcessedSeq = -1
+    let lastResetKey = resetKeyRef.current
     let lastBumpSeq = bumpRef.current?.seq ?? 0
     let bumpStartedAt = Number.NEGATIVE_INFINITY
     let cameraView: CameraView = { centerX: 0, centerY: 0, halfWidth: 1, halfHeight: 1 }
@@ -358,9 +364,12 @@ export function ChicksScene({ state, events, moveSeq, bump = null }: SceneProps)
       const dimensionsChanged =
         !isFirstFrame && prevState !== null && (prevState.width !== currentState.width || prevState.height !== currentState.height)
 
-      if (isFirstFrame || isBackwardReset || dimensionsChanged) {
+      const resetRequested = resetKeyRef.current !== lastResetKey
+
+      if (isFirstFrame || isBackwardReset || dimensionsChanged || resetRequested) {
         hardReset(currentState)
         lastProcessedSeq = currentSeq
+        lastResetKey = resetKeyRef.current
       } else if (currentSeq !== lastProcessedSeq && prevState) {
         advanceMove(prevState.tiles, currentState, currentEvents)
         lastProcessedSeq = currentSeq

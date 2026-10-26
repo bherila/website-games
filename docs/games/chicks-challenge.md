@@ -57,6 +57,10 @@ Chick's Challenge is the fifth game in this repo and must mirror the existing fo
 6. **Lose:** drown, burn, or touch a monster → short death animation → overlay with restart / menu.
    Restarting resets the level and the move counter (deaths never penalize the next attempt's stars).
    A restart button is always in the HUD.
+   **Undo** (toolbar button, Z / Backspace, and the death and stuck overlays) steps back to the state
+   before the last accepted move, reviving a death. The move counter rewinds with the state, so undo
+   never helps stars. A restart mid-run is itself undoable, so a stray tap on restart costs nothing;
+   replaying after a win starts a clean history.
 7. **Stuck:** after each accepted move (debounced until input is idle) a background solver probe
    (`engine/solver.ts` stepping API, capped node budget) checks whether the level is still winnable.
    A **definitive** `unsolvable` result — e.g. a block pushed into a dead corner — immediately shows
@@ -253,10 +257,12 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
   on a single line that never wraps, so collecting an item never resizes the board. Levels with no
   items reserve nothing.
   Hint text appears in a bottom banner (`hud/HintBanner.tsx`) while standing on a hint tile.
-- **Toolbar:** board-rotation toggle (auto / turned / upright) plus the touch D-pad.
+- **Toolbar:** undo (56 px, the thumb-side corner), board-rotation toggle (auto / turned / upright),
+  fullscreen, plus the touch D-pad.
 - **Win overlay:** dimmed backdrop, `StarRow` stars animate in, `moves / par` line, buttons: replay,
   next (pulsing), menu.
-- **Death overlay:** dimmed backdrop, cause icon (💧 / 🔥 / 👾), restart (pulsing), menu.
+- **Death overlay:** dimmed backdrop, cause icon (💧 / 🔥 / 👾), undo (when there is a move to take
+  back), restart (pulsing), menu. The stuck overlay offers the same three.
 - **Overlay scrolling (normative):** every overlay (win / death / stuck) is itself the scroll container
   (`overflow-y-auto`) and centres its dialog with `m-auto min-h-full` **on the dialog**, never with
   `items-center` on the scroll container — centring a scroll container strands the top of a too-tall
@@ -627,7 +633,7 @@ notch/home-indicator insets, and iOS Safari's dynamic browser chrome.
 - Visual-regression screenshots (the Playwright spec asserts layout, not pixels).
 - Real-device confirmation of the `screen.orientation.angle` convention behind the rotation direction
   (implemented per "Rotation direction" above, with a clockwise fallback and a single constant to flip).
-- Undo, replays/ghosts, level editor, and additional level packs.
+- Replays/ghosts and a level editor.
 - Real-time mode or level timers (the game is deliberately step-based).
 
 ## Implementation to-do list (handoff checklist)

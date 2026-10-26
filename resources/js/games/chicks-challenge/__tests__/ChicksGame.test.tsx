@@ -175,6 +175,68 @@ describe('ChicksGame', () => {
     expect(mockSceneProps.current?.bump).toEqual({ seq: 2, dir: 'up' })
   })
 
+  it('undo takes back the last move, and stays disabled with nothing to undo', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+    expect(screen.getByTestId('undo-button')).toBeDisabled()
+
+    pressAndAdvance('D')
+    expect(screen.getByTestId('hint-banner')).toBeInTheDocument()
+    expect(screen.getByTestId('undo-button')).toBeEnabled()
+
+    fireEvent.click(screen.getByTestId('undo-button'))
+    expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
+    expect(screen.queryByTestId('hint-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('undo-button')).toBeDisabled()
+  })
+
+  it('a restart mid-run can be undone with Z', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+
+    pressAndAdvance('U')
+    pressAndAdvance('U')
+    fireEvent.keyDown(window, { key: 'r' })
+    expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'z' })
+    expect(screen.getByLabelText(`2 of ${level1.par} moves`)).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Backspace' })
+    expect(screen.getByLabelText(`1 of ${level1.par} moves`)).toBeInTheDocument()
+  })
+
+  it('undo from the death overlay revives the chick before the fatal step', () => {
+    window.history.pushState({}, '', '/chips?level=9001')
+    render(<ChicksGame />)
+
+    pressAndAdvance('R')
+    act(() => {
+      jest.advanceTimersByTime(600)
+    })
+    const dialog = screen.getByRole('dialog', { name: 'You died' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Undo move' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('0 of 1 moves')).toBeInTheDocument()
+  })
+
+  it('undo cancels a pending death overlay', () => {
+    window.history.pushState({}, '', '/chips?level=9001')
+    render(<ChicksGame />)
+
+    pressAndAdvance('R')
+    fireEvent.keyDown(window, { key: 'z' })
+    act(() => {
+      jest.advanceTimersByTime(600)
+    })
+
+    // (The synthetic level is unsolvable by design, so the stuck probe may still flag it.)
+    expect(screen.queryByRole('dialog', { name: 'You died' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('0 of 1 moves')).toBeInTheDocument()
+  })
+
   it('Escape returns to level select', () => {
     render(<ChicksGame />)
     fireEvent.click(screen.getByTestId('level-tile-1'))
