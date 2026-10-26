@@ -72,6 +72,30 @@ const PRIORITIES: DirectionPriority[] = ['balanced', 'expressToTop', 'expressToB
 
 const RENT_TIERS: RentTier[] = ['low', 'avg', 'high']
 
+const RENT_TIER_NAMES: Record<RentTier, string> = { low: 'Low', avg: 'Average', high: 'High' }
+
+/**
+ * When and whether a vacant office/apartment will lease: tenants only view
+ * vacancies at the daily 08:00 pass (offices on weekdays), against the rent
+ * tier's desirability bar. Read-only presentation of the engine's rule.
+ */
+export function leaseOutlook(unit: Unit, desirability: number): string | null {
+  const category = itemDef(unit.kind).category
+  if (unit.occupied || (category !== 'office' && category !== 'residential')) {
+    return null
+  }
+  if (unit.offline || unit.infested || unit.flags.noRoute) {
+    return 'Cannot lease until the issue above is fixed'
+  }
+  const when = category === 'office' ? '08:00 on a weekday' : '08:00'
+  const needed = TUNING.rent.leasabilityThreshold[unit.rentTier]
+  const score = Math.round(desirability)
+  if (score >= needed) {
+    return `Tenants move in at the next ${when}`
+  }
+  return `Needs desirability ${needed} at ${RENT_TIER_NAMES[unit.rentTier]} rent (now ${score}); tenants look at ${when}`
+}
+
 /** Clinic copay levels reuse the rentTier field; higher copay earns more per visit. */
 const COPAY_TIERS: Array<{ tier: RentTier; label: string }> = [
   { tier: 'low', label: 'Low' },
@@ -202,6 +226,9 @@ function UnitInspect({
   const issues = unitIssues(unit)
   const weeklyStress = weeklyTenantStress(unit)
   const factorLines = evalBreakdown ? evalFactorLines(evalBreakdown) : []
+  // The live score: a new unit's cached evalScore is 0 until its first 08:00 pass.
+  const desirability = evalBreakdown?.score ?? unit.evalScore
+  const outlook = leaseOutlook(unit, desirability)
   const vipRecord = vipRecords.find((record) => record.state === 'resident' && record.unitId === unit.id)
   const vipReport = vipRecord?.lastReport[0]
 
@@ -269,8 +296,14 @@ function UnitInspect({
           <>
             <dt className="text-white/50">Desirability</dt>
             <dd className="tabular-nums" data-testid="eval-score">
-              {Math.round(unit.evalScore)}/100
+              {Math.round(desirability)}/100
             </dd>
+          </>
+        )}
+        {outlook && (
+          <>
+            <dt className="text-white/50">Leasing</dt>
+            <dd data-testid="lease-outlook">{outlook}</dd>
           </>
         )}
         {income && (

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 
 import { shaftDef } from '../../engine/catalog'
+import type { EvalBreakdown } from '../../engine/occupancy'
 import { defaultShaftProgram, type Shaft, type ShaftProgram, type Unit, type VipRecord } from '../../gameTypes'
 import { vipRecordDisplayName, vipReportLine, vipVisitIdForTarget } from '../../vipFlavor'
 import { InspectPanel } from '../InspectPanel'
@@ -29,6 +30,28 @@ function makeUnit(overrides: Partial<Unit> = {}): Unit {
     damageKind: null,
     incidentPenaltyUntilDay: null,
     ...overrides,
+  }
+}
+
+function zeroBreakdown(): EvalBreakdown {
+  return {
+    score: 0,
+    amenityBonus: 0,
+    landmarkBonus: 0,
+    fallsViewBonus: 0,
+    affinityBonus: 0,
+    superLobbyBonus: 0,
+    glassBonus: 0,
+    liveWorkBonus: 0,
+    noisePenalty: 0,
+    congestionPenalty: 0,
+    restroomComfortPenalty: 0,
+    trashPenalty: 0,
+    dirtyPenalty: 0,
+    incidentPenalty: 0,
+    parkingPenalty: 0,
+    infestationPenalty: 0,
+    requestBonus: 0,
   }
 }
 
@@ -87,6 +110,26 @@ describe('InspectPanel — unit', () => {
 
     expect(screen.getByTestId('overlay-tile-sample')).toHaveTextContent('Congestion · floor B2 · tile 19')
     expect(screen.getByTestId('overlay-tile-sample')).toHaveTextContent('4.3 min avg wait')
+  })
+
+  it('shows a vacant unit\'s live desirability and when and whether it will lease', () => {
+    const vacant = makeUnit({ occupied: false, population: { low: 0, med: 0, high: 0, vip: 0 }, evalScore: 0 })
+    const breakdown = (score: number): EvalBreakdown => ({ ...zeroBreakdown(), score })
+
+    const { rerender } = render(
+      <InspectPanel selection={{ type: 'unit', unit: vacant }} evalBreakdown={breakdown(48)} maxStarReached={1} {...handlers()} />,
+    )
+    // Placed before its first 08:00 pass, the cached score is still 0 — show the live one.
+    expect(screen.getByTestId('eval-score')).toHaveTextContent('48/100')
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent(
+      'Needs desirability 50 at Average rent (now 48); tenants look at 08:00 on a weekday',
+    )
+
+    rerender(<InspectPanel selection={{ type: 'unit', unit: vacant }} evalBreakdown={breakdown(60)} maxStarReached={1} {...handlers()} />)
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Tenants move in at the next 08:00 on a weekday')
+
+    rerender(<InspectPanel selection={{ type: 'unit', unit: makeUnit() }} evalBreakdown={breakdown(72)} maxStarReached={1} {...handlers()} />)
+    expect(screen.queryByTestId('lease-outlook')).toBeNull()
   })
 
   it('shows occupancy, eval, fixed rent economics, and fires the rent tier command', () => {
