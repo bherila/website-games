@@ -416,10 +416,10 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 36 | Four Rooms | L | four quadrants, one mechanic each, shared key economy | 93 |
-| 37 | Deep Freeze | L | ice labyrinth + monsters on ice | 88 |
+| 37 | Deep Freeze | M | 13×14 ice rink: plan slides between stops while a ball shoots along an ice lane | 45 |
 | 38 | The Vault | L | nested rings: thief, teleports, water — strict ordering | 90 |
-| 39 | Rube Goldberg | L | block-onto-button chains driving toggles/clones/tanks | 94 |
-| 40 | Grand Tour | L | finale touring every mechanic | 116 |
+| 39 | Rube Goldberg | M | block bridge → red button → cloned tank on the green button; blue button turns a guard tank; order matters | 45 |
+| 40 | Grand Tour | M | 13×15 hub of six rooms (block, ice, belts, thief and fire, teleports, door) behind a ball-patrolled hall | 79 |
 
 **Phase 9 — Encore (41–45).** Compact boards (≤ 13 wide, so a phone shows them whole) combining
 mechanics earlier phases taught one at a time. Added in the 2026-10 variety pass.
@@ -431,6 +431,13 @@ mechanics earlier phases taught one at a time. Added in the 2026-10 variety pass
 | 43 | Parcel Post | M | push a block through a teleport to bridge the far room's water | 24 |
 | 44 | Pocket Rink | M | skates let you stop beside chip pockets on ice lanes, then bank home | 42 |
 | 45 | Assembly Line | M | capstone: two ice-lane bridges plus a belt-fed button | 48 |
+
+**Compact mastery redraw.** 37, 39 and 40 were 27–29 tiles wide and over 80% wall: long walks
+under a follow camera on a phone. They are now at most 13×15 under the same ids, titles and
+mechanics. 40 stays the phase-8 capstone by solver nodes (about 204k, against 36's 225k and the
+0.8× dominance rule); 37 (about 3k nodes) and 39 (about 17k) keep their order below it. Saved
+best-move counts carry over from the old layouts. Their extra gates live in
+`__tests__/levelVariety.test.ts`.
 
 **2026-10 variety pass.** Levels 7, 8, 12, 22, 23 and 24 were near-copies of their phase openers
 (the same 11×11 room, one full-width band, two chips below, socket bottom-centre; 24 repeated 19's
