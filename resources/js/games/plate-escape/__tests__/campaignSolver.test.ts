@@ -1,4 +1,4 @@
-import { type PuzzleState, remainingScrews, screwLock } from '../engine'
+import { hasWon, panelState, type PuzzleState, remainingScrews, screwLock } from '../engine'
 import { getLevel, heldPlates, LEVELS } from '../level'
 import { analyseLevel } from './puzzleSolver'
 
@@ -8,9 +8,10 @@ import { analyseLevel } from './puzzleSolver'
 const DIFFICULTY: Record<number, readonly [number, number]> = {
   1: [1, 1], 2: [0.3, 0.65], 3: [0.15, 0.35], 4: [0.6, 0.95], 5: [0.3, 0.6],
   6: [0.5, 0.8], 7: [0.25, 0.45], 8: [0.25, 0.5], 9: [0.55, 0.85], 10: [0.12, 0.3],
+  11: [0.45, 0.75], 12: [0.35, 0.6],
 }
 /** Levels that introduce something: no move short of overflowing may doom the board. */
-const TEACHING = new Set([1, 4, 6, 9])
+const TEACHING = new Set([1, 4, 6, 9, 11, 12])
 /** Elsewhere a move may commit to a loss, but the overflow must show within this many removals. */
 const DOOM_HORIZON = 4
 const analyses = new Map(LEVELS.map((level) => [level.id, analyseLevel(level.id)]))
@@ -79,5 +80,20 @@ test('shared screws shape every level that has them', () => {
     // And some legal move lets two plates go at once.
     expect(boards.some((board) => level.screws.some((screw) => !board.removed.includes(screw.id) && !screwLock(board, screw)
       && heldPlates(screw).filter((plate) => remainingScrews(board, plate) === 1).length >= 2))).toBe(true)
+  }
+})
+
+test('captive covers shape every level that has them', () => {
+  const covered = LEVELS.filter((level) => level.screws.some((screw) => screw.coveredWhenOpen))
+  expect(covered.map((level) => level.id)).toEqual([11, 12])
+  for (const level of covered) {
+    const analysis = analyses.get(level.id)!
+    // Both are teaching levels with no doomed board, so every board short of overflow can still win.
+    expect(analysis.doomed).toBe(0)
+    // On such a board, an open part is the only thing in the way of some head.
+    expect(analysis.boards.some((board) => board.overflow === null && !hasWon(board) && level.screws.some((screw) => {
+      const lock = screwLock(board, screw)
+      return lock?.kind === 'cover' && panelState(board, lock.plate) === 'open' && !(screw.blockedBy ?? []).some((id) => remainingScrews(board, id) > 0)
+    }))).toBe(true)
   }
 })

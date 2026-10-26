@@ -23,10 +23,12 @@ test('legacy two-level progress unlocks the windmill and later wins reach the mi
   expect(village.stars).toEqual({ 1: 3, 2: 3, 3: 3, 4: 3, 5: 3 })
 })
 
-test('a five-level save opens the waterwheel, and the last level unlocks nothing further', () => {
+test('a five-level save opens the waterwheel, the mill opens the harbor, and the last level unlocks nothing further', () => {
   const saved = loadProgress({ getItem: () => JSON.stringify({ version: 1, unlockedLevel: 5, stars: { 1: 3, 2: 3, 3: 3, 4: 3, 5: 3 } }) })
   expect(saved.unlockedLevel).toBe(6)
   let progress = saved
   for (const level of [6, 7, 8, 9, 10]) progress = recordWin(progress, level, 3)
-  expect(progress.unlockedLevel).toBe(10)
+  expect(progress.unlockedLevel).toBe(11)
+  for (const level of [11, 12]) progress = recordWin(progress, level, 3)
+  expect(progress.unlockedLevel).toBe(12)
 })

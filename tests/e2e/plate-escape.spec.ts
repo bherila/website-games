@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
-import { MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
 
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
@@ -297,11 +297,89 @@ test.describe('Plate Escape real puzzle', () => {
         }
         await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
         await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
-        if (trace.level < 10) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
+        await activate(page.getByRole('button', { name: 'Next level', exact: true }))
+      }
+      // The mill leads on to the harbor, whose first level opens with its introduction.
+      await expect(page.getByRole('dialog', { name: 'Rowing Boat' })).toBeVisible()
+      await page.reload()
+      for (const id of [6, 7, 8, 9, 10]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
+      expect(errors).toEqual([])
+    })
+  })
+
+  test.describe('the harbor', () => {
+    test.use({ reducedMotion: 'reduce' })
+
+    test('plays a drop flap and storm shutters that cover what they land on', async ({ page, isMobile }, testInfo) => {
+      test.setTimeout(300_000)
+      if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+      await page.addInitScript(() => {
+        const key = 'bwh.plate-escape.progress.v1'
+        const stars = Object.fromEntries(Array.from({ length: 10 }, (_, index) => [index + 1, 3]))
+        if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ version: 1, unlockedLevel: 11, stars }))
+      })
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(String(error)))
+      const activate = async (locator: Locator): Promise<void> => {
+        if (isMobile) await locator.tap({ timeout: 15_000 })
+        else await locator.click({ timeout: 15_000 })
+      }
+      const find = async (locator: Locator): Promise<void> => {
+        for (let turn = 0; turn < 12 && !await locator.isVisible(); turn++) {
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+          await page.waitForTimeout(250)
+        }
+        await expect(locator).toBeVisible({ timeout: 10_000 })
+      }
+      const removeVisible = async (id: string): Promise<void> => {
+        const head = page.locator(`[data-screw-id="${id}"]`)
+        await find(head)
+        await activate(head)
+        await expect.poll(async () => await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled() || await page.getByRole('alertdialog').isVisible() || await page.getByTestId('screw-progress').textContent() === '12 / 12 screws').toBe(true)
+      }
+      /** No turn of the view offers a head that a dropped cover lies over. */
+      const buried = async (id: string): Promise<void> => {
+        for (let turn = 0; turn < 8; turn++) {
+          await expect(page.locator(`[data-screw-id="${id}"]`)).toHaveCount(0)
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+          await page.waitForTimeout(250)
+        }
+      }
+      await page.goto('/plate-escape')
+      await expect(page.getByTestId('level-tile-12')).toHaveAttribute('data-unlocked', 'false')
+      await activate(page.getByRole('button', { name: 'Level 11, 0 stars', exact: true }))
+      for (const trace of HARBOR_TRACES) {
+        await activate(page.getByRole('button', { name: "Let's play", exact: true }))
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+        await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+        await page.screenshot({ path: testInfo.outputPath(`level-${trace.level}.png`) })
+        for (const id of trace.lose) await removeVisible(id)
+        await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
+        await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
+        await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
+        if (trace.level === 11) {
+          // Freed first, the bait flap drops over the transom screw; undo lifts it back.
+          await find(page.locator('[data-screw-id="transom-1"]'))
+          await removeVisible('bait-flap-1')
+          await page.screenshot({ path: testInfo.outputPath('bait-flap-open.png') })
+          await buried('transom-1')
+          await activate(page.getByRole('button', { name: 'Undo', exact: true }))
+          await find(page.locator('[data-screw-id="transom-1"]'))
+        }
+        for (const id of trace.win) {
+          await removeVisible(id)
+          if (id === 'shutter-front-1') {
+            await page.screenshot({ path: testInfo.outputPath('shutter-dropped.png') })
+            await buried('base-front-1')
+          }
+        }
+        await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
+        await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
+        if (trace.level < 12) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
         else await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
       }
       await page.reload()
-      for (const id of [6, 7, 8, 9, 10]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
+      for (const id of [11, 12]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
       expect(errors).toEqual([])
     })
   })

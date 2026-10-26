@@ -12,7 +12,7 @@ import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { StarRow } from '../_shared/StarRow'
 import { PortraitGameShell } from '../PortraitGameShell'
 import { CollectionTrays, ScrewHead } from './CollectionTrays'
-import { createPuzzle, freedPlates, hasWon, type PuzzleState, removeScrew, screwLock } from './engine'
+import { createPuzzle, freedPlates, hasWon, panelState, type PuzzleState, removeScrew, screwLock } from './engine'
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
 import { COLORS, getLevel, LEVELS, type PuzzleLevel, type ScrewColor } from './level'
 import { PlateEscapeScene, type PlateEvent, type ScrewTarget, type ViewCommand } from './PlateEscapeScene'
@@ -121,6 +121,10 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     if (lock?.kind === 'bearing') {
       const load = PLATES.find((candidate) => candidate.id === lock.plate)!
       return `${plate(lock.support ?? screw.plate)} is holding up the ${load.name.toLowerCase()}. Free the ${load.finish === 'roof' ? 'roof' : load.name.toLowerCase()} first.`
+    }
+    if (lock?.kind === 'cover' && panelState(puzzle, lock.plate) === 'open') {
+      const cover = PLATES.find((candidate) => candidate.id === lock.plate)!
+      return `The ${cover.name.toLowerCase()} is ${cover.rail ? 'resting' : 'hanging'} over that screw. It comes away with the ${plate(cover.host!).toLowerCase()}.`
     }
     if (lock?.kind === 'cover') return `The ${plate(lock.plate).toLowerCase()} covers that screw. Release it first.`
     return 'No room for that screw. Collect a matching color or undo.'

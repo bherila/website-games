@@ -1,7 +1,7 @@
 import { createMuteStorage } from '../_shared/audio/muteStorage'
 import { createSynthSfx, type SynthRecipe, type SynthSfx } from '../_shared/audio/synthSfx'
 
-export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'swing' | 'land' | 'overflow' | 'win' | 'undo'
+export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'swing' | 'slide' | 'land' | 'splash' | 'overflow' | 'win' | 'undo'
 
 /** Toy-workshop sounds: a ratchet and pop for each screw, chimes for trays, wooden knocks for parts. */
 export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
@@ -35,6 +35,16 @@ export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
     tone(420, 760, 0.3, 'sawtooth', 0.02)
     tone(840, 1150, 0.22, 'triangle', 0.025, 0.06)
     noise(0.18, 0.03, 2400, { filter: 'bandpass', delay: 0.05, sweepTo: 3200, attack: 0.04, q: 3 })
+  },
+  // A shutter rattles down its rail and knocks against the stop.
+  slide: ({ tone, noise }) => {
+    noise(0.28, 0.05, 1500, { filter: 'bandpass', sweepTo: 700, attack: 0.02, q: 2 })
+    tone(240, 150, 0.12, 'triangle', 0.16, 0.3)
+  },
+  // A part drops into the harbor: a plop, then a fizz of spray.
+  splash: ({ tone, noise }) => {
+    tone(520, 180, 0.14, 'sine', 0.16)
+    noise(0.4, 0.08, 2600, { filter: 'bandpass', delay: 0.03, sweepTo: 900, attack: 0.02, q: 0.8 })
   },
   // A soft wooden thud on the deck or lawn.
   land: ({ tone, noise }) => {

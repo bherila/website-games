@@ -56,3 +56,17 @@ export const MILL_TRACES = [
     lose: ['left-1', 'left-roof-2', 'sail-mint-1'],
   },
 ]
+
+/** Captive covers: a drop flap (11) and storm shutters on rails (12). */
+export const HARBOR_TRACES = [
+  {
+    level: 11,
+    win: ['port-1', 'port-2', 'starboard-1', 'bow-1', 'bow-2', 'transom-1', 'thwart-1', 'thwart-2', 'port-3', 'starboard-2', 'bait-flap-1', 'batten-1'],
+    lose: ['port-1', 'port-3', 'starboard-2', 'bow-1'],
+  },
+  {
+    level: 12,
+    win: ['glass-left-1', 'glass-right-1', 'cap-left-1', 'cap-right-1', 'shutter-front-1', 'glass-front-1', 'shutter-back-1', 'glass-back-1', 'base-front-1', 'base-front-2', 'base-back-1', 'base-back-2'],
+    lose: ['glass-left-1', 'glass-right-1', 'shutter-back-1', 'base-front-2'],
+  },
+]

@@ -82,9 +82,9 @@ export function createMillLevels(plates: readonly Plate[], screws: readonly Scre
     introduction: 'Doors and hatches hang on hinges. Take out their screws and they swing open instead of falling, so you can reach the screws behind them.',
     plates: [
       ...shell('#7a5a44', '#efdcb8'),
-      { id: 'loft-door', name: 'Loft door', position: [0, 0.35, front + PROUD], size: [1.2, 1.1], normal: [0, 0, 1], up: [0, 1, 0], hinge: 'left', restsOn: ['front'], finish: 'plank', color: '#a0703f' },
+      { id: 'loft-door', name: 'Loft door', position: [0, 0.35, front + PROUD], size: [1.2, 1.1], normal: [0, 0, 1], up: [0, 1, 0], hinge: 'left', host: 'front', restsOn: ['front'], finish: 'plank', color: '#a0703f' },
       { id: 'hoist-beam', name: 'Hoist beam', position: [0, 1.2, front + PROUD], size: [1.6, 0.5], normal: [0, 0, 1], up: [0, 1, 0], finish: 'beam', color: '#6e4a2c' },
-      { id: 'back-hatch', name: 'Back hatch', position: [0, -0.7, back - PROUD], size: [1.4, 1.0], normal: [0, 0, -1], up: [0, 1, 0], hinge: 'top', restsOn: ['back'], finish: 'plank', color: '#a0703f' },
+      { id: 'back-hatch', name: 'Back hatch', position: [0, -0.7, back - PROUD], size: [1.4, 1.0], normal: [0, 0, -1], up: [0, 1, 0], hinge: 'top', host: 'back', restsOn: ['back'], finish: 'plank', color: '#a0703f' },
     ],
     screws: [
       ...moved(recolor(screws, { 'back-1': 'amber', 'front-2': 'amber', 'left-1': 'blue' }, ['front-1']), {
@@ -105,7 +105,7 @@ export function createMillLevels(plates: readonly Plate[], screws: readonly Scre
       ...shell('#5f6f7d', '#efe1c4'),
       ...sails,
       // On the side wall: the turning sails sweep most of the front gable.
-      { id: 'mill-door', name: 'Mill door', position: [1.8 + PROUD, -0.3, 0.55], size: [1.0, 1.6], normal: [1, 0, 0], up: [0, 1, 0], hinge: 'right', restsOn: ['right'], finish: 'plank', color: '#7a5a3c' },
+      { id: 'mill-door', name: 'Mill door', position: [1.8 + PROUD, -0.3, 0.55], size: [1.0, 1.6], normal: [1, 0, 0], up: [0, 1, 0], hinge: 'right', host: 'right', restsOn: ['right'], finish: 'plank', color: '#7a5a3c' },
     ],
     screws: [
       // front-1 sits outside the swept disc, so a passing sail never hides it.

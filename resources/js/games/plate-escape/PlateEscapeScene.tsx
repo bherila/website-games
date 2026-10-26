@@ -4,11 +4,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
-import { coverStandoff, createGarden, createPlateMesh, decoratePlate, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
+import { coverStandoff, createPlateMesh, createStage, decoratePlate, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
 import { COLORS, getLevel, heldPlates, type ScrewColor } from './level'
-import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
+import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, RAIL_SECONDS, railPose, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
 import { SCREW_MARKS } from './screwMarks'
 import { traceScrew } from './screwVisibility'
+import { STAGES } from './stage'
 
 export interface ScrewTarget {
   id: string
@@ -19,8 +20,8 @@ export interface ScrewTarget {
   holdsUp?: string | undefined
 }
 export interface ViewCommand { action: 'left' | 'right' | 'reset', sequence: number }
-/** A released part starts to fall, a hinged panel swings open, or a part hits the deck or lawn. */
-export type PlateEvent = 'fall' | 'swing' | 'land'
+/** A part starts to fall, a hinged panel swings open, a shutter drops down its rail, or a part lands or splashes. */
+export type PlateEvent = 'fall' | 'swing' | 'slide' | 'land' | 'splash'
 interface Props {
   state: PuzzleState
   view: ViewCommand
@@ -63,14 +64,17 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
     container.appendChild(renderer.domElement)
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100)
-    camera.position.set(6.4, 4.2, 10)
+    const stage = level.stage ?? 'garden'
+    const target = new THREE.Vector3().fromArray(STAGES[stage].target)
+    const distance = STAGES[stage].distance ?? 1
+    camera.position.set(6.4, 4.1, 10).multiplyScalar(distance).add(target)
     const controls = new OrbitControls(camera, renderer.domElement)
-    controls.target.set(0, 0.1, 0)
+    controls.target.copy(target)
     controls.enablePan = false
     controls.enableDamping = true
     controls.rotateSpeed = 0.65
-    controls.minDistance = 10
-    controls.maxDistance = 16
+    controls.minDistance = 10 * distance
+    controls.maxDistance = 16 * distance
     controls.minPolarAngle = 0.5
     controls.maxPolarAngle = Math.PI / 2 + 0.12
     controls.update()
@@ -111,7 +115,7 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
     scene.add(assembly)
     const plateGroups = new Map<string, THREE.Group>()
     const screwGroups = new Map<string, THREE.Group>()
-    const garden = createGarden(level.theme)
+    const garden = createStage(level)
     scene.add(garden)
     const hitObjects: THREE.Object3D[] = [garden]
     const plateFrames = new Map(PLATES.map((plate) => [plate.id, plateQuaternion(plate)]))
@@ -131,8 +135,22 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
         screwGroup.userData.screwId = screw.id
         group.add(screwGroup)
         screwGroups.set(screw.id, screwGroup)
-
       }
+    }
+    // A dashed outline shows where each captive cover will come to rest, before it is freed.
+    const landings = new Map<string, THREE.LineLoop>()
+    for (const plate of PLATES.filter((candidate) => SCREWS.some((screw) => screw.coveredWhenOpen?.includes(candidate.id)))) {
+      const start = new THREE.Vector3().fromArray(plate.position)
+      const pose = plate.hinge ? hingePose(plate, start, plateFrames.get(plate.id)!, HINGE_SECONDS) : railPose(plate, start, plateFrames.get(plate.id)!, RAIL_SECONDS)
+      const points = plateOutline(plate).getPoints(12).map((point) => new THREE.Vector3(point.x, point.y, 0.15))
+      const loop = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: '#fff8e6', dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.85 }))
+      loop.computeLineDistances()
+      loop.position.copy(pose.position)
+      loop.quaternion.copy(pose.quaternion)
+      loop.raycast = () => {}
+      loop.userData.landing = plate.id
+      assembly.add(loop)
+      landings.set(plate.id, loop)
     }
 
     // Every screw that pins a plate, including shared screws whose head is on another part,
@@ -245,19 +263,24 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
           baseQuaternion.copy(turned.quaternion)
         }
         let fall = 0
-        if (plate.hinge) {
-          // A captive panel swings open and stays with its host; it falls only when the host does.
+        const landing = landings.get(plate.id)
+        if (landing) landing.visible = remaining.length > 0
+        if (plate.hinge || plate.rail) {
+          // A captive panel swings open or drops down its rail and stays with its host; it falls only when the host does.
           const open = remaining.length === 0
+          const lasts = plate.hinge ? HINGE_SECONDS : RAIL_SECONDS
           if (!open) swung.delete(plate.id)
           else if (!swung.has(plate.id)) {
             swung.add(plate.id)
-            latestRef.current.onPlateEvent?.('swing')
+            latestRef.current.onPlateEvent?.(plate.hinge ? 'swing' : 'slide')
           }
-          const pose = open ? hingePose(plate, basePosition, baseQuaternion, reduceMotion ? HINGE_SECONDS : now - latest) : { position: basePosition, quaternion: baseQuaternion }
-          if (open && now - latest < HINGE_SECONDS) lastMotionAt = now
+          const settle = reduceMotion ? lasts : now - latest
+          const pose = !open ? { position: basePosition, quaternion: baseQuaternion }
+            : plate.hinge ? hingePose(plate, basePosition, baseQuaternion, settle) : railPose(plate, basePosition, baseQuaternion, settle)
+          if (open && now - latest < lasts) lastMotionAt = now
           group.position.copy(pose.position)
           group.quaternion.copy(pose.quaternion)
-          const host = plate.restsOn?.[0]
+          const host = plate.host
           if (host !== undefined && remainingOn(host) === 0) fall = Math.max(0, now - releasedAt(host) - 0.45)
         } else {
           const held = remaining.length === 1 && bearingLock(latestRef.current.state, plate.id, heldPlates(remaining[0]!)) !== null
@@ -291,12 +314,12 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
             group.visible = false
             continue
           }
-          const pose = fallPose(plate, group.position, group.quaternion, reduceMotion ? 0 : fall)
+          const pose = fallPose(plate, group.position, group.quaternion, reduceMotion ? 0 : fall, stage)
           group.position.copy(pose.position)
           group.quaternion.copy(pose.quaternion)
-          if (pose.grounded && !landed.has(plate.id)) {
+          if ((pose.grounded || pose.wet) && !landed.has(plate.id)) {
             landed.add(plate.id)
-            latestRef.current.onPlateEvent?.('land')
+            latestRef.current.onPlateEvent?.(pose.wet ? 'splash' : 'land')
           }
           setOpacity(group, plate.id, Math.min(1, (lasts - fall) / FADE_SECONDS))
           group.visible = true
