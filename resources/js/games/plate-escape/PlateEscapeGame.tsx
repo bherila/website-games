@@ -174,7 +174,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     if (hasWon(next)) onWin(level.id)
     setBusy(true)
     setMessage(`${COLORS[screw.color].name} screw collected. ${next.removed.length} of ${SCREWS.length} screws removed; ${freedPlates(next)} of ${PLATES.length} plates released.`)
-    play('unscrew')
+    play(`unscrew-${screw.color}`)
     // The landing sound plays as the flying head reaches its tray or spare slot.
     const landing: PlateSound = next.completed.length > puzzle.completed.length ? 'tray-complete' : activeTray ? 'tray' : 'spare'
     moveTimerRef.current = setTimeout(() => {
