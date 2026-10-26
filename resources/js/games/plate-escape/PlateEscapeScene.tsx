@@ -5,8 +5,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { disposeObject } from '../_shared/three/threeUtils'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
 import { coverStandoff, createGarden, createPlateMesh, decoratePlate, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
-import { COLORS, getLevel, heldPlates } from './level'
+import { COLORS, getLevel, heldPlates, type ScrewColor } from './level'
 import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
+import { SCREW_MARKS } from './screwMarks'
 import { traceScrew } from './screwVisibility'
 
 export interface ScrewTarget {
@@ -366,27 +367,23 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
   return <div ref={hostRef} className="absolute inset-x-0 bottom-16 top-0" data-testid="plate-escape-scene" />
 }
 
-function makeScrew(color: string, kind: string): THREE.Group {
+const HEAD_RADIUS = 0.245
+
+function makeScrew(color: string, kind: ScrewColor): THREE.Group {
   const group = new THREE.Group()
   const metal = new THREE.MeshStandardMaterial({ color, metalness: 0.45, roughness: 0.27 })
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.12, 24), metal)
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(HEAD_RADIUS, HEAD_RADIUS, 0.12, 24), metal)
   head.rotation.x = Math.PI / 2
   head.castShadow = true
   group.add(head)
   const washer = new THREE.Mesh(new THREE.TorusGeometry(0.265, 0.025, 6, 24), new THREE.MeshStandardMaterial({ color: '#f3e6cf', metalness: 0.45, roughness: 0.38 }))
   washer.position.z = -0.035
   group.add(washer)
-  const inset = new THREE.MeshStandardMaterial({ color: '#263747', roughness: 0.8 })
-  const horizontal = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.055, 0.02), inset)
-  horizontal.position.z = 0.07
-  if (kind === 'amber') horizontal.rotation.z = Math.PI / 2
-  if (kind === 'mint') horizontal.rotation.z = Math.PI / 4
-  group.add(horizontal)
-  if (kind !== 'blue' && kind !== 'amber') {
-    const vertical = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.29, 0.02), inset.clone())
-    vertical.position.z = 0.07
-    if (kind === 'mint') vertical.rotation.z = Math.PI / 4
-    group.add(vertical)
-  }
+  // The drive shape stands just proud of the head, matching the tray and storage icons.
+  const mark = new THREE.Shape(SCREW_MARKS[kind].map(([x, y]) => new THREE.Vector2(x * HEAD_RADIUS, y * HEAD_RADIUS)))
+  const drive = new THREE.Mesh(new THREE.ExtrudeGeometry(mark, { depth: 0.02, bevelEnabled: false }), new THREE.MeshStandardMaterial({ color: '#263747', roughness: 0.8 }))
+  drive.position.z = 0.06
+  drive.userData.mark = kind
+  group.add(drive)
   return group
 }

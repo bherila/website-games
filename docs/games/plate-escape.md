@@ -19,8 +19,12 @@ queue helps players plan which colors to collect next. Matching is graphical: co
 trays alternate upward and downward, with a recessed screw hole at each corner. A collected
 screw plugs the hole with its colored head and washer. Neighboring triangles tuck together
 to leave room for wider rows as more trays are introduced.
-Queued and stored screws use the same colored head icons. Color names remain in accessible
-labels, and the title, level badge and navigation share one compact header row.
+Queued and stored screws use the same colored head icons. Each color also has its own drive
+mark (coral a slot, mint a cross, blue a square, amber a star) on the 3D heads, tray sockets,
+the queue and spare storage, and stamped on each tray even while it is empty, so matching never
+relies on color alone. The marks differ in outline, not angle, so a tilted panel cannot turn one
+into another (`screwMarks.ts`). Color names remain in accessible labels, and the title, level
+badge and navigation share one compact header row.
 
 The mill group (levels 6–10) adds two rules. Shared screws run through several parts:
 Waterwheel's axle pins the wheel to the front gable, Barn Doors' crossbar bolts pin each door,

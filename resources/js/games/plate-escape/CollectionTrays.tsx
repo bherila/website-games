@@ -3,14 +3,8 @@ import { type CSSProperties, type ReactElement, useId } from 'react'
 
 import type { PuzzleState, Tray } from './engine'
 import { COLORS, getLevel, type ScrewColor } from './level'
+import { markPath } from './screwMarks'
 
-// These marks match the grooves on the corresponding 3D screw heads.
-const MARKS: Record<ScrewColor, string> = {
-  coral: 'M11 20H29M20 11V29',
-  mint: 'M13 13L27 27M27 13L13 27',
-  blue: 'M11 20H29',
-  amber: 'M20 11V29',
-}
 const SOCKETS = [[80, 31], [38, 85], [122, 85]] as const
 const TRIANGLE = 'M72 10Q80-4 88 10L152 98Q161 112 145 112H15Q-1 112 8 98Z'
 const INVERTED_TRIANGLE = 'M72 110Q80 124 88 110L152 22Q161 8 145 8H15Q-1 8 8 22Z'
@@ -21,7 +15,7 @@ export function ScrewHead({ color, size = 28, x, y }: { color: ScrewColor, size?
       <circle cx="20" cy="20" r="19" fill="#f3e6cf" />
       <circle cx="20" cy="20" r="16" fill={COLORS[color].hex} />
       <path d="M8 17A13 13 0 0 1 30 10" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="2" strokeLinecap="round" />
-      <path d={MARKS[color]} fill="none" stroke="#263747" strokeWidth="3.6" strokeLinecap="round" />
+      <path d={markPath(color, 20, 20, 14)} fill="#263747" data-mark={color} />
     </svg>
   )
 }
@@ -56,6 +50,8 @@ function ColorTray({ tray, inverted }: { tray: Tray, inverted: boolean }): React
             {color && slot < tray.count ? <ScrewHead color={color} size={34} x={-17} y={-17} /> : null}
           </g>
         ))}
+        {/* The color's mark stays stamped on the tray, so an empty tray matches by shape too. */}
+        {color && <path d={markPath(color, 80, inverted ? 54 : 66, 11)} fill="#263747" fillOpacity=".55" data-tray-emblem={color} />}
         {color === null && <path d="M72 62L79 69L91 55" fill="none" stroke="#52796b" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />}
       </svg>
     </div>
