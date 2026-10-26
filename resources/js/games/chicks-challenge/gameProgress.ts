@@ -120,10 +120,28 @@ export function parseSavedProgress(value: unknown): SavedChicksProgress | null {
 
   return {
     version: 1,
-    unlockedLevel: Math.min(unlockedLevel, TOTAL_LEVELS),
+    unlockedLevel: Math.min(Math.max(unlockedLevel, highestWonLevel(stars) + 1), TOTAL_LEVELS),
     stars,
     bestMoves,
   }
+}
+
+/**
+ * The highest level id with a recorded win (0 when none). The unlock is capped at
+ * TOTAL_LEVELS when it is saved, so a save that finished the old last level holds
+ * `unlockedLevel === <old total>`; deriving the unlock from wins as well means a
+ * pack that grows (40 -> 45) opens its first new level for those players.
+ */
+function highestWonLevel(stars: Record<number, number>): number {
+  let highest = 0
+  for (const [key, value] of Object.entries(stars)) {
+    const levelId = Number(key)
+    if (value > 0 && levelId > highest) {
+      highest = levelId
+    }
+  }
+
+  return highest
 }
 
 function encodeProgress(progress: SavedChicksProgress) {
