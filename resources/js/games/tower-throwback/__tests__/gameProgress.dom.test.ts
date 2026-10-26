@@ -754,6 +754,32 @@ describe('sandbox persistence', () => {
     expect(reloaded!.shafts[0]!.stats.avgWaitGameMin).toBe(0)
   })
 
+  it('loads saves from before the weekly congestion history and round-trips the history', () => {
+    const state = builtState()
+    state.shafts[0]!.stats.dailyPeaksGameMin = [12.5, 0, 31]
+    saveSandbox(state, 'slot-a')
+    const current = loadSandbox('slot-a')!
+    expect(current.shafts[0]!.stats.dailyPeaksGameMin).toEqual([12.5, 0, 31])
+    expect(restoreSandbox(current).shafts[0]!.stats.dailyPeaksGameMin).toEqual([12.5, 0, 31])
+
+    // An older save has only the two original stats; it loads with an empty history.
+    const legacyShafts = current.shafts.map((shaft) => ({
+      ...shaft,
+      stats: { avgWaitGameMin: shaft.stats.avgWaitGameMin, peakWaitGameMin: shaft.stats.peakWaitGameMin },
+    }))
+    const legacy = importSandbox(JSON.stringify({ ...current, shafts: legacyShafts }), 'slot-b')
+    expect(legacy.ok).toBe(true)
+    expect(loadSandbox('slot-b')!.shafts[0]!.stats.dailyPeaksGameMin).toEqual([])
+
+    // A malformed or overlong history is trimmed to valid peaks rather than rejected.
+    const noisy = current.shafts.map((shaft) => ({
+      ...shaft,
+      stats: { ...shaft.stats, dailyPeaksGameMin: [1, 'x', -4, 2, 3, 4, 5, 6, 7, 8] },
+    }))
+    expect(importSandbox(JSON.stringify({ ...current, shafts: noisy }), 'slot-c').ok).toBe(true)
+    expect(loadSandbox('slot-c')!.shafts[0]!.stats.dailyPeaksGameMin).toEqual([1, 2, 3, 4, 5, 6])
+  })
+
   it('ignores malformed nested stored saves when building slot summaries', () => {
     window.localStorage.setItem(
       `${SANDBOX_STORAGE_KEY}.slot-a`,

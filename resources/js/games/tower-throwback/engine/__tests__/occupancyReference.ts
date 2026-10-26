@@ -11,6 +11,7 @@ import type {
   EngineState,
   IncomeTier,
   ItemKind,
+  Shaft,
   Unit,
   VacancyReason,
 } from '../../gameTypes'
@@ -246,32 +247,95 @@ function noiseTerm(state: EngineState, unit: Unit): number {
 }
 
 /**
- * Congestion penalty from the BEST (least-congested) shaft serving the unit's
- * floor segment — riders take whichever elevator is quickest, so adding a relief
- * shaft on a jammed floor actually lowers the penalty (not just when it happens
- * to be the closest). Uses each shaft's daily PEAK wait, not the live EMA, so a
- * shaft that jams at rush but calms by the 08:00 pass still penalizes.
+ * The wait a shaft's riders have recently faced: the worst daily peak over the
+ * last `congestionHistoryDays` windows (the current one included). A single
+ * daily window let the Monday pass read Sunday — offices closed, empty cars —
+ * and re-lease every unit the weekly stress pass had just emptied.
+ */
+export function recentPeakWait(shaft: Shaft): number {
+  let worst = shaft.stats.peakWaitGameMin
+  for (const peak of shaft.stats.dailyPeaksGameMin ?? []) {
+    worst = Math.max(worst, peak)
+  }
+  return worst
+}
+
+/**
+ * Congestion penalty from the elevators this unit's commuters actually ride:
+ * the elevator legs of the route from the street entrance to the unit's floor
+ * segment (a fresh, cache-bypassing search, so the answer never depends on the
+ * non-serialized path memo). The worst recent peak among those legs counts.
+ *
+ * It used to take the least-congested shaft with a stop on the segment, on
+ * the theory that riders pick the quickest elevator — but routing is
+ * load-blind, so an untouched shaft on the floor (ties go to the lowest shaft
+ * id) zeroed the penalty for every unit while the shaft people did use jammed.
  */
 function congestionTerm(state: EngineState, unit: Unit): number {
   const segment = segmentOf(state, unit.floor, unit.x)
   if (!segment) {
     return 0
   }
-  let bestWait = Infinity
-  for (const shaft of state.shafts) {
-    if (!shaft.enabledStops.includes(unit.floor)) {
+  return congestionPenaltyForSegment(state, segment)
+}
+
+/**
+ * Where commuters enter: the left edge of the first anchor-floor segment, the
+ * same point as `people.streetEntrance` (not imported: people → economy →
+ * occupancy would form an import cycle).
+ */
+function commuteEntrance(state: EngineState): Segment | null {
+  return getSegments(state).get(getMap(state.mapId).lobbyAnchorFloor)?.[0] ?? null
+}
+
+interface CommuteShaftCache {
+  structureVersion: number
+  bySegment: Map<string, readonly Shaft[]>
+}
+
+/**
+ * Commute shafts per floor segment, derived purely from the structure and
+ * dropped whenever `structureVersion` moves. It is not the router's path memo
+ * (which remembers whichever endpoints asked first and is not saved), so a
+ * restored game computes the same answer as an uninterrupted one.
+ */
+const commuteShaftCache = new WeakMap<EngineState, CommuteShaftCache>()
+
+function commuteShafts(state: EngineState, segment: Segment): readonly Shaft[] {
+  let cache = commuteShaftCache.get(state)
+  if (!cache || cache.structureVersion !== state.structureVersion) {
+    cache = { structureVersion: state.structureVersion, bySegment: new Map() }
+    commuteShaftCache.set(state, cache)
+  }
+  const key = `${segment.floor}:${segment.x0}`
+  const cached = cache.bySegment.get(key)
+  if (cached) {
+    return cached
+  }
+  const entrance = commuteEntrance(state)
+  const route = entrance
+    ? findRoute(state, entrance.floor, entrance.x0, segment.floor, segment.x0, { bypassCache: true })
+    : null
+  const shafts: Shaft[] = []
+  for (const leg of route ?? []) {
+    if (leg.type !== 'elevator' || leg.shaftId === undefined) {
       continue
     }
-    const width = shaftDef(shaft.kind).width
-    if (shaft.x + width - 1 < segment.x0 || shaft.x > segment.x1) {
-      continue
+    const shaft = state.shafts.find((candidate) => candidate.id === leg.shaftId)
+    if (shaft) {
+      shafts.push(shaft)
     }
-    bestWait = Math.min(bestWait, shaft.stats.peakWaitGameMin)
   }
-  if (bestWait === Infinity) {
-    return 0
+  cache.bySegment.set(key, shafts)
+  return shafts
+}
+
+function congestionPenaltyForSegment(state: EngineState, segment: Segment): number {
+  let worstWait = 0
+  for (const shaft of commuteShafts(state, segment)) {
+    worstWait = Math.max(worstWait, recentPeakWait(shaft))
   }
-  return Math.min(bestWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+  return Math.min(worstWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
 }
 
 function trashTerm(state: EngineState, unit: Unit): number {
@@ -591,10 +655,14 @@ export function occupancyPass(state: EngineState, events: EngineEvent[]): void {
   // only fires on boarding), so relax its stale live avg toward 0 — otherwise a
   // shaft whose traffic source was demolished shows phantom congestion on the
   // heatmap forever and can re-seed a high peak from one sparse future boarding.
+  // The closing window's peak joins the week of history the congestion term
+  // reads (newest first, bounded), then a fresh window starts.
+  const historyLength = TUNING.evalWeights.congestionHistoryDays - 1
   for (const shaft of state.shafts) {
     if (shaft.stats.peakWaitGameMin === 0) {
       shaft.stats.avgWaitGameMin *= 1 - TUNING.elevators.idleWaitDecayPerPass
     }
+    shaft.stats.dailyPeaksGameMin = [shaft.stats.peakWaitGameMin, ...(shaft.stats.dailyPeaksGameMin ?? [])].slice(0, historyLength)
     shaft.stats.peakWaitGameMin = 0
   }
 }

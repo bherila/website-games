@@ -608,7 +608,7 @@ function newShaft(id: number, cmd: PlaceShaftCommand, stops: number[]): Shaft {
     enabledStops: [...stops],
     cars: [car],
     program: defaultShaftProgram(),
-    stats: { avgWaitGameMin: 0, peakWaitGameMin: 0 },
+    stats: { avgWaitGameMin: 0, peakWaitGameMin: 0, dailyPeaksGameMin: [] },
   }
 }
 

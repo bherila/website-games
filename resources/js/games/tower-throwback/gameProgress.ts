@@ -441,7 +441,7 @@ function sandboxFromState(state: EngineState): SavedSandbox {
         idleAnswerThreshold: shaft.program.idleAnswerThreshold,
         doorDwellSec: shaft.program.doorDwellSec,
       },
-      stats: { ...shaft.stats },
+      stats: { ...shaft.stats, dailyPeaksGameMin: [...(shaft.stats.dailyPeaksGameMin ?? [])] },
     })),
     people: state.people.map((person) => ({ ...person, legs: person.legs.map((leg) => ({ ...leg })) })),
     activeBombThreat: state.activeBombThreat ? { ...state.activeBombThreat } : null,
@@ -641,7 +641,7 @@ export function restoreSandbox(saved: SavedSandbox): EngineState {
         idleAnswerThreshold: shaft.program.idleAnswerThreshold,
         doorDwellSec: shaft.program.doorDwellSec,
       },
-      stats: { ...shaft.stats },
+      stats: { ...shaft.stats, dailyPeaksGameMin: [...(shaft.stats.dailyPeaksGameMin ?? [])] },
     })),
     people: saved.people.map((person) => ({ ...person, legs: person.legs.map((leg) => ({ ...leg })) })),
     vips: saved.vips.map((vip) => ({ ...vip, lastReport: [...vip.lastReport] })),
@@ -1519,6 +1519,11 @@ function parseShaft(value: unknown): Shaft | null {
   const stats = isRecord(value.stats) ? value.stats : {}
   const avgWaitGameMin = parseNumber(stats.avgWaitGameMin) ?? 0
   const peakWaitGameMin = parseNumber(stats.peakWaitGameMin) ?? 0
+  // Saves from before the weekly history read as an empty history.
+  const dailyPeaksGameMin = (Array.isArray(stats.dailyPeaksGameMin) ? stats.dailyPeaksGameMin : [])
+    .map((peak) => parseNumber(peak))
+    .filter((peak): peak is number => peak !== null && peak >= 0)
+    .slice(0, TUNING.evalWeights.congestionHistoryDays - 1)
   if (
     id === null ||
     kind === null ||
@@ -1565,7 +1570,7 @@ function parseShaft(value: unknown): Shaft | null {
       : car
   ))
 
-  return { id, kind, x, bottomFloor, topFloor, stops, enabledStops, cars: normalizedCars, program, stats: { avgWaitGameMin, peakWaitGameMin } }
+  return { id, kind, x, bottomFloor, topFloor, stops, enabledStops, cars: normalizedCars, program, stats: { avgWaitGameMin, peakWaitGameMin, dailyPeaksGameMin } }
 }
 
 function parseVipRecord(value: unknown): VipRecord | null {

@@ -1,5 +1,6 @@
 import type { EngineEvent, EngineState, Unit } from '../../gameTypes'
 import { TUNING } from '../../gameTypes'
+import { stepEngine } from '../engine'
 import { evalBreakdown, evalUnit, occupancyPass, weeklyStressPass } from '../occupancy'
 import { unitIssues } from '../unitIssues'
 import { injectUnit, makeTestState, place, placeShaft, placeSlabRow, setStars } from './testState'
@@ -282,15 +283,23 @@ describe('evalUnit — term isolation', () => {
     expect(evalUnit(state, apt)).toBe(30)
   })
 
-  it('congestion reads the nearest serving shaft PEAK wait, capped at 25', () => {
+  /** Lobby floor 0 at x 0..40, office floors above; commuters enter at x 0. */
+  function commuteTower(topFloor = 5): { state: EngineState; office: Unit } {
     const state = makeTestState()
-    placeSlabRow(state, 0, 0, 30)
-    const office = bareOffice(state, 0)
-    place(state, 'restroom', 0, 8) // adjacent restroom → no comfort drag, isolate congestion
+    for (let floor = 0; floor <= topFloor; floor += 1) {
+      placeSlabRow(state, floor, 0, 40)
+    }
+    const office = injectUnit(state, { kind: 'officeS', floor: 3, x: 0, width: 6, storeys: 1 })
+    place(state, 'restroom', 3, 8) // adjacent restroom → no comfort drag, isolate congestion
+    return { state, office }
+  }
+
+  it('congestion reads the PEAK wait of the shaft commuters ride, capped at 25', () => {
+    const { state, office } = commuteTower()
     const shaftId = placeShaft(state, 'standard', 20, 0, 5)
     const shaft = state.shafts.find((s) => s.id === shaftId)!
 
-    // Eval reads the daily PEAK, not the live avg — a low avg with a high peak
+    // Eval reads the PEAK, not the live avg — a low avg with a high peak
     // (jammed at rush, calm now) must still penalize.
     const { congestionFactor, congestionCap } = TUNING.evalWeights
     shaft.stats.avgWaitGameMin = 0
@@ -300,18 +309,86 @@ describe('evalUnit — term isolation', () => {
     expect(evalUnit(state, office)).toBe(60 - congestionCap)
   })
 
-  it('congestion uses the least-congested serving shaft (a relief elevator helps)', () => {
+  it('congestion follows the shaft on the commute, not an untouched one on the same floor', () => {
+    const { state, office } = commuteTower()
+    const riddenId = placeShaft(state, 'standard', 20, 0, 5) // nearer the entrance: the route takes it
+    const idleId = placeShaft(state, 'standard', 30, 0, 5)
+    state.shafts.find((s) => s.id === riddenId)!.stats.peakWaitGameMin = 20
+    state.shafts.find((s) => s.id === idleId)!.stats.peakWaitGameMin = 0
+
+    // The idle shaft used to win a "least congested" minimum and erase the penalty.
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(20 * TUNING.evalWeights.congestionFactor)
+  })
+
+  it('re-derives the commute shaft when the structure changes', () => {
+    const { state, office } = commuteTower()
+    const riddenId = placeShaft(state, 'standard', 20, 0, 5)
+    const otherId = placeShaft(state, 'standard', 30, 0, 5)
+    state.shafts.find((s) => s.id === riddenId)!.stats.peakWaitGameMin = 20
+    state.shafts.find((s) => s.id === otherId)!.stats.peakWaitGameMin = 4
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(20)
+
+    // Closing the nearer shaft's floor-3 landing sends commuters through the other one.
+    stepEngine(state, [{ type: 'setStopEnabled', shaftId: riddenId, floor: 3, enabled: false }], 0)
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(4)
+  })
+
+  it('a ground-floor unit nobody rides to takes no congestion penalty', () => {
     const state = makeTestState()
     placeSlabRow(state, 0, 0, 40)
     const office = bareOffice(state, 0)
-    place(state, 'restroom', 0, 7) // isolate from the restroom drag
-    const jammedId = placeShaft(state, 'standard', 20, 0, 5)
-    const reliefId = placeShaft(state, 'standard', 30, 0, 5)
-    state.shafts.find((s) => s.id === jammedId)!.stats.peakWaitGameMin = 20
-    state.shafts.find((s) => s.id === reliefId)!.stats.peakWaitGameMin = 2
+    const shaftId = placeShaft(state, 'standard', 20, 0, 5)
+    state.shafts.find((s) => s.id === shaftId)!.stats.peakWaitGameMin = 20
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(0)
+  })
 
-    // Both serve floor 0 → riders take the calm one; penalty tracks the min peak.
-    expect(evalUnit(state, office)).toBe(60 - 2 * TUNING.evalWeights.congestionFactor)
+  it('remembers a week of daily peaks, then forgets them', () => {
+    const { state, office } = commuteTower()
+    const shaftId = placeShaft(state, 'standard', 20, 0, 5)
+    const shaft = state.shafts.find((s) => s.id === shaftId)!
+    shaft.stats.peakWaitGameMin = 18 // one jammed window…
+    occupancyPass(state, [])
+    expect(shaft.stats.peakWaitGameMin).toBe(0)
+    const days = TUNING.evalWeights.congestionHistoryDays
+    for (let window = 1; window < days; window += 1) {
+      // …still counts through the rest of the week of quiet windows…
+      expect(evalBreakdown(state, office).congestionPenalty).toBe(18)
+      occupancyPass(state, [])
+    }
+    // …and is gone a full week later.
+    expect(shaft.stats.dailyPeaksGameMin).toHaveLength(days - 1)
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(0)
+  })
+
+  it('a weekly stress move-out does not re-lease at the quiet Monday pass', () => {
+    const { state, office } = commuteTower()
+    const shaftId = placeShaft(state, 'standard', 20, 0, 5)
+    const shaft = state.shafts.find((s) => s.id === shaftId)!
+    state.clock.day = 1
+    occupancyPass(state, []) // Monday: the office leases on a calm shaft
+    expect(office.occupied).toBe(true)
+
+    // Tuesday–Friday rushes jam the shaft; Saturday and Sunday are quiet.
+    for (const peak of [30, 30, 30, 30, 0, 0]) {
+      state.clock.day += 1
+      shaft.stats.peakWaitGameMin = peak
+      office.lowEvalDays = 0 // isolate the weekly stress path from the 3-day rule
+      occupancyPass(state, [])
+      office.occupied = true
+    }
+    office.stressMarks = 99
+    const events: EngineEvent[] = []
+    weeklyStressPass(state, events) // end of Sunday
+    expect(office.occupied).toBe(false)
+    expect(events).toContainEqual(expect.objectContaining({ type: 'unitVacated', unitId: office.id, reason: 'elevatorCrowded' }))
+
+    // Monday 08:00: this window saw only Sunday's empty cars, but the tenants'
+    // week did not get better — the unit stays empty and earns no rent.
+    state.clock.day += 1
+    shaft.stats.peakWaitGameMin = 0
+    occupancyPass(state, [])
+    expect(office.occupied).toBe(false)
+    expect(office.vacancyReason).toBe('elevatorCrowded')
   })
 
   it('occupancyPass resets every shaft peak wait after evaluating (fresh 24h window)', () => {

@@ -170,7 +170,7 @@ eval(unit) = clamp(0, 100,
   + glassBonus                                // +3 if within 8 tiles of a glass elevator column
   + liveWorkBonus                             // residential only: +4 while occupied office seats ≥ 25% of tower residents (live near work)
   − noisePenalty                              // see noise model, cap 30
-  − congestionPenalty                         // avgWaitGameMin at nearest serving stop × 1.5, cap 25
+  − congestionPenalty                         // worst 7-day peak wait on the unit's commute route × congestionFactor, cap 25
   − trashPenalty                              // 10 if trash overflow within 16 tiles
   − dirtyPenalty                              // hotel rooms: 15 while dirty
   − incidentPenalty                           // 10 while explosion/fire-damaged and for 3 game-days after repair
@@ -499,6 +499,12 @@ Small, deliberate gaps between this spec and the shipped v1 sim:
   they place anywhere a slab exists.
 - **Congestion sampling** measures REAL queued minutes per boarding (the earlier
   patience-derived estimate over-counted the left-behind ×0.75 patience chop).
+- **Congestion penalty** reads the elevators on the unit's commute: the elevator legs of a fresh
+  route from the street entrance to the unit's floor segment. Each shaft contributes its worst
+  daily peak (the peak of its smoothed wait) over the last `congestionHistoryDays` daily windows.
+  The week of history keeps the Monday 08:00 pass — whose own window is the quiet Sunday — from
+  re-leasing units the weekly stress pass just emptied, and following the route keeps an idle
+  shaft on the same floor from hiding the jammed one people actually ride.
 - **Daily pass cost**: the 08:00 occupancy pass builds a per-pass unit index (units by floor,
   amenity and noise sources near each floor, restrooms, landmark candidates, infested units,
   parking counts) so each eval term reads its neighbors instead of rescanning every unit. Results
@@ -583,6 +589,7 @@ this table in the same commit; the test fails otherwise.
 | `evalWeights.liveWorkMinJobShare` | `0.25` |
 | `evalWeights.congestionFactor` | `1` |
 | `evalWeights.congestionCap` | `25` |
+| `evalWeights.congestionHistoryDays` | `7` |
 | `evalWeights.restroomComfortPenalty` | `12` |
 | `evalWeights.restroomComfortFreeTiles` | `12` |
 | `evalWeights.trashPenalty` | `10` |

@@ -100,6 +100,7 @@ function randomTower(seed: number, mapId: 'city-tower' | 'niagara-falls', unitCo
     const id = placeShaft(state, 'standard', x, Math.max(lowest, highest - 29), highest)
     const shaft = state.shafts.find((candidate) => candidate.id === id)!
     shaft.stats.peakWaitGameMin = rng.next() < 0.3 ? 0 : rng.next() * 60
+    shaft.stats.dailyPeaksGameMin = Array.from({ length: Math.floor(rng.next() * 7) }, () => rng.next() * 40)
   }
   const occupiedColumns = new Set(shaftXs.flatMap((x) => [x, x + 1]))
   const landmark = mapId === 'city-tower' ? 'cathedral' : 'observationDeck'
