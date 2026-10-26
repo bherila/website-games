@@ -6,7 +6,7 @@ export interface CloneTemplate {
 }
 
 export interface ChicksLevelDef {
-  /** 1..40, contiguous across the shipped pack. */
+  /** 1..TOTAL_LEVELS, contiguous across the shipped pack. */
   readonly id: number
   /** Short original title (never copied from any commercial release). */
   readonly title: string

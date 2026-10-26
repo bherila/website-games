@@ -15,6 +15,7 @@ import {
   rotateIntent,
   tilePxForRotation,
 } from '../input/orientation'
+import { MIN_PX_PER_TILE } from '../scene/cameraRig'
 
 const DIRECTIONS: readonly MoveIntent[] = ['up', 'right', 'down', 'left']
 
@@ -138,11 +139,11 @@ describe('chooseQuarterTurns', () => {
 
   it('does not rotate a board too big to fit either way (the follow camera owns those)', () => {
     // 26x17 on a portrait phone: 14 px/tile upright, 22 rotated — a 1.5x gain that
-    // still cannot show the whole board at the 32 px/tile floor, so the scene
+    // still cannot show the whole board at the px/tile floor, so the scene
     // follows the player instead and a quarter turn would only disorient.
     const viewport = { width: 375, height: 580 }
     const board = { cols: 26, rows: 17 }
-    expect(tilePxForRotation(viewport, board, 1)).toBeLessThan(32)
+    expect(tilePxForRotation(viewport, board, 1)).toBeLessThan(MIN_PX_PER_TILE)
     expect(tilePxForRotation(viewport, board, 1) / tilePxForRotation(viewport, board, 0)).toBeGreaterThan(1.15)
 
     expect(decide(viewport, board, 0)).toBe(0)
@@ -150,18 +151,18 @@ describe('chooseQuarterTurns', () => {
 
   it('relaxes the fit floor by the same margin while already rotated', () => {
     // 10x20 board in a wide 1000px box: rotated is height-bound at exactly the
-    // 32 px/tile floor when the box is 320 tall, and beats upright 2:1.
+    // px/tile floor when the box is 10 floors tall, and beats upright 2:1.
     const board = { cols: 10, rows: 20 }
-    const atFloor = { width: 1000, height: 320 }
-    expect(tilePxForRotation(atFloor, board, 1)).toBeCloseTo(32)
+    const atFloor = { width: 1000, height: 10 * MIN_PX_PER_TILE }
+    expect(tilePxForRotation(atFloor, board, 1)).toBeCloseTo(MIN_PX_PER_TILE)
     expect(decide(atFloor, board, 0)).toBe(1)
 
     // Shrinking just under the floor keeps an upright board upright...
-    const underFloor = { width: 1000, height: 300 }
+    const underFloor = { width: 1000, height: 10 * MIN_PX_PER_TILE * 0.93 }
     expect(decide(underFloor, board, 0)).toBe(0)
     // ...but an already-rotated board holds until it falls 15% below the floor.
     expect(decide(underFloor, board, 1)).toBe(1)
-    expect(decide({ width: 1000, height: 250 }, board, 1)).toBe(0)
+    expect(decide({ width: 1000, height: 10 * MIN_PX_PER_TILE * 0.8 }, board, 1)).toBe(0)
   })
 
   it('does not rotate a board that is already comfortable upright', () => {

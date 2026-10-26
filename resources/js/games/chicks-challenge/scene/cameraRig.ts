@@ -23,8 +23,12 @@ export interface CameraView {
   readonly halfHeight: number
 }
 
-/** Per docs/games/chicks-challenge.md ("Camera fit"): whole-board static view requires at least this many px/tile. */
-export const MIN_PX_PER_TILE = 32
+/**
+ * Per docs/games/chicks-challenge.md ("Camera fit"): whole-board static view requires at least this many px/tile.
+ * 28 rather than 32: at 32, mid-size boards (13 wide) on a 390 px phone fell to the follow camera and
+ * hid most of the puzzle, though 28-30 px tiles (84-90 device px at 3x) read clearly.
+ */
+export const MIN_PX_PER_TILE = 28
 /** Per docs/games/chicks-challenge.md: the follow camera always shows at least this many tiles across. */
 export const MIN_TILES_ACROSS = 11
 

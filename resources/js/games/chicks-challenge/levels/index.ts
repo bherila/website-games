@@ -7,6 +7,7 @@ import { PHASE5_LEVELS } from './phase5'
 import { PHASE6_LEVELS } from './phase6'
 import { PHASE7_LEVELS } from './phase7'
 import { PHASE8_LEVELS } from './phase8'
+import { PHASE9_LEVELS } from './phase9'
 
 export const LEVELS: readonly ChicksLevelDef[] = [
   ...PHASE1_LEVELS,
@@ -17,6 +18,7 @@ export const LEVELS: readonly ChicksLevelDef[] = [
   ...PHASE6_LEVELS,
   ...PHASE7_LEVELS,
   ...PHASE8_LEVELS,
+  ...PHASE9_LEVELS,
 ]
 
 export const LEVEL_IDS: readonly number[] = LEVELS.map((level) => level.id)

@@ -1,6 +1,6 @@
-import type { EngineEvent, GameState } from './engine/types'
+import type { Direction, EngineEvent, GameState } from './engine/types'
 
-export const TOTAL_LEVELS = 40
+export const TOTAL_LEVELS = 45
 
 export const GAME_TITLE = "Chick's Challenge"
 export const GAME_EMOJI = '🐥'
@@ -12,10 +12,18 @@ export const STEP_TWEEN_MS = 110
 export const SLIDE_TWEEN_MS = 70
 /** Auto-repeat cadence while a key/direction is held. */
 export const INPUT_REPEAT_MS = 150
+/**
+ * How long a press must be held before auto-repeat starts. A normal tap or
+ * swipe lasts well under this, so one gesture is always exactly one step.
+ */
+export const INPUT_REPEAT_DELAY_MS = 400
 /** Max queued intents so fast play stays responsive without skipping. */
 export const INPUT_BUFFER_MAX = 2
 
 export type GamePhase = 'select' | 'playing' | 'won' | 'dead'
+
+/** Undo history cap per run; far beyond any level's par, small in memory. */
+export const UNDO_HISTORY_MAX = 2000
 
 /**
  * Stars from the winning run's move count vs the level's par:
@@ -42,4 +50,16 @@ export interface SceneProps {
   state: GameState
   events: readonly EngineEvent[]
   moveSeq: number
+  /**
+   * The latest rejected move, if any. A new `seq` plays a short nudge toward
+   * `dir`, so an illegal move is visible even with the sound muted.
+   */
+  bump?: BumpSignal | null
+  /** Changing this snaps every sprite to `state` without tweens (undo). */
+  resetKey?: number
+}
+
+export interface BumpSignal {
+  readonly seq: number
+  readonly dir: Direction
 }

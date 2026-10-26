@@ -33,6 +33,10 @@ export const CAMERA_FOLLOW_SMOOTHING_PER_SEC = 8
 
 // Effect durations (ms) — short and self-cleaning per docs/games/chicks-challenge.md.
 export const TELEPORT_FLASH_MS = 220
+/** Rejected-move nudge: the chick leans into the blocked tile and springs back. */
+export const BUMP_NUDGE_MS = 140
+/** How far (in tiles) the bump nudge leans. */
+export const BUMP_NUDGE_TILES = 0.18
 export const DEATH_FLASH_MS = 380
 export const POP_EFFECT_MS = 260
 export const SPARKLE_EFFECT_MS = 340

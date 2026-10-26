@@ -1,4 +1,5 @@
-import { defaultProgress, loadProgress, loadSavedProgress, recordWin, saveProgress } from '../gameProgress'
+import { definitionRowKey } from '../../_shared/gameDataPersistence'
+import { CHICKS_GAME_DATA, defaultProgress, loadProgress, loadSavedProgress, recordWin, type SavedChicksProgress,saveProgress } from '../gameProgress'
 import { PROGRESS_STORAGE_KEY, TOTAL_LEVELS } from '../gameTypes'
 
 describe('chips progress persistence', () => {
@@ -90,6 +91,46 @@ describe('chips progress persistence', () => {
     const next = recordWin(loadSavedProgress(), TOTAL_LEVELS, 10, 3)
 
     expect(next.unlockedLevel).toBe(TOTAL_LEVELS)
+  })
+
+  it('opens the first new level for a save that finished the old 40-level pack', () => {
+    // Written before the pack grew: the unlock was capped at the old total of 40.
+    const stars: Record<number, number> = {}
+    const bestMoves: Record<number, number> = {}
+    for (let level = 1; level <= 40; level += 1) {
+      stars[level] = level % 3 + 1
+      bestMoves[level] = 10 + level
+    }
+    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 40, stars, bestMoves }))
+
+    const loaded = loadSavedProgress()
+
+    expect(TOTAL_LEVELS).toBeGreaterThan(40)
+    expect(loaded.unlockedLevel).toBe(41)
+    expect(loaded.stars).toEqual(stars)
+    expect(loaded.bestMoves).toEqual(bestMoves)
+  })
+
+  it('keeps an old save that had not finished the pack exactly as it was', () => {
+    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 12, stars: { 1: 3, 11: 2 }, bestMoves: { 1: 16, 11: 25 } }))
+
+    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 12, stars: { 1: 3, 11: 2 }, bestMoves: { 1: 16, 11: 25 } })
+  })
+
+  it('decodes account rows from a finished 40-level pack into the first new level, keeping stars', () => {
+    const row = (scope: 'profile' | 'level', slot: string, data: Record<string, unknown>) =>
+      [definitionRowKey(scope, slot), { game: 'chicks-challenge' as const, scope, slot, data, revision: 1, updatedAt: null }] as const
+    const rows = new Map([
+      row('profile', 'default', { version: 1, unlocked_level: 40 }),
+      row('level', '7', { version: 1, stars: 3, best_moves: 19 }),
+      row('level', '40', { version: 1, stars: 2, best_moves: 130 }),
+    ])
+
+    const decoded = CHICKS_GAME_DATA.decode(rows) as SavedChicksProgress | null
+
+    expect(decoded?.unlockedLevel).toBe(41)
+    expect(decoded?.stars).toEqual({ 7: 3, 40: 2 })
+    expect(decoded?.bestMoves).toEqual({ 7: 19, 40: 130 })
   })
 
   it('persists a recorded win across a save/load round trip', () => {

@@ -21,16 +21,18 @@ import { applyMove } from './engine/applyMove'
 import type { EngineEvent, GameState, MoveIntent } from './engine/types'
 import { tileAt } from './engine/types'
 import { loadSavedProgress, recordWin, saveProgress } from './gameProgress'
-import { type GamePhase, INPUT_BUFFER_MAX, INPUT_REPEAT_MS, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS } from './gameTypes'
+import { type BumpSignal, type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS, UNDO_HISTORY_MAX } from './gameTypes'
 import { GameHud } from './hud/GameHud'
 import { GameToolbar } from './hud/GameToolbar'
 import { HintBanner } from './hud/HintBanner'
 import { levelInventorySlots } from './hud/inventorySlots'
+import { createHoldRepeat } from './input/holdRepeat'
 import { createInputQueue, keyboardIntent } from './input/inputQueue'
 import { cycleBoardOrientationPreference, rotateIntent } from './input/orientation'
 import { loadBoardOrientationPreference, saveBoardOrientationPreference } from './input/orientationStorage'
 import { useBoardOrientation } from './input/useBoardOrientation'
 import { useStuckProbe } from './input/useStuckProbe'
+import { levelUsesWait } from './input/waitRelevance'
 import { getLevelById } from './levels'
 import type { ChicksLevelDef } from './levels/levelTypes'
 import { parseLevel } from './levels/parseLevel'
@@ -60,6 +62,12 @@ const INTENT_TO_SOLUTION_CHAR: Readonly<Record<MoveIntent, string>> = {
   left: 'L',
   right: 'R',
   wait: 'W',
+}
+
+/** One undo step: the state before an accepted move (or a restart), plus the recorded input then. */
+interface UndoEntry {
+  state: GameState
+  recorded: string
 }
 
 interface WinSummary {
@@ -116,9 +124,19 @@ export function ChicksGame(): ReactElement {
   const [levelDef, setLevelDef] = useState<ChicksLevelDef | null>(devLevelDef)
   const [gameState, setGameState] = useState<GameState | null>(() => (devLevelDef ? parseLevel(devLevelDef) : null))
   // Read once per level from its starting board, so the inventory row never appears mid-level.
-  const inventorySlots = useMemo(() => (levelDef ? levelInventorySlots(parseLevel(levelDef)) : []), [levelDef])
+  const startState = useMemo(() => (levelDef ? parseLevel(levelDef) : null), [levelDef])
+  const inventorySlots = useMemo(() => (startState ? levelInventorySlots(startState) : []), [startState])
+  // Waiting only runs the monster phase; on a monster-free level it would just burn a move.
+  const waitEnabled = startState ? levelUsesWait(startState) : false
+  const waitEnabledRef = useRef(waitEnabled)
+  useLayoutEffect(() => {
+    waitEnabledRef.current = waitEnabled
+  }, [waitEnabled])
   const [moveSeq, setMoveSeq] = useState(0)
   const [events, setEvents] = useState<readonly EngineEvent[]>([])
+  const [bump, setBump] = useState<BumpSignal | null>(null)
+  const [sceneResetKey, setSceneResetKey] = useState(0)
+  const [undoDepth, setUndoDepth] = useState(0)
   const [winSummary, setWinSummary] = useState<WinSummary | null>(null)
   const [touchEnabled] = useState(isTouchDevice)
   const [muted, setMuted] = useState(() => loadMuted())
@@ -129,8 +147,10 @@ export function ChicksGame(): ReactElement {
   const gameStateRef = useRef(gameState)
   const deathTimeoutRef = useRef<number | null>(null)
   const heldKeyRef = useRef<string | null>(null)
-  const repeatIntervalRef = useRef<number | null>(null)
+  const keyRepeatRef = useRef(createHoldRepeat())
   const recordedRef = useRef<string>('')
+  const historyRef = useRef<UndoEntry[]>([])
+  const touchRepeatRef = useRef(createHoldRepeat())
   const sfxRef = useRef<SfxEngine | null>(null)
   const mutedRef = useRef(muted)
 
@@ -203,21 +223,34 @@ export function ChicksGame(): ReactElement {
   }, [])
 
   const clearKeyRepeat = useCallback((): void => {
-    if (repeatIntervalRef.current !== null) {
-      window.clearInterval(repeatIntervalRef.current)
-      repeatIntervalRef.current = null
-    }
+    keyRepeatRef.current.stop()
     heldKeyRef.current = null
   }, [])
 
-  const startLevel = useCallback((def: ChicksLevelDef): void => {
+  const pushHistory = useCallback((entry: UndoEntry): void => {
+    const history = historyRef.current
+    history.push(entry)
+    if (history.length > UNDO_HISTORY_MAX) {
+      history.shift()
+    }
+    setUndoDepth(history.length)
+  }, [])
+
+  /** `keepHistory` lets a restart stay undoable; every other entry into a level starts a clean history. */
+  const startLevel = useCallback((def: ChicksLevelDef, keepHistory = false): void => {
     clearDeathTimeout()
     clearKeyRepeat()
     queueRef.current.clear()
+    if (!keepHistory) {
+      historyRef.current = []
+      setUndoDepth(0)
+    }
     recordedRef.current = ''
     setLevelDef(def)
     setGameState(parseLevel(def))
     setMoveSeq(0)
+    // An undo can leave the move sequence at 0 already, so a fresh board also needs a new reset key.
+    setSceneResetKey((key) => key + 1)
     setEvents([])
     setWinSummary(null)
     setStuck(false)
@@ -231,11 +264,47 @@ export function ChicksGame(): ReactElement {
     }
   }, [startLevel])
 
+  // A restart mid-run is undoable (a stray tap on the restart button costs
+  // nothing); replaying after a win starts clean.
   const handleRestart = useCallback((): void => {
-    if (levelDef) {
-      startLevel(levelDef)
+    if (!levelDef) {
+      return
     }
-  }, [levelDef, startLevel])
+    const current = gameStateRef.current
+    if (current && current.won) {
+      startLevel(levelDef)
+
+      return
+    }
+    if (current && current.alive && current.moves > 0) {
+      pushHistory({ state: current, recorded: recordedRef.current })
+    }
+    startLevel(levelDef, true)
+  }, [levelDef, pushHistory, startLevel])
+
+  /** Steps back to the state before the last accepted move (or restart), reviving a death. */
+  const handleUndo = useCallback((): void => {
+    const current = gameStateRef.current
+    if (!current || current.won) {
+      return
+    }
+    const entry = historyRef.current.pop()
+    if (!entry) {
+      return
+    }
+    clearDeathTimeout()
+    clearKeyRepeat()
+    touchRepeatRef.current.stop()
+    queueRef.current.clear()
+    recordedRef.current = entry.recorded
+    gameStateRef.current = entry.state
+    setGameState(entry.state)
+    setEvents([])
+    setSceneResetKey((key) => key + 1)
+    setStuck(false)
+    setUndoDepth(historyRef.current.length)
+    setPhase('playing')
+  }, [clearDeathTimeout, clearKeyRepeat])
 
   const handleGoToSelect = useCallback((): void => {
     clearDeathTimeout()
@@ -273,10 +342,15 @@ export function ChicksGame(): ReactElement {
     const result = applyMove(current, intent)
     if (!result.accepted) {
       playEventSfx(result.events)
+      const bumped = result.events.find((event): event is Extract<EngineEvent, { type: 'bumped' }> => event.type === 'bumped')
+      if (bumped) {
+        setBump((previous) => ({ seq: (previous?.seq ?? 0) + 1, dir: bumped.dir }))
+      }
 
       return
     }
 
+    pushHistory({ state: current, recorded: recordedRef.current })
     gameStateRef.current = result.state
     setGameState(result.state)
     setEvents(result.events)
@@ -314,7 +388,7 @@ export function ChicksGame(): ReactElement {
       clearDeathTimeout()
       deathTimeoutRef.current = window.setTimeout(() => setPhase('dead'), DEATH_DELAY_MS)
     }
-  }, [clearDeathTimeout, devModes.record, levelDef, playEventSfx])
+  }, [clearDeathTimeout, devModes.record, levelDef, playEventSfx, pushHistory])
 
   const handleStuck = useCallback((): void => {
     setStuck(true)
@@ -346,6 +420,9 @@ export function ChicksGame(): ReactElement {
    * layout effect so it is never a frame behind what the player can see.
    */
   const enqueueIntent = useCallback((intent: MoveIntent): void => {
+    if (intent === 'wait' && !waitEnabledRef.current) {
+      return
+    }
     queueRef.current.enqueue(rotateIntent(intent, quarterTurnsRef.current))
   }, [])
 
@@ -368,6 +445,13 @@ export function ChicksGame(): ReactElement {
         return
       }
 
+      if (event.key === 'z' || event.key === 'Z' || event.key === 'Backspace') {
+        event.preventDefault()
+        handleUndo()
+
+        return
+      }
+
       if (phase !== 'playing' || event.repeat) {
         return
       }
@@ -378,12 +462,7 @@ export function ChicksGame(): ReactElement {
       }
 
       heldKeyRef.current = event.key
-      enqueueIntent(intent)
-
-      if (repeatIntervalRef.current !== null) {
-        window.clearInterval(repeatIntervalRef.current)
-      }
-      repeatIntervalRef.current = window.setInterval(() => enqueueIntent(intent), INPUT_REPEAT_MS)
+      keyRepeatRef.current.start(() => enqueueIntent(intent))
     }
 
     function handleKeyUp(event: KeyboardEvent): void {
@@ -400,15 +479,10 @@ export function ChicksGame(): ReactElement {
       window.removeEventListener('keyup', handleKeyUp)
       clearKeyRepeat()
     }
-  }, [phase, enqueueIntent, handleRestart, handleGoToSelect, clearKeyRepeat])
-
-  const touchRepeatRef = useRef<number | null>(null)
+  }, [phase, enqueueIntent, handleRestart, handleGoToSelect, handleUndo, clearKeyRepeat])
 
   const stopTouchRepeat = useCallback((): void => {
-    if (touchRepeatRef.current !== null) {
-      window.clearInterval(touchRepeatRef.current)
-      touchRepeatRef.current = null
-    }
+    touchRepeatRef.current.stop()
   }, [])
 
   // Shared with 2048 via `useSwipeGesture`; Chick's Challenge layers on
@@ -418,9 +492,8 @@ export function ChicksGame(): ReactElement {
     threshold: SWIPE_THRESHOLD_PX,
     enabled: phase === 'playing',
     onSwipe: (direction): void => {
-      enqueueIntent(direction)
-      stopTouchRepeat()
-      touchRepeatRef.current = window.setInterval(() => enqueueIntent(direction), INPUT_REPEAT_MS)
+      // One swipe is one step; keeping the finger down past the repeat delay walks on.
+      touchRepeatRef.current.start(() => enqueueIntent(direction))
     },
     onGestureEnd: stopTouchRepeat,
     onTap: (point): void => {
@@ -476,7 +549,7 @@ export function ChicksGame(): ReactElement {
             {...boardSwipeHandlers}
           >
             <BoardRotor height={boardBox?.height ?? null} quarterTurns={quarterTurns} width={boardBox?.width ?? null}>
-              <ChicksScene events={events} moveSeq={moveSeq} state={gameState} />
+              <ChicksScene bump={bump} events={events} moveSeq={moveSeq} resetKey={sceneResetKey} state={gameState} />
             </BoardRotor>
 
             {showHint && gameState.hint !== null && <HintBanner text={gameState.hint} />}
@@ -486,6 +559,9 @@ export function ChicksGame(): ReactElement {
             orientationPreference={orientationPreference}
             quarterTurns={quarterTurns}
             showDpad={touchEnabled && phase === 'playing'}
+            waitEnabled={waitEnabled}
+            canUndo={undoDepth > 0 && phase === 'playing'}
+            onUndo={handleUndo}
             onCycleOrientation={handleCycleOrientation}
             onIntent={enqueueIntent}
           />
@@ -506,10 +582,10 @@ export function ChicksGame(): ReactElement {
         )}
 
         {phase === 'dead' && (
-          <DeathOverlay cause={gameState.deathCause} onMenu={handleGoToSelect} onRestart={handleRestart} />
+          <DeathOverlay cause={gameState.deathCause} onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />
         )}
 
-        {phase === 'playing' && stuck && <StuckOverlay onMenu={handleGoToSelect} onRestart={handleRestart} />}
+        {phase === 'playing' && stuck && <StuckOverlay onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />}
       </section>
     </PortraitGameShell>
   )

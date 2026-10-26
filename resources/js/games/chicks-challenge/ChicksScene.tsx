@@ -11,6 +11,7 @@ import * as THREE from 'three'
 import type { EngineEvent, GameState, TileKind } from './engine/types'
 import type { SceneProps } from './gameTypes'
 import { type BoardHandle, buildBoard, diffBoard, disposeBoard } from './scene/boardBuilder'
+import { bumpNudgeOffset } from './scene/bumpNudge'
 import {
   type CameraView,
   chooseCameraMode,
@@ -106,10 +107,15 @@ function snapAllEntities(scheduler: TweenScheduler<EntityId>, state: GameState):
   }
 }
 
-function applyEntityVisuals(entityLayer: EntityLayerHandle, scheduler: TweenScheduler<EntityId>, state: GameState): void {
+function applyEntityVisuals(
+  entityLayer: EntityLayerHandle,
+  scheduler: TweenScheduler<EntityId>,
+  state: GameState,
+  playerNudge: { x: number, y: number } = { x: 0, y: 0 },
+): void {
   const playerPos = scheduler.positionOf('player')
   if (playerPos) {
-    const world = tileCenterWorld(playerPos.x, playerPos.y)
+    const world = tileCenterWorld(playerPos.x + playerNudge.x, playerPos.y + playerNudge.y)
     setSpritePosition(entityLayer, 'player', world.x, world.y)
   }
   setSpriteFacing(entityLayer, 'player', state.player.facing)
@@ -232,11 +238,13 @@ function applyCameraView(camera: THREE.OrthographicCamera, view: CameraView): vo
   camera.updateProjectionMatrix()
 }
 
-export function ChicksScene({ state, events, moveSeq }: SceneProps): ReactElement {
+export function ChicksScene({ state, events, moveSeq, bump = null, resetKey = 0 }: SceneProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const stateRef = useRef(state)
   const eventsRef = useRef(events)
   const moveSeqRef = useRef(moveSeq)
+  const bumpRef = useRef(bump)
+  const resetKeyRef = useRef(resetKey)
 
   useEffect(() => {
     stateRef.current = state
@@ -249,6 +257,14 @@ export function ChicksScene({ state, events, moveSeq }: SceneProps): ReactElemen
   useEffect(() => {
     moveSeqRef.current = moveSeq
   }, [moveSeq])
+
+  useEffect(() => {
+    bumpRef.current = bump
+  }, [bump])
+
+  useEffect(() => {
+    resetKeyRef.current = resetKey
+  }, [resetKey])
 
   useEffect(() => {
     const container = containerRef.current
@@ -282,6 +298,9 @@ export function ChicksScene({ state, events, moveSeq }: SceneProps): ReactElemen
     let board: BoardHandle | null = null
     let prevState: GameState | null = null
     let lastProcessedSeq = -1
+    let lastResetKey = resetKeyRef.current
+    let lastBumpSeq = bumpRef.current?.seq ?? 0
+    let bumpStartedAt = Number.NEGATIVE_INFINITY
     let cameraView: CameraView = { centerX: 0, centerY: 0, halfWidth: 1, halfHeight: 1 }
 
     // Not typed as `Viewport` (its fields are readonly) since resize() mutates it in place;
@@ -345,9 +364,12 @@ export function ChicksScene({ state, events, moveSeq }: SceneProps): ReactElemen
       const dimensionsChanged =
         !isFirstFrame && prevState !== null && (prevState.width !== currentState.width || prevState.height !== currentState.height)
 
-      if (isFirstFrame || isBackwardReset || dimensionsChanged) {
+      const resetRequested = resetKeyRef.current !== lastResetKey
+
+      if (isFirstFrame || isBackwardReset || dimensionsChanged || resetRequested) {
         hardReset(currentState)
         lastProcessedSeq = currentSeq
+        lastResetKey = resetKeyRef.current
       } else if (currentSeq !== lastProcessedSeq && prevState) {
         advanceMove(prevState.tiles, currentState, currentEvents)
         lastProcessedSeq = currentSeq
@@ -355,7 +377,14 @@ export function ChicksScene({ state, events, moveSeq }: SceneProps): ReactElemen
       prevState = currentState
 
       scheduler.advance(dt * 1000)
-      applyEntityVisuals(entityLayer, scheduler, currentState)
+
+      const currentBump = bumpRef.current
+      if (currentBump && currentBump.seq !== lastBumpSeq) {
+        lastBumpSeq = currentBump.seq
+        bumpStartedAt = elapsed
+      }
+      const nudge = currentBump ? bumpNudgeOffset(currentBump.dir, (elapsed - bumpStartedAt) * 1000) : undefined
+      applyEntityVisuals(entityLayer, scheduler, currentState, nudge)
 
       tileMaterials.update(elapsed)
       effects.update(elapsed)

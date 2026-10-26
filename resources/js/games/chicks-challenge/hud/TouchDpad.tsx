@@ -1,37 +1,34 @@
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
-import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, useRef } from 'react'
+import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, useState } from 'react'
 
 import type { MoveIntent } from '../engine/types'
-import { INPUT_REPEAT_MS } from '../gameTypes'
+import { createHoldRepeat } from '../input/holdRepeat'
 
 interface TouchDpadProps {
   onIntent: (intent: MoveIntent) => void
+  /** False on levels where waiting can never matter: the centre button is shown inert. */
+  waitEnabled?: boolean
 }
 
 /**
  * On-screen D-pad for touch devices, built on the same pointer-capture pattern as
- * `hover/hud/TouchControls.tsx`. Each direction repeats at the keyboard
- * auto-repeat cadence while held; the center button is wait. Buttons are 48px
+ * `hover/hud/TouchControls.tsx`. A press is one step; holding past the repeat
+ * delay (`input/holdRepeat.ts`) auto-repeats at the keyboard cadence. The
+ * center button is wait. Buttons are 56px in portrait (narrowing
+ * with the viewport below ~375px) (48px in landscape, where the
+ * side column is short)
  * (above the 44px minimum). Placement (bottom row in portrait, right-hand column
  * in landscape) and safe-area insets are owned by `hud/GameToolbar.tsx`, which
  * lays the pad out as a sibling of the playfield rather than on top of it.
  */
-export function TouchDpad({ onIntent }: TouchDpadProps): ReactElement {
-  const intervalRef = useRef<number | null>(null)
+export function TouchDpad({ onIntent, waitEnabled = true }: TouchDpadProps): ReactElement {
+  const [repeat] = useState(createHoldRepeat)
+  const stopRepeat = repeat.stop
 
-  const stopRepeat = (): void => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-  }
-
-  useEffect(() => stopRepeat, [])
+  useEffect(() => repeat.stop, [repeat])
 
   const startRepeat = (intent: MoveIntent): void => {
-    stopRepeat()
-    onIntent(intent)
-    intervalRef.current = window.setInterval(() => onIntent(intent), INPUT_REPEAT_MS)
+    repeat.start(() => onIntent(intent))
   }
 
   const releasePointerCapture = (event: ReactPointerEvent<HTMLButtonElement>): void => {
@@ -48,9 +45,19 @@ export function TouchDpad({ onIntent }: TouchDpadProps): ReactElement {
   // Styled like the HUD chips: the pad now sits on the page background rather than
   // on top of the dark canvas, where a translucent dark fill washed out.
   const buttonClass =
-    'pointer-events-auto flex size-12 touch-none items-center justify-center rounded-xl border border-white/70 bg-white/90 text-slate-700 shadow-md transition-transform active:scale-90 active:bg-slate-200 dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-100 dark:active:bg-slate-800'
+    'pointer-events-auto flex size-full touch-none items-center justify-center rounded-xl border border-white/70 bg-white/90 text-slate-700 shadow-md transition-transform active:scale-90 active:bg-slate-200 dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-100 dark:active:bg-slate-800'
 
   function padButton(intent: MoveIntent, label: string, icon: ReactElement, gridArea: string): ReactElement {
+    if (intent === 'wait' && !waitEnabled) {
+      // Nothing on this level moves on its own, so a thumb landing between the
+      // arrows must not spend a move.
+      return (
+        <button aria-label={label} className={`${buttonClass} opacity-40`} data-testid="touch-dpad-wait" disabled style={{ gridArea }} type="button">
+          {icon}
+        </button>
+      )
+    }
+
     return (
       <button
         aria-label={label}
@@ -73,9 +80,10 @@ export function TouchDpad({ onIntent }: TouchDpadProps): ReactElement {
 
   return (
     <div
-      className="pointer-events-none grid shrink-0 touch-none gap-1 select-none"
+      className="pointer-events-none grid shrink-0 touch-none grid-cols-[repeat(3,min(3.5rem,15vw))] grid-rows-[repeat(3,min(3.5rem,15vw))] gap-1.5 select-none
+        landscape:grid-cols-[repeat(3,3rem)] landscape:grid-rows-[repeat(3,3rem)] landscape:gap-1"
       data-testid="touch-dpad"
-      style={{ gridTemplateAreas: '". up ." "left wait right" ". down ."', gridTemplateColumns: 'repeat(3, 3rem)', gridTemplateRows: 'repeat(3, 3rem)' }}
+      style={{ gridTemplateAreas: '". up ." "left wait right" ". down ."' }}
     >
       {padButton('up', 'Step up', <ChevronUp aria-hidden="true" className="size-5" />, 'up')}
       {padButton('left', 'Step left', <ChevronLeft aria-hidden="true" className="size-5" />, 'left')}

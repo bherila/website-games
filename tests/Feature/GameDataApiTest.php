@@ -252,7 +252,7 @@ class GameDataApiTest extends TestCase
             'data' => ['score' => 10],
         ])->assertUnprocessable()->assertJsonValidationErrors('slot');
 
-        $this->actingAs($user)->putJson('/api/games/chicks-challenge/data/level/41', [
+        $this->actingAs($user)->putJson('/api/games/chicks-challenge/data/level/46', [
             'data' => ['version' => 1, 'stars' => 1],
         ])->assertUnprocessable()->assertJsonValidationErrors('slot');
 

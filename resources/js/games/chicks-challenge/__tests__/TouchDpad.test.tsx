@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 
-import { INPUT_REPEAT_MS } from '../gameTypes'
+import { INPUT_REPEAT_DELAY_MS, INPUT_REPEAT_MS } from '../gameTypes'
 import { TouchDpad } from '../hud/TouchDpad'
 
 /** jsdom doesn't implement the Pointer Events capture API; stub it per house convention (see hover/__tests__/touchInput.dom.test.tsx). */
@@ -31,8 +31,11 @@ describe('TouchDpad', () => {
     ] as const) {
       const button = screen.getByTestId(`touch-dpad-${intent}`)
       expect(button).toHaveAccessibleName(label)
-      expect(button.className).toMatch(/size-12/)
+      expect(button.className).toMatch(/size-full/)
     }
+    // Each button fills a 3.5rem (56px) cell in portrait, 3rem (48px) in landscape.
+    expect(screen.getByTestId('touch-dpad').className).toMatch(/grid-cols-\[repeat\(3,min\(3\.5rem,15vw\)\)\]/)
+    expect(screen.getByTestId('touch-dpad').className).toMatch(/landscape:grid-cols-\[repeat\(3,3rem\)\]/)
   })
 
   it('fires the intent immediately on press', () => {
@@ -47,7 +50,22 @@ describe('TouchDpad', () => {
     expect(onIntent).toHaveBeenCalledWith('up')
   })
 
-  it('auto-repeats at the keyboard cadence while held', () => {
+  it('keeps a press shorter than the repeat delay to exactly one step', () => {
+    const onIntent = jest.fn()
+    render(<TouchDpad onIntent={onIntent} />)
+
+    const right = screen.getByTestId('touch-dpad-right')
+    stubPointerCapture(right)
+    fireEvent.pointerDown(right, { pointerId: 1 })
+    // A deliberate thumb press (~200-300 ms) used to repeat at 150 ms.
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS - 1)
+    fireEvent.pointerUp(right, { pointerId: 1 })
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS * 2)
+
+    expect(onIntent).toHaveBeenCalledTimes(1)
+  })
+
+  it('auto-repeats at the keyboard cadence once held past the repeat delay', () => {
     const onIntent = jest.fn()
     render(<TouchDpad onIntent={onIntent} />)
 
@@ -56,7 +74,9 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(right, { pointerId: 1 })
     expect(onIntent).toHaveBeenCalledTimes(1)
 
-    jest.advanceTimersByTime(INPUT_REPEAT_MS * 3)
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS)
+    expect(onIntent).toHaveBeenCalledTimes(2)
+    jest.advanceTimersByTime(INPUT_REPEAT_MS * 2)
     expect(onIntent).toHaveBeenCalledTimes(4)
   })
 
@@ -69,7 +89,7 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(down, { pointerId: 1 })
     fireEvent.pointerUp(down, { pointerId: 1 })
 
-    jest.advanceTimersByTime(INPUT_REPEAT_MS * 3)
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS + INPUT_REPEAT_MS * 3)
 
     expect(onIntent).toHaveBeenCalledTimes(1)
     expect(down.releasePointerCapture).toHaveBeenCalledTimes(1)
@@ -84,7 +104,7 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(left, { pointerId: 1 })
     fireEvent.pointerCancel(left, { pointerId: 1 })
 
-    jest.advanceTimersByTime(INPUT_REPEAT_MS * 3)
+    jest.advanceTimersByTime(INPUT_REPEAT_DELAY_MS + INPUT_REPEAT_MS * 3)
 
     expect(onIntent).toHaveBeenCalledTimes(1)
     expect(left.releasePointerCapture).toHaveBeenCalledTimes(1)
@@ -102,5 +122,18 @@ describe('TouchDpad', () => {
     fireEvent.pointerDown(wait, { pointerId: 1 })
     expect(() => fireEvent.pointerUp(wait, { pointerId: 1 })).not.toThrow()
     expect(wait.releasePointerCapture).not.toHaveBeenCalled()
+  })
+
+  it('renders wait inert on a level where waiting cannot matter', () => {
+    const onIntent = jest.fn()
+    render(<TouchDpad waitEnabled={false} onIntent={onIntent} />)
+
+    const wait = screen.getByTestId('touch-dpad-wait')
+    expect(wait).toBeDisabled()
+    stubPointerCapture(wait)
+    fireEvent.pointerDown(wait, { pointerId: 1 })
+    jest.advanceTimersByTime(1000)
+
+    expect(onIntent).not.toHaveBeenCalled()
   })
 })

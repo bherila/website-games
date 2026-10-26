@@ -4,7 +4,7 @@ import type { ChicksLevelDef } from './levelTypes'
 import { SOLUTION_CHAR_TO_INTENT } from './levelTypes'
 
 /** Levels that open a phase — the only ones allowed (and required) to carry a hint. */
-export const PHASE_OPENER_IDS: readonly number[] = [1, 6, 11, 16, 21, 26, 31, 36]
+export const PHASE_OPENER_IDS: readonly number[] = [1, 6, 11, 16, 21, 26, 31, 36, 41]
 
 export const MAX_GRID_SIZE = 32
 

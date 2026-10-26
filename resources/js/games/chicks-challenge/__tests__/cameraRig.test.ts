@@ -16,6 +16,12 @@ describe('pxPerTileToFitBoard / chooseCameraMode', () => {
     expect(chooseCameraMode({ width: 400, height: 400 }, 11, 11)).toBe('fit')
   })
 
+  it('shows a whole 13-wide board on a 375px phone instead of following the player', () => {
+    // 13x19 (level 15) in a portrait phone's board box: ~28.8 px/tile.
+    expect(chooseCameraMode({ width: 375, height: 560 }, 13, 19)).toBe('fit')
+  })
+
+
   it('picks follow when the board cannot fit at the px/tile floor', () => {
     // 32x32 board in a 400x400 viewport => 12.5 px/tile, well under the floor.
     expect(chooseCameraMode({ width: 400, height: 400 }, 32, 32)).toBe('follow')

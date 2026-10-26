@@ -2,12 +2,18 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 
 import { ChicksGame } from '../ChicksGame'
 import { solve } from '../engine/solver'
-import { PROGRESS_STORAGE_KEY, STEP_TWEEN_MS, TOTAL_LEVELS } from '../gameTypes'
+import { PROGRESS_STORAGE_KEY, type SceneProps, STEP_TWEEN_MS, TOTAL_LEVELS } from '../gameTypes'
 import { LEVELS } from '../levels'
 import { parseLevel } from '../levels/parseLevel'
 
+const mockSceneProps: { current: SceneProps | null } = { current: null }
+
 jest.mock('../ChicksScene', () => ({
-  ChicksScene: () => null,
+  ChicksScene: (props: SceneProps) => {
+    mockSceneProps.current = props
+
+    return null
+  },
 }))
 
 // Injects one synthetic, guaranteed-to-drown level (id 9001, outside the 1..40
@@ -132,6 +138,118 @@ describe('ChicksGame', () => {
 
     expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
     expect(screen.getByLabelText(`${chipCount(level1.grid)} chips remaining`)).toBeInTheDocument()
+  })
+
+  it('ignores wait on a level where nothing moves on its own', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+
+    pressAndAdvance('W')
+    expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
+  })
+
+  it('counts a wait on a level with monsters', () => {
+    window.history.pushState({}, '', '/chicks-challenge?level=26')
+    render(<ChicksGame />)
+    const bugPatrol = LEVELS.find((level) => level.id === 26)!
+
+    pressAndAdvance('W')
+    expect(screen.getByLabelText(`1 of ${bugPatrol.par} moves`)).toBeInTheDocument()
+  })
+
+  it('signals the scene to nudge the chick when a move is rejected', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+
+    // Level 1 starts two tiles below its top wall.
+    pressAndAdvance('U')
+    pressAndAdvance('U')
+    expect(mockSceneProps.current?.bump ?? null).toBeNull()
+    pressAndAdvance('U')
+
+    expect(screen.getByLabelText(`2 of ${level1.par} moves`)).toBeInTheDocument()
+    expect(mockSceneProps.current?.bump).toEqual({ seq: 1, dir: 'up' })
+    pressAndAdvance('U')
+    expect(mockSceneProps.current?.bump).toEqual({ seq: 2, dir: 'up' })
+  })
+
+  it('undo takes back the last move, and stays disabled with nothing to undo', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+    expect(screen.getByTestId('undo-button')).toBeDisabled()
+
+    pressAndAdvance('D')
+    expect(screen.getByTestId('hint-banner')).toBeInTheDocument()
+    expect(screen.getByTestId('undo-button')).toBeEnabled()
+
+    fireEvent.click(screen.getByTestId('undo-button'))
+    expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
+    expect(screen.queryByTestId('hint-banner')).not.toBeInTheDocument()
+    expect(screen.getByTestId('undo-button')).toBeDisabled()
+  })
+
+  it('a restart mid-run can be undone with Z', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const level1 = LEVELS[0]!
+
+    pressAndAdvance('U')
+    pressAndAdvance('U')
+    fireEvent.keyDown(window, { key: 'r' })
+    expect(screen.getByLabelText(`0 of ${level1.par} moves`)).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'z' })
+    expect(screen.getByLabelText(`2 of ${level1.par} moves`)).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Backspace' })
+    expect(screen.getByLabelText(`1 of ${level1.par} moves`)).toBeInTheDocument()
+  })
+
+  it('a restart after an undone restart still redraws the board', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    pressAndAdvance('U')
+    fireEvent.keyDown(window, { key: 'r' })
+    fireEvent.keyDown(window, { key: 'z' })
+    const before = { ...mockSceneProps.current! }
+
+    // Undo left the move sequence at the restart's 0, so the scene can tell only by a new reset key.
+    fireEvent.keyDown(window, { key: 'r' })
+    const after = mockSceneProps.current!
+    expect(after.resetKey !== before.resetKey || after.moveSeq < before.moveSeq).toBe(true)
+    expect(after.state.moves).toBe(0)
+  })
+
+  it('undo from the death overlay revives the chick before the fatal step', () => {
+    window.history.pushState({}, '', '/chips?level=9001')
+    render(<ChicksGame />)
+
+    pressAndAdvance('R')
+    act(() => {
+      jest.advanceTimersByTime(600)
+    })
+    const dialog = screen.getByRole('dialog', { name: 'You died' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Undo move' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('0 of 1 moves')).toBeInTheDocument()
+  })
+
+  it('undo cancels a pending death overlay', () => {
+    window.history.pushState({}, '', '/chips?level=9001')
+    render(<ChicksGame />)
+
+    pressAndAdvance('R')
+    fireEvent.keyDown(window, { key: 'z' })
+    act(() => {
+      jest.advanceTimersByTime(600)
+    })
+
+    // (The synthetic level is unsolvable by design, so the stuck probe may still flag it.)
+    expect(screen.queryByRole('dialog', { name: 'You died' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('0 of 1 moves')).toBeInTheDocument()
   })
 
   it('Escape returns to level select', () => {

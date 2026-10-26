@@ -1,4 +1,4 @@
-import { Grid3x3, RotateCcw } from 'lucide-react'
+import { Grid3x3, RotateCcw, Undo2 } from 'lucide-react'
 import type { ReactElement } from 'react'
 
 import type { DeathCause } from '../engine/types'
@@ -7,6 +7,8 @@ interface DeathOverlayProps {
   cause: DeathCause | null
   onRestart: () => void
   onMenu: () => void
+  /** Takes back the last move; null when there is nothing to undo. */
+  onUndo?: (() => void) | null
 }
 
 const CAUSE_EMOJI: Readonly<Record<DeathCause, string>> = {
@@ -16,7 +18,7 @@ const CAUSE_EMOJI: Readonly<Record<DeathCause, string>> = {
 }
 
 /** Death overlay: cause icon plus restart/menu. Restarting resets the level and move counter. */
-export function DeathOverlay({ cause, onRestart, onMenu }: DeathOverlayProps): ReactElement {
+export function DeathOverlay({ cause, onRestart, onMenu, onUndo = null }: DeathOverlayProps): ReactElement {
   return (
     <div
       aria-label="You died"
@@ -33,6 +35,16 @@ export function DeathOverlay({ cause, onRestart, onMenu }: DeathOverlayProps): R
         <span aria-hidden="true" className="text-5xl">{cause ? CAUSE_EMOJI[cause] : '💀'}</span>
 
         <div className="flex items-center gap-4">
+          {onUndo && (
+            <button
+              aria-label="Undo move"
+              className="flex size-14 items-center justify-center rounded-full bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 shadow-xl transition-transform active:scale-95"
+              type="button"
+              onClick={onUndo}
+            >
+              <Undo2 aria-hidden="true" className="size-6" />
+            </button>
+          )}
           <button
             aria-label="Restart level"
             className="flex size-14 animate-pulse items-center justify-center rounded-full bg-gradient-to-b from-rose-400 to-rose-600 text-white shadow-xl transition-transform active:scale-95"

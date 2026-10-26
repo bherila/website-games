@@ -35,7 +35,7 @@ Chick's Challenge is the fifth game in this repo and must mirror the existing fo
   local. Level select uses `games/_shared/LevelSelectGrid.tsx`; win overlay uses
   `games/_shared/StarRow.tsx`.
 - **Game Select registration:** append one entry to `game-select/gameCatalog.ts` (slug `chicks-challenge`,
-  title `Chick's Challenge`, emoji `🐥`, `TOTAL_LEVELS = 40`, `loadProgress` from `chicks-challenge/gameProgress.ts`).
+  title `Chick's Challenge`, emoji `🐥`, `TOTAL_LEVELS = 45`, `loadProgress` from `chicks-challenge/gameProgress.ts`).
 - **Tests:** co-located `__tests__/`; `*.test.ts` runs in the node Jest project (no DOM), `*.test.tsx` /
   `*.dom.test.ts` in jsdom. Never instantiate `WebGLRenderer` in tests — the pure `engine/` layer is
   where all game logic lives and is tested headlessly.
@@ -45,7 +45,7 @@ Chick's Challenge is the fifth game in this repo and must mirror the existing fo
 
 ## Core loop
 
-1. Player opens the game and lands on the **level-select grid** (40 tiles = 8 rows of 5, sequential
+1. Player opens the game and lands on the **level-select grid** (45 tiles = 9 rows of 5, sequential
    unlock, star badges) via `_shared/LevelSelectGrid`.
 2. Tapping an unlocked tile starts the level: top-down board, HUD shows chips remaining, move counter
    vs par, and inventory (keys/boots).
@@ -57,6 +57,10 @@ Chick's Challenge is the fifth game in this repo and must mirror the existing fo
 6. **Lose:** drown, burn, or touch a monster → short death animation → overlay with restart / menu.
    Restarting resets the level and the move counter (deaths never penalize the next attempt's stars).
    A restart button is always in the HUD.
+   **Undo** (toolbar button, Z / Backspace, and the death and stuck overlays) steps back to the state
+   before the last accepted move, reviving a death. The move counter rewinds with the state, so undo
+   never helps stars. A restart mid-run is itself undoable, so a stray tap on restart costs nothing;
+   replaying after a win starts a clean history.
 7. **Stuck:** after each accepted move (debounced until input is idle) a background solver probe
    (`engine/solver.ts` stepping API, capped node budget) checks whether the level is still winnable.
    A **definitive** `unsolvable` result — e.g. a block pushed into a dead corner — immediately shows
@@ -161,12 +165,19 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 
 ## Controls
 
-- **Keyboard:** arrows / WASD = step; hold auto-repeats a step every 150 ms (only when the previous
-  move resolved); Space = wait; R = restart; Esc = level select.
-- **Touch:** swipe anywhere on the board = one step in the swipe direction; touch-hold after a swipe
-  keeps stepping in that direction at the auto-repeat cadence. An on-screen **D-pad**
+- **Keyboard:** arrows / WASD = step; holding past the 400 ms repeat delay (`INPUT_REPEAT_DELAY_MS`)
+  auto-repeats a step every 150 ms; Space = wait; R = restart; Esc = level select.
+- **One press is one step (normative):** every source repeats through `input/holdRepeat.ts`, which
+  fires once on press and only starts repeating after the repeat delay. Without the delay a 200 ms
+  D-pad press or a 250 ms swipe produced two steps on a phone.
+- **Touch:** swipe anywhere on the board = one step in the swipe direction; keeping the finger down
+  after a swipe, past the repeat delay, keeps stepping in that direction at the auto-repeat cadence. An on-screen **D-pad**
   (≥ 44 px targets, built on the `hover/hud/TouchControls.tsx` pointer-capture pattern) renders only
-  when `isTouchDevice()`; tapping the player character = wait. The pad lives in the toolbar
+  when `isTouchDevice()`; tapping the player character = wait.
+- **Wait only where it can matter:** a wait only runs the monster phase, so on levels that start with
+  no monsters and no clone machines (`input/waitRelevance.ts`) the UI drops wait intents (Space, the
+  pad's centre, a tap on the board) instead of spending a move, and the pad's centre renders inert.
+  The engine still accepts waits; the solver never benefits from a no-op wait, so pars are unchanged. The pad lives in the toolbar
   (`hud/GameToolbar.tsx`) — a bottom row in portrait, a right-hand column in landscape.
 - Input flows through Hover's abstraction: keyboard and touch are two `InputSource`s merged into one
   device-agnostic intent stream; the engine consumes discrete `MoveIntent`s (`up/down/left/right/wait`)
@@ -189,7 +200,7 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
   animated chevrons). Items (chips, keys, boots) are small billboarded quads with a gentle bob.
   Player and monsters are quads tweened between tiles (~110 ms ease) with a short facing flip; forced
   slides tween faster (~70 ms/tile) and chain visually.
-- **Camera fit:** if the level fits the viewport at ≥ 32 px/tile (`MIN_PX_PER_TILE`), show the whole
+- **Camera fit:** if the level fits the viewport at ≥ 28 px/tile (`MIN_PX_PER_TILE`), show the whole
   board centered; otherwise the camera smooth-follows the player showing at least `MIN_TILES_ACROSS`
   tiles, clamped to the board edges.
 - **Board rotation (normative):** the *board only* may render rotated one quarter turn when that makes
@@ -225,12 +236,16 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 - **Effects:** splash particle on drown/block-into-water, puff on burn, sparkle on chip pickup,
   confetti burst on exit (reuse the marble-sort confetti approach), screen-shake-free (portrait
   shell). Death and win animations ≤ 600 ms before the overlay.
+- **Bump feedback:** a rejected move never reaches the engine state, so `ChicksGame` passes the scene a
+  `bump` signal (`{ seq, dir }`); each new `seq` leans the chick ~0.18 tile into the blocked tile and
+  back over 140 ms (`scene/bumpNudge.ts`). Before this, the only feedback was a sound, so on a muted
+  phone an illegal move looked like a missed swipe.
 - Levels are ≤ 32×32 → worst case ~1k static quads + < 40 dynamic quads; trivially 60 fps. No
   shadows, one ambient light (or unlit materials).
 
 ## HUD & screens
 
-- **Level select:** `_shared/LevelSelectGrid` (5-wide, 40 tiles), locked/stars/pulse per house style.
+- **Level select:** `_shared/LevelSelectGrid` (5-wide, 45 tiles), locked/stars/pulse per house style.
 - **In-level layout:** HUD bar, playfield and toolbar are flow siblings (a column in portrait, with the
   toolbar becoming a right-hand column in landscape) — chrome must never cover board tiles. Safe-area
   insets (`env(safe-area-inset-*)`) apply on every edge the chrome touches; the page opts into
@@ -242,10 +257,12 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
   on a single line that never wraps, so collecting an item never resizes the board. Levels with no
   items reserve nothing.
   Hint text appears in a bottom banner (`hud/HintBanner.tsx`) while standing on a hint tile.
-- **Toolbar:** board-rotation toggle (auto / turned / upright) plus the touch D-pad.
+- **Toolbar:** undo (56 px, the thumb-side corner), board-rotation toggle (auto / turned / upright),
+  fullscreen, plus the touch D-pad.
 - **Win overlay:** dimmed backdrop, `StarRow` stars animate in, `moves / par` line, buttons: replay,
   next (pulsing), menu.
-- **Death overlay:** dimmed backdrop, cause icon (💧 / 🔥 / 👾), restart (pulsing), menu.
+- **Death overlay:** dimmed backdrop, cause icon (💧 / 🔥 / 👾), undo (when there is a move to take
+  back), restart (pulsing), menu. The stuck overlay offers the same three.
 - **Overlay scrolling (normative):** every overlay (win / death / stuck) is itself the scroll container
   (`overflow-y-auto`) and centres its dialog with `m-auto min-h-full` **on the dialog**, never with
   `items-center` on the scroll container — centring a scroll container strands the top of a too-tall
@@ -261,14 +278,14 @@ Persistence key `bwh.chicks-challenge.progress.v1`:
 ```ts
 interface SavedChicksProgress {
   version: 1
-  unlockedLevel: number              // highest playable level id (starts at 1, caps at 40)
+  unlockedLevel: number              // highest playable level id (starts at 1, caps at TOTAL_LEVELS)
   stars: Record<number, number>      // levelId -> best stars (0–3)
   bestMoves: Record<number, number>  // levelId -> lowest winning move count
 }
 ```
 
 Load defensively via `_shared/progressParsers` (corrupt/missing → fresh default). Winning level N sets
-`unlockedLevel = max(unlockedLevel, min(N+1, 40))`, `stars[N] = max(old, earned)`,
+`unlockedLevel = max(unlockedLevel, min(N+1, TOTAL_LEVELS))`, `stars[N] = max(old, earned)`,
 `bestMoves[N] = min(old ?? ∞, moves)`. `loadProgress()` returns the `LevelSelectProgress` shape
 directly (no adapter needed). No mid-level snapshots.
 
@@ -281,7 +298,7 @@ authorable by agents.
 type Facing = 'up' | 'down' | 'left' | 'right'
 
 interface ChicksLevelDef {
-  id: number                 // 1..40, contiguous
+  id: number                 // 1..TOTAL_LEVELS, contiguous
   title: string              // short original name
   grid: readonly string[]    // equal-length rows; enclosed by '#' border
   par: number                // MUST equal the deterministic A* solver's solution length (enforced by test)
@@ -315,9 +332,9 @@ entity list + button/teleport/clone links). Parse errors (ragged rows, no `@`, u
 without a `cloneTemplates` entry) throw — surfaced by the validation tests, never at runtime for
 shipped levels.
 
-## The 40 levels
+## The 45 levels
 
-40 original levels in 8 phases of 5 (fills the 5-wide select grid as 8 rows). The table is the design
+45 original levels in 9 phases of 5 (fills the 5-wide select grid as 9 rows). The table is the design
 contract — mechanics and teaching per level. The **par** column is an informational snapshot; the
 source of truth is each level def, whose par must equal the deterministic solver's result (enforced
 by the solver gate). Sizes: S ≤ 11×11 (fits viewport), M ≤ 20×20, L ≤ 32×32. Each phase opens with a
@@ -339,8 +356,8 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 6 | Push | S | blocks bridge the only water crossing | 16 |
-| 7 | Bridge Builder | S | block into water = floor | 19 |
-| 8 | Causeway | S | two-block bridge sequenced across a channel | 30 |
+| 7 | Bridge Builder | S | route one block round a corner into the only water tile | 46 |
+| 8 | Causeway | M | line two blocks up through a wall gap to span a 2-wide river | 40 |
 | 9 | Warehouse | M | sokoban shaft; careless pushes softlock (restart lesson) | 20 |
 | 10 | Dirt Work | M | capstone: co-align two block bridges, then a dirt/door spine | 52 |
 
@@ -349,7 +366,7 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 11 | Swim Lessons | S | flippers open water paths | 20 |
-| 12 | Firewalker | S | fire boots open fire paths | 20 |
+| 12 | Firewalker | S | fetch the boots, then raid a fire-ringed chip and the fire gate | 38 |
 | 13 | Steam | M | interleaved water/fire; both boots, order matters | 43 |
 | 14 | The Heist | M | thieves strip boots — re-equip between crossings | 57 |
 | 15 | Amphibious | M | boots + blocks + doors combined | 56 |
@@ -369,9 +386,9 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 21 | Moving Walkway | S | force floors carry you | 15 |
-| 22 | Against the Current | S | entering/exiting conveyor lanes | 19 |
-| 23 | Sorting Machine | S | conveyor junctions route you; pick entry points | 18 |
-| 24 | Suction Boots | M | suction boots reach pockets belts push you out of | 34 |
+| 22 | Against the Current | M | up and down belt shafts: pick the entry that lands where you need | 28 |
+| 23 | Sorting Machine | M | one-way chutes drop you in bins; empty the side bins before the middle | 40 |
+| 24 | Suction Boots | M | walk down belt shafts in suction boots to pockets a ride skips | 35 |
 | 25 | Pinball | M | capstone: cross-wired force lanes through corner junctions | 49 |
 
 **Phase 6 — Monsters (26–30).** One AI at a time, then mixed; wait becomes essential.
@@ -403,6 +420,24 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | 38 | The Vault | L | nested rings: thief, teleports, water — strict ordering | 90 |
 | 39 | Rube Goldberg | L | block-onto-button chains driving toggles/clones/tanks | 94 |
 | 40 | Grand Tour | L | finale touring every mechanic | 116 |
+
+**Phase 9 — Encore (41–45).** Compact boards (≤ 13 wide, so a phone shows them whole) combining
+mechanics earlier phases taught one at a time. Added in the 2026-10 variety pass.
+
+| # | title | size | teaches | par |
+|---|-------|------|---------|-----|
+| 41 | Ice Bridge | S | blocks slide down ice lanes into the water at the far end | 40 |
+| 42 | Belt Feeder | S | a belt carries a block onto a green button; take the toggle-gated chip first | 36 |
+| 43 | Parcel Post | M | push a block through a teleport to bridge the far room's water | 24 |
+| 44 | Pocket Rink | M | skates let you stop beside chip pockets on ice lanes, then bank home | 42 |
+| 45 | Assembly Line | M | capstone: two ice-lane bridges plus a belt-fed button | 48 |
+
+**2026-10 variety pass.** Levels 7, 8, 12, 22, 23 and 24 were near-copies of their phase openers
+(the same 11×11 room, one full-width band, two chips below, socket bottom-centre; 24 repeated 19's
+layout with belts for ice). They were redrawn in place under the same ids and titles, so saved stars
+carry over; a best-move count saved on the old layout stays as it was. `__tests__/levelVariety.test.ts`
+adds what the pack-wide gates cannot see: flattening each level's ice or belts must change it, and the
+ordering traps of 23 and 42 must be real dead ends.
 
 ## Expanding the level pack (adding levels & assuring quality)
 
@@ -508,7 +543,7 @@ resources/js/games/chicks-challenge/
     replay.ts                  # replaySolution + ASCII board diagnostics for authoring
     validation.ts              # pure static checks used by tests
     index.ts                   # LEVELS: readonly ChicksLevelDef[] (concats phases)
-    phase1.ts … phase8.ts      # 5 levels each — one file per phase for parallel authoring
+    phase1.ts … phase9.ts      # 5 levels each — one file per phase for parallel authoring
   scene/
     sceneConstants.ts          # palette, tile px, tween timings
     threeUtils.ts              # disposal helpers (copy Hover's)
@@ -541,14 +576,14 @@ animation/effects and the tests assert on. Replays are `solution.split('').reduc
 `pnpm run build`, `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`, and
 `php artisan test --compact tests/Feature/ChicksChallengeGamePageTest.php`.
 
-**B. Level static validation (node, `levels.test.ts`):** exactly 40 levels, ids 1–40 contiguous;
+**B. Level static validation (node, `levels.test.ts`):** exactly `TOTAL_LEVELS` levels, ids contiguous from 1;
 rectangular grids ≤ 32×32 fully wall-enclosed; exactly one `@`; ≥ 1 `E`; socket present iff chips > 0;
 per color, consumed-key count ≥ door count (green: ≥ 1 key if any green door); every `M` has a
 `cloneTemplates` entry and every template a machine; every `facingOverrides` key addresses a monster;
 teleport groups have ≥ 2 members; all chars in the legend; difficulty-curve sanity (phase-1 levels
 contain no monsters/ice/force/machinery; monsters first appear in phase 6; etc.).
 
-**C. Solver gate (node, `solver.test.ts`) — the keystone:** for each of the 40 levels, the
+**C. Solver gate (node, `solver.test.ts`) — the keystone:** for each level, the
 deterministic weighted-A* solver (`engine/solver.ts`, driving the real `applyMove` reducer) must
 find a winning input sequence within its node budget, and the stored `par` must equal the solver's
 solution length (no hardcoded solutions anywhere). Additionally, for every level with a socket, the
@@ -578,9 +613,9 @@ fallback order; tank + blue button; monster cap; wait advancing monsters; reject
 nothing; `starsForMoves` boundaries (exact `ceil` edges).
 
 **E. Progress tests (`gameProgress.dom.test.ts`):** round-trip; corrupt JSON → defaults; stars/
-bestMoves monotone (never lowered/raised respectively); `unlockedLevel` caps at 40.
+bestMoves monotone (never lowered/raised respectively); `unlockedLevel` caps at `TOTAL_LEVELS`, and a save that finished the old 40-level pack opens level 41.
 
-**F. Component tests (jsdom, scene mocked):** `ChicksGame.test.tsx` — level select renders 40 tiles
+**F. Component tests (jsdom, scene mocked):** `ChicksGame.test.tsx` — level select renders `TOTAL_LEVELS` tiles
 with lock state; entering a level shows HUD with that level's chip count and par; win overlay shows
 computed stars and advances unlock; death overlay restarts cleanly; hint banner appears on hint tile.
 `inputQueue` test: keyboard + swipe merge, buffer caps at 2.
@@ -616,7 +651,7 @@ notch/home-indicator insets, and iOS Safari's dynamic browser chrome.
 - Visual-regression screenshots (the Playwright spec asserts layout, not pixels).
 - Real-device confirmation of the `screen.orientation.angle` convention behind the rotation direction
   (implemented per "Rotation direction" above, with a clockwise fallback and a single constant to flip).
-- Undo, replays/ghosts, level editor, and additional level packs.
+- Replays/ghosts and a level editor.
 - Real-time mode or level timers (the game is deliberately step-based).
 
 ## Implementation to-do list (handoff checklist)
