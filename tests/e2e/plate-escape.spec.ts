@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
-import { HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { HARBOR_TRACES, LAB_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
 import { getLevel } from '../../resources/js/games/plate-escape/level'
 
 test.describe('Plate Escape real puzzle', () => {
@@ -378,6 +378,75 @@ test.describe('Plate Escape real puzzle', () => {
       }
       await page.reload()
       for (const id of [11, 12, 13, 14, 15]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
+      expect(errors).toEqual([])
+    })
+  })
+
+  test.describe('the dial lab', () => {
+    test.use({ reducedMotion: 'reduce' })
+
+    test('a stop pin or a head in the window holds the dial; turns show each head and undo like moves', async ({ page, isMobile }) => {
+      test.setTimeout(300_000)
+      if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(String(error)))
+      const activate = async (locator: Locator): Promise<void> => {
+        if (isMobile) await locator.tap({ timeout: 15_000 })
+        else await locator.click({ timeout: 15_000 })
+      }
+      const dial = page.getByRole('slider', { name: 'Combination dial', exact: true })
+      const act = async (action: string): Promise<void> => {
+        const [kind, , step] = action.split(':')
+        if (kind === 'turn') {
+          const before = await dial.getAttribute('aria-valuenow')
+          await activate(page.getByRole('button', { name: `Turn the combination dial ${step === '1' ? 'right' : 'left'}`, exact: true }))
+          await expect(dial).not.toHaveAttribute('aria-valuenow', before!)
+          return
+        }
+        const head = page.locator(`[data-screw-id="${action}"]`)
+        await activate(page.getByRole('button', { name: 'Reset view', exact: true }))
+        for (let turn = 0; turn < 12 && !await head.isVisible(); turn++) {
+          await activate(page.getByRole('button', { name: 'Rotate right', exact: true }))
+          await page.waitForTimeout(250)
+        }
+        const removed = await page.getByTestId('screw-progress').textContent()
+        await activate(head)
+        await expect(page.getByTestId('screw-progress')).not.toHaveText(removed!)
+        // The dial waits while the head flies to its tray.
+        await expect.poll(async () => await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled() || await page.getByRole('alertdialog').isVisible() || await page.getByRole('heading', { name: 'All plates free!' }).isVisible()).toBe(true)
+      }
+      for (const trace of LAB_TRACES) {
+        await page.goto(`/plate-escape?lab=${trace.lab}`)
+        await activate(page.getByRole('button', { name: "Let's play", exact: true }))
+        await expect(dial).toHaveAttribute('aria-valuenow', '1')
+        // The first turn is refused, and the hint names what holds the dial.
+        await activate(page.getByRole('button', { name: 'Turn the combination dial right', exact: true }))
+        await expect(page.getByTestId('plate-hint')).toHaveText(trace.lab === 'dial-pin' ? 'The stop pin holds the combination dial. Take it out first.' : 'The coral screw in the window catches the combination dial. Take it out first.')
+        await expect(dial).toHaveAttribute('aria-valuenow', '1')
+        for (const action of trace.lose) await act(action)
+        await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
+        await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
+        await expect(dial).toHaveAttribute('aria-valuenow', '1')
+        const firstTurn = trace.win.findIndex((action) => action.startsWith('turn:'))
+        for (const [index, action] of trace.win.entries()) {
+          await act(action)
+          if (index !== firstTurn) continue
+          // A turn is a move: undo turns the dial back, and arrow keys on the focused dial turn it again.
+          const stop = await dial.getAttribute('aria-valuenow')
+          await activate(page.getByRole('button', { name: 'Undo', exact: true }))
+          await expect(dial).toHaveAttribute('aria-valuenow', '1')
+          await dial.focus()
+          await page.keyboard.press(action.endsWith(':1') ? 'ArrowRight' : 'ArrowLeft')
+          await expect(dial).toHaveAttribute('aria-valuenow', stop!)
+          await expect(dial).toBeFocused()
+        }
+        await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
+      }
+      // Lab boards are never listed or saved.
+      expect(await page.evaluate(() => localStorage.getItem('bwh.plate-escape.progress.v1'))).toBeNull()
+      await page.goto('/plate-escape')
+      await expect(page.getByRole('button', { name: /^Level 90[12]/ })).toHaveCount(0)
       expect(errors).toEqual([])
     })
   })

@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { disposeObject } from '../_shared/three/threeUtils'
+import { dialAngle } from './dial'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
 import { coverStandoff, createPlateMesh, createStage, decoratePlate, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
 import { COLORS, getLevel, heldPlates, type ScrewColor } from './level'
@@ -184,6 +185,8 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
     const landed = new Set<string>()
     const faded = new Map<string, number>()
     const swung = new Set<string>()
+    // Where each dial is drawn: it eases toward its stop, the short way round.
+    const dialAngles = new Map<string, number>()
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     // A rotor stops while the player reaches for the board: any press, drag, wheel, key or
     // mouse movement over it, or keyboard focus resting on a screw, and resumes once idle.
@@ -265,7 +268,18 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
         let fall = 0
         const landing = landings.get(plate.id)
         if (landing) landing.visible = remaining.length > 0
-        if (plate.hinge || plate.rail) {
+        if (plate.dial) {
+          // A dial turns clockwise through its stops and comes away with its host.
+          const target = dialAngle(plate.dial, latestRef.current.state.dials[plate.id] ?? 0)
+          const shown = dialAngles.get(plate.id) ?? target
+          const delta = Math.atan2(Math.sin(target - shown), Math.cos(target - shown))
+          const angle = reduceMotion || Math.abs(delta) < 0.002 ? target : shown + delta * Math.min(1, dt * 14)
+          if (angle !== shown) lastMotionAt = now
+          dialAngles.set(plate.id, angle)
+          group.position.copy(basePosition)
+          group.quaternion.copy(baseQuaternion).multiply(quaternion.setFromAxisAngle(NORMAL, angle))
+          if (remainingOn(plate.host!) === 0) fall = Math.max(0, now - releasedAt(plate.host!) - 0.45)
+        } else if (plate.hinge || plate.rail) {
           // A captive panel swings open or drops down its rail and stays with its host; it falls only when the host does.
           const open = remaining.length === 0
           const lasts = plate.hinge ? HINGE_SECONDS : RAIL_SECONDS
@@ -364,7 +378,7 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
           const locker = PLATES.find((plate) => plate.id === lock?.plate)
           targets.push({
             id: screw.id, x: (projected.x + 1) * container.clientWidth / 2, y: (1 - projected.y) * container.clientHeight / 2,
-            coveredBy: lock?.kind === 'cover' ? locker?.name : sight.coveredBy,
+            coveredBy: lock?.kind === 'cover' || lock?.kind === 'dial' ? locker?.name : sight.coveredBy,
             holdsUp: lock?.kind === 'bearing' ? locker?.name : undefined,
           })
         }

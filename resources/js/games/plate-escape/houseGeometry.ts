@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 
+import { dialSlotPosition } from './dial'
 import { decorateHarborPlate } from './harborDecals'
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
 import type { StageId } from './stage'
@@ -17,7 +18,7 @@ export function plateOutline(plate: Plate): THREE.Shape {
   const x = -width / 2
   const y = -height / 2
   const shape = new THREE.Shape()
-  if (plate.finish === 'wheel') {
+  if (plate.finish === 'wheel' || plate.dial) {
     shape.absarc(0, 0, width / 2, 0, Math.PI * 2, false)
     return shape
   }
@@ -223,6 +224,10 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
   const cream = '#fff2d7'
   if (plate.finish === 'wheel') {
     decorateWheel(details, plate)
+    return details
+  }
+  if (plate.dial) {
+    decorateDial(details, plate)
     return details
   }
   if (plate.finish === 'plank') {
@@ -599,6 +604,24 @@ export function throughShafts(plate: Plate, screws: readonly Screw[], plates: re
   })
 }
 
+/** A dial's windows are cut wide enough to show a whole head and washer square on. */
+export const DIAL_WINDOW = 0.32
+/** A dial is a thin plate, so a head can be seen through its window from well off square. */
+export const DIAL_FACE = 0.04
+
+/** A brass dial: a rim and a grip in the middle, both clear of the windows. */
+function decorateDial(details: THREE.Group, plate: Plate): void {
+  const radius = plate.size[0] / 2
+  const dark = shade(plate.color, -0.18)
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(radius - 0.03, 0.035, 8, 48), new THREE.MeshStandardMaterial({ color: dark, metalness: 0.5, roughness: 0.4 }))
+  rim.position.z = DIAL_FACE
+  details.add(rim)
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.22, 20), new THREE.MeshStandardMaterial({ color: dark, metalness: 0.5, roughness: 0.35 }))
+  grip.rotation.x = Math.PI / 2
+  grip.position.z = DIAL_FACE + 0.11
+  details.add(grip)
+}
+
 /** Distance from a cover to the parallel wall behind it, or 0 when it has none. */
 export function coverStandoff(plate: Plate, plates: readonly Plate[]): number {
   if (plate.finish !== 'brace' && plate.finish !== 'glass') return 0
@@ -612,13 +635,18 @@ export function coverStandoff(plate: Plate, plates: readonly Plate[]): number {
 /** The same panel body is used for rendering and geometry/access verification. */
 export function createPlateMesh(plate: Plate, screws: readonly Screw[]): THREE.Mesh {
   const shape = plateOutline(plate)
-  for (const screw of screws) {
+  const holes = [
+    ...screws.map((screw) => [screw.position, 0.14] as const),
+    ...(plate.dial?.windows ?? []).map((slot) => [dialSlotPosition(plate.dial!, slot), DIAL_WINDOW] as const),
+  ]
+  for (const [[x, y], radius] of holes) {
     const hole = new THREE.Path()
-    hole.absarc(screw.position[0], screw.position[1], 0.14, 0, Math.PI * 2, true)
+    hole.absarc(x, y, radius, 0, Math.PI * 2, true)
     shape.holes.push(hole)
   }
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.18, bevelEnabled: true, bevelSize: 0.05, bevelThickness: PANEL_FACE - 0.09, bevelSegments: 2, steps: 1 })
-  geometry.translate(0, 0, -0.09)
+  const depth = plate.dial ? DIAL_FACE : 0.18
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: plate.dial ? 0.02 : 0.05, bevelThickness: plate.dial ? DIAL_FACE / 2 : PANEL_FACE - 0.09, bevelSegments: 2, steps: 1 })
+  geometry.translate(0, 0, -depth / 2)
   const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: plate.color, metalness: plate.translucent ? 0 : 0.12, roughness: plate.translucent ? 0.12 : 0.45, transparent: Boolean(plate.translucent), opacity: plate.translucent ? 0.22 : 1, depthWrite: !plate.translucent, side: plate.translucent ? THREE.DoubleSide : THREE.FrontSide }))
   mesh.castShadow = !plate.translucent
   mesh.receiveShadow = true

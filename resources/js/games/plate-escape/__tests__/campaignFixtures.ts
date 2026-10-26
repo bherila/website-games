@@ -85,3 +85,19 @@ export const HARBOR_TRACES = [
     lose: ['bow-1', 'lantern-shutter-1', 'lantern-1'],
   },
 ]
+
+/** Lab boards, played with dial turns written as `turn:<dial>:<1|-1>`. */
+export const LAB_TRACES = [
+  {
+    level: 901,
+    lab: 'dial-pin',
+    win: ['door-pin', 'door-corner', 'dial-2', 'turn:dial:1', 'dial-3', 'turn:dial:1', 'dial-0', 'turn:dial:1', 'dial-1', 'back-1', 'back-2', 'top-1', 'top-2', 'left-1', 'right-1'],
+    lose: ['door-pin', 'turn:dial:-1', 'dial-1', 'back-2', 'top-1'],
+  },
+  {
+    level: 902,
+    lab: 'dial-jam',
+    win: ['door-pin', 'door-corner', 'dial-2', 'turn:dial:-1', 'dial-1', 'turn:dial:-1', 'dial-0', 'turn:dial:-1', 'dial-3', 'back-1', 'back-2', 'top-1', 'top-2', 'left-1', 'right-1'],
+    lose: ['door-pin', 'dial-2', 'turn:dial:-1', 'dial-1', 'back-2', 'top-1'],
+  },
+] as const

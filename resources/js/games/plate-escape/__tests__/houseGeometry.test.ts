@@ -1,8 +1,10 @@
 import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
+import { dialAngle } from '../dial'
+import { createPuzzle, showing } from '../engine'
 import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
-import { heldPlates, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
+import { heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
 import { HINGE_SECONDS, hingePose, RAIL_SECONDS, railPose, rotorPose } from '../plateMotion'
 
 /** Even-odd crossings of a ray toward +X against the panel's outline. */
@@ -273,6 +275,29 @@ test('nothing but a screw’s authored covers stands over its head', () => {
       for (const ray of accessRays(level, screw)) {
         const hits = ray.intersectObjects(clear).map((hit) => level.plates[parts.indexOf(hit.object.parent!)]!.id)
         expect([screw.id, hits]).toEqual([screw.id, []])
+      }
+    }
+  }
+})
+
+test('a dial\'s window crosses exactly the heads the engine shows at each stop, and nothing else stands over a head', () => {
+  for (const level of LAB_LEVELS) {
+    const plate = level.plates.find((candidate) => candidate.dial)!
+    const dial = plate.dial!
+    const parts = new Map(level.plates.filter((candidate) => candidate !== plate)
+      .map((candidate) => [candidate.id, placed(createPlateMesh(candidate, level.screws.filter((screw) => screw.plate === candidate.id)), vector(candidate.position), plateQuaternion(candidate))]))
+    for (let stop = 0; stop < dial.stops; stop++) {
+      const turned = plateQuaternion(plate).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), dialAngle(dial, stop)))
+      const disc = placed(new THREE.Group().add(createPlateMesh(plate, []), decoratePlate(plate)), vector(plate.position), turned)
+      const board = { ...createPuzzle(level.id), dials: { [plate.id]: stop } }
+      for (const screw of level.screws) {
+        const rays = accessRays(level, screw)
+        const blocked = rays.filter((ray) => ray.intersectObject(disc).length > 0).length
+        // A head in the window is clear at its centre and all round its rim; any other head behind the dial is hidden.
+        expect({ level: level.id, stop, screw: screw.id, blocked }).toEqual({ level: level.id, stop, screw: screw.id, blocked: showing(board, screw) ? 0 : rays.length })
+        const clear = [...parts].filter(([id]) => id !== screw.plate).map(([, part]) => part)
+        const covering = rays.filter((ray) => ray.intersectObjects(clear).length > 0).length
+        expect({ screw: screw.id, covering }).toEqual({ screw: screw.id, covering: 0 })
       }
     }
   }

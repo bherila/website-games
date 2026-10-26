@@ -1,4 +1,5 @@
-import { createPuzzle, freedPlates, hasWon, panelState, remainingScrews, removeScrew, screwLock } from '../engine'
+import { createPuzzle, dialLock, freedPlates, hasWon, panelState, remainingScrews, removeScrew, screwLock, turnDial } from '../engine'
+import { LAB_DIAL_JAM, LAB_DIAL_PIN } from '../labLevels'
 import { getLevel, heldPlates, LEVELS, type ScrewColor, SCREWS } from '../level'
 import { WORKSHOP_TRACE } from './campaignFixtures'
 
@@ -188,4 +189,75 @@ test('a shutter dropped down its rail covers the base until its glass comes off,
   expect(lockOf(12, [...caps, 'shutter-front-1'], 'glass-front-1')).toBeNull()
   expect(panelState(board(12, [...caps, 'shutter-front-1', 'glass-front-1']), 'shutter-front')).toBe('gone')
   expect(lockOf(12, [...caps, 'shutter-front-1', 'glass-front-1'], 'base-front-1')).toBeNull()
+})
+
+const take = (level: number, ids: readonly string[]) => ids.reduce((state, id) => removeScrew(state, id), createPuzzle(level))
+const behind = ['dial-0', 'dial-1', 'dial-2', 'dial-3']
+/** Which heads behind the dial can be reached on a board. */
+const inWindow = (state: ReturnType<typeof createPuzzle>) => behind.filter((id) => screwLock(state, getLevel(state.level).screws.find((screw) => screw.id === id)!)?.kind !== 'dial')
+
+test('a dial shows one head behind it at each stop, and every head at exactly one', () => {
+  let state = take(LAB_DIAL_PIN, ['door-pin'])
+  const seen: string[] = []
+  for (let turn = 0; turn < 4; turn++) {
+    expect(inWindow(state)).toHaveLength(1)
+    seen.push(...inWindow(state))
+    state = turnDial(state, 'dial', 1)
+  }
+  // Four turns bring it back round to where it started.
+  expect(state.dials).toEqual({ dial: 0 })
+  expect(seen.sort()).toEqual(behind)
+  // The window starts at the bottom, and turning it clockwise brings it up the left side.
+  expect(inWindow(createPuzzle(LAB_DIAL_PIN))).toEqual(['dial-2'])
+  expect(inWindow(turnDial(take(LAB_DIAL_PIN, ['door-pin']), 'dial', 1))).toEqual(['dial-3'])
+  expect(inWindow(turnDial(take(LAB_DIAL_PIN, ['door-pin']), 'dial', -1))).toEqual(['dial-1'])
+})
+
+test('the stop pin holds the dial until it comes out', () => {
+  const start = createPuzzle(LAB_DIAL_PIN)
+  expect(dialLock(start, 'dial')).toEqual({ kind: 'pin', screw: 'door-pin' })
+  expect(turnDial(start, 'dial', 1)).toBe(start)
+  const unpinned = take(LAB_DIAL_PIN, ['door-pin'])
+  expect(dialLock(unpinned, 'dial')).toBeNull()
+  // With the pin out a head in the window does not catch it.
+  expect(turnDial(unpinned, 'dial', 1).dials).toEqual({ dial: 1 })
+})
+
+test('a head showing in a jamming dial\'s window holds it until that head is out', () => {
+  const start = createPuzzle(LAB_DIAL_JAM)
+  expect(dialLock(start, 'dial')).toEqual({ kind: 'jam', screw: 'dial-2' })
+  expect(turnDial(start, 'dial', -1)).toBe(start)
+  const cleared = take(LAB_DIAL_JAM, ['dial-2'])
+  const turned = turnDial(cleared, 'dial', -1)
+  expect(turned.dials).toEqual({ dial: 3 })
+  // It turns onto the next head and catches again; turning back is caught too.
+  expect(dialLock(turned, 'dial')).toEqual({ kind: 'jam', screw: 'dial-1' })
+  expect(turnDial(turned, 'dial', 1)).toBe(turned)
+})
+
+test('a dial stays with its door, turning only while the door is on, and counts as released when it goes', () => {
+  const doorScrews = ['door-pin', 'door-corner', 'dial-2']
+  let state = take(LAB_DIAL_PIN, doorScrews)
+  for (const id of ['dial-3', 'dial-0', 'dial-1']) {
+    state = turnDial(state, 'dial', 1)
+    state = removeScrew(state, id)
+    expect(state.removed).toContain(id)
+  }
+  expect(panelState(state, 'door')).toBe('gone')
+  expect(panelState(state, 'dial')).toBe('gone')
+  expect(turnDial(state, 'dial', 1)).toBe(state)
+  // The door and its dial both count once the door is off; before that the screwless dial does not.
+  expect(freedPlates(state)).toBe(2)
+  expect(freedPlates(createPuzzle(LAB_DIAL_PIN))).toBe(0)
+})
+
+test('a dial will not turn once the attempt has overflowed', () => {
+  // The trays take coral and mint. Amber, amber and blue fill storage, and the next blue overflows.
+  const state = take(LAB_DIAL_PIN, ['door-pin', 'back-2', 'top-1', 'top-2', 'left-1'])
+  expect(state.overflow).not.toBeNull()
+  expect(turnDial(state, 'dial', 1)).toBe(state)
+})
+
+test('levels without a dial start with none, so their boards are unchanged', () => {
+  for (const level of LEVELS) expect(createPuzzle(level.id).dials).toEqual({})
 })
