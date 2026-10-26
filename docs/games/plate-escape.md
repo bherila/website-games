@@ -96,7 +96,9 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
   slopes; walls and roof occlude the heads behind them, so turning the view is required. The
   garden and wooden floor remain as a permanent base.
 - Synthesized sounds mark unscrewing, a screw seating in a tray or spare slot, a filled tray, a
-  locked head, a part letting go and landing, overflow, undo and a win. The footer's sound toggle
+  locked head, a part letting go and landing, overflow, undo and a win. Each drive unscrews with
+  its own sound: a slow scrape for the slot, a climbing ratchet for the cross, even clicks for the
+  square and a bright tinkle for the star. The footer's sound toggle
   persists (`bwh.plate-escape.muted.v1`). The chrome follows the site's light and dark theme.
 - Undo restores the last screw, tray state and plate. Restart resets the puzzle and view.
 - Clearing all plates and sorting all screws awards three stars. Reload starts a fresh puzzle
