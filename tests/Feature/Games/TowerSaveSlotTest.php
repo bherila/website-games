@@ -154,6 +154,112 @@ class TowerSaveSlotTest extends TestCase
         ]);
     }
 
+    /**
+     * A v3 envelope as the client builds it: gzip of the save JSON, base64.
+     *
+     * @param  array<string, mixed>  $save
+     * @return array{format: string, version: int, data: string}
+     */
+    private function envelope(array $save): array
+    {
+        return [
+            'format' => TowerSaveSlot::ENVELOPE_FORMAT,
+            'version' => 3,
+            'data' => base64_encode((string) gzencode((string) json_encode($save), 6)),
+        ];
+    }
+
+    public function test_put_accepts_and_returns_a_compressed_v3_envelope_unchanged(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->acquireToken($user);
+        $save = ['version' => 2, 'mapId' => 'city-tower', 'funds' => 12345, 'units' => array_fill(0, 50, ['kind' => 'officeS'])];
+        $envelope = $this->envelope($save);
+
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-throwback/saves/slot-a', [...$this->payload(), 'payload' => $envelope, 'wire_version' => 3, 'lease_token' => $token])
+            ->assertOk()
+            ->assertJsonPath('data.wire_version', 3);
+
+        $stored = $this->actingAs($user)
+            ->getJson('/api/games/tower-throwback/saves/slot-a')
+            ->assertOk()
+            ->assertJsonPath('data.wire_version', 3)
+            ->json('data.payload');
+        $this->assertSame($envelope, $stored);
+        $this->assertSame($save, json_decode((string) gzdecode(base64_decode($stored['data'], true)), true));
+    }
+
+    public function test_put_still_accepts_an_uncompressed_v2_save(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->acquireToken($user);
+
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-throwback/saves/slot-a', [...$this->payload(2), 'lease_token' => $token])
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->getJson('/api/games/tower-throwback/saves/slot-a')
+            ->assertOk()
+            ->assertJsonPath('data.wire_version', 2)
+            ->assertJsonPath('data.payload.mapId', 'city-tower');
+    }
+
+    public function test_put_rejects_a_payload_whose_shape_does_not_match_its_wire_version(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->acquireToken($user);
+        $envelope = $this->envelope(['version' => 2]);
+        $cases = [
+            'raw save declared as v3' => [['version' => 2, 'mapId' => 'city-tower'], 3],
+            'envelope declared as v2' => [$envelope, 2],
+            'unknown envelope format' => [[...$envelope, 'format' => 'tower-throwback/zstd'], 3],
+            'future envelope version' => [[...$envelope, 'version' => 4], 3],
+            'data is not base64' => [[...$envelope, 'data' => '%%%not-base64%%%'], 3],
+            'data is not a string' => [[...$envelope, 'data' => 42], 3],
+            'extra key' => [[...$envelope, 'extra' => true], 3],
+        ];
+
+        foreach ($cases as $label => [$payload, $wireVersion]) {
+            $this->actingAs($user)
+                ->putJson('/api/games/tower-throwback/saves/slot-a', [
+                    ...$this->payload(),
+                    'payload' => $payload,
+                    'wire_version' => $wireVersion,
+                    'lease_token' => $token,
+                ])
+                ->assertStatus(422)
+                ->assertJsonValidationErrorFor('payload');
+            $this->assertSame(0, TowerSaveSlot::query()->whereNotNull('payload')->count(), $label);
+        }
+    }
+
+    /** The size cap measures what is stored: the envelope, not the save inside it. */
+    public function test_cap_applies_to_the_stored_envelope(): void
+    {
+        $user = User::factory()->create();
+        $token = $this->acquireToken($user);
+
+        // About 2 MB of save JSON that compresses to a few KB is accepted…
+        $big = ['version' => 2, 'blob' => str_repeat('tower ', 350_000)];
+        $this->assertGreaterThan(StoreTowerSaveRequest::MAX_PAYLOAD_BYTES, strlen((string) json_encode($big)));
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-throwback/saves/slot-a', [...$this->payload(), 'payload' => $this->envelope($big), 'wire_version' => 3, 'lease_token' => $token])
+            ->assertOk();
+
+        // …while an envelope that is itself over the cap is refused.
+        $oversized = [
+            'format' => TowerSaveSlot::ENVELOPE_FORMAT,
+            'version' => 3,
+            'data' => str_repeat('A', StoreTowerSaveRequest::MAX_PAYLOAD_BYTES),
+        ];
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-throwback/saves/slot-a', [...$this->payload(), 'payload' => $oversized, 'wire_version' => 3, 'lease_token' => $token])
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('payload');
+    }
+
     public function test_put_rejects_unknown_slot_key(): void
     {
         $user = User::factory()->create();

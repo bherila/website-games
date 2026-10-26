@@ -8,9 +8,10 @@
 import { act, render } from '@testing-library/react'
 import { type ReactElement, useEffect } from 'react'
 
+import { CLOUD_ENVELOPE_FORMAT, CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from '../cloudPayload'
 import * as cloudSync from '../cloudSync'
 import { createEngineState } from '../engine/engine'
-import { clearSandbox, loadSandbox, type SavedSandbox, saveSandbox } from '../gameProgress'
+import { clearSandbox, importSandbox, loadSandbox, migrateSandboxPayload, type SavedSandbox, saveSandbox } from '../gameProgress'
 import type { SandboxSlotId } from '../gameTypes'
 import { MAX_CLOUD_PAYLOAD_BYTES } from '../saveBudget'
 import { type CloudSaveSync, useCloudSaveSync } from '../useCloudSaveSync'
@@ -63,6 +64,21 @@ function savedSandbox(padding = ''): SavedSandbox {
     ;(saved as unknown as Record<string, unknown>).__padding = padding
   }
   return saved
+}
+
+/**
+ * Padding that stays over the cloud budget AFTER the v3 envelope's gzip:
+ * pseudo-random characters barely compress, where `'x'.repeat(n)` shrinks to
+ * almost nothing.
+ */
+function incompressible(length: number): string {
+  let seed = 0x2545f491
+  let out = ''
+  for (let i = 0; i < length; i += 1) {
+    seed = (Math.imul(seed, 1103515245) + 12345) >>> 0
+    out += String.fromCharCode(33 + ((seed >>> 16) % 94))
+  }
+  return out
 }
 
 const published: { current: CloudSaveSync | null } = { current: null }
@@ -248,7 +264,7 @@ describe('useCloudSaveSync status truthfulness', () => {
     await renderSync()
 
     await act(async () => {
-      api().pushSlot('slot-a', savedSandbox('x'.repeat(MAX_CLOUD_PAYLOAD_BYTES)))
+      api().pushSlot('slot-a', savedSandbox(incompressible(MAX_CLOUD_PAYLOAD_BYTES * 2)))
     })
 
     expect(api().slots['slot-a'].status).toBe('tooLarge')
@@ -260,7 +276,7 @@ describe('useCloudSaveSync status truthfulness', () => {
   it('does not apply a persisted outcome to an empty local slot', async () => {
     const firstView = await renderSync()
     await act(async () => {
-      api().pushSlot('slot-a', savedSandbox('x'.repeat(MAX_CLOUD_PAYLOAD_BYTES)))
+      api().pushSlot('slot-a', savedSandbox(incompressible(MAX_CLOUD_PAYLOAD_BYTES * 2)))
     })
     expect(api().slots['slot-a'].status).toBe('tooLarge')
 
@@ -295,5 +311,64 @@ describe('useCloudSaveSync status truthfulness', () => {
 
     // Nothing in the failure path touches local storage.
     expect(api().slots['slot-a'].canRestore).toBe(true)
+  })
+})
+
+describe('useCloudSaveSync compressed (v3) cloud payloads', () => {
+  it('pushes the save as a gzip envelope under wire version 3', async () => {
+    await renderSync()
+    const saved = savedSandbox()
+    await act(async () => {
+      api().pushSlot('slot-a', saved)
+    })
+
+    const input = mocked.pushCloudSlot.mock.calls[0]![0]
+    expect(input.wireVersion).toBe(CLOUD_ENVELOPE_WIRE_VERSION)
+    expect(input.payload).toEqual({ format: CLOUD_ENVELOPE_FORMAT, version: 3, data: expect.any(String) })
+    expect(decodeCloudPayload(input.payload)).toEqual(JSON.parse(JSON.stringify(saved)))
+  })
+
+  it('restores a compressed cloud save and an older uncompressed one', async () => {
+    const saved = savedSandbox()
+    clearSandbox('slot-a')
+    await renderSync(new Set<SandboxSlotId>())
+    for (const payload of [encodeCloudPayload(JSON.stringify(saved)), JSON.parse(JSON.stringify(saved)) as unknown]) {
+      mocked.getCloudSlot.mockResolvedValueOnce({ meta: slotMeta(), payload })
+      let restored: SavedSandbox | null = null
+      await act(async () => {
+        restored = await api().restore('slot-a')
+      })
+      expect(restored).toEqual(saved)
+      expect(loadSandbox('slot-a')).toEqual(saved)
+      clearSandbox('slot-a')
+    }
+  })
+
+  it('refuses an envelope from a newer client without touching the local save', async () => {
+    const local = savedSandbox()
+    const localBytes = localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')
+    await renderSync()
+    const newer = { ...encodeCloudPayload(JSON.stringify(local)), version: 4 }
+    for (const payload of [newer, { ...newer, version: 3, format: 'tower-throwback/zstd' }, { ...newer, version: 3, data: 'not base64 gzip' }]) {
+      mocked.getCloudSlot.mockResolvedValueOnce({ meta: slotMeta(), payload })
+      let restored: SavedSandbox | null = local
+      await act(async () => {
+        restored = await api().restore('slot-a')
+      })
+      expect(restored).toBeNull()
+      expect(localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')).toBe(localBytes)
+    }
+  })
+
+  it('an older client meeting a v3 envelope refuses it safely', () => {
+    // Pre-v3 restore handed the raw cloud payload straight to the migration and
+    // the importer. Both must reject the envelope and leave the slot alone.
+    const local = savedSandbox()
+    const localBytes = localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')
+    const envelope = encodeCloudPayload(JSON.stringify(local))
+
+    expect(migrateSandboxPayload(envelope)).toBeNull()
+    expect(importSandbox(JSON.stringify(envelope), 'slot-a')).toEqual({ ok: false, reason: 'invalidPayload' })
+    expect(localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')).toBe(localBytes)
   })
 })

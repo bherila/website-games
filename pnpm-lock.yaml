@@ -225,6 +225,9 @@ importers:
       dayjs:
         specifier: ^1.11.23
         version: 1.11.23
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       lucide-react:
         specifier: ^1.55.0
         version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
