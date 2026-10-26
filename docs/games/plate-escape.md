@@ -116,15 +116,24 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
 ## Validation
 
 - An exhaustive solver (`__tests__/puzzleSolver.ts`) explores every reachable board of each
-  released level through the real engine. It proves each level winnable with no soft-locks,
-  keeps each within an authored difficulty band (the chance that uniformly random legal play
-  wins), proves that every legal order wins the tutorial, that no board leaves a roof over a
-  released gable, and that the bearing rule constrains every level. Each level with shared screws
-  must reach a lock that would vanish if every screw held one plate, and a move that releases two
-  plates at once. (Turning sharing off cannot make a level unsolvable, since it only removes
-  locks, so this is the necessity gate for shared screws.) The authored win and
-  overflow traces in `campaignFixtures.ts` were generated from it. The solver assumes every
-  uncovered head is reachable by orbiting; geometry tests and browser journeys check access.
+  released level through the real engine. It proves each level winnable with no soft-locks and
+  keeps each within an authored band for the chance that uniformly random legal play wins (a
+  regression check: it counts tempting wrong taps, not hidden commitments). It proves that every
+  legal order wins the tutorial, that no board leaves a roof over a released gable, and that the
+  bearing rule constrains every level. From every reachable board short of overflow, the assembly
+  must still be finishable with unlimited storage, so no move sets a mechanical trap that a later
+  overflow would hide; `solverGates.test.ts` keeps such a trap, built from today's rules, that
+  the older checks passed. On teaching levels (1, 4, 6, 9) no move short of overflowing may doom
+  the board; elsewhere a doomed board must overflow within four more removals. The solver also
+  reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
+  that keep a win, and the fewest spares a win needs. All ten released levels are winnable from
+  every board short of overflow, by that simple policy, and without using a spare.
+  Each level with shared screws must reach a lock that would vanish if every screw held one
+  plate, and a move that releases two plates at once. (Turning sharing off cannot make a level
+  unsolvable, since it only removes locks, so this is the necessity gate for shared screws.) The
+  authored win and overflow traces in `campaignFixtures.ts` were generated from it. The solver
+  assumes every uncovered head is reachable by orbiting; geometry tests and browser journeys
+  check access.
 - Pure model tests cover tray cascades, capacity, duplicate taps, immutable undo snapshots,
   support removal, bearing locks, shared-screw counting and release, workshop overflow,
   recovery and a winning order.
@@ -180,8 +189,8 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 - Levels 3–17 target four colors / twelve screws. Level 18 teaches a fifth color with its own
   distinct head mark; levels 18–30 target five colors / fifteen screws. Keep one batch per
   color, rather than adding repeated tray batches in this campaign.
-- Target two spare slots for established rules. Teaching levels 4, 6, 9, 12, 16, 18 and 21 use
-  three slots to make room for learning. From level 26, start with two slots and let releasing
+- Target two spare slots for established rules. Teaching levels 4, 6, 9, 11, 12, 16, 18 and 21,
+  and the busier railway levels 17, 19 and 20, use three slots. From level 26, start with two slots and let releasing
   a visible staging rack add a third for that attempt. These are authoring targets: a solver
   and playtesting must prove each arrangement before its numbers are locked.
 - Show the upcoming tray-color queue before increasing complexity beyond level 2. Queue order
@@ -212,16 +221,16 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 | 8 | Sawmill — released | One bolt runs through a log rack and saw guard into the back wall: a short release chain. Predict which parts leave after the last common fastener. |
 | 9 | Mill Loft — released | Introduce captive hinged panels. Removing their last screw swings them to a fixed open position, revealing the next layer. |
 | 10 | Windmill Hill — released | Combine shared fasteners, a hinged door and turning sails pinned by one hub. No new rule; conclude the mill group. |
-| 11 | Rowing Boat | Moored at a jetty. Practice hinged covers (seat lockers) across front and side faces, with useful colors behind different doors. Rotation and reveal order both matter. |
-| 12 | Lighthouse Lantern | Introduce rail-guided panels. Unfastened panels slide to an authored stop instead of falling, exposing screws along the lantern housing. |
-| 13 | Sea Chest | A sliding cover exposes the supports for a hinged panel. Read a two-stage opening sequence before spending spare slots. |
-| 14 | Harbor Crane | Rails on different faces move covers in different directions. Plan which face to open first using the visible tray queue. |
-| 15 | Lightship | Combine shared supports, sliders and hinged access panels around a floating lighthouse. Harbor assessment with several safe opening orders. |
-| 16 | Toy Steam Engine | Introduce a manually turnable collar. Its cutouts align with screw heads at discrete stops; clear controls distinguish collar rotation from camera orbit. |
-| 17 | Music Box | A collar reveals shared housing screws. Practice alignment and support order without another new rule. |
-| 18 | Station Clock | Introduce the fifth color with a unique head mark and an extra teaching spare. Familiar clock-face alignment makes the new color easy to inspect. |
-| 19 | Orrery | Collars expose screws that release sliding sleeves. Compare two opening routes and their storage costs. |
-| 20 | Locomotive | Choose between engine and tender sections using the same trays. Combine collars, hinges and shared supports as the railway assessment. |
+| 11 | Rowing Boat | Moored at a jetty. Introduce captive covers: a seat-locker flap with a visible catch drops over a hull screw, previewed before release, and comes away with the seat. Teaching level, three spares. |
+| 12 | Lighthouse Lantern | Introduce rails: a storm shutter drops down its rail onto the base band, covering the screw there until its glass face comes off. Teaching level, three spares. |
+| 13 | Sea Chest | Two routes: the lid falls back over the back panel's screws, or the hasp drops over the front's. Each must start viable with a different storage cost. |
+| 14 | Harbor Crane | Rails on opposite faces move covers in different directions; one pivot bolt frees jib and cab together; the cab door opens clear. |
+| 15 | Lightship | Harbor assessment: a drop flap, a hatch, a shuttered mast lantern and a shared mast bolt, with several safe opening orders. |
+| 16 | Toy Steam Engine | Introduce dials: one large dial with a visible stop-pin screw; take the pin and the dial turns, showing the heads behind its window one at a time. Teaching level, three spares. |
+| 17 | Music Box | A two-window dial shows two heads per stop; the lid opens clear so the dial is the only new consequence. Three spares. |
+| 18 | Station Clock | Introduce Pearl, the fifth color, with a hex-socket mark and an extra teaching spare. |
+| 19 | Signal Box | Two separate selector dials and a railed shutter; which selector to work first decides which colors arrive early. Three spares. |
+| 20 | Locomotive | Railway assessment: engine or tender first, with a coupling pin through both drawbars. Three spares. |
 | 21 | Cuckoo Clock | Introduce linked counterweights (pinecone weights). Releasing a visible weight drives another part to a fixed position and opens access; there is no timing challenge. |
 | 22 | Lift Cage | Practice two clearly connected weight/cover pairs on different faces. Releasing the right pair exposes the needed color first. |
 | 23 | Drawbridge | A counterweight opens a hinged bridge section. Plan the release before taking screws from the next layer. |
@@ -243,16 +252,21 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    A screw can anchor multiple aligned panels, and every panel derives its remaining supports
    from that graph. Shared screws need a stable world position and a clear visual identity.
    Releasing the outer plate must not carry away a screw still needed by an inner plate.
-3. **Hinges implemented for levels 9–10; rails before level 12:** add authored motion rules for hinges and rails. A captive panel
-   enters its authored open state when its fasteners are gone; its fixed hinge or rail does not
-   need dismantling. The renderer animates toward that state and delays newly exposed targets
-   until actual geometry clears them. It does not decide progression or run a general rigid-body
-   simulation. Open positions must leave all required remaining heads reachable.
-4. **Before level 16:** store discrete collar poses in puzzle state, provide touch and keyboard
-   rotation controls, and raycast against the actual current pose. Camera orientation remains
-   outside the puzzle model. Collar poses belong in screw-removal undo snapshots.
-5. **At level 18:** add the fifth named color and distinct mark consistently to heads, trays,
-   storage, instructions and accessible labels. Five colors still mean two active trays.
+3. **Hinges implemented for levels 9–10; captive covers and rails before level 11:** ordinary
+   hinged doors open clear and cover nothing. A captive cover (a drop flap on a catch, or a
+   shutter at the foot of a rail) is a distinct panel that, once open, covers the heads it lands
+   on until its explicitly named host comes off. Panels have three states (pinned, open but
+   captive, gone); an open cover travels with its host and never bears on it, and a screw that
+   frees cover and host together creates no cover in between. Each cover's resting place is shown
+   before release. The structural gate above must hold.
+4. **Before level 16:** store discrete dial stops in puzzle state, make every turn an undo step,
+   provide button and keyboard controls that step one stop at a time, and raycast against the
+   actual pose. The first dial is held by a stop-pin screw; whether a head in the window jams a
+   dial is decided on an unreleased test board, since it can deadlock against the bearing rule.
+   No concentric dials. The solver becomes a graph search over removals and turns, with win
+   chances solved across cycles and stops reachable without a removal grouped for scoring.
+5. **At level 18:** add Pearl and its hex mark consistently to heads, trays, storage,
+   instructions and accessible labels. Five colors still mean two active trays.
 6. **Before level 21:** add authored counterweight dependencies with fixed end positions.
    Keep dependencies acyclic and test both motion and undo. There are no timed windows,
    speed requirements or outcomes determined by frame rate.
@@ -260,7 +274,8 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    Restoring an earlier snapshot restores its capacity and stored screws together. The extra
    slot resets on retry and is never a permanent purchase or consumable.
 
-Build and validate in batches: 3–5, 6–10, 11–15, 16–20, 21–25, then 26–30. Only released
+Build and validate in batches: 3–5, 6–10, then 11–12 (checked on a phone before authoring
+13–15), a dial test board, 16–20, 21–25 and 26–30. Only released
 levels enter the runtime registry, progress totals, catalog and API save boundary. Do not
 raise those limits to 30 or show playable placeholder tiles merely because the plan has 30 rows.
 Existing level-1 and level-2 stars must survive each campaign expansion.
