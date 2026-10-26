@@ -34,6 +34,8 @@ interface Props {
 
 const UP = new THREE.Vector3(0, 1, 0)
 const NORMAL = new THREE.Vector3(0, 0, 1)
+/** The cosine of the widest angle between a head's face and the camera at which it can be tapped (about 80°). */
+const MIN_FACING = 0.17
 
 export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPlateEvent }: Props): ReactElement {
   const level = getLevel(state.level)
@@ -354,7 +356,8 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
           group.getWorldPosition(world)
           group.getWorldQuaternion(quaternion)
           facing.copy(NORMAL).applyQuaternion(quaternion)
-          if (facing.dot(camera.position.clone().sub(world)) <= 0) continue
+          // A head seen nearly edge-on is not offered: its button would flicker and crowd its neighbours.
+          if (facing.dot(camera.position.clone().sub(world).normalize()) <= MIN_FACING) continue
           const projected = world.clone().project(camera)
           if (Math.abs(projected.x) > 0.92 || Math.abs(projected.y) > 0.92 || projected.z > 1) continue
           ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera)

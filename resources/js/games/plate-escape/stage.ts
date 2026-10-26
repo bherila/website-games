@@ -4,7 +4,7 @@ import type { Point3 } from './level'
  * The permanent base each level stands on. Its surfaces are what a released
  * part lands on; water is not ground, so a part that reaches it sinks.
  */
-export type StageId = 'garden' | 'jetty' | 'pier'
+export type StageId = 'garden' | 'jetty' | 'pier' | 'workbench' | 'quay' | 'sea'
 
 interface Surface {
   kind: 'ground' | 'water'
@@ -40,6 +40,32 @@ export const STAGES: Record<StageId, Stage> = {
       { kind: 'ground', top: -1.45, rect: [0, 0, 1.75, 1.05] },
       { kind: 'ground', top: -1.62, rect: [0, -2.15, 3.2, 0.55] },
       { kind: 'water', top: -1.86, circle: [0, 0, 4.2] },
+    ],
+  },
+  // A boathouse workbench; anything that slides off lands on the plank floor.
+  workbench: {
+    target: [0, -0.5, 0],
+    distance: 0.85,
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0, 2.3, 1.45] },
+      { kind: 'ground', top: -2.7, circle: [0, 0, 4.2] },
+    ],
+  },
+  // A stone quay with the harbor water beyond its edge, under the crane's jib.
+  quay: {
+    target: [0, 0.05, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [-0.6, 0, 2.6, 1.7] },
+      { kind: 'water', top: -2.2, circle: [0, 0, 4.4] },
+    ],
+  },
+  // A lightship riding at anchor: its lower hull is the base, open water all round.
+  sea: {
+    target: [0, -0.25, 0],
+    distance: 0.9,
+    surfaces: [
+      { kind: 'ground', top: -1.45, rect: [0, 0, 1.85, 1.05] },
+      { kind: 'water', top: -1.86, circle: [0, 0, 4.4] },
     ],
   },
   // A stone pier head with the sea below it on every side.

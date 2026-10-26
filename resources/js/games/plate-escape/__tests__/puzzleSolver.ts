@@ -24,6 +24,8 @@ export interface LevelAnalysis {
   worstSafeShare: number
   /** The fewest spare slots any winning order fills at once. */
   minSpares: number
+  /** Whether some order still wins from a reachable board. */
+  canWin: (board: PuzzleState) => boolean
 }
 
 const key = (state: PuzzleState): string => JSON.stringify([[...state.removed].sort(), state.trays, state.queue, [...state.spare].sort(), state.overflow])
@@ -100,6 +102,7 @@ export function analyseLevel(levelId: number, preferred: readonly string[] = [])
       return safe.filter((next) => hasWon(next) || winnable(next)).length / safe.length
     })),
     minSpares: fewestSpares(start, moves),
+    canWin: (board) => hasWon(board) || winnable(board),
   }
 }
 

@@ -181,8 +181,8 @@ test('an open captive panel sits in front of its host and covers exactly the hea
       checked++
     }
   }
-  // Mill doors and hatches, the boat's bait flap and the lantern's two shutters.
-  expect(checked).toBe(6)
+  // Three mill doors and hatches; in the harbor, two drop flaps, a hasp, four railed shutters and weights, and a tower door.
+  expect(checked).toBe(13)
 })
 
 test('turning parts cover what they cover at every angle, and no other head sits under their sweep', () => {

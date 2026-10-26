@@ -8,7 +8,7 @@ import { analyseLevel } from './puzzleSolver'
 const DIFFICULTY: Record<number, readonly [number, number]> = {
   1: [1, 1], 2: [0.3, 0.65], 3: [0.15, 0.35], 4: [0.6, 0.95], 5: [0.3, 0.6],
   6: [0.5, 0.8], 7: [0.25, 0.45], 8: [0.25, 0.5], 9: [0.55, 0.85], 10: [0.12, 0.3],
-  11: [0.45, 0.75], 12: [0.35, 0.6],
+  11: [0.45, 0.75], 12: [0.35, 0.6], 13: [0.22, 0.42], 14: [0.2, 0.38], 15: [0.1, 0.28],
 }
 /** Levels that introduce something: no move short of overflowing may doom the board. */
 const TEACHING = new Set([1, 4, 6, 9, 11, 12])
@@ -64,7 +64,7 @@ test('the bearing rule constrains every level rather than being satisfied by acc
 
 test('shared screws shape every level that has them', () => {
   const shared = LEVELS.filter((level) => level.screws.some((screw) => screw.through))
-  expect(shared.map((level) => level.id)).toEqual([6, 7, 8, 9, 10])
+  expect(shared.map((level) => level.id)).toEqual([6, 7, 8, 9, 10, 14, 15])
   for (const level of shared) {
     const boards = analyses.get(level.id)!.boards.filter((board) => board.overflow === null)
     // Some head is locked only because of a shared screw, so it would be free if every screw held
@@ -85,13 +85,11 @@ test('shared screws shape every level that has them', () => {
 
 test('captive covers shape every level that has them', () => {
   const covered = LEVELS.filter((level) => level.screws.some((screw) => screw.coveredWhenOpen))
-  expect(covered.map((level) => level.id)).toEqual([11, 12])
+  expect(covered.map((level) => level.id)).toEqual([11, 12, 13, 14, 15])
   for (const level of covered) {
     const analysis = analyses.get(level.id)!
-    // Both are teaching levels with no doomed board, so every board short of overflow can still win.
-    expect(analysis.doomed).toBe(0)
-    // On such a board, an open part is the only thing in the way of some head.
-    expect(analysis.boards.some((board) => board.overflow === null && !hasWon(board) && level.screws.some((screw) => {
+    // On a board that can still win, an open part is the only thing in the way of some head.
+    expect(analysis.boards.some((board) => analysis.canWin(board) && !hasWon(board) && level.screws.some((screw) => {
       const lock = screwLock(board, screw)
       return lock?.kind === 'cover' && panelState(board, lock.plate) === 'open' && !(screw.blockedBy ?? []).some((id) => remainingScrews(board, id) > 0)
     }))).toBe(true)

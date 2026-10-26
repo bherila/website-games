@@ -1,4 +1,5 @@
 import { loadProgress, recordWin, saveProgress } from '../gameProgress'
+import { LEVELS } from '../level'
 
 test('a cottage clear from the original one-level release unlocks the workshop', () => {
   const storage = { getItem: () => JSON.stringify({ version: 1, unlockedLevel: 1, stars: { 1: 3 } }) }
@@ -29,6 +30,6 @@ test('a five-level save opens the waterwheel, the mill opens the harbor, and the
   let progress = saved
   for (const level of [6, 7, 8, 9, 10]) progress = recordWin(progress, level, 3)
   expect(progress.unlockedLevel).toBe(11)
-  for (const level of [11, 12]) progress = recordWin(progress, level, 3)
-  expect(progress.unlockedLevel).toBe(12)
+  for (let level = 11; level <= LEVELS.length; level++) progress = recordWin(progress, level, 3)
+  expect(progress.unlockedLevel).toBe(LEVELS.length)
 })
