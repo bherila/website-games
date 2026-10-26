@@ -408,3 +408,17 @@ test('a counterweight\'s cord and pulleys cross no head, shut or open, and the c
     }
   }
 })
+
+test('in the clockworks every part\'s details (case trim, clock faces, weights, the horn, a robot\'s head) are carved clear of every head, their own included', () => {
+  for (const level of counterweighted) {
+    const carved = new Map(level.plates
+      .map((plate) => [plate.id, placed(decoratePlate(plate, 0, level.screws.filter((screw) => screw.plate === plate.id), level.id), vector(plate.position), plateQuaternion(plate))]))
+    for (const screw of level.screws) {
+      // Only a cover the screw names may stand over it; a dial is checked at every stop by the dial test.
+      const others = [...carved].filter(([id]) => !screw.blockedBy?.includes(id) && screw.underDial?.dial !== id).map(([, details]) => details)
+      const crossing = accessRays(level, screw).filter((ray) => ray.intersectObjects(others).length > 0).length
+      expect({ level: level.id, screw: screw.id, crossing }).toEqual({ level: level.id, screw: screw.id, crossing: 0 })
+    }
+    carved.forEach((details) => disposeObject(details))
+  }
+})

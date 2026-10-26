@@ -53,6 +53,7 @@ export interface Plate {
   dial?: Dial
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
     | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer' | 'weight'
+    | 'case' | 'clock' | 'turntable' | 'tin' | 'head' | 'gatehouse'
   color: string
 }
 

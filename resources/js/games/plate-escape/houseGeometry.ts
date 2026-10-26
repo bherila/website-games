@@ -223,8 +223,16 @@ function decorateRack(details: THREE.Group, plate: Plate, screws: readonly Screw
  */
 function decorateWeight(details: THREE.Group, plate: Plate, screws: readonly Screw[]): void {
   const [width, height] = plate.size
+  if (!plate.outline) {
+    // A stack of cast-iron slabs, banded at the joins.
+    const band = shade(plate.color, -0.1)
+    for (let y = -height / 2 + height / 4; y < height / 2 - 0.05; y += height / 4) {
+      if (screws.some((screw) => Math.abs(screw.position[1] - y) < 0.3)) continue
+      box(details, [width - 0.04, 0.035, 0.03], [0, y, 0.145], band)
+    }
+  }
   const scale = new THREE.MeshStandardMaterial({ color: shade(plate.color, 0.1), roughness: 0.8 })
-  for (let row = 0, y = height / 2 - 0.16; y > -height / 2 + 0.1; row++, y -= 0.13) {
+  for (let row = 0, y = height / 2 - 0.16; plate.outline && y > -height / 2 + 0.1; row++, y -= 0.13) {
     for (let x = -width / 2 + 0.1 + (row % 2) * 0.07; x < width / 2 - 0.08; x += 0.14) {
       if (screws.some((screw) => Math.hypot(screw.position[0] - x, screw.position[1] - y) < 0.34)) continue
       if (plate.outline && !insidePolygon(plate.outline, x, y, 0.06)) continue
@@ -253,6 +261,110 @@ function insidePolygon(outline: readonly (readonly [number, number])[], x: numbe
   return [[0, 0], [margin, 0], [-margin, 0], [0, margin], [0, -margin]].every(([dx, dy]) => inside(x + dx!, y + dy!))
 }
 
+/** Where a clock case's front carries its face: centred, just below the middle. */
+export const CLOCK_FACE = { x: 0, y: -0.05, radius: 0.42 } as const
+
+/**
+ * A carved clock case: a raised frame round each wall, following the gable on
+ * the ends; the front also carries the clock face with its hour marks and hands.
+ */
+function decorateCase(details: THREE.Group, plate: Plate, face: boolean): void {
+  const [width, height] = plate.size
+  const trim = shade(plate.color, 0.12)
+  const inset = 0.06
+  for (const side of [-1, 1]) box(details, [0.08, height - inset * 2, 0.04], [side * (width / 2 - inset), 0, 0.15], trim)
+  box(details, [width - inset * 2, 0.08, 0.04], [0, -height / 2 + inset, 0.15], trim)
+  if (plate.gableRise) {
+    const span = Math.hypot(width / 2, plate.gableRise)
+    for (const side of [-1, 1]) {
+      const rake = box(details, [span - 0.12, 0.08, 0.04], [side * width / 4, height / 2 + plate.gableRise / 2 - 0.05, 0.15], trim)
+      rake.rotation.z = -side * Math.atan2(plate.gableRise, width / 2)
+    }
+  } else box(details, [width - inset * 2, 0.08, 0.04], [0, height / 2 - inset, 0.15], trim)
+  if (!face) return
+  const dial = new THREE.Mesh(new THREE.CylinderGeometry(CLOCK_FACE.radius, CLOCK_FACE.radius, 0.04, 40), new THREE.MeshStandardMaterial({ color: '#f6ecd4', roughness: 0.6 }))
+  dial.rotation.x = Math.PI / 2
+  dial.position.set(CLOCK_FACE.x, CLOCK_FACE.y, 0.15)
+  details.add(dial)
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(CLOCK_FACE.radius, 0.035, 8, 40), new THREE.MeshStandardMaterial({ color: '#b08d3c', metalness: 0.6, roughness: 0.35 }))
+  bezel.position.set(CLOCK_FACE.x, CLOCK_FACE.y, 0.17)
+  details.add(bezel)
+  const ink = '#2b2522'
+  for (let hour = 0; hour < 12; hour++) {
+    const angle = hour * Math.PI / 6
+    const tick = box(details, [0.025, hour % 3 ? 0.05 : 0.09, 0.01], [CLOCK_FACE.x + Math.sin(angle) * (CLOCK_FACE.radius - 0.08), CLOCK_FACE.y + Math.cos(angle) * (CLOCK_FACE.radius - 0.08), 0.175], ink)
+    tick.rotation.z = -angle
+  }
+  // Ten past ten, as clocks are always shown.
+  for (const [length, angle] of [[0.2, Math.PI * 2 * (10 / 12 + 1 / 72)], [0.3, Math.PI * 2 * (2 / 12)]] as const) {
+    const hand = box(details, [0.035, length, 0.012], [CLOCK_FACE.x + Math.sin(angle) * length / 2, CLOCK_FACE.y + Math.cos(angle) * length / 2, 0.185], ink)
+    hand.rotation.z = -angle
+  }
+}
+
+/**
+ * A gramophone lid: a turntable with a record and tone arm, and the brass horn
+ * rising from the back corner, all clear of the lid's screws at the front.
+ */
+function decorateTurntable(details: THREE.Group, plate: Plate): void {
+  const [width, height] = plate.size
+  const platter = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.05, 40), new THREE.MeshStandardMaterial({ color: '#7a2e2a', roughness: 0.9 }))
+  platter.rotation.x = Math.PI / 2
+  platter.position.set(-0.15, -0.1, 0.16)
+  details.add(platter)
+  const record = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.02, 40), new THREE.MeshStandardMaterial({ color: '#1d1b1a', roughness: 0.35 }))
+  record.rotation.x = Math.PI / 2
+  record.position.set(-0.15, -0.1, 0.195)
+  details.add(record)
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.022, 20), new THREE.MeshStandardMaterial({ color: '#d9a132' }))
+  label.rotation.x = Math.PI / 2
+  label.position.set(-0.15, -0.1, 0.2)
+  details.add(label)
+  const brass = new THREE.MeshStandardMaterial({ color: '#c9a64b', metalness: 0.65, roughness: 0.3, side: THREE.DoubleSide })
+  const arm = box(details, [0.05, 0.75, 0.05], [0.45, 0.05, 0.3], '#c9a64b')
+  arm.rotation.z = 0.5
+  // The horn's throat stands at the back left corner and flares up and back.
+  const corner = new THREE.Vector3(-width / 2 + 0.35, height / 2 - 0.3, 0.15)
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 12), brass)
+  neck.rotation.x = Math.PI / 2
+  neck.position.copy(corner).add(new THREE.Vector3(0, 0, 0.25))
+  details.add(neck)
+  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.08, 1.1, 24, 1, true), brass)
+  horn.position.copy(corner).add(new THREE.Vector3(0.05, 0.35, 0.95))
+  horn.rotation.x = Math.PI / 2 - 0.55
+  details.add(horn)
+}
+
+/** Painted tinplate: a rivet in each corner and a pressed seam across the middle. */
+function decorateTin(details: THREE.Group, plate: Plate, screws: readonly Screw[]): void {
+  const [width, height] = plate.size
+  const rivet = new THREE.MeshStandardMaterial({ color: '#e1e6e8', metalness: 0.6, roughness: 0.3 })
+  for (const x of [-width / 2 + 0.1, width / 2 - 0.1]) for (const y of [-height / 2 + 0.1, height / 2 - 0.1]) {
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 6), rivet)
+    head.position.set(x, y, 0.135)
+    details.add(head)
+  }
+  if (!screws.some((screw) => Math.abs(screw.position[1]) < 0.3)) box(details, [width - 0.3, 0.03, 0.02], [0, 0, 0.14], shade(plate.color, -0.12))
+}
+
+/** A tin robot's head behind its face plate: the box of the skull, ear bolts and an antenna, narrower than the face. */
+function decorateHead(details: THREE.Group, plate: Plate): void {
+  const [width, height] = plate.size
+  const depth = 0.9
+  box(details, [width - 0.2, height - 0.15, depth], [0, -0.05, -PANEL_FACE - depth / 2], shade(plate.color, -0.08))
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 16), new THREE.MeshStandardMaterial({ color: '#c0573f', roughness: 0.5 }))
+    ear.rotation.z = Math.PI / 2
+    ear.position.set(side * (width / 2 - 0.05), 0, -PANEL_FACE - depth / 2)
+    details.add(ear)
+  }
+  const mast = box(details, [0.04, 0.35, 0.04], [0, height / 2 + 0.1, -PANEL_FACE - depth / 2], '#3d3a36')
+  mast.userData.antenna = true
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshStandardMaterial({ color: '#ed775c', emissive: '#ed775c', emissiveIntensity: 0.4 }))
+  tip.position.set(0, height / 2 + 0.3, -PANEL_FACE - depth / 2)
+  details.add(tip)
+}
+
 /** All architectural details belong to their panel, so they leave with it. */
 export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw[] = [], levelId?: number): THREE.Group {
   const details = new THREE.Group()
@@ -275,6 +387,19 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
     decorateWeight(details, plate, screws)
     return details
   }
+  if (plate.finish === 'turntable') {
+    decorateTurntable(details, plate)
+    return details
+  }
+  if (plate.finish === 'tin' || plate.finish === 'head') {
+    decorateTin(details, plate, screws)
+    if (plate.finish === 'head') decorateHead(details, plate)
+    return details
+  }
+  if (plate.finish === 'case' || plate.finish === 'clock') {
+    decorateCase(details, plate, plate.finish === 'clock')
+    return details
+  }
   if (plate.finish === 'plank') {
     decoratePlanks(details, plate)
     return details
@@ -291,7 +416,22 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
     decorateHull(details, plate)
     return details
   }
-  if (plate.finish === 'stone') {
+  if (plate.finish === 'stone' || plate.finish === 'gatehouse') {
+    if (plate.finish === 'gatehouse') {
+      // The gate arch in the middle, with the portcullis down behind it; the raised drawbridge stands over it.
+      const arch = new THREE.Shape()
+      const [half, top] = [0.48, 0.25]
+      arch.moveTo(-half, -height / 2 + 0.02)
+      arch.lineTo(-half, top)
+      arch.absarc(0, top, half, Math.PI, 0, true)
+      arch.lineTo(half, -height / 2 + 0.02)
+      arch.closePath()
+      const opening = new THREE.Mesh(new THREE.ShapeGeometry(arch), new THREE.MeshStandardMaterial({ color: '#2b2522', roughness: 0.9 }))
+      opening.position.z = 0.136
+      details.add(opening)
+      for (let x = -0.36; x <= 0.37; x += 0.18) box(details, [0.035, top + height / 2 - 0.05, 0.03], [x, (top - height / 2) / 2, 0.15], '#5a5550')
+      for (const y of [-0.6, -0.1]) box(details, [half * 2 - 0.06, 0.035, 0.03], [0, y, 0.16], '#5a5550')
+    }
     const joints: number[] = []
     const courses = Math.max(2, Math.round(height / 0.2))
     for (let row = 0; row < courses; row++) {
@@ -547,6 +687,110 @@ function createPier(): THREE.Group {
   return stage
 }
 
+/** A painted dresser with two drawers, on a plank floor; the clock stands on its top. */
+function createDresser(): THREE.Group {
+  const stage = new THREE.Group()
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.1, 48), new THREE.MeshStandardMaterial({ color: '#b99a72', roughness: 0.95 }))
+  floor.position.y = -3.45
+  floor.receiveShadow = true
+  stage.add(floor)
+  const body = box(stage, [2.9, 1.75, 1.9], [0, -2.5, -0.3], '#6f8f96')
+  body.receiveShadow = true
+  const top = box(stage, [3.0, 0.1, 2.0], [0, -1.6, -0.25], '#c79a63')
+  top.receiveShadow = true
+  for (const [y, height] of [[-2.05, 0.55], [-2.8, 0.75]] as const) {
+    box(stage, [2.6, height, 0.04], [0, y, 0.67], '#7fa0a6')
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color: '#d7aa57', metalness: 0.6, roughness: 0.3 }))
+    knob.position.set(0, y, 0.73)
+    stage.add(knob)
+  }
+  // A candle at the back corner, clear of where the case walls fall.
+  box(stage, [0.3, 0.06, 0.3], [-1.2, -1.52, -1.05], '#b08d3c')
+  const candle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.4, 12), new THREE.MeshStandardMaterial({ color: '#f4ead2', roughness: 0.7 }))
+  candle.position.set(-1.2, -1.29, -1.05)
+  stage.add(candle)
+  return stage
+}
+
+/** A raised marble landing in a lobby, with the brass lift cage standing in its shaft. */
+function createLobby(): THREE.Group {
+  const stage = new THREE.Group()
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(3.9, 3.9, 0.1, 48), new THREE.MeshStandardMaterial({ color: '#c9b79c', roughness: 0.9 }))
+  floor.position.y = -2.1
+  floor.receiveShadow = true
+  stage.add(floor)
+  const landing = box(stage, [3.5, 0.5, 3.1], [0, -1.8, 0], '#e8e1d3')
+  landing.receiveShadow = true
+  for (let x = -1.5; x <= 1.51; x += 0.5) box(stage, [0.012, 0.01, 3.08], [x, -1.548, 0], '#bdb3a2')
+  for (let z = -1.25; z <= 1.26; z += 0.5) box(stage, [3.48, 0.01, 0.012], [0, -1.548, z], '#bdb3a2')
+  // The cage itself, inside the shaft walls: a floor, a roof and corner bars.
+  const brass = '#b08d3c'
+  box(stage, [1.7, 0.06, 1.3], [0, -1.5, 0], brass)
+  box(stage, [1.7, 0.06, 1.3], [0, 0.4, 0], brass)
+  for (const x of [-0.82, -0.41, 0, 0.41, 0.82]) for (const z of [-0.62, 0.62]) box(stage, [0.04, 1.9, 0.04], [x, -0.55, z], brass)
+  return stage
+}
+
+/** A grassy island in a moat, with a far bank's reeds. */
+function createMoat(): THREE.Group {
+  const stage = new THREE.Group()
+  stage.add(water(4.4, -2.0))
+  const island = box(stage, [3.5, 0.5, 4.5], [0, -1.8, 0.75], '#8fb07a')
+  island.receiveShadow = true
+  box(stage, [3.56, 0.12, 4.56], [0, -2.0, 0.75], '#9d968a')
+  for (const [x, z] of [[-3.2, 1.8], [3.0, -1.6], [-2.6, -2.6], [3.3, 2.0]] as const) {
+    const reed = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.7, 6), new THREE.MeshStandardMaterial({ color: '#6c8f4e', roughness: 0.9 }))
+    reed.position.set(x, -1.7, z)
+    stage.add(reed)
+  }
+  return stage
+}
+
+/** A round dais with a rug, in a music room with a parquet floor. */
+function createMusicRoom(): THREE.Group {
+  const stage = new THREE.Group()
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(3.9, 3.9, 0.1, 48), new THREE.MeshStandardMaterial({ color: '#a97c52', roughness: 0.85 }))
+  floor.position.y = -2.0
+  floor.receiveShadow = true
+  stage.add(floor)
+  const dais = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.05, 0.4, 48), new THREE.MeshStandardMaterial({ color: '#5a3722', roughness: 0.8 }))
+  dais.position.y = -1.75
+  dais.receiveShadow = true
+  stage.add(dais)
+  const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 0.02, 48), new THREE.MeshStandardMaterial({ color: '#8c3b3b', roughness: 1 }))
+  rug.position.y = -1.545
+  rug.receiveShadow = true
+  stage.add(rug)
+  const border = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.04, 6, 48), new THREE.MeshStandardMaterial({ color: '#d9a132', roughness: 0.9 }))
+  border.rotation.x = Math.PI / 2
+  border.position.y = -1.53
+  stage.add(border)
+  return stage
+}
+
+/** A toy shop counter on a plank floor, with a jar of marbles at one end. */
+function createToyshop(): THREE.Group {
+  const stage = new THREE.Group()
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.1, 48), new THREE.MeshStandardMaterial({ color: '#b99a72', roughness: 0.95 }))
+  floor.position.y = -2.85
+  floor.receiveShadow = true
+  stage.add(floor)
+  const counter = box(stage, [3.4, 1.25, 2.6], [0, -2.2, 0], '#8a5a36')
+  counter.receiveShadow = true
+  const top = box(stage, [3.5, 0.1, 2.7], [0, -1.6, 0], '#d8b98a')
+  top.receiveShadow = true
+  box(stage, [3.1, 0.6, 0.04], [0, -2.25, 1.31], '#a8744a')
+  const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.42, 16), new THREE.MeshStandardMaterial({ color: '#cfe8ee', transparent: true, opacity: 0.45, roughness: 0.1 }))
+  jar.position.set(1.45, -1.34, -1.05)
+  stage.add(jar)
+  for (const [x, y, z, color] of [[1.4, -1.47, -1.0, '#ed775c'], [1.5, -1.47, -1.1, '#598dda'], [1.45, -1.38, -1.05, '#50b49b']] as const) {
+    const marble = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshStandardMaterial({ color, roughness: 0.2 }))
+    marble.position.set(x, y, z)
+    stage.add(marble)
+  }
+  return stage
+}
+
 /** A permanent garden plinth grounds the removable house panels. */
 export function createGarden(theme?: PuzzleLevel['theme']): THREE.Group {
   const garden = new THREE.Group()
@@ -622,6 +866,11 @@ const SCENERY: Record<StageId, (theme?: PuzzleLevel['theme']) => THREE.Group> = 
   platform: createPlatform,
   lineside: createLineside,
   railway: createRailway,
+  dresser: createDresser,
+  lobby: createLobby,
+  moat: createMoat,
+  'music-room': createMusicRoom,
+  toyshop: createToyshop,
 }
 
 const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!

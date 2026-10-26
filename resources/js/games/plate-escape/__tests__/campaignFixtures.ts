@@ -115,6 +115,35 @@ export const RAILWAY_TRACES = [
   },
 ] as const
 
+/** Linked counterweights (21, the teaching level; 22–23), a stop-pin collar beside one (24) and the clockworks assessment (25). Dial turns are written `turn:<dial>:<1|-1>`. */
+export const CLOCKWORK_TRACES = [
+  {
+    level: 21,
+    win: ['front-1', 'front-2', 'back-1', 'back-2', 'right-1', 'roof-left-2', 'roof-right-2', 'left-2', 'roof-left-1', 'roof-right-1', 'back-3', 'left-1', 'right-2', 'weight-1', 'perch'],
+    lose: ['front-1', 'front-2', 'back-1', 'back-3'],
+  },
+  {
+    level: 22,
+    win: ['front-1', 'front-2', 'front-3', 'back-1', 'back-2', 'front-weight-1', 'back-weight-1', 'left-1', 'front-landing', 'back-landing', 'right-1', 'housing-1', 'housing-2', 'left-2', 'right-2'],
+    lose: ['back-1', 'front-weight-1', 'front-landing'],
+  },
+  {
+    level: 23,
+    win: ['front-1', 'front-2', 'apron-side', 'back-2', 'left-2', 'right-1', 'battlements-2', 'back-1', 'battlements-1', 'right-2', 'weight-1', 'apron-near', 'apron-far', 'front-3', 'left-1'],
+    lose: ['front-1', 'front-2', 'weight-1'],
+  },
+  {
+    level: 24,
+    win: ['collar-pin', 'turn:collar:1', 'turn:collar:1', 'collar-0', 'turn:collar:1', 'collar-1', 'turn:collar:1', 'collar-2', 'front-2', 'back-1', 'turn:collar:1', 'collar-3', 'back-2', 'weight-1', 'lid-2', 'front-1', 'hatch-under', 'lid-1', 'left-1', 'right-1'],
+    lose: ['collar-pin', 'collar-2', 'turn:collar:1', 'collar-3'],
+  },
+  {
+    level: 25,
+    win: ['chest-1', 'chest-2', 'weight-1', 'arm-left-1', 'arm-right-1', 'shoulders-2', 'face-1', 'spring-box', 'right-1', 'visor-1', 'shoulder-left', 'face-eye', 'shoulders-1', 'shoulder-right', 'left-1'],
+    lose: ['chest-2', 'weight-1', 'spring-box'],
+  },
+]
+
 /** Lab boards, played with dial turns written as `turn:<dial>:<1|-1>`. */
 export const LAB_TRACES = [
   {
