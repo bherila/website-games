@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import type { Plate, Screw } from './level'
+import type { Plate, PuzzleLevel, Screw } from './level'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
 export function plateQuaternion(plate: Plate): THREE.Quaternion {
@@ -175,7 +175,7 @@ export function decoratePlate(plate: Plate, standoff = 0): THREE.Group {
 }
 
 /** A permanent garden plinth grounds the removable house panels. */
-export function createGarden(theme?: 'windmill' | 'glasshouse' | 'cafe'): THREE.Group {
+export function createGarden(theme?: PuzzleLevel['theme']): THREE.Group {
   const garden = new THREE.Group()
   const grass = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.84, 0.24, 64), new THREE.MeshStandardMaterial({ color: '#b7ca97', roughness: 1 }))
   grass.position.y = -1.88
