@@ -63,3 +63,16 @@ new schema. Fix forward, or restore the schema deliberately first.
   - action v2.2.1, which sends SSH keepalives;
   - one metadata request per object, with progress output and HTTP timeouts;
   - the Production Health workflow.
+
+## 2026-10-25 and 2026-10-26 incidents
+
+- **What happened:** twice, the deploy finished, ran `artisan up`, and then the
+  production check read `/deployment-identity.json` as a 200 HTML page instead
+  of the JSON file (`jq: parse error`). The finalizer put the site back into
+  maintenance, and it returned 503 until recovered by hand. Minutes later the
+  same request answered correct JSON. The paused scheduler cron line had to be
+  restored too (`# JOB:games-laravel-scheduler`).
+- **The fix (#156):** `scripts/deploy/verify-production.sh` retries each
+  content check (identity, manifest type, Mandarin bootstrap) for about a minute
+  before failing, sends `Cache-Control: no-cache`, and on failure prints the last
+  response's content type and first bytes.

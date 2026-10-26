@@ -207,7 +207,8 @@ start_server() {
         wait "$server_pid" 2>/dev/null || true
     fi
     port=$(allocate_port)
-    VERIFY_SCENARIO="$scenario" php -d memory_limit=1G -S "127.0.0.1:$port" "$repository/tests/Deployment/fixtures/production-router.php" \
+    rm -rf "$temporary/counters" && mkdir "$temporary/counters"
+    VERIFY_SCENARIO="$scenario" VERIFY_COUNTER_DIR="$temporary/counters" php -d memory_limit=1G -S "127.0.0.1:$port" "$repository/tests/Deployment/fixtures/production-router.php" \
         >"$temporary/server.log" 2>&1 &
     server_pid=$!
     for _ in {1..50}; do
@@ -221,12 +222,32 @@ verify() {
     DEPLOY_SITE_URL="http://127.0.0.1:$port" \
     DEPLOY_RELEASE_ID=release DEPLOY_SOURCE_COMMIT=aaaaaaaa \
     DEPLOY_LIVE_RELEASE=release DEPLOY_LIVE_COMMIT=aaaaaaaa DEPLOY_LIVE_STATE=serving \
-    DEPLOYMENT_MODE=atomic DEPLOY_VERIFY_ALLOW_HTTP=true DEPLOY_VERIFY_RETRIES=0 \
+    DEPLOYMENT_MODE=atomic DEPLOY_VERIFY_ALLOW_HTTP=true DEPLOY_VERIFY_RETRIES=0 DEPLOY_VERIFY_DELAY=0 \
         bash "$repository/scripts/deploy/verify-production.sh"
 }
 
 start_server success
 (cd "$repository" && verify >/dev/null) || fail 'successful production fixture was rejected'
+
+# A 200 with the wrong body right after maintenance passes once the real file answers (#156),
+# and every content probe asks caches not to answer for the origin.
+for path in /deployment-identity.json /manifest.webmanifest /api/games/mandarin/bootstrap; do
+    start_server "transient_html:$path"
+    (cd "$repository" && verify >/dev/null 2>"$temporary/verify.err") \
+        || fail "transient HTML at $path was not retried: $(cat "$temporary/verify.err")"
+done
+start_server cached_html_identity
+(cd "$repository" && verify >/dev/null 2>"$temporary/verify.err") \
+    || fail "verification did not bypass a cached identity page: $(cat "$temporary/verify.err")"
+
+# A wrong body that persists still fails, and says what answered.
+start_server html_identity
+if (cd "$repository" && verify >/dev/null 2>"$temporary/verify.err"); then
+    fail 'verification accepted an HTML identity page'
+fi
+grep -q 'Last response Content-Type: text/html' "$temporary/verify.err" \
+    && grep -q 'Last response began: <!doctype html>' "$temporary/verify.err" \
+    || fail "HTML identity failure did not report what answered: $(cat "$temporary/verify.err")"
 
 for scenario in stale_deployment wrong_mime stale_course preview_runtime endpoint_failure; do
     start_server "$scenario"

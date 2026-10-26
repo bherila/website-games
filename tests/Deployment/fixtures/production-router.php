@@ -26,6 +26,31 @@ if (is_string($path) && str_starts_with($path, '/redirected/')) {
     return;
 }
 
+$htmlPage = static function (): void {
+    header('Content-Type: text/html');
+    echo '<!doctype html><title>Games</title>';
+};
+
+// The page briefly answers a probed path with HTML before the real file, as after maintenance (#156).
+if (preg_match('/^transient_html:(\/.*)$/', $scenario, $transient) === 1 && $path === $transient[1]) {
+    $counter = (getenv('VERIFY_COUNTER_DIR') ?: sys_get_temp_dir()).'/transient-'.md5($path);
+    $served = is_file($counter) ? (int) file_get_contents($counter) : 0;
+    if ($served < 2) {
+        file_put_contents($counter, (string) ($served + 1));
+        $htmlPage();
+
+        return;
+    }
+}
+
+// A cache keeps answering HTML unless the request asks it not to.
+$noCache = str_contains(strtolower((string) ($_SERVER['HTTP_CACHE_CONTROL'] ?? '')), 'no-cache');
+if ($path === '/deployment-identity.json' && ($scenario === 'html_identity' || ($scenario === 'cached_html_identity' && ! $noCache))) {
+    $htmlPage();
+
+    return;
+}
+
 if ($scenario === 'endpoint_failure' && $path === '/mandarin') {
     http_response_code(503);
     echo 'unavailable';
