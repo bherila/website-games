@@ -5,7 +5,7 @@ import { createMillLevels } from './millLevels'
 import type { StageId } from './stage'
 import { createVillageLevels } from './villageLevels'
 
-export type ScrewColor = 'coral' | 'mint' | 'blue' | 'amber'
+export type ScrewColor = 'coral' | 'mint' | 'blue' | 'amber' | 'pearl'
 export type Point3 = readonly [number, number, number]
 
 export const COLORS: Record<ScrewColor, { name: string, hex: string }> = {
@@ -13,6 +13,8 @@ export const COLORS: Record<ScrewColor, { name: string, hex: string }> = {
   mint: { name: 'Mint', hex: '#50b49b' },
   blue: { name: 'Blue', hex: '#598dda' },
   amber: { name: 'Amber', hex: '#d9a132' },
+  // The fifth color, from level 18: clear of every other color for common color-vision differences.
+  pearl: { name: 'Pearl', hex: '#ece6d6' },
 }
 
 export interface Plate {
