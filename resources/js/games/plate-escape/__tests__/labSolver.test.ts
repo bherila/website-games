@@ -1,6 +1,6 @@
 import { createPuzzle, hasWon, type PuzzleState, removeScrew, turnDial } from '../engine'
 import { LAB_DIAL_JAM, LAB_DIAL_PIN } from '../labLevels'
-import { LAB_LINKS } from '../labLevels'
+import { labLevelFromSearch } from '../labLevels'
 import { LAB_LEVELS } from '../level'
 import { LAB_TRACES } from './campaignFixtures'
 import { analyseLevel, turnings } from './puzzleSolver'
@@ -29,7 +29,7 @@ function play(start: PuzzleState, actions: readonly string[]): PuzzleState {
 }
 
 test.each(LAB_TRACES)('the authored lab trace for $lab wins, and its loss overflows on the last move', ({ level, lab, win, lose }) => {
-  expect(LAB_LINKS[lab]).toBe(level)
+  expect(labLevelFromSearch(`?lab=${lab}`)).toBe(level)
   expect(hasWon(play(createPuzzle(level), win))).toBe(true)
   const lost = play(createPuzzle(level), lose)
   expect(lost.overflow).not.toBeNull()
@@ -52,4 +52,8 @@ test('the stop rule decides how far the dial can wander between removals', () =>
   // A jamming dial with a head in its window does not move at all.
   const jammed = analyses.get(LAB_DIAL_JAM)!.boards[0]!
   expect(turnings(jammed)).toHaveLength(1)
+})
+
+test('only a lab board\'s own link name opens it', () => {
+  for (const search of ['', '?lab=', '?lab=dial', '?lab=constructor', '?lab=toString', '?lab=__proto__', '?lab=hasOwnProperty']) expect(labLevelFromSearch(search)).toBeNull()
 })

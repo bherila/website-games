@@ -14,7 +14,7 @@ import { PortraitGameShell } from '../PortraitGameShell'
 import { CollectionTrays, ScrewHead } from './CollectionTrays'
 import { createPuzzle, dialLock, freedPlates, hasWon, panelState, type PuzzleState, removeScrew, screwLock, showing, turnDial } from './engine'
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
-import { LAB_LINKS } from './labLevels'
+import { labLevelFromSearch } from './labLevels'
 import { COLORS, getLevel, LEVELS, type PuzzleLevel, type ScrewColor } from './level'
 import { PlateEscapeScene, type PlateEvent, type ScrewTarget, type ViewCommand } from './PlateEscapeScene'
 import { createPlateSfx, plateMute, type PlateSound } from './sfx'
@@ -26,7 +26,7 @@ const motionStill = createMuteStorage('bwh.plate-escape.still.v1')
 
 export function PlateEscapeGame(): ReactElement {
   // A lab board opens straight from its link and is never listed or saved.
-  const [levelId, setLevelId] = useState<number | null>(() => LAB_LINKS[new URLSearchParams(window.location.search).get('lab') ?? ''] ?? null)
+  const [levelId, setLevelId] = useState<number | null>(() => labLevelFromSearch(window.location.search))
   const [progress, setProgress] = useState(loadProgress)
   const [muted, setMuted] = useState(plateMute.load)
   // The engine only opens an AudioContext on the first gesture, so creating it here is free.

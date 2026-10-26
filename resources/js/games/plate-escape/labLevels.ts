@@ -5,8 +5,13 @@ import type { PuzzleLevel, Screw, ScrewColor } from './level'
 export const LAB_DIAL_PIN = 901
 export const LAB_DIAL_JAM = 902
 
-/** The link names that open each lab board. */
-export const LAB_LINKS: Record<string, number> = { 'dial-pin': LAB_DIAL_PIN, 'dial-jam': LAB_DIAL_JAM }
+/** The link names that open each lab board. A map, so no inherited name such as `constructor` resolves. */
+export const LAB_LINKS: ReadonlyMap<string, number> = new Map([['dial-pin', LAB_DIAL_PIN], ['dial-jam', LAB_DIAL_JAM]])
+
+/** The lab board a page's query string opens, if any. */
+export function labLevelFromSearch(search: string): number | null {
+  return LAB_LINKS.get(new URLSearchParams(search).get('lab') ?? '') ?? null
+}
 
 const door = { position: [0, -0.35, 0.9] as const, size: 2.4 }
 /** The dial's centre on the door, and how far proud of the door it turns: just clear of the heads behind it. */
