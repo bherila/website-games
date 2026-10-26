@@ -89,3 +89,67 @@ describe('variety pass: ordering traps are real', () => {
     expect(solve(state).status).toBe('unsolvable')
   })
 })
+
+/**
+ * Levels 37, 39 and 40 used to be 27-29 tiles wide, over 80% wall, and mostly
+ * walking under a follow camera. They are now compact boards a phone shows whole.
+ *
+ * The level 40 checks solve with the ball removed. 40 has no buttons, so its
+ * ball can only block and kill: a mutation that leaves the ball-free board
+ * unsolvable leaves the real board unsolvable too, and the ball-free search stays
+ * well inside a node budget that the ball's timing would otherwise exhaust.
+ */
+describe('compact mastery redraws (37, 39, 40)', () => {
+  const withoutMonsters = (state: GameState): GameState => ({ ...state, monsters: [] })
+  const parOf = (state: GameState): number | null => {
+    const result = solve(state, { maxNodes: 200_000 })
+    expect(result.status).toBe('solved')
+
+    return result.solution?.length ?? null
+  }
+
+  test.each([37, 39, 40])('level %i fits a phone without the follow camera', (id) => {
+    const state = start(id)
+    expect(state.width).toBeLessThanOrEqual(13)
+    expect(state.height).toBeLessThanOrEqual(15)
+  })
+
+  test('level 37: the ball on the ice costs moves, so it must be timed', () => {
+    expect(parOf(withoutMonsters(start(37)))).toBeLessThan(getLevelById(37)?.par ?? 0)
+  })
+
+  test('level 37: the ice routes the tour (flattened, it is a different, shorter walk)', () => {
+    expect(parOf(flatten(start(37), ICE))).not.toBe(getLevelById(37)?.par)
+  })
+
+  test('level 39: pressing the red button before the toggle-gated chip is a dead end', () => {
+    // Bridge the water with the block, walk to the red button, then let the cloned
+    // tank reach the green button: the open toggle in front of the corner chip shuts.
+    const state = play(start(39), 'RRRRRRRRDRWWWWWWW')
+    expect(state.tiles[3 * state.width + 10]).toBe('toggleClosed')
+    expect(state.tiles[3 * state.width + 11]).toBe('chip')
+    expect(solve(state).status).toBe('unsolvable')
+  })
+
+  describe('level 40', () => {
+    const base = withoutMonsters(start(40))
+    const baseline = parOf(base)
+
+    test('the ball costs moves, so the hub must be timed', () => {
+      expect(baseline).toBeLessThan(getLevelById(40)?.par ?? 0)
+    })
+
+    test('sealing the teleports leaves the far chip unreachable', () => {
+      const sealed = { ...base, tiles: base.tiles.map((tile) => (tile === 'teleport' ? 'wall' : tile)), teleports: [] }
+      expect(solve(sealed, { maxNodes: 200_000 }).status).toBe('unsolvable')
+    })
+
+    test.each([
+      ['ice', ICE],
+      ['belts', FORCE_FLOORS],
+      ['thief', ['thief'] as readonly TileKind[]],
+    ] as const)('flattening the %s changes the route', (_label, kinds) => {
+      expect(parOf(flatten(base, kinds))).not.toBe(baseline)
+    })
+  })
+})
