@@ -51,5 +51,3 @@ Final edit prompt:
 `lightship-07.webp` paints the fictional number 07 on the port hull, forward of its screw. The mast shutter remains inside this side of the hull, and the stern flap stays at the other end.
 
 > Use case: stylized-concept. Asset: one transparent painted hull lettering texture for a miniature red wooden lightship in a charming hand-painted toy diorama. Exact inscription: "07" in two very large bold cream maritime stencil numerals, with restrained thin dark navy painted edging and slight worn paint chips. The numerals alone, painted directly on a hull: genuine transparent background outside strokes AND inside the counters of 0 and 7, NO board, NO plaque, NO rectangular backing. Flat front-facing 2D decal, approximately 2:1 composition, minimal padding. Must read clearly at 20–30 pixels wide. No scene, no perspective, no external shadows, no extra lettering, no vessel names, no real brands, no hardware, no watermark.
-
-

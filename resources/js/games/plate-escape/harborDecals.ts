@@ -26,7 +26,7 @@ const DECALS: readonly HarborDecal[] = [
   // The left front x=-1.2..-.7 is clear of the central hasp/lock-plate
   // and its full vertical sweep, both front heads, and the end flap on +x.
   { level: 13, plate: 'front', finish: 'plank', name: 'anchor', url: chestMarkUrl, size: [0.5, 0.5], position: [-0.95, 0.1] },
-  // Cab back x=.25..85, y=-.02..32 (both upper bounds fractional):
+  // Cab back x=0.25..0.85, y=-0.02..0.32:
   // right of the screw at (-.4, 0).
   // The slanted counterweight drops below this band before reaching its x;
   // the hook block and tower door are on other faces and below the cab.
