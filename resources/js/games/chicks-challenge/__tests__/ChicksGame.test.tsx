@@ -207,6 +207,21 @@ describe('ChicksGame', () => {
     expect(screen.getByLabelText(`1 of ${level1.par} moves`)).toBeInTheDocument()
   })
 
+  it('a restart after an undone restart still redraws the board', () => {
+    render(<ChicksGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    pressAndAdvance('U')
+    fireEvent.keyDown(window, { key: 'r' })
+    fireEvent.keyDown(window, { key: 'z' })
+    const before = { ...mockSceneProps.current! }
+
+    // Undo left the move sequence at the restart's 0, so the scene can tell only by a new reset key.
+    fireEvent.keyDown(window, { key: 'r' })
+    const after = mockSceneProps.current!
+    expect(after.resetKey !== before.resetKey || after.moveSeq < before.moveSeq).toBe(true)
+    expect(after.state.moves).toBe(0)
+  })
+
   it('undo from the death overlay revives the chick before the fatal step', () => {
     window.history.pushState({}, '', '/chips?level=9001')
     render(<ChicksGame />)

@@ -249,6 +249,8 @@ export function ChicksGame(): ReactElement {
     setLevelDef(def)
     setGameState(parseLevel(def))
     setMoveSeq(0)
+    // An undo can leave the move sequence at 0 already, so a fresh board also needs a new reset key.
+    setSceneResetKey((key) => key + 1)
     setEvents([])
     setWinSummary(null)
     setStuck(false)
