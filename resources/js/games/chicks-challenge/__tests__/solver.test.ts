@@ -37,6 +37,8 @@ const PHASE_FLOORS: Readonly<Record<number, QualityFloors>> = {
   6: { nodes: 50, detour: 1.2 },
   7: { nodes: 300, detour: 2.2 },
   8: { nodes: 500, detour: 3.0 },
+  // Encore (2026-10 pass): compact combination boards; Parcel Post's teleport keeps detour low.
+  9: { nodes: 300, detour: 1.8 },
 }
 
 /** Capstone (last level of a phase) must expand ≥ this × the phase's max. */

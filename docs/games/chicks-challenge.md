@@ -35,7 +35,7 @@ Chick's Challenge is the fifth game in this repo and must mirror the existing fo
   local. Level select uses `games/_shared/LevelSelectGrid.tsx`; win overlay uses
   `games/_shared/StarRow.tsx`.
 - **Game Select registration:** append one entry to `game-select/gameCatalog.ts` (slug `chicks-challenge`,
-  title `Chick's Challenge`, emoji `🐥`, `TOTAL_LEVELS = 40`, `loadProgress` from `chicks-challenge/gameProgress.ts`).
+  title `Chick's Challenge`, emoji `🐥`, `TOTAL_LEVELS = 45`, `loadProgress` from `chicks-challenge/gameProgress.ts`).
 - **Tests:** co-located `__tests__/`; `*.test.ts` runs in the node Jest project (no DOM), `*.test.tsx` /
   `*.dom.test.ts` in jsdom. Never instantiate `WebGLRenderer` in tests — the pure `engine/` layer is
   where all game logic lives and is tested headlessly.
@@ -45,7 +45,7 @@ Chick's Challenge is the fifth game in this repo and must mirror the existing fo
 
 ## Core loop
 
-1. Player opens the game and lands on the **level-select grid** (40 tiles = 8 rows of 5, sequential
+1. Player opens the game and lands on the **level-select grid** (45 tiles = 9 rows of 5, sequential
    unlock, star badges) via `_shared/LevelSelectGrid`.
 2. Tapping an unlocked tile starts the level: top-down board, HUD shows chips remaining, move counter
    vs par, and inventory (keys/boots).
@@ -245,7 +245,7 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 
 ## HUD & screens
 
-- **Level select:** `_shared/LevelSelectGrid` (5-wide, 40 tiles), locked/stars/pulse per house style.
+- **Level select:** `_shared/LevelSelectGrid` (5-wide, 45 tiles), locked/stars/pulse per house style.
 - **In-level layout:** HUD bar, playfield and toolbar are flow siblings (a column in portrait, with the
   toolbar becoming a right-hand column in landscape) — chrome must never cover board tiles. Safe-area
   insets (`env(safe-area-inset-*)`) apply on every edge the chrome touches; the page opts into
@@ -278,14 +278,14 @@ Persistence key `bwh.chicks-challenge.progress.v1`:
 ```ts
 interface SavedChicksProgress {
   version: 1
-  unlockedLevel: number              // highest playable level id (starts at 1, caps at 40)
+  unlockedLevel: number              // highest playable level id (starts at 1, caps at TOTAL_LEVELS)
   stars: Record<number, number>      // levelId -> best stars (0–3)
   bestMoves: Record<number, number>  // levelId -> lowest winning move count
 }
 ```
 
 Load defensively via `_shared/progressParsers` (corrupt/missing → fresh default). Winning level N sets
-`unlockedLevel = max(unlockedLevel, min(N+1, 40))`, `stars[N] = max(old, earned)`,
+`unlockedLevel = max(unlockedLevel, min(N+1, TOTAL_LEVELS))`, `stars[N] = max(old, earned)`,
 `bestMoves[N] = min(old ?? ∞, moves)`. `loadProgress()` returns the `LevelSelectProgress` shape
 directly (no adapter needed). No mid-level snapshots.
 
@@ -298,7 +298,7 @@ authorable by agents.
 type Facing = 'up' | 'down' | 'left' | 'right'
 
 interface ChicksLevelDef {
-  id: number                 // 1..40, contiguous
+  id: number                 // 1..TOTAL_LEVELS, contiguous
   title: string              // short original name
   grid: readonly string[]    // equal-length rows; enclosed by '#' border
   par: number                // MUST equal the deterministic A* solver's solution length (enforced by test)
@@ -332,9 +332,9 @@ entity list + button/teleport/clone links). Parse errors (ragged rows, no `@`, u
 without a `cloneTemplates` entry) throw — surfaced by the validation tests, never at runtime for
 shipped levels.
 
-## The 40 levels
+## The 45 levels
 
-40 original levels in 8 phases of 5 (fills the 5-wide select grid as 8 rows). The table is the design
+45 original levels in 9 phases of 5 (fills the 5-wide select grid as 9 rows). The table is the design
 contract — mechanics and teaching per level. The **par** column is an informational snapshot; the
 source of truth is each level def, whose par must equal the deterministic solver's result (enforced
 by the solver gate). Sizes: S ≤ 11×11 (fits viewport), M ≤ 20×20, L ≤ 32×32. Each phase opens with a
@@ -356,8 +356,8 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 6 | Push | S | blocks bridge the only water crossing | 16 |
-| 7 | Bridge Builder | S | block into water = floor | 19 |
-| 8 | Causeway | S | two-block bridge sequenced across a channel | 30 |
+| 7 | Bridge Builder | S | route one block round a corner into the only water tile | 46 |
+| 8 | Causeway | M | line two blocks up through a wall gap to span a 2-wide river | 40 |
 | 9 | Warehouse | M | sokoban shaft; careless pushes softlock (restart lesson) | 20 |
 | 10 | Dirt Work | M | capstone: co-align two block bridges, then a dirt/door spine | 52 |
 
@@ -366,7 +366,7 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 11 | Swim Lessons | S | flippers open water paths | 20 |
-| 12 | Firewalker | S | fire boots open fire paths | 20 |
+| 12 | Firewalker | S | fetch the boots, then raid a fire-ringed chip and the fire gate | 38 |
 | 13 | Steam | M | interleaved water/fire; both boots, order matters | 43 |
 | 14 | The Heist | M | thieves strip boots — re-equip between crossings | 57 |
 | 15 | Amphibious | M | boots + blocks + doors combined | 56 |
@@ -386,9 +386,9 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | # | title | size | teaches | par |
 |---|-------|------|---------|-----|
 | 21 | Moving Walkway | S | force floors carry you | 15 |
-| 22 | Against the Current | S | entering/exiting conveyor lanes | 19 |
-| 23 | Sorting Machine | S | conveyor junctions route you; pick entry points | 18 |
-| 24 | Suction Boots | M | suction boots reach pockets belts push you out of | 34 |
+| 22 | Against the Current | M | up and down belt shafts: pick the entry that lands where you need | 28 |
+| 23 | Sorting Machine | M | one-way chutes drop you in bins; empty the side bins before the middle | 40 |
+| 24 | Suction Boots | M | walk down belt shafts in suction boots to pockets a ride skips | 35 |
 | 25 | Pinball | M | capstone: cross-wired force lanes through corner junctions | 49 |
 
 **Phase 6 — Monsters (26–30).** One AI at a time, then mixed; wait becomes essential.
@@ -420,6 +420,24 @@ its phase. Hints (`?`) appear on the first level of each phase and nowhere else.
 | 38 | The Vault | L | nested rings: thief, teleports, water — strict ordering | 90 |
 | 39 | Rube Goldberg | L | block-onto-button chains driving toggles/clones/tanks | 94 |
 | 40 | Grand Tour | L | finale touring every mechanic | 116 |
+
+**Phase 9 — Encore (41–45).** Compact boards (≤ 13 wide, so a phone shows them whole) combining
+mechanics earlier phases taught one at a time. Added in the 2026-10 variety pass.
+
+| # | title | size | teaches | par |
+|---|-------|------|---------|-----|
+| 41 | Ice Bridge | S | blocks slide down ice lanes into the water at the far end | 40 |
+| 42 | Belt Feeder | S | a belt carries a block onto a green button; take the toggle-gated chip first | 36 |
+| 43 | Parcel Post | M | push a block through a teleport to bridge the far room's water | 24 |
+| 44 | Pocket Rink | M | skates let you stop beside chip pockets on ice lanes, then bank home | 42 |
+| 45 | Assembly Line | M | capstone: two ice-lane bridges plus a belt-fed button | 48 |
+
+**2026-10 variety pass.** Levels 7, 8, 12, 22, 23 and 24 were near-copies of their phase openers
+(the same 11×11 room, one full-width band, two chips below, socket bottom-centre; 24 repeated 19's
+layout with belts for ice). They were redrawn in place under the same ids and titles, so saved stars
+carry over; a best-move count saved on the old layout stays as it was. `__tests__/levelVariety.test.ts`
+adds what the pack-wide gates cannot see: flattening each level's ice or belts must change it, and the
+ordering traps of 23 and 42 must be real dead ends.
 
 ## Expanding the level pack (adding levels & assuring quality)
 
@@ -525,7 +543,7 @@ resources/js/games/chicks-challenge/
     replay.ts                  # replaySolution + ASCII board diagnostics for authoring
     validation.ts              # pure static checks used by tests
     index.ts                   # LEVELS: readonly ChicksLevelDef[] (concats phases)
-    phase1.ts … phase8.ts      # 5 levels each — one file per phase for parallel authoring
+    phase1.ts … phase9.ts      # 5 levels each — one file per phase for parallel authoring
   scene/
     sceneConstants.ts          # palette, tile px, tween timings
     threeUtils.ts              # disposal helpers (copy Hover's)
@@ -558,14 +576,14 @@ animation/effects and the tests assert on. Replays are `solution.split('').reduc
 `pnpm run build`, `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=1G`, and
 `php artisan test --compact tests/Feature/ChicksChallengeGamePageTest.php`.
 
-**B. Level static validation (node, `levels.test.ts`):** exactly 40 levels, ids 1–40 contiguous;
+**B. Level static validation (node, `levels.test.ts`):** exactly `TOTAL_LEVELS` levels, ids contiguous from 1;
 rectangular grids ≤ 32×32 fully wall-enclosed; exactly one `@`; ≥ 1 `E`; socket present iff chips > 0;
 per color, consumed-key count ≥ door count (green: ≥ 1 key if any green door); every `M` has a
 `cloneTemplates` entry and every template a machine; every `facingOverrides` key addresses a monster;
 teleport groups have ≥ 2 members; all chars in the legend; difficulty-curve sanity (phase-1 levels
 contain no monsters/ice/force/machinery; monsters first appear in phase 6; etc.).
 
-**C. Solver gate (node, `solver.test.ts`) — the keystone:** for each of the 40 levels, the
+**C. Solver gate (node, `solver.test.ts`) — the keystone:** for each level, the
 deterministic weighted-A* solver (`engine/solver.ts`, driving the real `applyMove` reducer) must
 find a winning input sequence within its node budget, and the stored `par` must equal the solver's
 solution length (no hardcoded solutions anywhere). Additionally, for every level with a socket, the
@@ -595,9 +613,9 @@ fallback order; tank + blue button; monster cap; wait advancing monsters; reject
 nothing; `starsForMoves` boundaries (exact `ceil` edges).
 
 **E. Progress tests (`gameProgress.dom.test.ts`):** round-trip; corrupt JSON → defaults; stars/
-bestMoves monotone (never lowered/raised respectively); `unlockedLevel` caps at 40.
+bestMoves monotone (never lowered/raised respectively); `unlockedLevel` caps at `TOTAL_LEVELS`, and a save that finished the old 40-level pack opens level 41.
 
-**F. Component tests (jsdom, scene mocked):** `ChicksGame.test.tsx` — level select renders 40 tiles
+**F. Component tests (jsdom, scene mocked):** `ChicksGame.test.tsx` — level select renders `TOTAL_LEVELS` tiles
 with lock state; entering a level shows HUD with that level's chip count and par; win overlay shows
 computed stars and advances unlock; death overlay restarts cleanly; hint banner appears on hint tile.
 `inputQueue` test: keyboard + swipe merge, buffer caps at 2.

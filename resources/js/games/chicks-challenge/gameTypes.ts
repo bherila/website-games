@@ -1,6 +1,6 @@
 import type { Direction, EngineEvent, GameState } from './engine/types'
 
-export const TOTAL_LEVELS = 40
+export const TOTAL_LEVELS = 45
 
 export const GAME_TITLE = "Chick's Challenge"
 export const GAME_EMOJI = '🐥'
