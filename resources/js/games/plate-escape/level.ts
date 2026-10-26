@@ -41,7 +41,7 @@ export interface Plate {
   /** A disc that turns over the screws behind it; it has no screws of its own and stays with its host. */
   dial?: Dial
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
-    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial'
+    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer'
   color: string
 }
 

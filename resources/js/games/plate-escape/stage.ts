@@ -4,7 +4,7 @@ import type { Point3 } from './level'
  * The permanent base each level stands on. Its surfaces are what a released
  * part lands on; water is not ground, so a part that reaches it sinks.
  */
-export type StageId = 'garden' | 'jetty' | 'pier' | 'workbench' | 'quay' | 'sea'
+export type StageId = 'garden' | 'jetty' | 'pier' | 'workbench' | 'quay' | 'sea' | 'toy-track' | 'parlour' | 'platform' | 'lineside' | 'railway'
 
 interface Surface {
   kind: 'ground' | 'water'
@@ -66,6 +66,49 @@ export const STAGES: Record<StageId, Stage> = {
     surfaces: [
       { kind: 'ground', top: -1.45, rect: [0, 0, 1.85, 1.05] },
       { kind: 'water', top: -1.86, circle: [0, 0, 4.4] },
+    ],
+  },
+  // A wooden toy track on a playroom rug: the engine's chassis is the base, the floor is far below.
+  'toy-track': {
+    target: [0, -0.3, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0, 1.25, 1.4] },
+      { kind: 'ground', top: -2.5, circle: [0, 0, 4.2] },
+    ],
+  },
+  // A parlour table; anything that slides off lands on the floorboards.
+  parlour: {
+    target: [0, -0.3, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0, 2.1, 1.5] },
+      { kind: 'ground', top: -2.7, circle: [0, 0, 4.2] },
+    ],
+  },
+  // A station platform with the clock on a stone plinth, and the track bed below the platform's edge.
+  platform: {
+    target: [0, 0.2, 0],
+    surfaces: [
+      { kind: 'ground', top: -0.95, rect: [0, 0, 1.25, 1.05] },
+      { kind: 'ground', top: -1.55, rect: [0, 0, 1.9, 1.5] },
+      { kind: 'ground', top: -2.4, circle: [0, 0, 4.4] },
+    ],
+  },
+  // A grassy bank beside the line, with the track bed below it; a roof slope that tips off the bank
+  // slides on over the bed's edge.
+  lineside: {
+    target: [0, -0.1, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0, 1.65, 1.4] },
+      { kind: 'ground', top: -2.4, circle: [0, 0, 3.4] },
+    ],
+  },
+  // An engine and tender on the main line: their chassis are the base, the ballast below.
+  railway: {
+    target: [0, -0.35, 0],
+    distance: 1.05,
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0.1, 0, 2.6, 1.0] },
+      { kind: 'ground', top: -2.4, circle: [0, 0, 4.6] },
     ],
   },
   // A stone pier head with the sea below it on every side.

@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { dialSlotPosition } from './dial'
 import { decorateHarborPlate } from './harborDecals'
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
+import { createLineside, createParlour, createPlatform, createRailway, createToyTrack, decorateLined } from './railwayScenery'
 import type { StageId } from './stage'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
@@ -228,6 +229,10 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
   }
   if (plate.dial) {
     decorateDial(details, plate)
+    return details
+  }
+  if (plate.finish === 'loco' || plate.finish === 'lacquer') {
+    decorateLined(details, plate, screws)
     return details
   }
   if (plate.finish === 'plank') {
@@ -572,6 +577,11 @@ const SCENERY: Record<StageId, (theme?: PuzzleLevel['theme']) => THREE.Group> = 
   workbench: createWorkbench,
   quay: createQuay,
   sea: createSea,
+  'toy-track': createToyTrack,
+  parlour: createParlour,
+  platform: createPlatform,
+  lineside: createLineside,
+  railway: createRailway,
 }
 
 const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!
