@@ -22,7 +22,23 @@ jest.mock('../level', () => {
       ...pad('coral', 2), ...pad('mint', 2), ...pad('blue', 2), ...pad('amber', 3),
     ],
   }
-  const LEVELS = [...actual.LEVELS, trap]
+  // A jamming dial on a support, its window starting over the support's last screw, which the load
+  // still bears on. The load's own screw waits at the dial's other stop, which the jammed dial
+  // cannot reach, and the dial stays as long as the support does.
+  const deadlock = (id: number, jams: boolean): PuzzleLevel => ({
+    id, name: 'Deadlock', spareCapacity: 2, overflowLoses: true, trayColors: ['coral', 'mint', 'blue', 'amber'],
+    plates: [
+      panel('base'), panel('support'), panel('load', { restsOn: ['support'] }), panel('pad'),
+      panel('dial', { host: 'support', finish: 'dial', dial: { stops: 2, windows: [0], windowRadius: 0.5, jams } }),
+    ],
+    screws: [
+      { id: 'held', plate: 'support', color: 'coral', position: [0, 0], underDial: { dial: 'dial', slot: 0 } },
+      { id: 'load-1', plate: 'load', color: 'mint', position: [0, 0], underDial: { dial: 'dial', slot: 1 } },
+      { id: 'base-1', plate: 'base', color: 'blue', position: [0, 0] },
+      ...pad('coral', 2), ...pad('mint', 2), ...pad('blue', 2), ...pad('amber', 3),
+    ],
+  })
+  const LEVELS = [...actual.LEVELS, trap, deadlock(903, true), deadlock(904, false)]
   return { ...actual, LEVELS, getLevel: (id: number) => LEVELS.find((level) => level.id === id) ?? actual.getLevel(id) }
 })
 
@@ -45,4 +61,16 @@ test('commitment measures see the trap that random play hides', () => {
   expect(trap.simplePolicyWin).toBeLessThan(1)
   expect(trap.minSpares).toBeLessThanOrEqual(2)
   expect(trap.lose.length).toBeGreaterThan(0)
+})
+
+test('a jamming dial that can lock against the bearing rule fails the structural gate from the start', () => {
+  const jammed = analyseLevel(903)
+  // The head in the window is held by the load, and the dial will not turn while it shows.
+  expect(jammed.structuralDeadEnds.some((board) => board.removed.length === 0)).toBe(true)
+  expect(jammed.win).toEqual([])
+  // The same board with a dial that turns freely can always be finished, turning to free the load first.
+  const free = analyseLevel(904)
+  expect(free.structuralDeadEnds).toEqual([])
+  expect(free.win.indexOf('turn:dial:1')).toBeLessThan(free.win.indexOf('load-1'))
+  expect(free.win.indexOf('load-1')).toBeLessThan(free.win.indexOf('held'))
 })

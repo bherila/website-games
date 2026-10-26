@@ -304,12 +304,19 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    captive, gone); an open cover travels with its host and never bears on it, and a screw that
    frees cover and host together creates no cover in between. Each cover's resting place is shown
    before release. The structural gate above must hold.
-4. **Before level 16:** store discrete dial stops in puzzle state, make every turn an undo step,
-   provide button and keyboard controls that step one stop at a time, and raycast against the
-   actual pose. The first dial is held by a stop-pin screw; whether a head in the window jams a
-   dial is decided on an unreleased test board, since it can deadlock against the bearing rule.
-   No concentric dials. The solver becomes a graph search over removals and turns, with win
-   chances solved across cycles and stops reachable without a removal grouped for scoring.
+4. **Dial test board implemented; levels 16–20 to follow:** a dial is a screwless disc with
+   `windows` cut over `stops` slots, hosted like a captive panel; a head behind it carries its
+   `underDial` slot and can be reached only while a window is over it. Each dial's stop is
+   puzzle state, every turn is an undo step, and the scene rotates the actual disc mesh, so
+   selection raycasts through the real window. Buttons and arrow keys on the focused dial step
+   one stop; a refused turn says what holds it. Two unreleased lab boards, reached only by
+   `/plate-escape?lab=dial-pin` and `?lab=dial-jam` and never listed or saved, try the two stop
+   rules on the same toy safe: a stop-pin screw, or a head in the window catching the dial.
+   The jam can deadlock against the bearing rule; `solverGates.test.ts` keeps such a board and
+   the structural gate rejects it. No concentric dials. The solver makes each move a removal
+   reached through any number of turns, so turning cannot cycle, each head counts once however
+   many stops show it, and adding empty stops leaves every score unchanged. Boards between
+   removals are scored and gated like the rest.
 5. **At level 18:** add Pearl and its hex mark consistently to heads, trays, storage,
    instructions and accessible labels. Five colors still mean two active trays.
 6. **Before level 21:** add authored counterweight dependencies with fixed end positions.
@@ -320,7 +327,7 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    slot resets on retry and is never a permanent purchase or consumable.
 
 Build and validate in batches: 3–5, 6–10, then 11–12 (checked on a phone before authoring
-13–15), a dial test board, 16–20, 21–25 and 26–30. Only released
+13–15), the dial test board (choose its stop rule before authoring 16), 16–20, 21–25 and 26–30. Only released
 levels enter the runtime registry, progress totals, catalog and API save boundary. Do not
 raise those limits to 30 or show playable placeholder tiles merely because the plan has 30 rows.
 Existing level-1 and level-2 stars must survive each campaign expansion.

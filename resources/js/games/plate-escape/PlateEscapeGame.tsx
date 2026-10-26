@@ -1,6 +1,6 @@
 import './plate-escape.css'
 
-import { ArrowLeft, Check, CircleHelp, House, LockKeyhole, Pause, Play, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleHelp, House, LockKeyhole, Pause, Play, RotateCcw, RotateCw, Undo2 } from 'lucide-react'
 import { type ComponentProps, type CSSProperties, type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,8 +12,9 @@ import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { StarRow } from '../_shared/StarRow'
 import { PortraitGameShell } from '../PortraitGameShell'
 import { CollectionTrays, ScrewHead } from './CollectionTrays'
-import { createPuzzle, freedPlates, hasWon, panelState, type PuzzleState, removeScrew, screwLock } from './engine'
+import { createPuzzle, dialLock, freedPlates, hasWon, panelState, type PuzzleState, removeScrew, screwLock, showing, turnDial } from './engine'
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
+import { labLevelFromSearch } from './labLevels'
 import { COLORS, getLevel, LEVELS, type PuzzleLevel, type ScrewColor } from './level'
 import { PlateEscapeScene, type PlateEvent, type ScrewTarget, type ViewCommand } from './PlateEscapeScene'
 import { createPlateSfx, plateMute, type PlateSound } from './sfx'
@@ -24,7 +25,8 @@ interface FlyingScrew { color: ScrewColor, x: number, y: number, dx: number, dy:
 const motionStill = createMuteStorage('bwh.plate-escape.still.v1')
 
 export function PlateEscapeGame(): ReactElement {
-  const [levelId, setLevelId] = useState<number | null>(null)
+  // A lab board opens straight from its link and is never listed or saved.
+  const [levelId, setLevelId] = useState<number | null>(() => labLevelFromSearch(window.location.search))
   const [progress, setProgress] = useState(loadProgress)
   const [muted, setMuted] = useState(plateMute.load)
   // The engine only opens an AudioContext on the first gesture, so creating it here is free.
@@ -35,6 +37,7 @@ export function PlateEscapeGame(): ReactElement {
     plateMute.save(muted)
   }, [sfx, muted])
   const recordClear = (id: number): void => {
+    if (!LEVELS.some((level) => level.id === id)) return
     const next = recordWin(progress, id, 3)
     saveProgress(next)
     setProgress(next)
@@ -63,6 +66,7 @@ interface LevelSessionProps {
 
 function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockSound, muted, onMutedChange }: LevelSessionProps): ReactElement {
   const { plates: PLATES, screws: SCREWS, spareCapacity: SPARE_CAPACITY } = level
+  const DIALS = PLATES.filter((plate) => plate.dial)
   const [still, setStill] = useState(motionStill.load)
   // Under reduced motion nothing turns, so there is nothing to pause.
   const [reduceMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
@@ -103,7 +107,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     return () => clearTimeout(timer)
   }, [won])
 
-  const turn = (action: ViewCommand['action']): void => {
+  const orbit = (action: ViewCommand['action']): void => {
     setView((current) => ({ action, sequence: current.sequence + 1 }))
   }
   /** A refused tap is explained on screen as well as to assistive technology. */
@@ -126,6 +130,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       const cover = PLATES.find((candidate) => candidate.id === lock.plate)!
       return `The ${cover.name.toLowerCase()} is ${cover.rail ? 'resting' : 'hanging'} over that screw. It comes away with the ${plate(cover.host!).toLowerCase()}.`
     }
+    if (lock?.kind === 'dial') return `Turn the ${plate(lock.plate).toLowerCase()} until its window is over that screw.`
     if (lock?.kind === 'cover') return `The ${plate(lock.plate).toLowerCase()} covers that screw. Release it first.`
     return 'No room for that screw. Collect a matching color or undo.'
   }
@@ -178,6 +183,34 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       play(hasWon(next) ? 'win' : landing)
     }, 650)
   }
+  /** What a dial's window shows now, for the status line and the dial's own label. */
+  const dialReading = (state: PuzzleState, id: string): string => {
+    const dial = PLATES.find((plate) => plate.id === id)!
+    const heads = SCREWS.filter((screw) => screw.underDial?.dial === id && !state.removed.includes(screw.id) && showing(state, screw))
+    const view = heads.length ? `${heads.map((screw) => `a ${COLORS[screw.color].name.toLowerCase()} screw`).join(' and ')} in the window` : 'the window empty'
+    return `Stop ${(state.dials[id] ?? 0) + 1} of ${dial.dial!.stops}, ${view}`
+  }
+  const dialHeld = (id: string): string | null => {
+    const lock = dialLock(puzzle, id)
+    if (!lock) return null
+    const dial = PLATES.find((plate) => plate.id === id)!.name.toLowerCase()
+    const screw = SCREWS.find((candidate) => candidate.id === lock.screw)!
+    return lock.kind === 'pin' ? `The stop pin holds the ${dial}. Take it out first.`
+      : `The ${COLORS[screw.color].name.toLowerCase()} screw in the window catches the ${dial}. Take it out first.`
+  }
+  const turn = (id: string, step: 1 | -1): void => {
+    if (busy || won || lost || error) return
+    const next = turnDial(puzzle, id, step)
+    if (next === puzzle) {
+      const lock = dialLock(puzzle, id)
+      if (lock) explain(dialHeld(id)!, lock.screw)
+      return
+    }
+    setHistory((previous) => [...previous, puzzle])
+    setPuzzle(next)
+    play('dial')
+    setMessage(`${PLATES.find((plate) => plate.id === id)!.name} turned. ${dialReading(next, id)}.`)
+  }
   const undo = (): void => {
     const previous = history.at(-1)
     if (!previous || busy) return
@@ -186,7 +219,8 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     setFinished(false)
     setFly(null)
     play('undo')
-    setMessage('Last screw restored, along with its plate and tray space.')
+    const turned = DIALS.find((dial) => previous.dials[dial.id] !== puzzle.dials[dial.id])
+    setMessage(turned ? `${turned.name} turned back. ${dialReading(previous, turned.id)}.` : 'Last screw restored, along with its plate and tray space.')
   }
   const reportError = useCallback((text: string) => setError(text), [])
   const plateEvent = useCallback((event: PlateEvent) => play(event), [play])
@@ -223,11 +257,29 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
           )
         })}
         <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400" data-testid="plate-progress">{freedPlates(puzzle)} / {PLATES.length} plates released</div>
-        {hint && <p key={hint.sequence} aria-hidden="true" data-testid="plate-hint" className="plate-hint pointer-events-none absolute inset-x-4 bottom-[4.25rem] mx-auto w-fit max-w-full rounded-2xl border border-orange-200 bg-white/95 px-4 py-2 text-center text-xs font-semibold text-slate-700 shadow-sm dark:border-orange-400/40 dark:bg-slate-900/95 dark:text-slate-100">{hint.text}</p>}
+        {DIALS.map((dial) => panelState(puzzle, dial.id) === 'open' && (
+          <div key={dial.id} className="absolute bottom-[4.25rem] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/80 bg-white/80 p-1 shadow-sm dark:border-white/10 dark:bg-slate-900/80">
+            <button type="button" aria-label={`Turn the ${dial.name.toLowerCase()} left`} onClick={() => turn(dial.id, -1)} disabled={busy || won || lost || Boolean(error)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:opacity-35 dark:text-slate-200 dark:hover:bg-slate-800"><ChevronLeft size={20} aria-hidden="true" /></button>
+            {/* Arrow keys turn the focused dial one stop, and focus stays on it. */}
+            <div role="slider" tabIndex={0} aria-label={dial.name} aria-valuemin={1} aria-valuemax={dial.dial!.stops} aria-valuenow={(puzzle.dials[dial.id] ?? 0) + 1} aria-disabled={busy || won || lost || Boolean(error)}
+              aria-valuetext={`${dialReading(puzzle, dial.id)}${dialHeld(dial.id) ? `. ${dialHeld(dial.id)}` : ''}`} data-dial-id={dial.id}
+              onKeyDown={(event) => {
+                const step = ({ ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 } as const)[event.key as 'ArrowLeft']
+                if (step === undefined) return
+                event.preventDefault()
+                turn(dial.id, step)
+              }}
+              className="flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-semibold tabular-nums text-slate-600 focus-visible:outline-2 focus-visible:outline-slate-700 dark:text-slate-300 dark:focus-visible:outline-slate-200">
+              {dialHeld(dial.id) && <LockKeyhole size={13} aria-hidden="true" />}Dial {(puzzle.dials[dial.id] ?? 0) + 1}/{dial.dial!.stops}
+            </div>
+            <button type="button" aria-label={`Turn the ${dial.name.toLowerCase()} right`} onClick={() => turn(dial.id, 1)} disabled={busy || won || lost || Boolean(error)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:opacity-35 dark:text-slate-200 dark:hover:bg-slate-800"><ChevronRight size={20} aria-hidden="true" /></button>
+          </div>
+        ))}
+        {hint && <p key={hint.sequence} aria-hidden="true" data-testid="plate-hint" className={`plate-hint pointer-events-none absolute inset-x-4 ${DIALS.length ? 'bottom-[7.5rem]' : 'bottom-[4.25rem]'} mx-auto w-fit max-w-full rounded-2xl border border-orange-200 bg-white/95 px-4 py-2 text-center text-xs font-semibold text-slate-700 shadow-sm dark:border-orange-400/40 dark:bg-slate-900/95 dark:text-slate-100`}>{hint.text}</p>}
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2 rounded-full border border-white/80 bg-white/80 p-1 shadow-sm dark:border-white/10 dark:bg-slate-900/80">
-          <button type="button" aria-label="Rotate left" onClick={() => turn('left')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCcw size={20} aria-hidden="true" /></button>
-          <button type="button" onClick={() => turn('reset')} className="whitespace-nowrap px-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Reset view</button>
-          <button type="button" aria-label="Rotate right" onClick={() => turn('right')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCw size={20} aria-hidden="true" /></button>
+          <button type="button" aria-label="Rotate left" onClick={() => orbit('left')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCcw size={20} aria-hidden="true" /></button>
+          <button type="button" onClick={() => orbit('reset')} className="whitespace-nowrap px-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Reset view</button>
+          <button type="button" aria-label="Rotate right" onClick={() => orbit('right')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCw size={20} aria-hidden="true" /></button>
           {level.rotor && !reduceMotion && <button type="button" aria-label={still ? 'Resume motion' : 'Pause motion'} onClick={() => setStill(!still)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{still ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}</button>}
         </div>
         {lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl dark:bg-slate-900/95">

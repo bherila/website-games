@@ -1,11 +1,13 @@
-import { getLevel, heldPlates, type Screw, type ScrewColor, TRAY_CAPACITY } from './level'
+import { getLevel, heldPlates, type Plate, type Screw, type ScrewColor, TRAY_CAPACITY } from './level'
 
 export interface Tray { id: 'left' | 'right', color: ScrewColor | null, count: number }
 /**
- * Why a head cannot be unscrewed yet: a cover in front of it, or a part resting
- * on a plate (`support`) whose last screw it is.
+ * Why a head cannot be unscrewed yet: a dial with no window over it, a cover in
+ * front of it, or a part resting on a plate (`support`) whose last screw it is.
  */
-export interface ScrewLock { kind: 'cover' | 'bearing', plate: string, support?: string }
+export interface ScrewLock { kind: 'dial' | 'cover' | 'bearing', plate: string, support?: string }
+/** Why a dial will not turn: a stop pin still in, or a head showing in its window. */
+export interface DialLock { kind: 'pin' | 'jam', screw: string }
 export interface PuzzleState {
   level: number
   overflow: ScrewColor | null
@@ -14,6 +16,8 @@ export interface PuzzleState {
   spare: ScrewColor[]
   queue: ScrewColor[]
   completed: ScrewColor[]
+  /** Each dial's stop, counted clockwise from where it starts. */
+  dials: Record<string, number>
 }
 
 export function createPuzzle(levelId = 1): PuzzleState {
@@ -22,6 +26,7 @@ export function createPuzzle(levelId = 1): PuzzleState {
     level: levelId, overflow: null,
     removed: [], trays: [{ id: 'left', color: level.trayColors[0]!, count: 0 }, { id: 'right', color: level.trayColors[1]!, count: 0 }],
     spare: [], queue: level.trayColors.slice(2), completed: [],
+    dials: Object.fromEntries(level.plates.filter((plate) => plate.dial).map((plate) => [plate.id, 0])),
   }
 }
 
@@ -75,7 +80,8 @@ export function remainingScrews(state: PuzzleState, plateId: string): number {
 /**
  * A panel is pinned while any screw holds it. A hinged or railed panel with
  * none left is open, hanging on its host, until the host itself lets go; any
- * other panel with none left is gone.
+ * other panel with none left is gone. A dial has no screws: it is open, free to
+ * turn over the heads behind it, for as long as its host stays.
  */
 export type PanelState = 'pinned' | 'open' | 'gone'
 
@@ -85,8 +91,9 @@ export function panelState(state: PuzzleState, plateId: string): PanelState {
   return host !== undefined && remainingScrews(state, host) > 0 ? 'open' : 'gone'
 }
 
+/** Plates no screw holds any more; a dial counts once it has come away with its host. */
 export function freedPlates(state: PuzzleState): number {
-  return getLevel(state.level).plates.filter((plate) => remainingScrews(state, plate.id) === 0).length
+  return getLevel(state.level).plates.filter((plate) => plate.dial ? panelState(state, plate.id) === 'gone' : remainingScrews(state, plate.id) === 0).length
 }
 
 export function hasWon(state: PuzzleState): boolean {
@@ -103,6 +110,7 @@ export function hasWon(state: PuzzleState): boolean {
  */
 export function screwLock(state: PuzzleState, screw: Screw): ScrewLock | null {
   if (state.removed.includes(screw.id)) return null
+  if (!showing(state, screw)) return { kind: 'dial', plate: screw.underDial!.dial }
   const cover = (screw.blockedBy ?? []).find((id) => remainingScrews(state, id) > 0)
     ?? (screw.coveredWhenOpen ?? []).find((id) => panelState(state, id) === 'open')
   if (cover) return { kind: 'cover', plate: cover }
@@ -120,4 +128,40 @@ export function bearingLock(state: PuzzleState, plateId: string, releasedWith: r
   const load = getLevel(state.level).plates.find((plate) => plate.restsOn?.includes(plateId)
     && remainingScrews(state, plate.id) > (releasedWith.includes(plate.id) ? 1 : 0))
   return load ? { kind: 'bearing', plate: load.id, support: plateId } : null
+}
+
+/** Whether a head can be seen: it is behind no dial, its dial has gone, or a window is over it. */
+export function showing(state: PuzzleState, screw: Screw): boolean {
+  if (!screw.underDial) return true
+  const { dial: id, slot } = screw.underDial
+  if (panelState(state, id) === 'gone') return true
+  const dial = dialPlate(state, id).dial!
+  const stop = state.dials[id] ?? 0
+  return dial.windows.some((window) => (window + stop) % dial.stops === slot)
+}
+
+function dialPlate(state: PuzzleState, id: string): Plate {
+  const plate = getLevel(state.level).plates.find((candidate) => candidate.id === id)
+  if (!plate?.dial) throw new Error(`Level ${state.level} has no dial ${id}`)
+  return plate
+}
+
+/** What holds a dial still, if anything: a stop pin before a head in the window. */
+export function dialLock(state: PuzzleState, id: string): DialLock | null {
+  const { dial } = dialPlate(state, id)
+  const pin = dial!.pins?.find((screw) => !state.removed.includes(screw))
+  if (pin) return { kind: 'pin', screw: pin }
+  if (!dial!.jams) return null
+  const head = getLevel(state.level).screws.find((screw) => screw.underDial?.dial === id && !state.removed.includes(screw.id) && showing(state, screw))
+  return head ? { kind: 'jam', screw: head.id } : null
+}
+
+/**
+ * Turn a dial one stop clockwise (1) or anticlockwise (-1). A turn is an
+ * ordinary move, so undo steps back through it like a removal.
+ */
+export function turnDial(state: PuzzleState, id: string, step: 1 | -1): PuzzleState {
+  if (state.overflow !== null || hasWon(state) || panelState(state, id) !== 'open' || dialLock(state, id)) return state
+  const { stops } = dialPlate(state, id).dial!
+  return { ...state, dials: { ...state.dials, [id]: ((state.dials[id] ?? 0) + step + stops) % stops } }
 }

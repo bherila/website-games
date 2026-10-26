@@ -1,7 +1,7 @@
 import { createMuteStorage } from '../_shared/audio/muteStorage'
 import { createSynthSfx, type SynthRecipe, type SynthSfx } from '../_shared/audio/synthSfx'
 
-export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'swing' | 'slide' | 'land' | 'splash' | 'overflow' | 'win' | 'undo'
+export type PlateSound = 'unscrew' | 'tray' | 'spare' | 'tray-complete' | 'blocked' | 'fall' | 'swing' | 'slide' | 'land' | 'splash' | 'overflow' | 'win' | 'undo' | 'dial'
 
 /** Toy-workshop sounds: a ratchet and pop for each screw, chimes for trays, wooden knocks for parts. */
 export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
@@ -60,6 +60,12 @@ export const PLATE_SOUNDS: Record<PlateSound, SynthRecipe> = {
     tone(2093, 2093, 0.4, 'sine', 0.06, 0.38)
   },
   undo: ({ tone }) => tone(1100, 620, 0.1, 'sine', 0.08),
+  // A dial clicks round into its next stop: two dry detent ticks and a low seat.
+  dial: ({ tone, noise }) => {
+    for (const [index, pitch] of [2300, 2050].entries()) tone(pitch, pitch * 0.8, 0.018, 'square', 0.03, index * 0.06)
+    noise(0.04, 0.04, 3000, { filter: 'bandpass', delay: 0.12, q: 2 })
+    tone(380, 300, 0.06, 'triangle', 0.08, 0.12)
+  },
 }
 
 export const plateMute = createMuteStorage('bwh.plate-escape.muted.v1')

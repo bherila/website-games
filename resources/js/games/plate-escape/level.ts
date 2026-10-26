@@ -1,4 +1,6 @@
+import type { Dial } from './dial'
 import { createHarborLevels } from './harborLevels'
+import { createLabLevels } from './labLevels'
 import { createMillLevels } from './millLevels'
 import type { StageId } from './stage'
 import { createVillageLevels } from './villageLevels'
@@ -32,10 +34,12 @@ export interface Plate {
   hingeAngle?: number
   /** A captive shutter: with its screws gone it drops `travel` along `along` (downhill, world) to a stop. */
   rail?: { along: Point3, travel: number }
-  /** The part a hinged or railed panel stays with once open; it falls when that part does. */
+  /** The part a hinged or railed panel, or a dial, stays with once open; it falls when that part does. */
   host?: string
+  /** A disc that turns over the screws behind it; it has no screws of its own and stays with its host. */
+  dial?: Dial
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
-    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone'
+    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial'
   color: string
 }
 
@@ -49,6 +53,8 @@ export interface Screw {
   blockedBy?: readonly string[]
   /** Captive panels that lie over this head once they open, until the part they hang on comes off. */
   coveredWhenOpen?: readonly string[]
+  /** A head behind a dial, at this slot round it: it can be reached only while a window is over the slot. */
+  underDial?: { dial: string, slot: number }
   position: readonly [number, number]
 }
 
@@ -142,8 +148,11 @@ const introductoryLevels: readonly PuzzleLevel[] = [
 
 export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels()]
 
+/** Boards for trying a mechanism before any level uses it: reached only by link, never listed, never saved. */
+export const LAB_LEVELS: readonly PuzzleLevel[] = createLabLevels()
+
 export function getLevel(id: number): PuzzleLevel {
-  const level = LEVELS.find((candidate) => candidate.id === id)
+  const level = LEVELS.find((candidate) => candidate.id === id) ?? LAB_LEVELS.find((candidate) => candidate.id === id)
   if (!level) throw new Error(`Unknown Plate Escape level: ${id}`)
   return level
 }
