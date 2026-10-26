@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
 
 import { HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { getLevel } from '../../resources/js/games/plate-escape/level'
 
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
@@ -310,8 +311,8 @@ test.describe('Plate Escape real puzzle', () => {
   test.describe('the harbor', () => {
     test.use({ reducedMotion: 'reduce' })
 
-    test('plays a drop flap and storm shutters that cover what they land on', async ({ page, isMobile }, testInfo) => {
-      test.setTimeout(300_000)
+    test('plays drop flaps, shutters, a hasp and a counterweight that cover what they land on', async ({ page, isMobile }, testInfo) => {
+      test.setTimeout(600_000)
       if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
       await page.addInitScript(() => {
         const key = 'bwh.plate-escape.progress.v1'
@@ -349,7 +350,7 @@ test.describe('Plate Escape real puzzle', () => {
       await expect(page.getByTestId('level-tile-12')).toHaveAttribute('data-unlocked', 'false')
       await activate(page.getByRole('button', { name: 'Level 11, 0 stars', exact: true }))
       for (const trace of HARBOR_TRACES) {
-        await activate(page.getByRole('button', { name: "Let's play", exact: true }))
+        if (getLevel(trace.level).introduction) await activate(page.getByRole('button', { name: "Let's play", exact: true }))
         await expect(page.getByRole('dialog')).toHaveCount(0)
         await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
         await page.screenshot({ path: testInfo.outputPath(`level-${trace.level}.png`) })
@@ -357,29 +358,26 @@ test.describe('Plate Escape real puzzle', () => {
         await expect(page.getByRole('heading', { name: 'No room for that screw' })).toBeVisible()
         await activate(page.getByRole('button', { name: 'Retry level', exact: true }))
         await expect(page.getByTestId('screw-progress')).toHaveText('0 / 12 screws')
-        if (trace.level === 11) {
-          // Freed first, the bait flap drops over the transom screw; undo lifts it back.
-          await find(page.locator('[data-screw-id="transom-1"]'))
-          await removeVisible('bait-flap-1')
-          await page.screenshot({ path: testInfo.outputPath('bait-flap-open.png') })
-          await buried('transom-1')
+        // Freed first, each captive cover drops over the screw beneath it; undo lifts it back.
+        const level = getLevel(trace.level)
+        for (const cover of level.plates.filter((plate) => level.screws.some((screw) => screw.coveredWhenOpen?.includes(plate.id)))) {
+          const release = level.screws.find((screw) => screw.plate === cover.id)!.id
+          const under = level.screws.find((screw) => screw.coveredWhenOpen?.includes(cover.id))!.id
+          await find(page.locator(`[data-screw-id="${under}"]`))
+          await removeVisible(release)
+          await page.screenshot({ path: testInfo.outputPath(`${cover.id}-open.png`) })
+          await buried(under)
           await activate(page.getByRole('button', { name: 'Undo', exact: true }))
-          await find(page.locator('[data-screw-id="transom-1"]'))
+          await find(page.locator(`[data-screw-id="${under}"]`))
         }
-        for (const id of trace.win) {
-          await removeVisible(id)
-          if (id === 'shutter-front-1') {
-            await page.screenshot({ path: testInfo.outputPath('shutter-dropped.png') })
-            await buried('base-front-1')
-          }
-        }
+        for (const id of trace.win) await removeVisible(id)
         await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
         await expect(page.getByText('4 / 4 collected', { exact: true })).toBeVisible()
-        if (trace.level < 12) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
+        if (trace.level < 15) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
         else await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
       }
       await page.reload()
-      for (const id of [11, 12]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
+      for (const id of [11, 12, 13, 14, 15]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
       expect(errors).toEqual([])
     })
   })

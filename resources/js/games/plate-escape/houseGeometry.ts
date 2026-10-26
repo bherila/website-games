@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import { decorateHarborPlate } from './harborDecals'
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
+import type { StageId } from './stage'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
 export function plateQuaternion(plate: Plate): THREE.Quaternion {
@@ -363,9 +364,17 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
 
 /** The permanent scenery a level stands on; its surfaces match `STAGES` in stage.ts. */
 export function createStage(level: Pick<PuzzleLevel, 'stage' | 'theme'>): THREE.Group {
-  if (level.stage === 'jetty') return createJetty()
-  if (level.stage === 'pier') return createPier()
-  return createGarden(level.theme)
+  return SCENERY[level.stage ?? 'garden'](level.theme)
+}
+
+/** A boat's permanent lower hull, afloat: painted sides, a waterline stripe and its bottom boards. */
+function lowerHull(stage: THREE.Group, size: readonly [number, number, number], top: number, color: string, stripe: string): void {
+  const [length, depth, beam] = size
+  const hull = box(stage, [length, depth, beam], [0, top - depth / 2 - 0.02, 0], color)
+  hull.receiveShadow = true
+  box(stage, [length + 0.02, 0.06, beam + 0.02], [0, -1.86, 0], stripe)
+  const boards = box(stage, [length - 0.1, 0.04, beam - 0.1], [0, top - 0.02, 0], '#c9a979')
+  boards.receiveShadow = true
 }
 
 const water = (radius: number, y: number): THREE.Mesh => {
@@ -380,11 +389,7 @@ function createJetty(): THREE.Group {
   const stage = new THREE.Group()
   stage.add(water(4.2, -1.86))
   // The lower hull, down to the waterline and below, carries the bottom boards at -1.45.
-  const hull = box(stage, [3.4, 0.5, 2.1], [0, -1.7, 0], '#2f5f74')
-  hull.receiveShadow = true
-  box(stage, [3.42, 0.06, 2.12], [0, -1.86, 0], '#c4573f')
-  const boards = box(stage, [3.3, 0.04, 2.0], [0, -1.47, 0], '#c9a979')
-  boards.receiveShadow = true
+  lowerHull(stage, [3.4, 0.5, 2.1], -1.45, '#2f5f74', '#c4573f')
   for (const z of [-0.6, -0.2, 0.2, 0.6]) box(stage, [3.25, 0.012, 0.012], [0, -1.448, z], '#a88a5f')
   box(stage, [3.8, 0.12, 0.16], [-0.1, -1.95, 0], '#26495a')
   // The jetty behind the boat, on piles, with mooring posts and a coil of rope.
@@ -402,6 +407,66 @@ function createJetty(): THREE.Group {
   rope.rotation.x = Math.PI / 2
   rope.position.set(2.3, -1.58, -2.3)
   stage.add(rope)
+  return stage
+}
+
+/** A boathouse bench on a plank floor; the chest's bottom and its contents stay on it. */
+function createWorkbench(): THREE.Group {
+  const stage = new THREE.Group()
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.1, 48), new THREE.MeshStandardMaterial({ color: '#b99a72', roughness: 0.95 }))
+  floor.position.y = -2.75
+  floor.receiveShadow = true
+  stage.add(floor)
+  const top = box(stage, [4.6, 0.16, 2.9], [0, -1.63, 0], '#c79a63')
+  top.receiveShadow = true
+  for (const z of [-0.95, 0, 0.95]) box(stage, [4.58, 0.008, 0.012], [0, -1.548, z], '#9c7445')
+  for (const [x, z] of [[-2.1, 1.25], [2.1, 1.25], [-2.1, -1.25], [2.1, -1.25]]) box(stage, [0.16, 1.05, 0.16], [x!, -2.2, z!], '#8a6440')
+  // Inside the chest: its bottom, a coil of rope and a folded blanket.
+  box(stage, [2.9, 0.06, 1.7], [0, -1.52, 0], '#5e3b24')
+  const rope = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.08, 8, 22), new THREE.MeshStandardMaterial({ color: '#d9c49a', roughness: 0.9 }))
+  rope.rotation.x = Math.PI / 2
+  rope.position.set(-0.6, -1.4, 0)
+  stage.add(rope)
+  box(stage, [0.9, 0.22, 0.7], [0.7, -1.38, 0.05], '#4f6f8a')
+  return stage
+}
+
+/** A stone quay at the harbor's edge, with two bollards clear of where the jib lands. */
+function createQuay(): THREE.Group {
+  const stage = new THREE.Group()
+  stage.add(water(4.4, -2.2))
+  const quay = box(stage, [5.2, 0.7, 3.4], [-0.6, -1.9, 0], '#c4bcab')
+  quay.receiveShadow = true
+  for (let x = -3.0; x < 1.9; x += 0.65) box(stage, [0.012, 0.02, 3.38], [x, -1.545, 0], '#a69e8f')
+  box(stage, [0.14, 0.1, 3.42], [1.98, -1.53, 0], '#e2dccf')
+  // The freed jib tips forward onto the quay along +z, so the bollards stand behind the tower and
+  // at the far end of the quay.
+  for (const [x, z] of [[1.6, -1.3], [-2.6, 1.3]] as const) {
+    const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.4, 14), new THREE.MeshStandardMaterial({ color: '#3d4a52', roughness: 0.6, metalness: 0.4 }))
+    bollard.position.set(x, -1.35, z)
+    stage.add(bollard)
+  }
+  return stage
+}
+
+/** Open water with the lightship's lower hull, its mast and lamp housing, and a marker buoy. */
+function createSea(): THREE.Group {
+  const stage = new THREE.Group()
+  stage.add(water(4.4, -1.86))
+  lowerHull(stage, [3.6, 0.55, 2.1], -1.45, '#9e2f2a', '#2b2b2b')
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.4, 12), new THREE.MeshStandardMaterial({ color: '#e9e4d8', roughness: 0.6 }))
+  mast.position.set(-0.6, 0.25, 0)
+  stage.add(mast)
+  // The lamp housing behind the lantern glass, with its lens lit.
+  box(stage, [0.85, 0.85, 0.42], [-0.6, 1.45, 0], '#3d4a52')
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.12, 18), new THREE.MeshStandardMaterial({ color: '#f6dc8a', emissive: '#f2c14e', emissiveIntensity: 0.7 }))
+  lens.rotation.x = Math.PI / 2
+  lens.position.set(-0.6, 1.45, 0.2)
+  stage.add(lens)
+  box(stage, [1.0, 0.1, 0.6], [-0.6, 1.92, 0], '#2f383e')
+  const buoy = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 12), new THREE.MeshStandardMaterial({ color: '#d9473b', roughness: 0.5 }))
+  buoy.position.set(2.8, -1.6, 1.6)
+  stage.add(buoy)
   return stage
 }
 
@@ -494,6 +559,15 @@ export function createGarden(theme?: PuzzleLevel['theme']): THREE.Group {
   return garden
 }
 
+
+const SCENERY: Record<StageId, (theme?: PuzzleLevel['theme']) => THREE.Group> = {
+  garden: createGarden,
+  jetty: createJetty,
+  pier: createPier,
+  workbench: createWorkbench,
+  quay: createQuay,
+  sea: createSea,
+}
 
 const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!
 

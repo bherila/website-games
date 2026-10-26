@@ -32,11 +32,20 @@ and Sawmill's bolt runs through a log rack and saw guard into the back wall. Mil
 captive hinged doors and hatches, and Windmill Hill combines both under turning sails. Teaching
 levels 6 and 9 have three spare slots; the others two.
 
-The harbor (levels 11–12 so far) leaves the village: each board is a free-standing object on its
+The harbor (levels 11–15) leaves the village: each board is a free-standing object on its
 own base. Rowing Boat is a pram dinghy afloat beside a jetty, and Lighthouse Lantern a glazed
 lantern room on a stone pier. They add captive covers: the boat's bait flap drops open and hangs
 over the transom screw below it, and the lantern's storm shutters slide down their rails onto the
 base, each until the part it hangs on comes off. Both are teaching levels with three spare slots.
+Sea Chest (on a boathouse bench) offers two routes, a hasp that drops over the front and an end
+flap that drops over the end, each burying a different color. Harbor Crane (on a stone quay) has
+covers that run different ways: the hook block drops straight down the tower front and the
+counterweight slides down the cab's back on a slant, while one pivot bolt frees jib and cab front
+together and the tower door opens clear. The cab stands on the tower's sides, so the screws the
+covers land on are held by nothing else. Lightship, the harbor's assessment, combines a stern
+flap, a lantern shutter that drops down the mast onto its collar, and one bolt through the mast
+step and the deck that the lantern rests on. These three have two spare slots and may hold a
+commitment that only shows a few moves later.
 
 Small painted decals mark the harbor objects: PIP on the low outer stern corner and a weathered
 brass LIGHT plaque on the lantern's front stone base. Their transparent WebP textures live in
@@ -47,7 +56,8 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
 
 - Drag the assembly to orbit the view. Rotation buttons and Reset view also work with a keyboard.
   Orbiting changes the viewpoint; gravity stays consistent with the assembly.
-- Select an exposed screw head. Heads behind a plate or facing away are unavailable. Visible
+- Select an exposed screw head. Heads behind a plate, facing away, or seen nearly edge-on (within
+  about 10° of side-on) are unavailable. Visible
   heads have labeled, focusable 44px buttons over their projected positions.
 - Screws turn and lift from their holes, then move into a matching collection tray or spare slot.
   Finishing a tray opens the next queued color and automatically collects matching stored screws.
@@ -97,7 +107,8 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
 `villageLevels.ts` authors levels 3–5, `millLevels.ts` levels 6–10 and `harborLevels.ts` levels
-11–12. `stage.ts` describes each level's permanent base (garden, jetty, pier): the surfaces parts
+11–15. `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
+sea): the surfaces parts
 land on, where water is, and where the camera looks. `engine.ts`
 is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
 cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
@@ -135,7 +146,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–12 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–15 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -149,10 +160,12 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   must still be finishable with unlimited storage, so no move sets a mechanical trap that a later
   overflow would hide; `solverGates.test.ts` keeps such a trap, built from today's rules, that
   the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12) no move short of overflowing may doom
-  the board; elsewhere a doomed board must overflow within four more removals. The solver also
+  the board; elsewhere a doomed board must overflow within four more removals (13–15 use this). The solver also
   reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
-  that keep a win, and the fewest spares a win needs. All twelve released levels are winnable from
-  every board short of overflow, by that simple policy, and without using a spare.
+  that keep a win, and the fewest spares a win needs. Levels 1–12 are winnable from every board
+  short of overflow, by that simple policy, and without using a spare. From level 13 a move may
+  commit to a loss (shown within four removals), and Harbor Crane and Lightship each need one
+  spare to win.
   Each level with captive covers must reach a board that can still win where an open cover is the
   only thing in the way of some head.
   Each level with shared screws must reach a lock that would vanish if every screw held one
@@ -185,23 +198,22 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   starts from a historical two-level save and earns the three new clears through actual input,
   checking locked glass heads, upcoming trays, overflow, undo, retry and unlocks. A third plays
   levels 6–10 under reduced motion, losing and winning each and tapping the held waterwheel axle
-  for its hint, and ends on the harbor's introduction. A fourth plays levels 11–12, checking that
-  the dropped bait flap and storm shutter leave no button on the head they cover and that undo
-  lifts the flap back. A fifth checks that the sails turn, stop when reached for, resume when left
+  for its hint, and ends on the harbor's introduction. A fourth plays levels 11–15, and on each frees every
+  captive cover first, checks that no view offers a button on the head it lands on, and undoes. A fifth checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the twelve-level boundary and monotonic star saves.
+  Page and API tests cover public access, the fifteen-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–12 and rejects unreleased level 13.
+the API accepts slots 1–15 and rejects unreleased level 16.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–12 are released. Levels 13–30 below are a design plan, not playable content. The
+Levels 1–15 are released. Levels 16–30 below are a design plan, not playable content. The
 campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
 festival. Each group of five has a teaching level, practice and a final combination puzzle.
 Geometry and panel arrangement provide variation between new mechanics.
@@ -256,9 +268,9 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 | 10 | Windmill Hill — released | Combine shared fasteners, a hinged door and turning sails pinned by one hub. No new rule; conclude the mill group. |
 | 11 | Rowing Boat — released | Afloat beside a jetty. Introduce captive covers: the bait flap on the stern batten drops open over the transom screw, previewed before release, and comes away with the batten. Teaching level, three spares. |
 | 12 | Lighthouse Lantern — released | Introduce rails: a storm shutter drops down its rail onto the base, covering the screw there until its glass face comes off. Teaching level, three spares. |
-| 13 | Sea Chest | Two routes: the lid falls back over the back panel's screws, or the hasp drops over the front's. Each must start viable with a different storage cost. |
-| 14 | Harbor Crane | Rails on opposite faces move covers in different directions; one pivot bolt frees jib and cab together; the cab door opens clear. |
-| 15 | Lightship | Harbor assessment: a drop flap, a hatch, a shuttered mast lantern and a shared mast bolt, with several safe opening orders. |
+| 13 | Sea Chest — released | Two routes: a hasp drops down its staple over the front, or an end flap drops over the end, each burying a different color. A route can commit to a loss that shows within four moves. |
+| 14 | Harbor Crane — released | Rails on opposite faces move covers in different directions (straight down the front, slantwise down the cab's back); one pivot bolt frees jib and cab front together; the tower door opens clear. The first level that needs a spare. |
+| 15 | Lightship — released | Harbor assessment: a stern flap, a lantern shutter that drops down the mast, and one bolt through the mast step and deck that the lantern rests on. |
 | 16 | Toy Steam Engine | Introduce dials: one large dial with a visible stop-pin screw; take the pin and the dial turns, showing the heads behind its window one at a time. Teaching level, three spares. |
 | 17 | Music Box | A two-window dial shows two heads per stop; the lid opens clear so the dial is the only new consequence. Three spares. |
 | 18 | Station Clock | Introduce Pearl, the fifth color, with a hex-socket mark and an extra teaching spare. |

@@ -57,7 +57,7 @@ export const MILL_TRACES = [
   },
 ]
 
-/** Captive covers: a drop flap (11) and storm shutters on rails (12). */
+/** Captive covers: a drop flap (11), storm shutters on rails (12), then practice (13–14) and the harbor assessment (15). */
 export const HARBOR_TRACES = [
   {
     level: 11,
@@ -68,5 +68,20 @@ export const HARBOR_TRACES = [
     level: 12,
     win: ['glass-left-1', 'glass-right-1', 'cap-left-1', 'cap-right-1', 'shutter-front-1', 'glass-front-1', 'shutter-back-1', 'glass-back-1', 'base-front-1', 'base-front-2', 'base-back-1', 'base-back-2'],
     lose: ['glass-left-1', 'glass-right-1', 'shutter-back-1', 'base-front-2'],
+  },
+  {
+    level: 13,
+    win: ['lid-1', 'lid-2', 'front-low', 'back-1', 'end-left-1', 'front-2', 'back-2', 'end-low', 'hasp-1', 'end-flap-1', 'lock-plate-1', 'cleat-1'],
+    lose: ['lid-2', 'front-low', 'back-2'],
+  },
+  {
+    level: 14,
+    win: ['tower-front-1', 'tower-back-1', 'tower-door-1', 'cab-roof-1', 'jib-pivot', 'hook-block-1', 'cab-front-1', 'jib-2', 'counterweight-1', 'cab-back-1', 'tower-left-1', 'tower-right-1'],
+    lose: ['tower-front-1', 'jib-pivot', 'jib-2'],
+  },
+  {
+    level: 15,
+    win: ['bow-1', 'stern-1', 'deck-1', 'deck-2', 'mast-collar-1', 'stern-flap-1', 'stern-batten-1', 'lantern-shutter-1', 'lantern-1', 'mast-bolt', 'port-1', 'starboard-1'],
+    lose: ['bow-1', 'lantern-shutter-1', 'lantern-1'],
   },
 ]

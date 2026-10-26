@@ -8,7 +8,7 @@ import { coverStandoff, createPlateMesh, createStage, decoratePlate, plateOutlin
 import { COLORS, getLevel, heldPlates, type ScrewColor } from './level'
 import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, RAIL_SECONDS, railPose, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
 import { SCREW_MARKS } from './screwMarks'
-import { traceScrew } from './screwVisibility'
+import { facesCamera, ORBIT_POLAR, traceScrew } from './screwVisibility'
 import { STAGES } from './stage'
 
 export interface ScrewTarget {
@@ -75,8 +75,8 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
     controls.rotateSpeed = 0.65
     controls.minDistance = 10 * distance
     controls.maxDistance = 16 * distance
-    controls.minPolarAngle = 0.5
-    controls.maxPolarAngle = Math.PI / 2 + 0.12
+    controls.minPolarAngle = ORBIT_POLAR[0]
+    controls.maxPolarAngle = ORBIT_POLAR[1]
     controls.update()
     controls.saveState()
     commandRef.current = (action) => {
@@ -354,7 +354,7 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
           group.getWorldPosition(world)
           group.getWorldQuaternion(quaternion)
           facing.copy(NORMAL).applyQuaternion(quaternion)
-          if (facing.dot(camera.position.clone().sub(world)) <= 0) continue
+          if (!facesCamera(facing, camera.position.clone().sub(world).normalize())) continue
           const projected = world.clone().project(camera)
           if (Math.abs(projected.x) > 0.92 || Math.abs(projected.y) > 0.92 || projected.z > 1) continue
           ray.setFromCamera(new THREE.Vector2(projected.x, projected.y), camera)
