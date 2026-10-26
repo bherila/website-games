@@ -135,6 +135,11 @@ export interface PuzzleLevel {
   /** The permanent base it stands on; the garden by default. */
   stage?: StageId
   rotor?: Rotor
+  /**
+   * The staging rack's cover. Once no screw holds it, the rack behind it adds one spare slot for
+   * the rest of the attempt; capacity is derived from the board, so undo and retry restore it.
+   */
+  rack?: string
   introduction?: string
 }
 

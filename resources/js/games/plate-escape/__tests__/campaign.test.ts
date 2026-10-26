@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
-import { createPuzzle, hasWon, type PuzzleState, removeScrew, screwLock, turnDial } from '../engine'
+import { createPuzzle, hasWon, type PuzzleState, removeScrew, screwLock, spareCapacity, turnDial } from '../engine'
 import { createPlateMesh, plateQuaternion } from '../houseGeometry'
 import { getLevel } from '../level'
 import { traceScrew } from '../screwVisibility'
@@ -24,7 +24,7 @@ test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES])
   expect(state.overflow).not.toBeNull()
   expect(hasWon(state)).toBe(false)
   expect(previous.overflow).toBeNull()
-  expect(previous.spare).toHaveLength(getLevel(level).spareCapacity)
+  expect(previous.spare).toHaveLength(spareCapacity(previous))
 })
 
 /** One action of a trace: a screw id, or a dial turn written `turn:<dial>:<1|-1>`. Every action must be accepted. */
@@ -46,7 +46,7 @@ test.each(CLOCKWORK_TRACES)('clockworks level $level has reachable authored win 
   expect(lost.overflow).not.toBeNull()
   const before = lose.slice(0, -1).reduce(act, createPuzzle(level))
   expect(before.overflow).toBeNull()
-  expect(before.spare).toHaveLength(getLevel(level).spareCapacity)
+  expect(before.spare).toHaveLength(spareCapacity(before))
 })
 
 test('authored covers actually intersect the screw’s outward access ray', () => {
