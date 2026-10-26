@@ -17,8 +17,8 @@ function insideOutline(plate: Plate, x: number, y: number): boolean {
   return inside
 }
 
-test('harbor decals fit their panels, clear every head and the bait flap, and never occlude selection', () => {
-  for (const [levelId, plateId] of [[11, 'transom'], [12, 'base-front']] as const) {
+test('harbor decals fit their own panels, clear heads and captive sweeps, and never occlude selection', () => {
+  for (const [levelId, plateId] of [[11, 'transom'], [12, 'base-front'], [13, 'front'], [14, 'cab-back'], [15, 'port']] as const) {
     const level = LEVELS.find((candidate) => candidate.id === levelId)!
     const plate = level.plates.find((candidate) => candidate.id === plateId)!
     const details = decoratePlate(plate, 0, level.screws, levelId)
@@ -39,6 +39,31 @@ test('harbor decals fit their panels, clear every head and the bait flap, and ne
       const flap = level.plates.find((candidate) => candidate.id === 'bait-flap')!
       expect(decal.position.x + width / 2).toBeLessThan(-flap.size[0] / 2)
     }
+    if (levelId >= 13) {
+      const inversePlate = new THREE.Matrix4().compose(new THREE.Vector3().fromArray(plate.position), plateQuaternion(plate), new THREE.Vector3(1, 1, 1)).invert()
+      const painted = new THREE.Box2(new THREE.Vector2(decal.position.x - width / 2, decal.position.y - height / 2), new THREE.Vector2(decal.position.x + width / 2, decal.position.y + height / 2))
+      for (const cover of level.plates.filter((candidate) => candidate.hinge || candidate.rail)) {
+        const body = createPlateMesh(cover, [])
+        body.geometry.computeBoundingBox()
+        const intervals = 128
+        for (let index = 0; index <= intervals; index++) {
+          const progress = index / intervals
+          const position = new THREE.Vector3().fromArray(cover.position)
+          const rotation = plateQuaternion(cover)
+          // Uniform angles include the quarter-turn; rails have linear bounds.
+          const pose = cover.rail ? railPose(cover, position, rotation, Math.sqrt(progress) * RAIL_SECONDS) : hingePose(cover, position, rotation, (1 - Math.cbrt(1 - progress)) * HINGE_SECONDS)
+          const frame = new THREE.Matrix4().compose(pose.position, pose.quaternion, new THREE.Vector3(1, 1, 1))
+          const sweep = body.geometry.boundingBox!.clone().applyMatrix4(inversePlate.clone().multiply(frame))
+          // Bound travel between adjacent samples. Per-pose boxes preserve
+          // the empty upper corner beside the crane's diagonal rail.
+          sweep.expandByScalar(cover.rail ? cover.rail.travel / intervals : Math.hypot(...cover.size, 2 * PANEL_FACE) * Math.PI / intervals)
+          if (sweep.max.z > decal.position.z) {
+            expect([levelId, cover.id, painted.intersectsBox(new THREE.Box2(new THREE.Vector2(sweep.min.x, sweep.min.y), new THREE.Vector2(sweep.max.x, sweep.max.y)))]).toEqual([levelId, cover.id, false])
+          }
+        }
+        disposeObject(body)
+      }
+    }
     details.updateMatrixWorld(true)
     const ray = new THREE.Raycaster(decal.position.clone().add(new THREE.Vector3(0, 0, 5)), new THREE.Vector3(0, 0, -1))
     expect(ray.intersectObject(decal)).toHaveLength(0)
@@ -47,10 +72,17 @@ test('harbor decals fit their panels, clear every head and the bait flap, and ne
     const disposed = jest.spyOn(decal.material.map!, 'dispose')
     disposeObject(details)
     expect(disposed).toHaveBeenCalledTimes(1)
-    // Reused panel names in levels 13–15 must not inherit these markings.
-    const future = decoratePlate(plate, 0, level.screws, 13)
-    expect(future.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
-    disposeObject(future)
+    // Reused panel names must not inherit another level's markings.
+    for (const other of [...LEVELS.map((candidate) => candidate.id), 16].filter((id) => id !== levelId)) {
+      const unrelated = decoratePlate(plate, 0, level.screws, other)
+      expect(unrelated.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
+      disposeObject(unrelated)
+    }
+    for (const other of level.plates.filter((candidate) => candidate.id !== plateId)) {
+      const unrelated = decoratePlate(other, 0, level.screws, levelId)
+      expect(unrelated.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
+      disposeObject(unrelated)
+    }
   }
 })
 
