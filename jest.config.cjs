@@ -13,6 +13,7 @@ const shared = {
   // value is kept for documentation and for any non-project invocation.
   testTimeout: 45000,
   moduleNameMapper: {
+    '\\.webp$': '<rootDir>/resources/js/__mocks__/fileMock.ts',
     '^@/(.*)$': '<rootDir>/resources/js/$1',
     '^@toon-format/toon$': '<rootDir>/resources/js/__mocks__/toon.ts',
     '\\.(css|less|scss|sass)$': '<rootDir>/resources/js/__mocks__/styleMock.ts',

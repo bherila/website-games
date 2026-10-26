@@ -127,7 +127,7 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
       plateGroups.set(plate.id, group)
       const screws = SCREWS.filter((screw) => screw.plate === plate.id)
       const mesh = createPlateMesh(plate, screws)
-      group.add(mesh, decoratePlate(plate, coverStandoff(plate, PLATES), screws), ...throughShafts(plate, SCREWS, PLATES))
+      group.add(mesh, decoratePlate(plate, coverStandoff(plate, PLATES), screws, level.id), ...throughShafts(plate, SCREWS, PLATES))
       hitObjects.push(group)
       for (const screw of screws) {
         const screwGroup = makeScrew(COLORS[screw.color].hex, screw.color)

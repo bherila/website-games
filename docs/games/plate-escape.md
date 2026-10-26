@@ -38,6 +38,11 @@ lantern room on a stone pier. They add captive covers: the boat's bait flap drop
 over the transom screw below it, and the lantern's storm shutters slide down their rails onto the
 base, each until the part it hangs on comes off. Both are teaching levels with three spare slots.
 
+Small painted decals mark the harbor objects: PIP on the low outer stern corner and a weathered
+brass LIGHT plaque on the lantern's front stone base. Their transparent WebP textures live in
+`assets/`; the planes travel with their panels and never participate in selection raycasts or
+covers. The stern board is outside the bait flap's sweep; both decals clear the screw-head rims.
+
 ## Play
 
 - Drag the assembly to orbit the view. Rotation buttons and Reset view also work with a keyboard.
