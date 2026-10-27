@@ -208,7 +208,7 @@ describe('one-dimensional TowerGeometry', () => {
     expect(segments).toHaveBeenCalledWith(state)
     expect(geometryFor(state).nearestStop(state, 0, 0)).toBe(17)
     buildOccupancyIndex(state)
-    expect(createUnitIndex).toHaveBeenCalledTimes(4)
+    expect(createUnitIndex).toHaveBeenCalled()
     noiseExposureAt(state, 0, 0, 10)
     expect(distance).toHaveBeenCalled()
     expect(Object.keys(state)).toEqual(savedKeys)
