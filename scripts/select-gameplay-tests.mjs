@@ -14,7 +14,7 @@ export const GAMEPLAY_GAMES = [
   { game: 'hover', ui: ['HoverGame.tsx', 'HoverScene.tsx'], specs: ['hover.spec.ts'] },
   { game: 'marble-sort', ui: ['MarbleSortGame.tsx', 'MarbleSortScene.tsx'], specs: ['marble-sort.spec.ts'] },
   { game: 'marble-works', ui: ['MarbleWorksGame.tsx', 'MarbleWorksScene.tsx'], specs: ['marble-works.spec.ts'] },
-  { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts', 'plate-escape-harbor.spec.ts', 'plate-escape-railway.spec.ts', 'plate-escape-clockworks.spec.ts'] },
+  { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts', 'plate-escape-harbor.spec.ts', 'plate-escape-railway.spec.ts', 'plate-escape-clockworks.spec.ts', 'plate-escape-fair.spec.ts'] },
   { game: 'math-horde', ui: ['MathHordeGame.tsx', 'MathHordeScene.tsx'], specs: ['math-horde.spec.ts'] },
   {
     game: 'tower-throwback',
@@ -51,6 +51,7 @@ export const FULL_GAMEPLAY_GROUPS = [
     [MOBILE, '2048.journey.spec.ts'],
     [DESKTOP, 'plate-escape-clockworks.spec.ts'],
     [MOBILE, 'plate-escape-harbor.spec.ts'],
+    [MOBILE, 'plate-escape-fair.spec.ts'],
   ],
   [
     [MOBILE, 'parking-pickup.spec.ts'],
@@ -71,6 +72,7 @@ export const FULL_GAMEPLAY_GROUPS = [
     [DESKTOP, '2048.journey.spec.ts'],
     [DESKTOP, 'plate-escape-railway.spec.ts'],
     [DESKTOP, 'plate-escape-harbor.spec.ts'],
+    [DESKTOP, 'plate-escape-fair.spec.ts'],
   ],
 ]
 

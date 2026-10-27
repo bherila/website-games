@@ -82,8 +82,8 @@ test('a jamming dial that can lock against the bearing rule fails the structural
 
 test('cutting any counterweight\'s cord leaves its part shut over a screw its host needs: the level can no longer be finished', () => {
   const cut = LEVELS.filter((level) => level.id >= 10_000)
-  // Lift Cage has two cords; every other clockworks level has one.
-  expect(cut.map((level) => level.id)).toEqual([10_210, 10_220, 10_221, 10_230, 10_240, 10_250])
+  // Lift Cage has two cords; every other clockworks level has one, and so does the festival float.
+  expect(cut.map((level) => level.id)).toEqual([10_210, 10_220, 10_221, 10_230, 10_240, 10_250, 10_300])
   for (const level of cut) {
     const analysis = analyseLevel(level.id)
     expect([level.name, analysis.win]).toEqual([level.name, []])

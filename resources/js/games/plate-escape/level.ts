@@ -1,5 +1,6 @@
 import { createClockworkLevels } from './clockworkLevels'
 import type { Dial } from './dial'
+import { createFairLevels } from './fairLevels'
 import { createHarborLevels } from './harborLevels'
 import { createLabLevels } from './labLevels'
 import { createMillLevels } from './millLevels'
@@ -168,7 +169,7 @@ const introductoryLevels: readonly PuzzleLevel[] = [
   },
 ]
 
-export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels(), ...createRailwayLevels(), ...createClockworkLevels()]
+export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels(), ...createRailwayLevels(), ...createClockworkLevels(), ...createFairLevels()]
 
 /** Boards for trying a mechanism before any level uses it: reached only by link, never listed, never saved. */
 export const LAB_LEVELS: readonly PuzzleLevel[] = createLabLevels()

@@ -5,7 +5,7 @@ import { createPuzzle, hasWon, type PuzzleState, removeScrew, screwLock, spareCa
 import { createPlateMesh, plateQuaternion } from '../houseGeometry'
 import { getLevel } from '../level'
 import { traceScrew } from '../screwVisibility'
-import { CLOCKWORK_TRACES, HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
+import { CLOCKWORK_TRACES, FAIR_TRACES, HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
 
 test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES])('level $level has reachable authored win and overflow traces', ({ level, win, lose }) => {
   let state = createPuzzle(level)
@@ -50,7 +50,8 @@ test.each(CLOCKWORK_TRACES)('clockworks level $level has reachable authored win 
 })
 
 test('authored covers actually intersect the screw’s outward access ray', () => {
-  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES, ...CLOCKWORK_TRACES]) {
+  // Fair traces are replayed by fairSolver.test.ts; their covers are checked here.
+  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES, ...CLOCKWORK_TRACES, ...FAIR_TRACES]) {
     const level = getLevel(id)
     for (const screw of level.screws) {
       const plate = level.plates.find((candidate) => candidate.id === screw.plate)!
