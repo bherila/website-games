@@ -48,7 +48,7 @@ export function OverlayToggles({ overlay, onSetOverlay, paletteMode = 'classic' 
             data-testid={`overlay-${option.value ?? 'none'}`}
             aria-pressed={overlay === option.value}
             onClick={() => onSetOverlay(option.value)}
-            className={`px-3 py-1.5 font-bold transition-colors ${
+            className={`min-h-11 min-w-11 px-3 py-1.5 font-bold sm:min-h-0 sm:min-w-0 transition-colors ${
               overlay === option.value ? 'bg-sky-500/80 text-slate-950' : 'text-white/70 hover:bg-white/10'
             }`}
           >

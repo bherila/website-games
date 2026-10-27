@@ -55,13 +55,13 @@ describe('useTowerKeyboardShortcuts', () => {
     keydown(' ')
     keyup(' ')
     keydown('1')
-    keydown('2') // 2× shortcut removed → ignored
-    keydown('4') // 4× shortcut removed → ignored
+    keydown('2')
+    keydown('4')
     keydown('8')
     keydown('6')
     keydown('16')
 
-    expect(h.onSetSpeed.mock.calls).toEqual([[0], [1], [8], [16]])
+    expect(h.onSetSpeed.mock.calls).toEqual([[0], [1], [2], [4], [8], [16]])
 
     rerender({ shortcutState: state({ speed: 0 }) })
     keydown(' ')
@@ -294,7 +294,7 @@ describe('ShortcutHelpOverlay', () => {
       expect(screen.getByText(binding.label)).toBeInTheDocument()
       expect(screen.getByText(binding.description)).toBeInTheDocument()
     }
-    expect(screen.getByText('1 / 8 / 6')).toBeInTheDocument()
+    expect(screen.getByText('1 / 2 / 4 / 8 / 6')).toBeInTheDocument()
     expect(screen.queryByText('1 / 8 / 16')).not.toBeInTheDocument()
   })
 

@@ -107,6 +107,27 @@ describe('GettingStarted', () => {
     expect(screen.getByTestId('getting-started-count')).toHaveTextContent('2/6')
   })
 
+  it('starts as a one-line disclosure on phones and expands without dismissing progress', () => {
+    const original = window.matchMedia
+    window.matchMedia = jest.fn().mockReturnValue({
+      matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn(),
+    } as unknown as MediaQueryList)
+    try {
+      render(<GettingStarted snapshot={snapshot()} />)
+      const pill = screen.getByRole('button', { name: /Getting started/ })
+      expect(pill).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByTestId('getting-started-step-firstActivity')).toBeNull()
+      fireEvent.click(pill)
+      expect(pill).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByTestId('getting-started-step-firstActivity')).toBeVisible()
+      fireEvent.click(pill)
+      expect(screen.queryByTestId('getting-started-step-firstActivity')).toBeNull()
+      expect(isGettingStartedDismissed()).toBe(false)
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('auto-hides once the tower passes Star 1', () => {
     render(<GettingStarted snapshot={snapshot({ star: 2, starProgress: { nextStar: 3, threshold: 1000, remaining: 700, progress: 0.3 } })} />)
     expect(screen.queryByTestId('getting-started')).toBeNull()

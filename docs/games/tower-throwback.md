@@ -465,6 +465,16 @@ odd/even car trick works) · tenant requests as soft tutorial.
 
 ## HUD overlays & build UX
 
+- On viewports below 640px, the status strip uses a compact grid. Getting started is a one-line
+  pill that expands on tap. Financials, Inventory, Saves, display settings, sound and help share
+  one More sheet, leaving most of the canvas exposed; its controls and the primary toolbar,
+  overlay and camera buttons have at least 44px targets. Desktop keeps its existing toolbar
+  and expanded onboarding. The sheet pauses the tower while it covers play, traps focus and
+  returns focus to More, including when Inventory or Saves closes.
+- Speed controls and shortcuts offer pause, 1×, 2×, 4×, 8× and 16× (keys Space, 1, 2, 4, 8, 6).
+  They use the existing fixed-step simulation and selected speed multiplier; presentation never
+  changes step size or consumes random draws.
+
 - **Issue badges are always visible** (yellow warning / red critical pips per unit, from
   `unitIssues`) — problems like infestation, no-route, dirty rooms, and trash overflow are never
   hidden behind a toggle.

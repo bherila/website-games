@@ -53,6 +53,13 @@ test.describe('Tower Throwback real player journey', () => {
     await activate(page.getByTestId('speed-0'))
     const canvas = page.locator('canvas').first()
     await expect(canvas).toBeVisible()
+    if (mobile) {
+      await assertCompactPhoneHud(page, activate)
+      await activate(page.getByRole('button', { name: /Getting started/ }))
+    } else {
+      await expect(page.getByRole('button', { name: 'Financials', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'More', exact: true })).toHaveCount(0)
+    }
     await activate(page.getByRole('button', { name: 'Dismiss getting started' }))
     if (mobile) {
       await activate(page.getByTestId('zoom-out'))
@@ -110,7 +117,7 @@ test.describe('Tower Throwback real player journey', () => {
       await activate(page.getByRole('button', { name: 'Done' }))
     }
 
-    await activate(page.getByRole('button', { name: 'Saves' }))
+    await openTowerAction(page, 'Saves', activate)
     await activate(page.getByTestId('save-slot-a'))
     await expect(page.getByTestId('save-message')).toContainText('Saved to Slot A.')
     await expect(page.getByTestId('slot-summary-slot-a')).not.toHaveText('Empty')
@@ -127,8 +134,69 @@ test.describe('Tower Throwback real player journey', () => {
   })
 })
 
+async function openTowerAction(page: Page, name: string, activate: (locator: Locator) => Promise<void>): Promise<void> {
+  const action = page.getByRole('button', { name, exact: true })
+  if (!(await action.isVisible())) await activate(page.getByRole('button', { name: 'More', exact: true }))
+  await activate(action)
+}
+
+async function expectTouchTargets(controls: Locator): Promise<void> {
+  for (const control of await controls.all()) {
+    const bounds = await control.boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds!.width, await control.getAttribute('aria-label') ?? await control.textContent() ?? 'touch target width').toBeGreaterThanOrEqual(44)
+    expect(bounds!.height, 'touch target height').toBeGreaterThanOrEqual(44)
+  }
+}
+
+async function assertCompactPhoneHud(page: Page, activate: (locator: Locator) => Promise<void>): Promise<void> {
+  expect(page.viewportSize()).toEqual({ width: 375, height: 812 })
+  const guide = page.getByRole('button', { name: /Getting started/ })
+  await expect(guide).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('button', { name: 'Financials', exact: true })).toHaveCount(0)
+  const exposed = await page.locator('canvas').first().evaluate((canvas) => {
+    let clear = 0
+    let total = 0
+    for (let y = 5; y < window.innerHeight; y += 10) {
+      for (let x = 5; x < window.innerWidth; x += 10) {
+        total += 1
+        if (document.elementFromPoint(x, y) === canvas) clear += 1
+      }
+    }
+    return clear / total
+  })
+  test.info().annotations.push({ type: 'phone-exposed-canvas', description: `${(exposed * 100).toFixed(1)}%` })
+  await page.screenshot({ path: test.info().outputPath('phone-startup.png') })
+  expect(exposed, 'most of the phone viewport must remain exposed canvas').toBeGreaterThan(0.6)
+  await expectTouchTargets(page.getByRole('group', { name: 'Game speed', exact: true }).getByRole('button'))
+  await expectTouchTargets(page.getByRole('group', { name: /Heatmap overlay/ }).getByRole('button'))
+  await expectTouchTargets(page.getByRole('button', { name: /^(Build|More|Getting started.*)$/ }))
+  await expectTouchTargets(page.getByRole('switch', { name: 'Fast mode', exact: true }))
+  for (const speed of [2, 4, 0]) {
+    await activate(page.getByTestId(`speed-${speed}`))
+    await expect(page.getByTestId(`speed-${speed}`)).toHaveAttribute('aria-pressed', 'true')
+  }
+  await activate(page.getByRole('button', { name: 'More', exact: true }))
+  const more = page.getByRole('dialog', { name: 'More', exact: true })
+  await expect(more).toBeVisible()
+  await expect(page.getByTestId('paused-indicator')).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('phone-more.png') })
+  await expectTouchTargets(more.getByRole('button'))
+  await expect(more.getByRole('button', { name: /^(Mute|Unmute) sound$/ })).toBeVisible()
+  await expect(more.getByRole('button', { name: 'Display and accessibility settings', exact: true })).toBeVisible()
+  await expect(more.getByRole('button', { name: 'Keyboard shortcuts', exact: true })).toBeVisible()
+  await activate(more.getByRole('button', { name: 'Close More', exact: true }))
+  await expect(more).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'More', exact: true })).toBeFocused()
+  await page.locator('canvas').first().focus()
+  await page.keyboard.press('f')
+  await expect(more).toBeVisible()
+  await expect(more.getByTestId('table-span-7')).toBeVisible()
+  await activate(more.getByRole('button', { name: 'Close More', exact: true }))
+}
+
 async function assertBuiltStructure(page: Page, activate: (locator: Locator) => Promise<void>): Promise<void> {
-  await activate(page.getByRole('button', { name: 'Inventory' }))
+  await openTowerAction(page, 'Inventory', activate)
   const floorOne = page.getByRole('list', { name: 'Items on 1' })
   await expect(floorOne.getByText('Floor', { exact: true })).toBeVisible()
   await expect(floorOne.getByText('Office (S)', { exact: true })).toBeVisible()
