@@ -41,7 +41,8 @@ export interface FloorUnitIndex {
 }
 
 export interface TowerGeometry {
-  segments(state: EngineState, cached?: boolean): Map<number, Segment[]>
+  /** Walkable runs per floor. Caching, if any, is the implementation's own business. */
+  segments(state: EngineState): Map<number, Segment[]>
   segmentOf(state: EngineState, floor: number, x: number): Segment | null
   /** Horizontal distance between points or inclusive tile footprints. */
   distance(a: HorizontalPosition, b: HorizontalPosition): number
@@ -206,7 +207,7 @@ function createUnitIndex(): FloorUnitIndex {
 }
 
 export const oneDimensionalGeometry: TowerGeometry = {
-  segments: (state, cached = true) => cached ? getSegments(state) : floorSegments(state),
+  segments: getSegments,
   segmentOf: segmentContaining,
   distance,
   adjacent(a, b, horizontalReach) {

@@ -67,7 +67,6 @@ describe('one-dimensional TowerGeometry', () => {
     const state = seededState()
     const expectedSegments = legacySegments(state)
     expect(geometry.segments(state)).toEqual(expectedSegments)
-    expect(geometry.segments(state, false)).toEqual(expectedSegments)
     const rng = createRng(60123)
     for (let i = 0; i < 300; i++) {
       const a = state.units[Math.floor(rng.next() * state.units.length)]!
@@ -152,15 +151,15 @@ describe('one-dimensional TowerGeometry', () => {
     }
   })
 
-  it('retains structure-version invalidation and fresh segment extraction', () => {
+  it('retains structure-version invalidation', () => {
     const state = makeTestState()
     state.grid.slab[tileIndex(0, 3)] = 1
     const first = geometry.segments(state)
     state.grid.slab[tileIndex(0, 4)] = 1
     expect(geometry.segments(state)).toBe(first)
-    expect(geometry.segments(state, false).get(0)).toEqual([{ floor: 0, x0: 3, x1: 4 }])
     state.structureVersion++
     expect(geometry.segments(state)).not.toBe(first)
+    expect(geometry.segments(state).get(0)).toEqual([{ floor: 0, x0: 3, x1: 4 }])
     expect(geometry.segmentOf(state, 0, 4)).toEqual({ floor: 0, x0: 3, x1: 4 })
   })
 
