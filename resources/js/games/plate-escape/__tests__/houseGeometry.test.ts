@@ -31,11 +31,11 @@ test.each(decalPanels)('level %i %s decal %s fits its panel, clears puzzle parts
   const level = LEVELS.find((candidate) => candidate.id === levelId)!
   const plate = level.plates.find((candidate) => candidate.id === plateId)!
   const details = decoratePlate(plate, 0, level.screws, levelId)
-  const decals = details.children.filter((child) => child.name.startsWith('harbor-decal:'))
+  const decals = details.children.filter((child) => child.name.startsWith('campaign-decal:'))
   expect(decals).toHaveLength(1)
   const decal = decals[0] as THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
   expect(decal).toBeInstanceOf(THREE.Mesh)
-  expect(decal.name).toBe(`harbor-decal:${name}`)
+  expect(decal.name).toBe(`campaign-decal:${name}`)
   expect(decal.parent).toBe(details)
   expect(decal.position.z).toBeCloseTo(0.145)
   const { width, height } = decal.geometry.parameters
@@ -118,7 +118,7 @@ test.each(decalPanels)('level %i %s decal %s fits its panel, clears puzzle parts
   }
   for (const other of level.plates.filter((candidate) => candidate.id !== plateId)) {
     const unrelated = decoratePlate(other, 0, level.screws, levelId)
-    expect(unrelated.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
+    expect(unrelated.children.some((child) => child.name.startsWith('campaign-decal:'))).toBe(false)
     disposeObject(unrelated)
   }
   const wrongFinish = decoratePlate({ ...plate, finish: 'glass' }, 0, level.screws, levelId)
@@ -140,7 +140,7 @@ test.each(decalPanels.filter(([levelId]) => levelId >= 16))('level %i %s decal %
     panel.add(createPlateMesh(plate, level.screws.filter((screw) => screw.plate === plate.id)), details)
     assembly.add(panel)
     if (plate.id === plateId) {
-      decal = details.children.find((child) => child.name.startsWith('harbor-decal:')) as THREE.Mesh<THREE.PlaneGeometry>
+      decal = details.children.find((child) => child.name.startsWith('campaign-decal:')) as THREE.Mesh<THREE.PlaneGeometry>
       paintedPanel = panel
     }
   }
@@ -158,7 +158,7 @@ test.each(decalPanels.filter(([levelId]) => levelId >= 16))('level %i %s decal %
     assembly.traverse((object) => {
       // Lines behind the paint are decorative strokes; raised mesh details
       // (especially the signal-box brace/ledges) really can hide a decal.
-      if (object instanceof THREE.Mesh && !object.name.startsWith('harbor-decal:')) {
+      if (object instanceof THREE.Mesh && !object.name.startsWith('campaign-decal:')) {
         // Some scenery disables selection raycasts. Use its actual rendered
         // triangles with a normal mesh raycast when checking visibility.
         const rendered = new THREE.Mesh(object.geometry, object.material)

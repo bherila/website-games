@@ -22,7 +22,7 @@ import toyEngine16Url from './assets/toy-engine-16.webp'
 import wheelRideUrl from './assets/wheel-ride.webp'
 import type { Plate } from './level'
 
-interface HarborDecal {
+interface CampaignDecal {
   level: number
   plate: string
   finish: Plate['finish']
@@ -32,7 +32,7 @@ interface HarborDecal {
   position: readonly [number, number]
 }
 
-const DECALS: readonly HarborDecal[] = [
+const DECALS: readonly CampaignDecal[] = [
   // PIP: x=-.85..-.53, outside the bait flap's x=-.5..+.5 sweep and
   // the transom head at (0, -.2), whose rim radius is .245.
   { level: 11, plate: 'transom', finish: 'hull', name: 'pip', url: boatNameUrl, size: [0.32, 0.19], position: [-0.69, -0.42] },
@@ -107,14 +107,14 @@ const DECALS: readonly HarborDecal[] = [
 ]
 
 /** Painted planes belong to their panel, but never take part in selection or covers. */
-export function decorateHarborPlate(details: THREE.Group, plate: Plate, levelId?: number): void {
+export function decorateCampaignPlate(details: THREE.Group, plate: Plate, levelId?: number): void {
   const spec = DECALS.find((candidate) => candidate.level === levelId && candidate.plate === plate.id && candidate.finish === plate.finish)
   if (!spec) return
 
   const texture = typeof document === 'undefined' ? new THREE.Texture() : new THREE.TextureLoader().load(spec.url)
   texture.colorSpace = THREE.SRGBColorSpace
   const decal = new THREE.Mesh(new THREE.PlaneGeometry(spec.size[0], spec.size[1]), new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false }))
-  decal.name = `harbor-decal:${spec.name}`
+  decal.name = `campaign-decal:${spec.name}`
   decal.position.set(spec.position[0], spec.position[1], 0.145)
   decal.raycast = () => {}
   details.add(decal)
