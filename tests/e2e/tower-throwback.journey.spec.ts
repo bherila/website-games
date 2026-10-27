@@ -57,6 +57,7 @@ test.describe('Tower Throwback real player journey', () => {
       await assertCompactPhoneHud(page, activate)
       await activate(page.getByRole('button', { name: /Getting started/ }))
     } else {
+      await expect(page.getByTestId('save-health-row')).toHaveCSS('min-height', '0px')
       await expect(page.getByRole('button', { name: /^Financials/ })).toBeVisible()
       await expect(page.getByRole('button', { name: 'More', exact: true })).toHaveCount(0)
     }
@@ -155,6 +156,7 @@ async function expectTouchTargets(controls: Locator): Promise<void> {
 
 async function assertCompactPhoneHud(page: Page, activate: (locator: Locator) => Promise<void>): Promise<void> {
   expect(page.viewportSize()).toEqual({ width: 375, height: 812 })
+  await expect(page.getByTestId('save-health-row')).toHaveCSS('min-height', '26px')
   const guide = page.getByRole('button', { name: /Getting started/ })
   await expect(guide).toHaveAttribute('aria-expanded', 'false')
   await expect(page.getByRole('button', { name: /^Financials/ })).toHaveCount(0)
