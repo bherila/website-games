@@ -69,8 +69,10 @@ test.describe('Tower Throwback draw-call budget', () => {
         key: SANDBOX_STORAGE_KEY,
         saved: JSON.stringify({ ...largeTower, speed: 0, clock: { ...largeTower.clock, minute: time === 'day' ? 720 : 60 } }),
       })
+      const atlasResponse = page.waitForResponse((response) => /\/style-gate(?:-[^/]+)?\.webp(?:\?.*)?$/.test(response.url()))
       await page.goto('/tower-throwback?renderStats=1')
       await page.getByTestId('resume-autosave').click()
+      expect((await atlasResponse).ok()).toBe(true)
       await expect(page.locator('canvas').first()).toBeVisible()
       await expect(page.getByTestId('speed-0')).toHaveAttribute('aria-pressed', 'true')
 
