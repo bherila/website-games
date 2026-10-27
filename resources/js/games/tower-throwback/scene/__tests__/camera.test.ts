@@ -153,5 +153,7 @@ describe('camera fit', () => {
 
     expect(Number.isFinite(rig.halfHeight)).toBe(true)
     expect(cameraViewport(rig).maxFloor).toBeGreaterThanOrEqual(2)
+    expect(rig.camera.position.x + rig.camera.left / rig.camera.zoom).toBeLessThanOrEqual(rig.extents.minX)
+    expect(rig.camera.position.x + rig.camera.right / rig.camera.zoom).toBeGreaterThanOrEqual(rig.extents.maxX)
   })
 })

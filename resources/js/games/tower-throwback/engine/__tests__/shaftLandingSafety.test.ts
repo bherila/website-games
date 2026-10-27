@@ -94,6 +94,24 @@ describe('express landing safety', () => {
     expect(state.units).toHaveLength(before)
     expect(shaft.stops).toEqual([0, 5, 6, 7, 10])
   })
+
+  it('includes retained legacy stops when validating a later skylobby', () => {
+    const state = makeTestState()
+    stackedFloors(state, 7, [5, 6], 42)
+    placeSlabRow(state, 8, 0, 29)
+    placeSlabRow(state, 9, 0, 29)
+    for (let floor = 0; floor <= 9; floor++) place(state, floor === 7 ? 'skylobby' : 'slab', floor, 50, 12)
+    placeShaft(state, 'express', 20, 0, 9)
+    const shaft = state.shafts[0]!
+    // The older global-floor rule added this disconnected skylobby's stop.
+    shaft.stops = [0, 5, 6, 7, 9]
+    shaft.enabledStops = [...shaft.stops]
+    const before = state.units.length
+    const command = { type: 'place', kind: 'skylobby', floor: 8, x: 30, widthTiles: 12 } as const
+    expect(stepEngine(state, [command], 0)).toContainEqual(expect.objectContaining({ type: 'placementRejected', reason: 'Express Elevator can serve at most 5 stops' }))
+    expect(state.units).toHaveLength(before)
+    expect(shaft.stops).toEqual([0, 5, 6, 7, 9])
+  })
 })
 
 describe('landing support demolition', () => {
