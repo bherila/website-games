@@ -1,0 +1,391 @@
+/**
+ * Tower 2 prototype: draw floor plates, corridors, cores and rooms, one
+ * isometric floor at a time, and watch visitors use them. It answers one
+ * question — is drawing floors fun? — so it has no economy or stars yet.
+ */
+import {
+  ArrowLeft, ArrowUpDown, Bed, Briefcase, Building, ChevronDown, ChevronUp, CircleDashed, Coffee, Copy, Eraser, Footprints, Hand,
+  Layers, Maximize, MousePointer2, Pencil, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, ShoppingBag, Square, Star, Sun, Trash,
+  TriangleAlert, Undo2, Users, ZoomIn, ZoomOut,
+} from 'lucide-react'
+import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import { hexColor } from '../_shared/three/threeUtils'
+import { type Building as BuildingModel, type EditResult, FLOOR_COUNT } from './engine/building'
+import { USES } from './engine/uses'
+import { isUseTool, type ToolId, TOOLS } from './interaction'
+import type { OverlayKind } from './scene/Tower2Renderer'
+import { type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
+import { useWorld } from './useWorld'
+
+const SQUARE_METRES_PER_TILE = 9
+const MESSAGE_MS = 2600
+
+const TOOL_ICONS: Record<ToolId, typeof Square> = {
+  select: MousePointer2,
+  plate: Square,
+  erase: Eraser,
+  atrium: CircleDashed,
+  corridor: Route,
+  core: ArrowUpDown,
+  studio: Bed,
+  office: Briefcase,
+  shop: ShoppingBag,
+  cafe: Coffee,
+}
+
+const PANEL = 'rounded-2xl bg-slate-950/80 text-white shadow-lg shadow-black/30 ring-1 ring-white/10 backdrop-blur-md'
+const ICON_BUTTON_BASE = 'grid h-10 w-10 place-items-center rounded-xl disabled:opacity-35 disabled:hover:bg-transparent'
+const ICON_BUTTON = `${ICON_BUTTON_BASE} text-white/90 hover:bg-white/15`
+const ICON_BUTTON_ON = `${ICON_BUTTON_BASE} bg-white text-slate-950`
+
+function floorName(floor: number): string {
+  return floor === 0 ? 'Street floor' : `Floor ${floor}`
+}
+
+function Stars({ count }: { count: number }): ReactElement {
+  return (
+    <span role="img" aria-label={`${count} of 3 stars`} className="inline-flex gap-0.5">
+      {[0, 1, 2].map((i) => <Star key={i} size={14} aria-hidden="true" className={i < count ? 'fill-yellow-300 text-yellow-300' : 'text-white/30'} />)}
+    </span>
+  )
+}
+
+function Segmented<T extends string>({ value, options, onChange, label }: { value: T, options: { value: T, label: string, icon: ReactNode }[], onChange: (value: T) => void, label: string }): ReactElement {
+  return (
+    <div role="group" aria-label={label} className="flex rounded-xl bg-white/10 p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
+          className={`flex h-9 items-center gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold ${value === option.value ? 'bg-white text-slate-950' : 'text-white/85 hover:bg-white/10'}`}
+        >
+          {option.icon}
+          <span className="hidden sm:inline">{option.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function Tower2Game(): ReactElement {
+  const history = useWorld()
+  const { world } = history
+  const [tool, setTool] = useState<ToolId>('plate')
+  const [rotated, setRotated] = useState(false)
+  const [activeFloor, setActiveFloor] = useState(0)
+  const [overlay, setOverlay] = useState<OverlayKind>('none')
+  const [exterior, setExterior] = useState(false)
+  const [selection, setSelection] = useState<Selection>(null)
+  const [touchMode, setTouchMode] = useState<'draw' | 'move'>('draw')
+  const [hint, setHint] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [visitors, setVisitors] = useState(0)
+  const controlsRef = useRef<SceneControls>(null)
+  const messageTimerRef = useRef<number | undefined>(undefined)
+
+  const say = useCallback((text: string) => {
+    setMessage(text)
+    window.clearTimeout(messageTimerRef.current)
+    messageTimerRef.current = window.setTimeout(() => setMessage(null), MESSAGE_MS)
+  }, [])
+  useEffect(() => () => window.clearTimeout(messageTimerRef.current), [])
+
+  const apply = useCallback((commit: (building: BuildingModel) => EditResult) => {
+    const result = history.apply(commit)
+    if (!result.ok) say(result.reason)
+    return result
+  }, [history, say])
+
+  // Derived HUD numbers; `world` gets a new identity on every change to the building.
+  const summary = useMemo(() => {
+    const { building, analysis } = world
+    const ratings = building.allRooms().map((room) => ({ room, rating: analysis.rate(room) }))
+    const unreachable = ratings.filter(({ rating }) => !rating.reachable).length
+    const meanStars = ratings.length ? ratings.reduce((sum, { rating }) => sum + rating.stars, 0) / ratings.length : 0
+    const floors = Array.from({ length: FLOOR_COUNT }, (_, floor) => ({
+      area: building.plateArea(floor),
+      overhang: building.overhangCount(floor),
+      rooms: building.roomsOn(floor).length,
+    }))
+    return { ratings, unreachable, meanStars, floors, hasEntrance: building.entrance() !== null }
+  }, [world])
+
+  const selected = useMemo(() => {
+    const { building, analysis } = world
+    if (selection?.kind === 'room') {
+      const room = building.room(selection.id)
+      return room ? { kind: 'room' as const, room, rating: analysis.rate(room) } : null
+    }
+    if (selection?.kind === 'core') {
+      const core = building.core(selection.id)
+      return core ? { kind: 'core' as const, core } : null
+    }
+    return null
+  }, [world, selection])
+
+  const removeSelected = useCallback(() => {
+    if (selected?.kind === 'room') apply((building) => building.removeRoom(selected.room.id))
+    if (selected?.kind === 'core') apply((building) => building.removeCore(selected.core.id))
+    setSelection(null)
+  }, [apply, selected])
+
+  const stepFloor = useCallback((delta: number) => {
+    setActiveFloor((floor) => Math.min(FLOOR_COUNT - 1, Math.max(0, floor + delta)))
+  }, [])
+
+  const inherit = useCallback(() => {
+    const result = apply((building) => building.inheritFloorBelow(activeFloor))
+    if (result.ok) say(`${floorName(activeFloor)} now matches the floor below`)
+  }, [apply, activeFloor, say])
+
+  const chooseTool = useCallback((next: ToolId) => {
+    setTool(next)
+    if (next !== 'select') setSelection(null)
+  }, [])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return
+      const key = event.key.toLowerCase()
+      if ((event.metaKey || event.ctrlKey) && key === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) history.redo()
+        else history.undo()
+        return
+      }
+      if ((event.metaKey || event.ctrlKey) && key === 'y') {
+        event.preventDefault()
+        history.redo()
+        return
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const toolForKey = TOOLS.find((candidate) => candidate.key === key)
+      if (toolForKey) chooseTool(toolForKey.id)
+      else if (key === 'pageup' || (key === 'arrowup' && event.shiftKey)) stepFloor(1)
+      else if (key === 'pagedown' || (key === 'arrowdown' && event.shiftKey)) stepFloor(-1)
+      else if (key === 'q') controlsRef.current?.rotate(-1)
+      else if (key === 'e') controlsRef.current?.rotate(1)
+      else if (key === 'r') setRotated((value) => !value)
+      else if (key === 'o') setOverlay((value) => (value === 'none' ? 'light' : value === 'light' ? 'walk' : 'none'))
+      else if (key === 'x') setExterior((value) => !value)
+      else if (key === 'i') inherit()
+      else if (key === 'escape') {
+        chooseTool('select')
+        setSelection(null)
+      } else if ((key === 'delete' || key === 'backspace') && selection) removeSelected()
+      else return
+      event.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [history, chooseTool, stepFloor, inherit, removeSelected, selection])
+
+  const floorStats = summary.floors[activeFloor]!
+  const currentTool = TOOLS.find((candidate) => candidate.id === tool)!
+
+  return (
+    <div className="fixed inset-0 overflow-hidden text-white" style={{ background: 'radial-gradient(120% 90% at 30% 10%, #3b2a8a 0%, #1d1650 45%, #0d0a26 100%)' }}>
+      <Tower2Scene
+        world={world}
+        activeFloor={activeFloor}
+        tool={tool}
+        rotated={rotated}
+        overlay={overlay}
+        exterior={exterior}
+        selection={selection}
+        touchMode={touchMode}
+        onApply={apply}
+        onSelect={setSelection}
+        onHint={setHint}
+        onVisitors={setVisitors}
+        controlsRef={controlsRef}
+      />
+
+      {/* Top bar */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className={`${PANEL} pointer-events-auto flex items-center gap-1 py-1 pl-1 pr-3`}>
+          <a href="/" aria-label="All games" className={ICON_BUTTON}><ArrowLeft size={20} aria-hidden="true" /></a>
+          <h1 className="text-base font-black tracking-tight">Tower <span className="text-fuchsia-300">2</span></h1>
+          <span className="ml-1 hidden rounded-full bg-fuchsia-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fuchsia-200 min-[400px]:inline">Prototype</span>
+        </div>
+        <div className={`${PANEL} pointer-events-auto flex items-center gap-0.5 p-1`}>
+          <button type="button" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" className={ICON_BUTTON} disabled={!history.canUndo} onClick={history.undo}><Undo2 size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Redo (Ctrl+Shift+Z)" title="Redo (Ctrl+Shift+Z)" className={ICON_BUTTON} disabled={!history.canRedo} onClick={history.redo}><Redo2 size={18} aria-hidden="true" /></button>
+        </div>
+        <div className={`${PANEL} pointer-events-auto p-1`}>
+          <Segmented
+            label="Overlay (O)"
+            value={overlay}
+            onChange={setOverlay}
+            options={[
+              { value: 'none', label: 'Plan', icon: <Layers size={16} aria-hidden="true" /> },
+              { value: 'light', label: 'Light', icon: <Sun size={16} aria-hidden="true" /> },
+              { value: 'walk', label: 'Walk', icon: <Footprints size={16} aria-hidden="true" /> },
+            ]}
+          />
+        </div>
+        <div className={`${PANEL} pointer-events-auto flex items-center gap-0.5 p-1`}>
+          <button type="button" aria-label="Turn view left (Q)" title="Turn view left (Q)" className={ICON_BUTTON} onClick={() => controlsRef.current?.rotate(-1)}><RotateCcw size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Turn view right (E)" title="Turn view right (E)" className={ICON_BUTTON} onClick={() => controlsRef.current?.rotate(1)}><RotateCw size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Zoom in" title="Zoom in (Ctrl+scroll)" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => controlsRef.current?.zoom(1.25)}><ZoomIn size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Zoom out" title="Zoom out (Ctrl+scroll)" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => controlsRef.current?.zoom(0.8)}><ZoomOut size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Frame the building" title="Frame the building" className={ICON_BUTTON} onClick={() => controlsRef.current?.frame()}><Maximize size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Exterior view (X)" title="Exterior view (X)" aria-pressed={exterior} className={exterior ? ICON_BUTTON_ON : ICON_BUTTON} onClick={() => setExterior((value) => !value)}><Building size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Start over from the starter lot" title="Start over" className={ICON_BUTTON} onClick={() => { history.reset(); setSelection(null); say('Back to the starter lot. Undo brings your plan back.') }}><RefreshCcw size={18} aria-hidden="true" /></button>
+        </div>
+      </header>
+
+      {/* Hint and messages */}
+      {/* The header wraps to two rows below the lg breakpoint. */}
+      <div aria-live="polite" className="pointer-events-none absolute inset-x-0 top-[calc(max(0.5rem,env(safe-area-inset-top))+7rem)] flex flex-col items-center gap-1.5 px-4 lg:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)]">
+        {message && <p className="rounded-full bg-rose-500/90 px-3 py-1 text-center text-xs font-semibold shadow">{message}</p>}
+        <p data-testid="tower2-hint" className="rounded-full bg-slate-950/70 px-3 py-1 text-center text-xs text-white/85">{hint ?? currentTool.hint}</p>
+        {overlay !== 'none' && (
+          <div className={`${PANEL} px-3 py-1.5 text-[11px]`}>
+            {overlay === 'light'
+              ? <span className="flex items-center gap-2">Deep plan <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#1f3b8a,#6f8ff0,#ffd84d,#fff3a0)' }} /> By a window</span>
+              : <span className="flex items-center gap-2">Near a core <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#22c55e,#eab308,#ef4444)' }} /> Far · grey: no core</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Tools */}
+      <nav aria-label="Build tools" className={`${PANEL} absolute bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-1/2 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 gap-0.5 overflow-x-auto p-1 md:bottom-auto md:left-3 md:top-1/2 md:max-h-[calc(100vh-8rem)] md:-translate-y-1/2 md:translate-x-0 md:flex-col md:overflow-y-auto`}>
+        {TOOLS.map((candidate) => {
+          const Icon = TOOL_ICONS[candidate.id]
+          const swatch = isUseTool(candidate.id) ? hexColor(USES[candidate.id].color) : null
+          const active = tool === candidate.id
+          return (
+            <button
+              key={candidate.id}
+              type="button"
+              aria-pressed={active}
+              aria-label={`${candidate.label} (${candidate.key})`}
+              title={`${candidate.hint} (${candidate.key})`}
+              onClick={() => chooseTool(candidate.id)}
+              className={`relative flex min-w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold md:min-w-0 md:flex-row md:gap-2 md:px-2.5 ${active ? 'bg-white text-slate-950' : 'text-white/85 hover:bg-white/10'}`}
+            >
+              <Icon size={18} aria-hidden="true" style={swatch ? { color: active ? swatch : undefined } : undefined} />
+              {swatch && <span aria-hidden="true" className="absolute right-1 top-1 h-2 w-2 rounded-full md:static md:order-last md:ml-auto" style={{ background: swatch }} />}
+              <span className="whitespace-nowrap">{candidate.label}</span>
+              <kbd className="hidden rounded bg-black/20 px-1 text-[10px] font-medium md:inline">{candidate.key}</kbd>
+            </button>
+          )
+        })}
+        {isUseTool(tool) && (
+          <button type="button" onClick={() => setRotated((value) => !value)} aria-pressed={rotated} title="Turn the room (R)" className="flex min-w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/10 md:flex-row md:gap-2">
+            <RotateCw size={18} aria-hidden="true" />
+            <span className="whitespace-nowrap">Turn</span>
+            <kbd className="hidden rounded bg-black/20 px-1 text-[10px] font-medium md:inline">R</kbd>
+          </button>
+        )}
+        <div className="flex shrink-0 md:hidden" role="group" aria-label="One finger">
+          <button type="button" aria-pressed={touchMode === 'draw'} onClick={() => setTouchMode('draw')} className={`flex min-w-14 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold ${touchMode === 'draw' ? 'bg-fuchsia-400 text-slate-950' : 'text-white/85'}`}><Pencil size={18} aria-hidden="true" />Draw</button>
+          <button type="button" aria-pressed={touchMode === 'move'} onClick={() => setTouchMode('move')} className={`flex min-w-14 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold ${touchMode === 'move' ? 'bg-fuchsia-400 text-slate-950' : 'text-white/85'}`}><Hand size={18} aria-hidden="true" />Move</button>
+        </div>
+      </nav>
+
+      {/* Floors */}
+      <nav aria-label="Floors" className={`${PANEL} absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-0.5 p-1 sm:right-3`}>
+        <button type="button" aria-label="Floor up (Page Up)" title="Floor up (Page Up)" className={ICON_BUTTON} disabled={activeFloor >= FLOOR_COUNT - 1} onClick={() => stepFloor(1)}><ChevronUp size={18} aria-hidden="true" /></button>
+        {Array.from({ length: FLOOR_COUNT }, (_, i) => FLOOR_COUNT - 1 - i).map((floor) => (
+          <button
+            key={floor}
+            type="button"
+            aria-pressed={floor === activeFloor}
+            aria-label={`${floorName(floor)}${summary.floors[floor]!.area > 0 ? '' : ', empty'}`}
+            onClick={() => setActiveFloor(floor)}
+            className={`relative grid h-9 w-10 place-items-center rounded-lg text-sm font-bold tabular-nums ${floor === activeFloor ? 'bg-white text-slate-950' : 'text-white/80 hover:bg-white/10'}`}
+          >
+            {floor === 0 ? 'G' : floor}
+            {summary.floors[floor]!.area > 0 && <span aria-hidden="true" className={`absolute right-1 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${floor === activeFloor ? 'bg-fuchsia-500' : 'bg-cyan-300/80'}`} />}
+          </button>
+        ))}
+        <button type="button" aria-label="Floor down (Page Down)" title="Floor down (Page Down)" className={ICON_BUTTON} disabled={activeFloor <= 0} onClick={() => stepFloor(-1)}><ChevronDown size={18} aria-hidden="true" /></button>
+        <div className="my-0.5 h-px w-8 bg-white/15" />
+        <button type="button" aria-label="Copy the floor below's outline (I)" title="Copy the floor below's outline (I)" className={ICON_BUTTON} disabled={activeFloor === 0} onClick={inherit}><Copy size={18} aria-hidden="true" /></button>
+      </nav>
+
+      {/* Stats */}
+      <section aria-label="Building summary" className={`${PANEL} absolute bottom-[calc(max(0.5rem,env(safe-area-inset-bottom))+4.75rem)] left-2 w-44 p-2.5 text-xs sm:left-3 sm:w-56 sm:p-3 md:bottom-3 md:left-auto md:right-16`}>
+        <h2 className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-white/60">{floorName(activeFloor)}</h2>
+        <dl className="hidden grid-cols-[1fr_auto] gap-x-3 gap-y-1 sm:grid">
+          <dt className="text-white/70">Floor area</dt>
+          <dd data-testid="tower2-floor-area" className="text-right font-semibold tabular-nums">{(floorStats.area * SQUARE_METRES_PER_TILE).toLocaleString()} m²</dd>
+          {activeFloor > 0 && (
+            <>
+              <dt className="text-white/70">Cantilevered</dt>
+              <dd className={`text-right font-semibold tabular-nums ${floorStats.overhang > 0 ? 'text-pink-300' : ''}`}>{floorStats.overhang} tiles</dd>
+            </>
+          )}
+          <dt className="text-white/70">Rooms here</dt>
+          <dd className="text-right font-semibold tabular-nums">{floorStats.rooms}</dd>
+        </dl>
+        <div className="my-2 hidden h-px bg-white/10 sm:block" />
+        <dl className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
+          <dt className="text-white/70">Rooms</dt>
+          <dd data-testid="tower2-room-count" className="text-right font-semibold tabular-nums">{summary.ratings.length}</dd>
+          <dt className="text-white/70">Average rating</dt>
+          <dd className="text-right"><Stars count={Math.round(summary.meanStars)} /></dd>
+          <dt className="flex items-center gap-1 text-white/70"><Users size={13} aria-hidden="true" />Visitors</dt>
+          <dd data-testid="tower2-visitors" className="text-right font-semibold tabular-nums">{visitors}</dd>
+        </dl>
+        {(!summary.hasEntrance || summary.unreachable > 0) && (
+          <ul className="mt-2 space-y-1 text-[11px] text-amber-200">
+            {!summary.hasEntrance && <li className="flex gap-1"><TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />Draw a street-floor corridor: its tile nearest the street is the entrance.</li>}
+            {summary.unreachable > 0 && <li className="flex gap-1"><TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />{summary.unreachable} {summary.unreachable === 1 ? 'room has' : 'rooms have'} no route from the street.</li>}
+          </ul>
+        )}
+      </section>
+
+      {/* Inspect */}
+      {selected && (
+        <section aria-label="Selection" className={`${PANEL} absolute right-16 top-[calc(max(0.5rem,env(safe-area-inset-top))+6rem)] w-60 p-3 text-xs sm:right-20`}>
+          {selected.kind === 'room' ? (
+            <>
+              <div className="mb-1 flex items-center gap-2">
+                <span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ background: hexColor(USES[selected.room.use].color) }} />
+                <h2 className="text-sm font-bold">{USES[selected.room.use].label}</h2>
+                <span className="ml-auto"><Stars count={selected.rating.stars} /></span>
+              </div>
+              <p className="mb-2 text-white/60">{floorName(selected.room.floor)} · {selected.room.width}×{selected.room.depth} tiles · wants {USES[selected.room.use].wants.toLowerCase()}</p>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
+                <dt className="text-white/70">Daylight</dt>
+                <dd className="text-right font-semibold tabular-nums">{Math.round(selected.rating.light * 100)}%</dd>
+                <dt className="text-white/70">Walk to a core</dt>
+                <dd className="text-right font-semibold tabular-nums">{Number.isFinite(selected.rating.walk) ? `${selected.rating.walk * 3} m` : 'No core'}</dd>
+              </dl>
+              {selected.rating.notes.length > 0 && <ul className="mt-2 list-disc space-y-0.5 pl-4 text-amber-200">{selected.rating.notes.map((note) => <li key={note}>{note}</li>)}</ul>}
+            </>
+          ) : (
+            <>
+              <h2 className="mb-1 text-sm font-bold">Core</h2>
+              <p className="mb-2 text-white/60">Elevators, a stair and a riser. It stops on every floor it spans.</p>
+              {(['top', 'bottom'] as const).map((end) => {
+                const core = selected.core
+                const value = end === 'top' ? core.topFloor : core.bottomFloor
+                const resize = (delta: number) => apply((building) => end === 'top'
+                  ? building.resizeCore(core.id, core.bottomFloor, core.topFloor + delta)
+                  : building.resizeCore(core.id, core.bottomFloor + delta, core.topFloor))
+                return (
+                  <div key={end} className="flex items-center justify-between py-0.5">
+                    <span className="text-white/70">{end === 'top' ? 'Top floor' : 'Bottom floor'}</span>
+                    <span className="flex items-center gap-1">
+                      <button type="button" aria-label={`Lower the ${end}`} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/15" onClick={() => resize(-1)}><ChevronDown size={16} aria-hidden="true" /></button>
+                      <span className="w-6 text-center font-bold tabular-nums">{value === 0 ? 'G' : value}</span>
+                      <button type="button" aria-label={`Raise the ${end}`} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/15" onClick={() => resize(1)}><ChevronUp size={16} aria-hidden="true" /></button>
+                    </span>
+                  </div>
+                )
+              })}
+            </>
+          )}
+          <button type="button" onClick={removeSelected} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-500/90 py-2 font-semibold hover:bg-rose-500"><Trash size={14} aria-hidden="true" />Remove</button>
+        </section>
+      )}
+    </div>
+  )
+}

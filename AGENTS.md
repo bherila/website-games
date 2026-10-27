@@ -7,7 +7,7 @@ source of truth and is harness-agnostic — do not add a `CLAUDE.md`; point othe
 
 A small collection of browser games (2048, Block Blaster, Chick's Challenge, Hover,
 Marble Sort, Marble Works, Math Horde, Parking Pickup, Plate Escape, Tower Throwback) served from
-`games.bherila.net`.
+`games.bherila.net`, plus the unlisted Tower 2 prototype at `/tower-2` (see `docs/games/tower-2.md`).
 Laravel 13 (PHP 8.5) + Vite + React 19 / TypeScript, with an authenticated cloud-save API.
 
 - `resources/js/games/**` — one Vite entrypoint per game, plus shared `_shared/` and `pwa/`.

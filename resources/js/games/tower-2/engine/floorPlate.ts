@@ -20,6 +20,15 @@ export interface VerticalFootprint {
   topFloor: number
 }
 
+/** Plain-data copy for saves and undo; tile lists are row-major indices per floor. */
+export interface FloorPlateSnapshot {
+  width: number
+  depth: number
+  plates: { floor: number, tiles: number[] }[]
+  utilities: { floor: number, tiles: number[] }[]
+  verticals: VerticalFootprint[]
+}
+
 type FloorEdits = Map<number, Uint8Array>
 
 /**
@@ -116,19 +125,47 @@ export class FloorPlateModel {
   }
 
   placeVerticalFootprint(footprint: VerticalFootprint): void {
-    this.validateFootprint(footprint)
     if (this.verticals.has(footprint.id)) throw new RangeError('Vertical footprint id already exists')
-    for (const other of this.verticals.values()) {
-      // Stacked ranges may reuse the same tiles; a shared floor may not.
-      if (footprint.bottomFloor <= other.topFloor && other.bottomFloor <= footprint.topFloor
-        && footprint.x < other.x + other.width && other.x < footprint.x + footprint.width
-        && footprint.y < other.y + other.depth && other.y < footprint.y + footprint.depth) {
-        throw new RangeError(`Vertical footprint ${footprint.id} overlaps ${other.id}`)
-      }
-    }
-    this.requirePlateCoverage(footprint)
-    if (footprint.kind === 'core') floorNumber(footprint.bottomFloor - 1)
+    this.validatePlacement(footprint)
     this.verticals.set(footprint.id, { ...footprint })
+  }
+
+  /** Move a footprint's floor range in place, keeping its placement order; validates first. */
+  resizeVerticalFootprint(id: string, bottomFloor: number, topFloor: number): void {
+    const current = this.verticals.get(id)
+    if (!current) throw new RangeError('Unknown vertical footprint')
+    const resized = { ...current, bottomFloor, topFloor }
+    this.validatePlacement(resized)
+    this.verticals.set(id, resized)
+  }
+
+  /** Every footprint, in placement order. */
+  verticalFootprints(): VerticalFootprint[] {
+    return [...this.verticals.values()].map((vertical) => ({ ...vertical }))
+  }
+
+  snapshot(): FloorPlateSnapshot {
+    const tilesOf = (masks: Map<number, Uint8Array>) => [...masks.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([floor, mask]) => {
+        const tiles: number[] = []
+        for (let index = 0; index < mask.length; index++) if (mask[index] === 1) tiles.push(index)
+        return { floor, tiles }
+      })
+    return { width: this.width, depth: this.depth, plates: tilesOf(this.plates), utilities: tilesOf(this.utilities), verticals: this.verticalFootprints() }
+  }
+
+  /** Rebuild through the public edit rules, so a tampered snapshot cannot bypass validation. */
+  static fromSnapshot(snapshot: FloorPlateSnapshot): FloorPlateModel {
+    const model = new FloorPlateModel({ width: snapshot.width, depth: snapshot.depth })
+    const tilesOf = (indices: number[]) => indices.map((index) => {
+      if (!Number.isSafeInteger(index) || index < 0) throw new RangeError('Tile is outside the floor grid')
+      return { x: index % model.width, y: Math.floor(index / model.width) }
+    })
+    for (const { floor, tiles } of snapshot.plates) model.paint(floor, tilesOf(tiles))
+    for (const { floor, tiles } of snapshot.utilities) for (const tile of tilesOf(tiles)) model.setUtilityTile(floor, tile)
+    for (const vertical of snapshot.verticals) model.placeVerticalFootprint(vertical)
+    return model
   }
 
   /**
@@ -158,6 +195,21 @@ export class FloorPlateModel {
     return [...this.verticals.values()]
       .filter((vertical) => floor >= vertical.bottomFloor && floor <= vertical.topFloor)
       .map((vertical) => ({ ...vertical }))
+  }
+
+  private validatePlacement(footprint: VerticalFootprint): void {
+    this.validateFootprint(footprint)
+    for (const other of this.verticals.values()) {
+      if (other.id === footprint.id) continue
+      // Stacked ranges may reuse the same tiles; a shared floor may not.
+      if (footprint.bottomFloor <= other.topFloor && other.bottomFloor <= footprint.topFloor
+        && footprint.x < other.x + other.width && other.x < footprint.x + footprint.width
+        && footprint.y < other.y + other.depth && other.y < footprint.y + footprint.depth) {
+        throw new RangeError(`Vertical footprint ${footprint.id} overlaps ${other.id}`)
+      }
+    }
+    this.requirePlateCoverage(footprint)
+    if (footprint.kind === 'core') floorNumber(footprint.bottomFloor - 1)
   }
 
   private emptyMask(): Uint8Array {

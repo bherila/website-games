@@ -98,6 +98,9 @@ Route::get('/tower-throwback', function () {
     return view('games.tower-throwback');
 })->name('games.tower-throwback');
 
+// Unlisted prototype: not in the catalog, the PWA shell list or the sitemap.
+Route::view('/tower-2', 'games.tower-2')->name('games.tower-2');
+
 // Operator panel: application administrators only, in every environment. Guests are sent to
 // sign in; a signed-in account without the flag gets 403. Its JSON lives in routes/api.php.
 Route::get('/admin', AdminPanelController::class)
