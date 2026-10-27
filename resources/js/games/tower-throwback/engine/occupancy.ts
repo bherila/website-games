@@ -300,7 +300,7 @@ function glassTerm(state: EngineState, unit: Unit): number {
     if (unit.floor < shaft.bottomFloor || unit.floor > shaft.topFloor) {
       continue
     }
-    if (geometryFor(state).distance({ x: unit.x, width: unit.width }, { x: shaft.x, width: shaftDef('glass').width }) <= w.glassRadiusTiles) {
+    if (geometryFor(state).distance(unit, { x: shaft.x, width: shaftDef('glass').width }) <= w.glassRadiusTiles) {
       return w.glassBonus
     }
   }
