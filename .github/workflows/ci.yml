@@ -15,16 +15,21 @@ jobs:
   browser-selection:
     name: Select Gameplay Checks
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
+      mode: ${{ steps.select.outputs.mode }}
       matrix: ${{ steps.select.outputs.matrix }}
       shards: ${{ steps.select.outputs.shards }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Selection lists the tests through Playwright itself, so new tests are never omitted.
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
 
       - name: Test gameplay selection boundaries
         run: node --test scripts/__tests__/select-gameplay-tests.test.mjs
@@ -213,6 +218,8 @@ jobs:
   browser-gameplay:
     name: Gameplay Browser Checks (${{ matrix.shard }}/${{ needs.browser-selection.outputs.shards }})
     needs: [frontend-build, browser-selection]
+    # Only a PR changing nothing but docs selects no gameplay; Run Tests accepts the skip then alone.
+    if: needs.browser-selection.outputs.mode != 'none'
     strategy:
       # Finish every shard so failures retain the other runners' reports.
       fail-fast: false
@@ -220,9 +227,9 @@ jobs:
     uses: ./.github/workflows/browser-checks.yml
     with:
       script: test:e2e:gameplay
-      # Each full group already selects complete project/file units; applying
-      # Playwright's native --shard again would drop most of that group's tests.
-      grep: ${{ matrix.grep }}
+      # Each shard runs an exact, duration-balanced list of tests; applying
+      # Playwright's native --shard as well would drop most of them.
+      test_list: ${{ matrix.tests }}
       report_name: gameplay-playwright-report-${{ matrix.shard }}-of-${{ needs.browser-selection.outputs.shards }}
       reuse_frontend_build: true
 
@@ -261,7 +268,11 @@ jobs:
           check "backend-tests" "${{ needs.backend-tests.result }}"
           check "browser-pwa" "${{ needs.browser-pwa.result }}"
           # The matrix result is successful only when all gameplay shards succeed.
-          check "browser-gameplay" "${{ needs.browser-gameplay.result }}"
+          if [ "${{ needs.browser-selection.outputs.mode }}" = 'none' ]; then
+            check "browser-gameplay (docs only, skipped)" "${{ needs.browser-gameplay.result == 'skipped' && 'success' || needs.browser-gameplay.result }}"
+          else
+            check "browser-gameplay" "${{ needs.browser-gameplay.result }}"
+          fi
 
   deploy:
     name: Deploy to Production

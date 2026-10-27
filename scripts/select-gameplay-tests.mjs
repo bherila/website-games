@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Conservative PR selection: unrecognised changes always run the full suite. */
 import { execFileSync } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 // Audited UI modules have no consumers outside their game. Do not replace this
@@ -23,58 +23,18 @@ export const GAMEPLAY_GAMES = [
   },
 ]
 
-const DESKTOP = 'chromium-desktop'
-const MOBILE = 'chromium-mobile-375'
-export const GAMEPLAY_PROJECTS = [DESKTOP, MOBILE]
+export const GAMEPLAY_PROJECTS = ['chromium-desktop', 'chromium-mobile-375']
 
-// Measured on GitHub's ARM runners, then balanced by complete project/file
-// units; retain every unit, including the native mobile Tower journey. Shared
-// by CI and weekly regression; update these assignments when measured
-// durations drift. Plate Escape's campaign journeys run 5–9 minutes each per
-// project, so each arc is its own file and the groups split them
-// (2026-10-27: about 18 minutes per group against the 30-minute job limit).
-export const FULL_GAMEPLAY_GROUPS = [
-  [
-    [DESKTOP, 'tower-throwback.visual.spec.ts'],
-    [MOBILE, 'block-blaster.spec.ts'],
-    [DESKTOP, 'math-horde.spec.ts'],
-    [MOBILE, 'chicks-challenge.spec.ts'],
-    [MOBILE, 'tower-throwback.journey.spec.ts'],
-    [MOBILE, 'plate-escape-clockworks.spec.ts'],
-    [DESKTOP, 'plate-escape.spec.ts'],
-  ],
-  [
-    [MOBILE, 'tower-throwback.visual.spec.ts'],
-    [DESKTOP, 'parking-pickup.spec.ts'],
-    [DESKTOP, 'hover.spec.ts'],
-    [MOBILE, 'marble-works.spec.ts'],
-    [MOBILE, '2048.journey.spec.ts'],
-    [DESKTOP, 'plate-escape-clockworks.spec.ts'],
-    [MOBILE, 'plate-escape-harbor.spec.ts'],
-    [MOBILE, 'plate-escape-fair.spec.ts'],
-  ],
-  [
-    [MOBILE, 'parking-pickup.spec.ts'],
-    [MOBILE, 'marble-sort.spec.ts'],
-    [DESKTOP, 'block-blaster.spec.ts'],
-    [MOBILE, 'hover.spec.ts'],
-    [DESKTOP, 'tower-throwback.drawcalls.spec.ts'],
-    [DESKTOP, 'chicks-challenge.spec.ts'],
-    [MOBILE, 'plate-escape-railway.spec.ts'],
-    [MOBILE, 'plate-escape.spec.ts'],
-  ],
-  [
-    [DESKTOP, 'marble-sort.spec.ts'],
-    [DESKTOP, 'tower-throwback.journey.spec.ts'],
-    [MOBILE, 'math-horde.spec.ts'],
-    [DESKTOP, 'marble-works.spec.ts'],
-    [MOBILE, 'tower-throwback.drawcalls.spec.ts'],
-    [DESKTOP, '2048.journey.spec.ts'],
-    [DESKTOP, 'plate-escape-railway.spec.ts'],
-    [DESKTOP, 'plate-escape-harbor.spec.ts'],
-    [DESKTOP, 'plate-escape-fair.spec.ts'],
-  ],
-]
+// Shards are packed from measured per-test seconds (tests/e2e/gameplay-durations.json,
+// refreshed by scripts/update-gameplay-durations.mjs) rather than whole files: one
+// Plate Escape arc is a single 5–7 minute test, so file units left groups at 18–21
+// minutes. Each shard aims for TARGET_SHARD_SECONDS, capped so a full run leaves
+// room in the account's concurrent-job limit. A test missing from the measurements
+// is budgeted at its file's median, or UNKNOWN_TEST_SECONDS for a new file.
+export const TARGET_SHARD_SECONDS = 480
+export const MAX_SHARDS = 8
+export const UNKNOWN_TEST_SECONDS = 120
+export const DURATIONS_FILE = 'tests/e2e/gameplay-durations.json'
 
 const gamesByPath = new Map(GAMEPLAY_GAMES.flatMap((entry) => [
   ...entry.ui.map((file) => `resources/js/games/${entry.game}/${file}`),
@@ -83,12 +43,11 @@ const gamesByPath = new Map(GAMEPLAY_GAMES.flatMap((entry) => [
   ...entry.specs.map((file) => `tests/e2e/${file}`),
 ].map((file) => [file, entry])))
 
-function fullSelection() {
-  const include = FULL_GAMEPLAY_GROUPS.map((units, index) => ({
-    shard: index + 1,
-    grep: `^(?:${units.map(([project, spec]) => `${project}\\s+${spec.replaceAll('.', '\\.')}`).join('|')})(?:\\s|$)`,
-  }))
-  return { mode: 'full', matrix: { include }, shards: include.length, grep: '' }
+const ALL_SPECS = GAMEPLAY_GAMES.flatMap((entry) => entry.specs)
+
+/** Prose that no page, build or spec reads; Markdown under resources/ or public/ could be bundled. */
+export function isInertPath(file) {
+  return file.startsWith('docs/') || (file.endsWith('.md') && !/^(?:resources|public)\//.test(file))
 }
 
 /** Parse git --name-status -z without treating whitespace in filenames as syntax. */
@@ -111,26 +70,94 @@ export function parseChangedFiles(output) {
 
 export function selectGameplayTests(eventName, changes) {
   if (typeof eventName !== 'string' || !eventName || /[^a-z_]/.test(eventName)) throw new Error('Missing or invalid workflow event.')
-  if (eventName !== 'pull_request' || changes.length === 0) return fullSelection()
+  const full = { mode: 'full', specs: ALL_SPECS }
+  if (eventName !== 'pull_request' || changes.length === 0) return full
   const selected = new Set()
+  let inert = 0
   for (const { status, paths } of changes) {
     // Deletions, renames, type changes and conflicts need the full suite, even
     // when their paths were previously eligible for a focused check.
-    if (!['A', 'M'].includes(status) || paths.length !== 1) return fullSelection()
+    if (!['A', 'M'].includes(status) || paths.length !== 1) return full
+    if (isInertPath(paths[0])) {
+      inert++
+      continue
+    }
     const entry = gamesByPath.get(paths[0])
-    if (!entry) return fullSelection()
+    if (!entry) return full
     selected.add(entry)
   }
-  // Broad PRs retain the measured parallel groups instead of serialising
-  // multiple games on the focused runner.
-  if (selected.size !== 1) return fullSelection()
-  const specs = GAMEPLAY_GAMES.filter((entry) => selected.has(entry)).flatMap((entry) => entry.specs)
-  // Playwright grep includes each test's filename. Positional file filters
-  // would extend the package script's existing list instead of narrowing it.
-  const grep = `(?:^|\\s)(?:${specs.map((file) => file.replaceAll('.', '\\.')).join('|')})(?:\\s|$)`
-  return {
-    mode: 'selected', matrix: { include: [{ shard: 1, grep }] }, shards: 1, grep,
+  if (inert === changes.length) return { mode: 'none', specs: [] }
+  // A change reaching several games is treated as shared code.
+  if (selected.size !== 1) return full
+  return { mode: 'selected', specs: [...selected][0].specs }
+}
+
+/** The test-list line Playwright's --test-list accepts, also the durations key. */
+export const testKey = (project, file, titlePath) => [`[${project}]`, file, ...titlePath].join(' › ')
+
+/** Flatten a Playwright JSON report (from --list or a run) into one entry per project test. */
+export function collectTests(report) {
+  const tests = []
+  const walk = (suite, file, titles) => {
+    for (const spec of suite.specs ?? []) {
+      for (const run of spec.tests) {
+        tests.push({ key: testKey(run.projectName, file, [...titles, spec.title]), file, results: run.results ?? [] })
+      }
+    }
+    for (const child of suite.suites ?? []) walk(child, file, [...titles, child.title])
   }
+  for (const suite of report.suites ?? []) walk(suite, suite.file, [])
+  return tests
+}
+
+const median = (values) => {
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+}
+
+/** Longest-first greedy packing of every test into exactly one shard. */
+export function planShards(tests, durations, { target = TARGET_SHARD_SECONDS, max = MAX_SHARDS } = {}) {
+  if (tests.length === 0) throw new Error('No gameplay tests to schedule.')
+  if (new Set(tests.map((test) => test.key)).size !== tests.length) throw new Error('Duplicate gameplay test.')
+  const knownByFile = new Map()
+  for (const { key, file } of tests) {
+    if (Number.isFinite(durations[key])) knownByFile.set(file, [...knownByFile.get(file) ?? [], durations[key]])
+  }
+  const estimated = tests.map(({ key, file }) => ({
+    key,
+    seconds: durations[key] ?? (knownByFile.has(file) ? median(knownByFile.get(file)) : UNKNOWN_TEST_SECONDS),
+    known: key in durations,
+  })).sort((a, b) => b.seconds - a.seconds || (a.key < b.key ? -1 : 1))
+  const total = estimated.reduce((sum, test) => sum + test.seconds, 0)
+  const count = Math.max(1, Math.min(max, tests.length, Math.ceil(total / target)))
+  const shards = Array.from({ length: count }, (_, index) => ({ shard: index + 1, seconds: 0, keys: [] }))
+  for (const test of estimated) {
+    const lightest = shards.reduce((best, shard) => (shard.seconds < best.seconds ? shard : best))
+    lightest.seconds += test.seconds
+    lightest.keys.push(test.key)
+  }
+  return {
+    shards: count,
+    unknown: estimated.filter((test) => !test.known).map((test) => test.key),
+    estimates: shards.map((shard) => Math.round(shard.seconds)),
+    matrix: { include: shards.map((shard) => ({ shard: shard.shard, tests: shard.keys.sort().join('\n') })) },
+  }
+}
+
+/** Every test the gameplay package script would run, as Playwright itself discovers them. */
+export function listGameplayTests(run = execFileSync) {
+  const output = run('pnpm', ['--silent', 'run', 'test:e2e:gameplay', '--list', '--reporter=json'], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024,
+  })
+  return collectTests(JSON.parse(output))
+}
+
+export function readDurations(file = DURATIONS_FILE) {
+  const durations = JSON.parse(readFileSync(file, 'utf8'))
+  for (const [key, seconds] of Object.entries(durations)) {
+    if (!(typeof seconds === 'number' && seconds > 0)) throw new Error(`Invalid duration for ${key}.`)
+  }
+  return durations
 }
 
 export function readChangedFiles(base, head, runGit = execFileSync) {
@@ -153,11 +180,22 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       : []
     const selection = selectGameplayTests(eventName, changes)
     if (!process.env.GITHUB_OUTPUT) throw new Error('GITHUB_OUTPUT is required.')
-    appendFileSync(process.env.GITHUB_OUTPUT, Object.entries(selection)
+    // A skipped matrix job never expands its matrix, but the output must still parse.
+    let outputs = { mode: 'none', shards: '0', matrix: { include: [{ shard: 0, tests: '' }] } }
+    if (selection.mode !== 'none') {
+      const specs = new Set(selection.specs)
+      const plan = planShards(listGameplayTests().filter((test) => specs.has(test.file)), readDurations())
+      outputs = { mode: selection.mode, shards: String(plan.shards), matrix: plan.matrix }
+      console.log(`Estimated seconds per shard: ${plan.estimates.join(', ')}.`)
+      if (plan.unknown.length) {
+        console.log(`::warning::${plan.unknown.length} gameplay test(s) have no measured duration; refresh ${DURATIONS_FILE}.`)
+      }
+    }
+    appendFileSync(process.env.GITHUB_OUTPUT, Object.entries(outputs)
       .map(([key, value]) => `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}\n`).join(''))
-    console.log(`Gameplay selection: ${selection.mode}; ${selection.shards} shard(s).`)
+    console.log(`Gameplay selection: ${outputs.mode}; ${outputs.shards} shard(s).`)
   } catch {
-    // Git failures must block the aggregate gate; never silently omit checks.
+    // Git, discovery or measurement failures must block the aggregate gate; never silently omit checks.
     console.error('::error::Unable to determine gameplay checks safely.')
     process.exitCode = 1
   }

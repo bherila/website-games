@@ -16,17 +16,22 @@ jobs:
   browser-selection:
     name: Select Gameplay Checks
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 5
+    timeout-minutes: 10
     outputs:
+      mode: ${{ steps.select.outputs.mode }}
       matrix: ${{ steps.select.outputs.matrix }}
       shards: ${{ steps.select.outputs.shards }}
     steps:
       - uses: actions/checkout@v7
 
+      # Selection lists the tests through Playwright itself, so new tests are never omitted.
+      - name: Setup pnpm + Node dependencies
+        uses: ./.github/actions/setup-pnpm-node
+
       - name: Test gameplay selection boundaries
         run: node --test scripts/__tests__/select-gameplay-tests.test.mjs
 
-      - name: Select full gameplay groups
+      - name: Select full gameplay shards
         id: select
         env:
           GAMEPLAY_EVENT: ${{ github.event_name }}
@@ -70,6 +75,6 @@ jobs:
     uses: ./.github/workflows/browser-checks.yml
     with:
       script: test:e2e:gameplay
-      grep: ${{ matrix.grep }}
+      test_list: ${{ matrix.tests }}
       report_name: gameplay-playwright-report-${{ matrix.shard }}-of-${{ needs.browser-selection.outputs.shards }}
       reuse_frontend_build: true

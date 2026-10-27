@@ -10,7 +10,10 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
   workers: 1,
-  reporter: isCI ? [['line'], ['html', { outputFolder: 'playwright-report', open: 'never' }]] : [['list']],
+  // The JSON results feed scripts/update-gameplay-durations.mjs, which balances the gameplay shards.
+  reporter: isCI
+    ? [['line'], ['html', { outputFolder: 'playwright-report', open: 'never' }], ['json', { outputFile: 'test-results/playwright-results.json' }]]
+    : [['list']],
   use: {
     baseURL,
     screenshot: 'only-on-failure',

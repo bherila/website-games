@@ -35,10 +35,10 @@ future games. Sections are normative unless marked "tuning" or "future".
 - **Tests:** colocated `__tests__/`, `.dom.test.ts(x)` (jsdom). Unit tests never instantiate
   `WebGLRenderer` — the engine layer is framework-free precisely so it tests headlessly. Browser
   journeys in `tests/e2e/hover.spec.ts` exercise the real renderer and player inputs.
-- **CI:** the frontend job runs the complete Jest suite. Browser gameplay runs in four Playwright
-  shards with one worker and file-level isolation. Register new browser specs in
-  `test:e2e:gameplay`; keep the CI and weekly matrices aligned, report artifacts unique per shard,
-  and the required `Run Tests` aggregate gate checking the gameplay matrix result.
+- **CI:** the frontend job runs the complete Jest suite. Browser gameplay runs in
+  duration-balanced Playwright shards (one worker each) planned by
+  `scripts/select-gameplay-tests.mjs`. Register new browser specs in `test:e2e:gameplay`; the
+  required `Run Tests` aggregate gate checks the gameplay matrix result.
 - **Lint gotchas:** `simple-import-sort/imports` and unused-imports are errors — run
   `pnpm exec eslint --fix resources/js/games/hover/` before committing.
 
