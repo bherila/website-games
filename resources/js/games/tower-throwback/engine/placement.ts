@@ -61,7 +61,7 @@ import {
 } from './mapGeometry'
 import { getMap } from './maps'
 import { releaseShaftOccupants, replanShaftAfterResize } from './people'
-import { geometryFor } from './towerGeometry'
+import { geometryFor, setTowerGeometry } from './towerGeometry'
 
 type PlaceCommand = Extract<EngineCommand, { type: 'place' }>
 type PlaceShaftCommand = Extract<EngineCommand, { type: 'placeShaft' }>
@@ -425,6 +425,7 @@ function validateAddedFloorLandings(state: EngineState, cmd: PlaceCommand, fp: F
   // as routing and actual stop refresh, including a bridge joining two runs.
   const projected: EngineState = { ...state, units: [...state.units, newUnit(state.nextId, cmd, fp, getMap(state.mapId))], grid: createGridLayers() }
   rebuildGrid(projected)
+  setTowerGeometry(projected, geometryFor(state))
   for (const shaft of affected) {
     const def = shaftDef(shaft.kind)
     const required = computeShaftStops(projected, { type: 'placeShaft', kind: shaft.kind, x: shaft.x, bottomFloor: shaft.bottomFloor, topFloor: shaft.topFloor })

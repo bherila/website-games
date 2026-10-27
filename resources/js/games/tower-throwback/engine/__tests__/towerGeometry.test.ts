@@ -1,12 +1,14 @@
 import type { EngineState, Unit } from '../../gameTypes'
 import { defaultShaftProgram, FLOOR_MAX, FLOOR_MIN, GRID_WIDTH } from '../../gameTypes'
 import { shaftDef } from '../catalog'
+import { stepEngine } from '../engine'
 import { getSegments, nearestShaftStopDistance, tileIndex } from '../grid'
 import { noiseExposureAt } from '../heatmaps'
 import { buildOccupancyIndex } from '../occupancy'
+import { validatePlacement } from '../placement'
 import { createRng } from '../rng'
 import { geometryFor, oneDimensionalGeometry as geometry, type Segment,setTowerGeometry } from '../towerGeometry'
-import { injectUnit, makeTestState } from './testState'
+import { injectUnit, makeTestState, placeShaft, placeSlabRow } from './testState'
 
 /** Independent baseline: enumerate covered cells, rather than reuse the seam's helpers. */
 function cells(unit: Pick<Unit, 'x' | 'width'>): number[] {
@@ -160,6 +162,36 @@ describe('one-dimensional TowerGeometry', () => {
     state.structureVersion++
     expect(geometry.segments(state)).not.toBe(first)
     expect(geometry.segmentOf(state, 0, 4)).toEqual({ floor: 0, x0: 3, x1: 4 })
+  })
+
+  it('retains geometry on the private floor-landing prediction state', () => {
+    const state = makeTestState({ star: 5, maxStarReached: 5 })
+    injectUnit(state, { kind: 'slab', floor: 0, x: 0, width: 60, storeys: 1 })
+    injectUnit(state, { kind: 'slab', floor: 2, x: 0, width: 60, storeys: 1 })
+    placeShaft(state, 'express', 20, 0, 2)
+    const segments = jest.fn(geometry.segments)
+    const custom = { ...geometry, segments }
+    setTowerGeometry(state, custom)
+    expect(validatePlacement(state, { type: 'place', kind: 'slab', floor: 1, x: 20, widthTiles: 2 }).ok).toBe(true)
+    const predictions = segments.mock.calls.map(([queried]) => queried).filter((queried) => queried !== state)
+    expect(predictions.length).toBeGreaterThan(0)
+    for (const prediction of predictions) expect(geometryFor(prediction)).toBe(custom)
+  })
+
+  it('retains geometry on bulk-loan placement planning clones', () => {
+    const state = makeTestState({ star: 5, maxStarReached: 5, funds: 0 })
+    placeSlabRow(state, 0, 0, 59)
+    const nearestStop = jest.fn((_state: EngineState) => 0)
+    const custom = { ...geometry, nearestStop }
+    setTowerGeometry(state, custom)
+    stepEngine(state, [
+      { type: 'place', kind: 'hotelReception', floor: 0, x: 0 },
+      { type: 'place', kind: 'hotelReception', floor: 0, x: 20 },
+    ], 0)
+    expect(state.pendingLoanCommands).toHaveLength(2)
+    const plans = nearestStop.mock.calls.map(([queried]) => queried).filter((queried) => queried !== state)
+    expect(plans.length).toBeGreaterThan(0)
+    for (const plan of plans) expect(geometryFor(plan)).toBe(custom)
   })
 
   it('uses a per-state implementation through engine consumers without adding save fields', () => {
