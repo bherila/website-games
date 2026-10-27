@@ -44,6 +44,9 @@ async function measureDrawCalls(page: Page): Promise<number> {
 }
 
 test.describe('Tower Throwback draw-call budget', () => {
+  // Draw calls measure scene batches, not pixel fill rate. Keep phone layout
+  // while avoiding unnecessary high-DPI work on software WebGL runners.
+  test.use({ deviceScaleFactor: 1 })
   for (const time of ['day', 'night'] as const) {
     test(`endgame stays within the draw-call budget at ${time}`, async ({ page }) => {
       await page.goto(`/tower-throwback?visualTest=1&seed=1502&scenario=endgame&time=${time}`)
@@ -56,7 +59,8 @@ test.describe('Tower Throwback draw-call budget', () => {
       expect(drawCalls).toBeLessThanOrEqual(DRAW_CALL_CEILING)
     })
 
-    test(`a large saved tower stays within the draw-call budget at ${time}`, async ({ page }) => {
+    test(`a large saved tower stays within the draw-call budget at ${time}`, async ({ page, isMobile }) => {
+      if (!isMobile) await page.setViewportSize({ width: 1280, height: 720 })
       expect(largeTower.units.length).toBeGreaterThanOrEqual(1_400)
       expect(largeTower.units.length).toBeLessThanOrEqual(1_500)
       await page.addInitScript(({ key, saved }) => {
