@@ -5,7 +5,7 @@ import { cordLength, cordPoints, createCord, createPulleys, placeCord } from '..
 import { dialAngle } from '../dial'
 import { createPuzzle, showing } from '../engine'
 import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
-import { heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
+import { getLevel, heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
 import { HINGE_SECONDS, hingePose, outlinedPlates, RAIL_SECONDS, railPose, restingPose, rotorPose } from '../plateMotion'
 
 /** Even-odd crossings of a ray toward +X against the panel's outline. */
@@ -256,8 +256,8 @@ test('an open captive panel sits in front of its host and covers exactly the hea
   // The mill's three doors and hatches; in the harbor, three drop flaps (bait, end, stern), six railed
   // parts (two storm shutters, the hasp, the hook block, the counterweight, the lantern shutter) and the tower door;
   // on the railway, the music box's lid, the signal box's shutter and the tender's coal hatch; in the clockworks,
-  // six weights, the six parts their cords drive, and the robot's visor.
-  expect(checked).toBe(29)
+  // six weights, the six parts their cords drive, and the robot's visor; at the fair, the ride sign, the sliding gondola, and the float's weight and hatch.
+  expect(checked).toBe(33)
 })
 
 test('turning parts cover what they cover at every angle, and no other head sits under their sweep', () => {
@@ -323,13 +323,20 @@ test('a dial\'s window crosses exactly the heads the engine shows at each stop, 
     // Each dial on its own: a selector turns only itself, so the others never stand over its heads.
     for (const plate of level.plates.filter((candidate) => candidate.dial)) {
       const dial = plate.dial!
+      // Every head behind the dial comes into a window at some stop.
+      for (const screw of level.screws.filter((candidate) => candidate.underDial?.dial === plate.id)) {
+        const stops = Array.from({ length: dial.stops }, (_, stop) => ({ ...createPuzzle(level.id), dials: { ...createPuzzle(level.id).dials, [plate.id]: stop } }))
+        expect({ level: level.id, screw: screw.id, seen: stops.some((board) => showing(board, screw)) }).toEqual({ level: level.id, screw: screw.id, seen: true })
+      }
       for (let stop = 0; stop < dial.stops; stop++) {
         const turned = plateQuaternion(plate).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), dialAngle(dial, stop)))
         const disc = placed(new THREE.Group().add(createPlateMesh(plate, []), decoratePlate(plate)), vector(plate.position), turned)
         const board = { ...createPuzzle(level.id), dials: { ...createPuzzle(level.id).dials, [plate.id]: stop } }
         const shown = level.screws.filter((screw) => screw.underDial?.dial === plate.id && showing(board, screw))
-        // A two-window dial shows a head in each window.
-        expect({ level: level.id, dial: plate.id, stop, shown: shown.length }).toEqual({ level: level.id, dial: plate.id, stop, shown: dial.windows.length })
+        // A head in each window that is over a filled slot: a two-window dial shows two, and an empty slot shows none.
+        const filled = new Set(level.screws.filter((screw) => screw.underDial?.dial === plate.id).map((screw) => screw.underDial!.slot))
+        const expected = dial.windows.filter((window) => filled.has((window + stop) % dial.stops)).length
+        expect({ level: level.id, dial: plate.id, stop, shown: shown.length }).toEqual({ level: level.id, dial: plate.id, stop, shown: expected })
         for (const screw of level.screws) {
           const rays = accessRays(level, screw)
           const blocked = rays.filter((ray) => ray.intersectObject(disc).length > 0).length
@@ -442,6 +449,21 @@ test('each dashed resting outline, a counterweight\'s stop included, lies over e
       disposeObject(outline)
     }
   }
-  // Every counterweight shows where it will hang: six of them across the clockworks.
-  expect(weights).toHaveLength(6)
+  // Every counterweight shows where it will hang: six of them across the clockworks, and the float's.
+  expect(weights).toHaveLength(7)
+})
+
+test('the fair arches hang their lamps under the lintel, inside the arch', () => {
+  const level = getLevel(30)
+  for (const plate of level.plates.filter((candidate) => candidate.finish === 'arch')) {
+    const bulbs: THREE.Mesh[] = []
+    decoratePlate(plate, 0, level.screws.filter((screw) => screw.plate === plate.id), level.id).traverse((object) => {
+      if (object instanceof THREE.Mesh && object.geometry instanceof THREE.SphereGeometry) bulbs.push(object)
+    })
+    expect(bulbs.length).toBeGreaterThan(0)
+    for (const bulb of bulbs) {
+      expect(Number.isFinite(bulb.position.y)).toBe(true)
+      expect(insideOutline(plate, bulb.position.x, bulb.position.y)).toBe(true)
+    }
+  }
 })

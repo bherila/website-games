@@ -1,9 +1,9 @@
-import { Check, ChevronRight, Plus } from 'lucide-react'
+import { Check, ChevronRight, LockKeyhole, Plus } from 'lucide-react'
 import { type CSSProperties, type ReactElement, useId } from 'react'
 
-import type { PuzzleState, Tray } from './engine'
+import { type PuzzleState, rackOpen, spareCapacity, type Tray } from './engine'
 import { COLORS, getLevel, type ScrewColor } from './level'
-import { markPath } from './screwMarks'
+import { markPath, rackMarkPath } from './screwMarks'
 
 const SOCKETS = [[80, 31], [38, 85], [122, 85]] as const
 const TRIANGLE = 'M72 10Q80-4 88 10L152 98Q161 112 145 112H15Q-1 112 8 98Z'
@@ -59,6 +59,11 @@ function ColorTray({ tray, inverted }: { tray: Tray, inverted: boolean }): React
   )
 }
 
+/** The staging rack's peg-rail mark, as painted on the rack's cover. */
+export function RackMark({ size = 18 }: { size?: number }): ReactElement {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 40 40" className="shrink-0"><path d={rackMarkPath(20, 20, 17)} fill="currentColor" data-rack-mark="" /></svg>
+}
+
 /** Matching uses the same colored screw faces in trays, the queue and spare storage. */
 export function CollectionTrays({ state }: { state: PuzzleState }): ReactElement {
   const level = getLevel(state.level)
@@ -74,12 +79,30 @@ export function CollectionTrays({ state }: { state: PuzzleState }): ReactElement
       <div className="plate-tray-row" style={{ '--tray-count': state.trays.length } as CSSProperties}>
         {state.trays.map((tray, index) => <ColorTray key={tray.id} tray={tray} inverted={index % 2 === 1} />)}
       </div>
-      <div role="group" data-spare-slots className="flex items-center justify-center gap-2" aria-label={`Spare storage: ${state.spare.length} of ${level.spareCapacity}`}>
-        {Array.from({ length: level.spareCapacity }, (_, slot) => {
-          const color = state.spare[slot]
-          return <span key={slot} data-spare-slot={slot} role="img" aria-label={color ? `${COLORS[color].name} screw in spare slot ${slot + 1}` : `Spare slot ${slot + 1} empty`} className="grid h-7 w-7 place-items-center rounded-full border border-dashed border-slate-300 bg-slate-100/70 dark:border-slate-600 dark:bg-slate-800/70">{color ? <ScrewHead color={color} size={28} /> : <Plus size={12} className="text-slate-300 dark:text-slate-600" aria-hidden="true" />}</span>
-        })}
+      <div role="group" data-spare-slots className="flex items-center justify-center gap-2" aria-label={`Spare storage: ${state.spare.length} of ${spareCapacity(state)}`}>
+        {Array.from({ length: level.spareCapacity }, (_, slot) => <SpareSlot key={slot} slot={slot} color={state.spare[slot]} />)}
+        {/* The staging rack's slot is shown from the start, locked under the rack's mark until the rack is freed. */}
+        {level.rack && <SpareSlot slot={level.spareCapacity} color={state.spare[level.spareCapacity]} rack={rackOpen(state) ? 'open' : 'locked'} />}
       </div>
     </section>
+  )
+}
+
+function SpareSlot({ slot, color, rack }: { slot: number, color: ScrewColor | undefined, rack?: 'open' | 'locked' }): ReactElement {
+  const ring = rack ? 'border-orange-400 bg-orange-50/80 dark:border-orange-400/70 dark:bg-orange-950/40' : 'border-slate-300 bg-slate-100/70 dark:border-slate-600 dark:bg-slate-800/70'
+  if (rack === 'locked') {
+    return (
+      <span data-spare-slot={slot} data-rack-slot="locked" role="img" aria-label={`Spare slot ${slot + 1} locked: free the staging rack to open it`} className={`relative grid h-7 w-7 place-items-center rounded-full border ${ring} text-orange-700 dark:text-orange-300`}>
+        <RackMark size={18} />
+        <span aria-hidden="true" className="absolute -bottom-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-white text-slate-600 shadow-sm dark:bg-slate-900 dark:text-slate-300"><LockKeyhole size={9} strokeWidth={2.5} /></span>
+      </span>
+    )
+  }
+  const name = color ? `${COLORS[color].name} screw in spare slot ${slot + 1}` : `Spare slot ${slot + 1} empty`
+  return (
+    <span data-spare-slot={slot} {...(rack ? { 'data-rack-slot': rack } : {})} role="img" aria-label={rack ? `${name}, on the staging rack` : name} className={`relative grid h-7 w-7 place-items-center rounded-full border border-dashed ${ring}`}>
+      {color ? <ScrewHead color={color} size={28} /> : <Plus size={12} className={rack ? 'text-orange-400 dark:text-orange-400/70' : 'text-slate-300 dark:text-slate-600'} aria-hidden="true" />}
+      {rack && <span aria-hidden="true" className="absolute -bottom-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-white text-orange-700 shadow-sm dark:bg-slate-900 dark:text-orange-300"><RackMark size={11} /></span>}
+    </span>
   )
 }

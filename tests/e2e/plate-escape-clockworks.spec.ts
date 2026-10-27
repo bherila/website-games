@@ -109,9 +109,10 @@ test.describe('Plate Escape real puzzle', () => {
         for (const action of trace.win) await act(trace.level, action)
         await expect(page.getByRole('heading', { name: 'All plates free!' })).toBeVisible()
         await expect(page.getByText('5 / 5 collected', { exact: true })).toBeVisible()
-        if (trace.level < 25) await activate(page.getByRole('button', { name: 'Next level', exact: true }))
-        else await expect(page.getByRole('button', { name: 'Next level', exact: true })).toHaveCount(0)
+        await activate(page.getByRole('button', { name: 'Next level', exact: true }))
       }
+      // The clockworks lead on to the fair, whose first level opens with its introduction.
+      await expect(page.getByRole('dialog', { name: 'Carousel' })).toBeVisible()
       await page.reload()
       for (const id of [21, 22, 23, 24, 25]) await expect(page.getByRole('button', { name: `Level ${id}, 3 stars`, exact: true })).toBeVisible()
       expect(errors).toEqual([])

@@ -12,7 +12,7 @@ import { LevelSelectGrid } from '../_shared/LevelSelectGrid'
 import { StarRow } from '../_shared/StarRow'
 import { PortraitGameShell } from '../PortraitGameShell'
 import { CollectionTrays, ScrewHead } from './CollectionTrays'
-import { createPuzzle, dialLock, freedPlates, hasWon, panelState, type PuzzleState, removeScrew, screwLock, showing, turnDial } from './engine'
+import { createPuzzle, dialLock, freedPlates, hasWon, panelState, type PuzzleState, rackOpen, removeScrew, screwLock, showing, spareCapacity, turnDial } from './engine'
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
 import { labLevelFromSearch } from './labLevels'
 import { COLORS, getLevel, LEVELS, type PuzzleLevel, type ScrewColor } from './level'
@@ -65,7 +65,7 @@ interface LevelSessionProps {
 }
 
 function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockSound, muted, onMutedChange }: LevelSessionProps): ReactElement {
-  const { plates: PLATES, screws: SCREWS, spareCapacity: SPARE_CAPACITY } = level
+  const { plates: PLATES, screws: SCREWS } = level
   const DIALS = PLATES.filter((plate) => plate.dial)
   const [still, setStill] = useState(motionStill.load)
   // Under reduced motion nothing turns, so there is nothing to pause.
@@ -87,7 +87,10 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const won = hasWon(puzzle)
   const lost = puzzle.overflow !== null
-  const storageFull = puzzle.spare.length === SPARE_CAPACITY
+  // Spare capacity is derived from the board: the staging rack's slot counts only once it is free.
+  const capacity = spareCapacity(puzzle)
+  const rackShut = level.rack !== undefined && !rackOpen(puzzle)
+  const storageFull = puzzle.spare.length === capacity
   // Browsers only start audio from a gesture; any press in the level unlocks it.
   useEffect(() => {
     window.addEventListener('pointerdown', unlockSound, { capture: true })
@@ -113,8 +116,12 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
   /** A refused tap is explained on screen as well as to assistive technology. */
   const explain = (text: string, screw: string): void => {
     play('blocked')
+    show(text, screw)
+  }
+  /** A short visible hint above the controls, repeated for assistive technology. */
+  const show = (text: string, screw: string, before = ''): void => {
     if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
-    setMessage(text)
+    setMessage(before ? `${before} ${text}` : text)
     setHint((current) => ({ text, screw, sequence: (current?.sequence ?? 0) + 1 }))
     hintTimerRef.current = setTimeout(() => setHint(null), 3200)
   }
@@ -175,7 +182,9 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     setPuzzle(next)
     if (hasWon(next)) onWin(level.id)
     setBusy(true)
-    setMessage(`${COLORS[screw.color].name} screw collected. ${next.removed.length} of ${SCREWS.length} screws removed; ${freedPlates(next)} of ${PLATES.length} plates released.`)
+    const collected = `${COLORS[screw.color].name} screw collected. ${next.removed.length} of ${SCREWS.length} screws removed; ${freedPlates(next)} of ${PLATES.length} plates released.`
+    if (rackOpen(next) && !rackOpen(puzzle)) show('The staging rack is open: one more spare slot for this attempt.', id, collected)
+    else setMessage(collected)
     play(`unscrew-${screw.color}`)
     // The landing sound plays as the flying head reaches its tray or spare slot.
     const landing: PlateSound = next.completed.length > puzzle.completed.length ? 'tray-complete' : activeTray ? 'tray' : 'spare'
@@ -222,7 +231,9 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     setFly(null)
     play('undo')
     const turned = DIALS.find((dial) => previous.dials[dial.id] !== puzzle.dials[dial.id])
-    setMessage(turned ? `${turned.name} turned back. ${dialReading(previous, turned.id)}.` : 'Last screw restored, along with its plate and tray space.')
+    if (turned) setMessage(`${turned.name} turned back. ${dialReading(previous, turned.id)}.`)
+    else if (rackOpen(puzzle) && !rackOpen(previous)) show('Last screw restored. The staging rack is shut again, and its slot with it.', puzzle.removed.at(-1)!)
+    else setMessage('Last screw restored, along with its plate and tray space.')
   }
   const reportError = useCallback((text: string) => setError(text), [])
   const plateEvent = useCallback((event: PlateEvent) => play(event), [play])
@@ -294,7 +305,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
         {lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl dark:bg-slate-900/95">
           <div className="mb-3 flex justify-center"><ScrewHead color={puzzle.overflow!} size={48} /></div>
           <h2 id="storage-full-title" className="text-2xl font-bold">No room for that screw</h2>
-          <p id="storage-full-help" className="mt-3 text-sm text-slate-600 dark:text-slate-300">All {SPARE_CAPACITY} spare slots are full, and this <span className="sr-only">{COLORS[puzzle.overflow!].name.toLowerCase()} </span>screw has no matching tray. Try a different order.</p>
+          <p id="storage-full-help" className="mt-3 text-sm text-slate-600 dark:text-slate-300">All {capacity} {rackShut ? 'open ' : ''}spare slots are full{rackShut ? ', the staging rack is still shut' : ''}, and this <span className="sr-only">{COLORS[puzzle.overflow!].name.toLowerCase()} </span>screw has no matching tray. Try a different order.</p>
           <button autoFocus type="button" onClick={undo} className="mt-5 rounded-full bg-slate-800 px-5 py-3 font-semibold text-white dark:bg-slate-100 dark:text-slate-900">Undo last move</button>
           <button type="button" onClick={restart} className="mt-2 rounded-full bg-white px-5 py-3 font-semibold dark:bg-slate-800">Retry level</button>
         </div>}
@@ -310,7 +321,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
         )}
       </section>
       <footer className="px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
-        <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>{level.overflowLoses ? storageFull ? 'Storage full · Match a tray or the next screw will overflow' : `${SPARE_CAPACITY} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · The gable walls hold up the roof'}</p>
+        <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>{level.overflowLoses ? storageFull ? `Storage full · Match a tray${rackShut ? ', free the staging rack,' : ''} or the next screw will overflow` : rackShut ? `${capacity} spare slots · Free the staging rack for one more` : `${capacity} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · The gable walls hold up the roof'}</p>
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white/65 p-2 dark:bg-white/5">
           <button type="button" onClick={undo} disabled={history.length === 0 || busy || won} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-35"><Undo2 size={16} aria-hidden="true" />Undo</button>
           <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400" data-testid="screw-progress">{puzzle.removed.length} / {SCREWS.length} screws</span>

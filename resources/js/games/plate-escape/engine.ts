@@ -42,7 +42,8 @@ export function removeScrew(state: PuzzleState, id: string): PuzzleState {
   }
   const tray = next.trays.find((candidate) => candidate.color === screw.color)
   if (tray) tray.count++
-  else if (next.spare.length < level.spareCapacity) next.spare.push(screw.color)
+  // The screw that frees the rack can take the slot it opens.
+  else if (next.spare.length < spareCapacity(next)) next.spare.push(screw.color)
   else if (level.overflowLoses) {
     next.overflow = screw.color
     return next
@@ -71,6 +72,21 @@ export function removeScrew(state: PuzzleState, id: string): PuzzleState {
     }
   }
   return next
+}
+
+/** Whether the staging rack is open: its cover has no screw left, so its slot is available. */
+export function rackOpen(state: PuzzleState): boolean {
+  const rack = getLevel(state.level).rack
+  return rack !== undefined && remainingScrews(state, rack) === 0
+}
+
+/**
+ * Spare slots available on this board: the level's own, and one more once the staging rack is
+ * open. It is derived from the screws taken, never stored, so restoring a snapshot restores the
+ * capacity and the screws stored in it together, and a fresh attempt starts with the rack shut.
+ */
+export function spareCapacity(state: PuzzleState): number {
+  return getLevel(state.level).spareCapacity + (rackOpen(state) ? 1 : 0)
 }
 
 export function remainingScrews(state: PuzzleState, plateId: string): number {

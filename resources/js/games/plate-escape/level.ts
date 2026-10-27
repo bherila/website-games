@@ -1,5 +1,6 @@
 import { createClockworkLevels } from './clockworkLevels'
 import type { Dial } from './dial'
+import { createFairLevels } from './fairLevels'
 import { createHarborLevels } from './harborLevels'
 import { createLabLevels } from './labLevels'
 import { createMillLevels } from './millLevels'
@@ -55,6 +56,8 @@ export interface Plate {
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
     | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer' | 'weight'
     | 'case' | 'clock' | 'turntable' | 'tin' | 'head' | 'gatehouse'
+    | 'canopy' | 'rounding' | 'horse' | 'mirror' | 'rack-door' | 'wicker' | 'sandbag' | 'banner'
+    | 'proscenium' | 'curtain' | 'backdrop' | 'tent' | 'arch' | 'girder' | 'ferris' | 'gondola'
   color: string
 }
 
@@ -135,6 +138,11 @@ export interface PuzzleLevel {
   /** The permanent base it stands on; the garden by default. */
   stage?: StageId
   rotor?: Rotor
+  /**
+   * The staging rack's cover. Once no screw holds it, the rack behind it adds one spare slot for
+   * the rest of the attempt; capacity is derived from the board, so undo and retry restore it.
+   */
+  rack?: string
   introduction?: string
 }
 
@@ -161,7 +169,7 @@ const introductoryLevels: readonly PuzzleLevel[] = [
   },
 ]
 
-export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels(), ...createRailwayLevels(), ...createClockworkLevels()]
+export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels(), ...createRailwayLevels(), ...createClockworkLevels(), ...createFairLevels()]
 
 /** Boards for trying a mechanism before any level uses it: reached only by link, never listed, never saved. */
 export const LAB_LEVELS: readonly PuzzleLevel[] = createLabLevels()
