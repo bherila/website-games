@@ -57,7 +57,7 @@ test.describe('Tower Throwback real player journey', () => {
       await assertCompactPhoneHud(page, activate)
       await activate(page.getByRole('button', { name: /Getting started/ }))
     } else {
-      await expect(page.getByRole('button', { name: 'Financials', exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: /^Financials/ })).toBeVisible()
       await expect(page.getByRole('button', { name: 'More', exact: true })).toHaveCount(0)
     }
     await activate(page.getByRole('button', { name: 'Dismiss getting started' }))
@@ -153,7 +153,7 @@ async function assertCompactPhoneHud(page: Page, activate: (locator: Locator) =>
   expect(page.viewportSize()).toEqual({ width: 375, height: 812 })
   const guide = page.getByRole('button', { name: /Getting started/ })
   await expect(guide).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByRole('button', { name: 'Financials', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Financials/ })).toHaveCount(0)
   const exposed = await page.locator('canvas').first().evaluate((canvas) => {
     let clear = 0
     let total = 0

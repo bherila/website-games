@@ -149,7 +149,9 @@ test.describe('Tower Throwback visual harness', () => {
     await expect(page.getByTestId('fire-banner')).toContainText('2 units burning')
     await capture(page, testInfo, 'fire-dispatch')
 
-    await page.getByRole('button', { name: 'Toggle recent events' }).click()
+    const history = page.getByRole('button', { name: 'Toggle recent events' })
+    if (!(await history.isVisible())) await page.getByRole('button', { name: 'More', exact: true }).click()
+    await history.click()
     await expect(drawer).toBeVisible()
     await capture(page, testInfo, 'toast-history')
   })
