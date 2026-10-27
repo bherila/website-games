@@ -112,10 +112,11 @@ export interface OccupancyIndex {
 }
 
 export function buildOccupancyIndex(state: EngineState): OccupancyIndex {
-  const byFloor = geometryFor(state).createUnitIndex()
-  const restroomsByFloor = geometryFor(state).createUnitIndex()
-  const amenitiesByFloor = geometryFor(state).createUnitIndex()
-  const noiseByFloor = geometryFor(state).createUnitIndex()
+  const geometry = geometryFor(state)
+  const byFloor = geometry.createUnitIndex()
+  const restroomsByFloor = geometry.createUnitIndex()
+  const amenitiesByFloor = geometry.createUnitIndex()
+  const noiseByFloor = geometry.createUnitIndex()
   const landmarkKind = getMap(state.mapId).endgameItem
   const landmarkCandidates: Unit[] = []
   const infested: Unit[] = []
@@ -190,7 +191,8 @@ export function buildOccupancyIndex(state: EngineState): OccupancyIndex {
  * probe that must not seed the sim's endpoint-specific path memo.
  */
 function isReachable(state: EngineState, unit: Unit, other: Unit): boolean {
-  if (geometryFor(state).segmentOf(state, unit.floor, unit.x) === null || geometryFor(state).segmentOf(state, other.floor, other.x) === null) {
+  const geometry = geometryFor(state)
+  if (geometry.segmentOf(state, unit.floor, unit.x) === null || geometry.segmentOf(state, other.floor, other.x) === null) {
     return true
   }
   return findRoute(state, unit.floor, unit.x, other.floor, other.x, { bypassCache: true }) !== null
@@ -271,6 +273,7 @@ function fallsViewTerm(state: EngineState, unit: Unit, index: OccupancyIndex): n
 }
 
 function affinityTerm(state: EngineState, unit: Unit, index: OccupancyIndex): number {
+  const geometry = geometryFor(state)
   const group = itemDef(unit.kind).affinityGroup
   if (!group) {
     return 0
@@ -278,12 +281,12 @@ function affinityTerm(state: EngineState, unit: Unit, index: OccupancyIndex): nu
   // "Good neighbors" must actually share the unit's walkable segment — two
   // clusters split by an elevator-only gap on the same floor aren't neighbors.
   // Skip the segment gate when the unit has no segment (unplaced/degenerate).
-  const seg = geometryFor(state).segmentOf(state, unit.floor, unit.x)
+  const seg = geometry.segmentOf(state, unit.floor, unit.x)
   const sameFloor = (index.byFloor.get(unit.floor) ?? []).filter(
     (other) =>
       other.floor === unit.floor &&
       itemDef(other.kind).affinityGroup === group &&
-      (seg === null || geometryFor(state).segmentOf(state, other.floor, other.x)?.x0 === seg.x0),
+      (seg === null || geometry.segmentOf(state, other.floor, other.x)?.x0 === seg.x0),
   )
   return sameFloor.length >= TUNING.evalWeights.affinityMinUnits ? TUNING.evalWeights.affinityBonus : 0
 }
