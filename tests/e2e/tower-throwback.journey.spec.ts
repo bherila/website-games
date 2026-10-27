@@ -316,9 +316,72 @@ async function touchPanLeft(touch: CDPSession, canvas: Locator): Promise<void> {
   for (const point of [start, end]) {
     expect(await canvas.evaluate((element, position) => document.elementFromPoint(position.x, position.y) === element, point), 'Pan contacts must reach exposed canvas').toBe(true)
   }
-  await touchAt(touch, start, 'touchStart')
-  await touchAt(touch, end, 'touchMove')
-  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  // CDP acknowledges a touch command before the compositor necessarily paints
+  // it. Observe the actual native contact and capture lifecycle, then cross a
+  // rendered boundary before another HUD tap can start.
+  const contact = await canvas.evaluateHandle((element) => {
+    const state = { element, pointerId: -1, ended: false, released: false, moved: false }
+    const down = (event: PointerEvent): void => {
+      if (event.pointerType !== 'touch') return
+      state.pointerId = event.pointerId
+      state.ended = false
+      state.released = false
+      state.moved = false
+    }
+    const move = (event: PointerEvent): void => {
+      if (event.pointerId === state.pointerId) state.moved = true
+    }
+    const end = (event: PointerEvent): void => {
+      if (event.pointerId === state.pointerId) state.ended = true
+    }
+    const lost = (event: PointerEvent): void => {
+      if (event.pointerId === state.pointerId) state.released = true
+    }
+    element.addEventListener('pointerdown', down as EventListener)
+    element.addEventListener('pointermove', move as EventListener)
+    element.addEventListener('pointerup', end as EventListener)
+    element.addEventListener('pointercancel', end as EventListener)
+    element.addEventListener('lostpointercapture', lost as EventListener)
+    return {
+      state,
+      cleanup: () => {
+        element.removeEventListener('pointerdown', down as EventListener)
+        element.removeEventListener('pointermove', move as EventListener)
+        element.removeEventListener('pointerup', end as EventListener)
+        element.removeEventListener('pointercancel', end as EventListener)
+        element.removeEventListener('lostpointercapture', lost as EventListener)
+      },
+    }
+  })
+  const renderedBoundary = async (): Promise<void> => {
+    await canvas.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+  }
+  const released = async (): Promise<void> => {
+    await expect.poll(() => contact.evaluate(({ state }) => state.ended && state.released && !state.element.hasPointerCapture(state.pointerId)), {
+      message: 'the native contact ends and releases the canvas pointer capture',
+    }).toBe(true)
+    await renderedBoundary()
+  }
+  try {
+    await touchAt(touch, start, 'touchStart')
+    const before = await readTarget(canvas)
+    await touchAt(touch, end, 'touchMove')
+    await renderedBoundary()
+    expect(await contact.evaluate(({ state }) => state.moved), 'the native pan delivered movement').toBe(true)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await released()
+
+    // A cancelled native probe cannot inspect/build. At the same screen point,
+    // the public ray target must now show the camera's horizontal movement.
+    await touchAt(touch, start, 'touchStart')
+    const after = await readTarget(canvas)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] })
+    await released()
+    expect(after.x, 'the camera panned horizontally beneath the original contact').not.toBe(before.x)
+  } finally {
+    await contact.evaluate(({ cleanup }) => cleanup())
+    await contact.dispose()
+  }
 }
 
 async function touchTilePoint(touch: CDPSession, canvas: Locator, target: TowerTile): Promise<ScreenPoint> {
