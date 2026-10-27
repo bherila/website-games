@@ -18,6 +18,11 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Loop | A star-rated sandbox like Tower Throwback, plus a scenario track that teaches each layout pressure. |
 | Layout pressures | All four: light and views, circulation, structure and cost, neighbours and noise. |
 | Look | Tower Throwback's neo-90s management-sim style in isometric, but **more vibrant and less muted**: one bold, saturated hue per use. Overlays keep their own palette. |
+| Rooms | **Modules**: each use comes in fixed sizes that snap to the plan grid, rather than free-drawn rectangles. |
+| Mixed use | The same freedom as Tower Throwback: any use on any floor. A tower can stack uses, for example offices first, then a sky lobby, then residential above. |
+| Progression | Stars unlock advanced versions of each use: studios lead to 1-, 2- and 3-bedroom condos, startup offices to executive offices, and so on. |
+| Upgrades | Two kinds: **in place** (same footprint, applied without disturbing the plan) and **remodel** (demolish and rebuild a floor to change its layout). |
+| Floor plates | A new floor inherits the floor below's outline with a single click, then can be edited. |
 
 ## Design
 
@@ -37,6 +42,41 @@ Each one is a rule the player can see as an overlay, and each costs something el
 | Circulation | `walk(room)` = path length from door to core on the corridor graph. Cores use Tower Throwback's capacity and queue model, including load-aware routing. |
 | Structure and cost | A tile is supported if the floor below has it, or it lies within cantilever reach of a supported tile on a column line. Reach grows with stars. Cost scales with area, height and unsupported span. |
 | Neighbours and noise | `adjacency(useA, useB, direction)` gives −2 to +2, including the rooms directly above and below. |
+
+### Mixed use and stacking
+Any floor can hold any use, as in Tower Throwback, subject to the four pressures. A typical growth path: a
+podium of shops at street level, office floors above, then a **sky lobby** floor where residents and hotel
+guests change cores, then residential or hotel floors on top. Sky lobbies arrive with stars, as in
+Tower Throwback, and make tall mixed-use towers work: they break long elevator runs and give each use its own
+cores. Neighbour rules make stacking order a real decision (flats above a restaurant complain; offices above
+a hotel disturb it).
+
+### Modules, upgrades and remodelling
+Rooms are **modules**: each use comes in fixed footprints that snap to the grid, each with a door edge that
+must meet a corridor. A floor plan is a set of placed modules plus corridors and cores.
+
+Stars unlock advanced modules for each use:
+
+| Use | Starting module | Unlocked by stars |
+| --- | --- | --- |
+| Residential | Studio | 1-bedroom, 2-bedroom and 3-bedroom condos |
+| Office | Startup office | Standard office, then executive office |
+| Hotel | Single room | Double, then suite |
+| Retail | Kiosk | Shop, then flagship store |
+| Food | Café | Restaurant, then rooftop or view restaurant |
+
+Upgrades come in two kinds:
+- **In place:** same footprint, applied while tenants stay, for example a finish grade, fittings, or a studio
+  refitted as a larger-rent studio. These work like Tower Throwback's existing upgrade paths
+  (`UPGRADE_PATHS`).
+- **Remodel:** changing a floor's layout, for example merging two studios into a 2-bedroom condo, or turning
+  startup offices into an executive suite. The floor's tenants move out, it is demolished and rebuilt, and it
+  takes build time and cost before it re-leases. It's a planned investment, not a free swap.
+
+### Floor plates
+A new floor copies the outline of the floor below with a single click (**Inherit floor below**), then can be
+edited: step it back, extend it as a cantilever, or cut an atrium. Copying the modules too is a possible
+later convenience; the shell is what must be one click.
 
 ### Starting uses
 
@@ -136,7 +176,8 @@ Run the steps in order. Steps 2–3 and step 4 can proceed in parallel once step
 4. **First playable prototype**, at an unlisted route like the Plate Escape lab boards. It answers one
    question: is drawing floors fun? Scope:
    - one site, six floors, footprint painting with inheritance, setbacks and one atrium;
-   - room drawing with four uses, doors, corridors and one core type;
+   - modules for four uses (studio, startup office, shop, café), placed against drawn corridors, and one core type;
+   - "Inherit floor below" for plates;
    - floor stepping and the isometric cutaway view, on desktop and a phone;
    - light and walk overlays computed live;
    - a handful of people walking from the lobby to rooms through cores and corridors.
@@ -152,9 +193,8 @@ only). The coordinator merges step 2 first.
 
 | Question | Recommendation |
 | --- | --- |
-| Rooms drawn freely, or snapped to sizes per use? | Free rectangles with a minimum size per use |
-| Corridors drawn, or implied by a corridor spine? | Drawn, since circulation is one of the four pressures |
-| One lobby, or several entrances and a sky lobby from the start? | One lobby first; sky lobbies come with stars |
+| Corridors drawn, or implied by a corridor spine? | Drawn, since circulation is one of the four pressures; modules place against them |
+| One lobby, or several entrances from the start? | One street lobby first; sky lobbies come with stars, as decided above |
 | Buy neighbouring plots in the sandbox? | Not in the prototype |
 | Simulation as detailed as Tower Throwback's? | Keep its people model, but cap the crowd |
 | Plan size and people limit? | 40×40 tiles per floor and about 1,500 people, to stay smooth on phones |
