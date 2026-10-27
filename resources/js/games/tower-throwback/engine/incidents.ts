@@ -36,7 +36,7 @@ import { vacateUnit } from './occupancy'
 import { parkingShortfall } from './parking'
 import { randomInt } from './rng'
 import { populationOf } from './stars'
-import { geometryFor, oneDimensionalGeometry, type TowerGeometry } from './towerGeometry'
+import { geometryFor } from './towerGeometry'
 
 const THREAT_DEADLINE_MIN = 60
 export const REQUEST_GENERATION_MINUTE = 8 * 60
@@ -389,8 +389,8 @@ function rollRoachSpawn(state: EngineState, events: EngineEvent[]): void {
 }
 
 /** Same floor within roachAdjacencyTiles, or directly above/below with x overlap. */
-export function roachAdjacent(a: Unit, b: Unit, geometry: TowerGeometry = oneDimensionalGeometry): boolean {
-  return geometry.adjacent(a, b, TUNING.incidents.roachAdjacencyTiles)
+export function roachAdjacent(state: EngineState, a: Unit, b: Unit): boolean {
+  return geometryFor(state).adjacent(a, b, TUNING.incidents.roachAdjacencyTiles)
 }
 
 function rollRoachSpread(state: EngineState, events: EngineEvent[]): void {
@@ -401,7 +401,7 @@ function rollRoachSpread(state: EngineState, events: EngineEvent[]): void {
       if (candidate.infested || infectedToday.has(candidate.id) || isSlabFamily(candidate.kind)) {
         continue
       }
-      if (!roachAdjacent(source, candidate, geometryFor(state))) {
+      if (!roachAdjacent(state, source, candidate)) {
         continue
       }
       if (state.rng.next() < TUNING.incidents.roachSpreadP) {
@@ -458,7 +458,7 @@ export function repairUnit(state: EngineState, unitId: number, events: EngineEve
 /** @param infested The tower's infested units in id order, when the caller already has them. */
 export function infestedNeighborPenalty(state: EngineState, unit: Unit, infested?: readonly Unit[]): number {
   for (const other of infested ?? unitsInIdOrder(state)) {
-    if (other.id !== unit.id && other.infested && roachAdjacent(other, unit, geometryFor(state))) {
+    if (other.id !== unit.id && other.infested && roachAdjacent(state, other, unit)) {
       return TUNING.incidents.roachNeighborEvalPenalty
     }
   }
