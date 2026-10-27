@@ -16,7 +16,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Relation | A new game and route that shares Tower Throwback's engine where it fits. Saves are separate. |
 | Platform | Desktop first, with a mouse; still playable on a phone. |
 | Loop | A star-rated sandbox like Tower Throwback, plus a scenario track that teaches each layout pressure. |
-| Layout pressures | All four: light and views, circulation, structure and cost, neighbours and noise. |
+| Layout pressures | All four: light and views, circulation, cost (including overhangs), neighbours and noise. Structure is kept light: cantilevers are allowed without structural simulation. |
 | Look | Tower Throwback's neo-90s management-sim style in isometric, but **more vibrant and less muted**: one bold, saturated hue per use. Overlays keep their own palette. |
 | Rooms | **Modules**: each use comes in fixed sizes that snap to the plan grid, rather than free-drawn rectangles. |
 | Mixed use | The same freedom as Tower Throwback: any use on any floor. A tower can stack uses, for example offices first, then a sky lobby, then residential above. |
@@ -28,6 +28,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Sky bridges | Bridges link buildings at the same floor, so one sky lobby can serve two towers. |
 | Public space | Plazas and other public space raise nearby desirability, bring footfall to shops, count toward the star rating, and host events. |
 | Parking | Surface parking is built beside a tower, then upgraded to an underground garage entrance with basement parking spaces. |
+| Cores, risers and exits | Cores bundle elevators, a stair and a utility riser, and each spans its own range of floors (not inherited). Wet modules must sit near a riser. Every floor needs two separated exit stairs that reach the street. |
 | Environment and utilities | The simulation includes utilities (electricity, water, trash) and an environmental rating. |
 | Lobbies and basements | As in Tower Throwback. Street lobbies sit on the ground floor but may be split into separate entrances (twin towers). Any number of sky lobbies go on upper floors, unlocked by stars. Basements go several floors deep once excavation unlocks, for parking, plant and transit. |
 
@@ -67,7 +68,7 @@ Each one is a rule the player can see as an overlay, and each costs something el
 | --- | --- |
 | Light and views | `daylight(tile)` = tiles to the nearest glass edge or atrium, capped at 6 (1 tile = 3 m). Views add a bonus by height and facing, and lose it behind a taller neighbour. |
 | Circulation | `walk(room)` = path length from door to core on the corridor graph. Cores use Tower Throwback's capacity and queue model, including load-aware routing. |
-| Structure and cost | A tile is supported if the floor below has it, or it lies within cantilever reach of a supported tile on a column line. Reach grows with stars. Cost scales with area, height and unsupported span. |
+| Cost and overhangs | Cantilevers are allowed without a structural simulation: no columns, loads or collapse. A floor may overhang the one below by up to a generous reach (a few tiles, growing with stars), and each overhanging tile costs more to build. Otherwise cost scales with area and height. |
 | Neighbours and noise | `adjacency(useA, useB, direction)` gives −2 to +2, including the rooms directly above and below. |
 
 ### Mixed use and stacking
@@ -107,7 +108,7 @@ gated by stars and priced by plot. Plots differ:
 - a corner plot has two street frontages;
 - one faces a park or river and has views;
 - one has a height limit;
-- one sits over a rail cutting, so columns are restricted.
+- one sits over a rail cutting, where nothing can stand on the ground.
 
 So the decision is whether to build tall on the land you have or buy sideways. In the **sandbox**,
 neighbouring plots are **empty**. A **scenario** may instead fill them with existing low-rise buildings that
@@ -141,6 +142,59 @@ They cost land that isn't leased, plus upkeep.
 **underground garage**: a ramp entrance at ground level, plus parking spaces on basement floors. That frees the
 surface for a plaza or another building. It follows Tower Throwback's parking model (ramp-served basement
 floors, demand from offices and hotel suites), with the surface lot as a new first step.
+
+### Cores, risers and exit stairs
+These three are one family: vertical modules that each span **their own range of floors** and take the same
+footprint on every floor in that range. Floors outside the range are free. Inheriting a floor plate copies the
+outline only; it never extends a core, riser or stair. A core's range is set on purpose (see below).
+
+For example, a high-rise elevator bank serving floors 15–30 starts at the floor-15 sky lobby. It needs only an
+elevator **machine/pit room** on floor 14, directly beneath its lowest stop. Floors 1–13 below that are free
+for anything, and the low-rise bank that brings people up to the sky lobby is a separate core with its own
+range, such as 0–15.
+
+**Cores** are the backbone. A core holds an elevator bank (1–4 cars, local or express), a stair, and a utility
+riser for power, water and drains. Where cores go decides walking distances, how sky lobbies split the tower
+(express cores run to a sky lobby, local cores serve above it), and how much area each floor gives up.
+A service core carries trash and housekeeping. Standalone elevators stay possible as a premium option, such
+as glass elevators in an atrium.
+
+**Risers and wet modules.** Modules that need plumbing (bathrooms in condos and hotel rooms, kitchens,
+restaurants, restrooms, fitness rooms) are **wet** and must sit within a few tiles of a riser. Dry modules
+(offices, shops, storage) go anywhere. While placing a wet module, the reachable area is shaded, like the
+light overlay. A wet module out of reach simply can't be placed; there's no hidden penalty. A **standalone
+riser** is a small, cheap shaft with no elevator. When a wing grows too far from the core, the choice is a riser
+(cheap, but a long walk to the elevators remains) or a second core (expensive, but it fixes both).
+
+**Exit stairs.** Unlike elevators, an exit stair must **reach a street exit**: it runs down to the ground or a
+podium roof that leads out. It may change position at a transfer floor along a protected corridor, but it can't
+simply end. So a stair inside a 15–30 elevator core counts as an exit only if it continues down, or connects at
+floor 15 to a stair that does. Every occupied floor needs a route to **two separated exit stairs** within a set walking
+distance. Stairs in cores count, and a **standalone exit stair** is a small, cheap module for wings and
+far corners. The two exits must be apart, so two stairs in one core count once. An egress overlay shades tiles
+by distance to the nearest exits. A floor short of exits shows the warning while you build and **can't lease
+until it complies**: one clear rule, not a degrading score. Exits also matter in fires (Tower Throwback's
+incidents): a floor with good exits evacuates faster and loses less. This is the classic reason a tall,
+deep or long floor plate needs a second core, a scissor stair, or a stair at each end of a wing.
+
+### Placing cores across floors
+The isometric view shows one floor, but a core spans many. Placing one must stay easy in that view:
+- **Place on the current floor, then stretch.** Drop the core's footprint on the floor you're on, then drag
+  handles to set its top and bottom floors. Page Up/Down with a modifier moves the nearer end one floor; on a
+  phone, steppers do the same.
+- **A stack strip beside the view.** While a core is selected, a narrow elevation strip at the screen edge shows
+  every floor of the tower as a row. The core's range is a bar with draggable ends, and its stops are dots you
+  can toggle per floor (as in Tower Throwback's stop editing). Floors the core can't reach, because no plate is
+  there or something is in the way, are marked, and the reason shows on hover or tap.
+- **Ghosts on other floors.** On floors inside a core's range, its footprint shows as a reserved outline even
+  before those floors are built. On the floor beneath its lowest stop, the required machine/pit room shows as a
+  ghost until it's placed. You can't build over either by accident.
+- **Section view.** A toggle swings the camera to a vertical cut through the selected core, a side view much like
+  Tower Throwback's. It shows the whole stack, its stops and the sky lobby transfers at once. It's the best
+  place to plan elevator zoning, and it's a nod to the first game.
+- **Placement checks before you commit:** the footprint fits on every floor in range, the pit/machine room
+  floor is free, the stops include at least one lobby or sky lobby, and exit stairs reach the street.
+  Problems show on the ghost, before any money is spent.
 
 ### Environment and utilities
 Utilities make the building's services visible and give height a cost, without asking the player to draw pipes.
@@ -219,12 +273,12 @@ later convenience; the shell is what must be one click.
 | --- | --- | --- |
 | Corner Plot | Twelve flats on a small corner site, all with daylight | Daylight depth |
 | Two Cores | An office slab where no desk is more than 20 m from a core | Circulation |
-| Over the Station | Build above a rail cutting with columns allowed only on two lines | Structure and cantilevers |
+| Over the Station | Build over a rail cutting where nothing can stand on the ground | Cantilevers and sky bridges |
 | Mixed Block | Shops, a restaurant, offices and flats with no complaints | Neighbours and stacking |
 | Light Well | A deep inherited footprint with a satisfaction target | Atriums and setbacks |
 
 ### Camera and controls
-- **Desktop:** drag to paint a footprint or a room, click to select, right-drag to pan. Page Up/Down changes floor, Q/E rotate the view in 90° steps, and a key cycles the light, walk, structure and mood overlays.
+- **Desktop:** drag to paint a footprint or a room, click to select, right-drag to pan. Page Up/Down changes floor, Q/E rotate the view in 90° steps, and a key cycles the light, walk, egress and mood overlays.
 - **Phone:** one finger edits with the active tool, two fingers pan and zoom. A floor stepper sits at the edge, and a Draw/Move toggle prevents accidental edits.
 
 ## What carries over from Tower Throwback
