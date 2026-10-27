@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { FULL_GAMEPLAY_GROUPS, GAMEPLAY_GAMES, GAMEPLAY_PROJECTS, parseChangedFiles, readChangedFiles, selectGameplayTests } from '../select-gameplay-tests.mjs'
+import { collectTests, GAMEPLAY_GAMES, GAMEPLAY_PROJECTS, listGameplayTests, MAX_SHARDS, parseChangedFiles, planShards, readChangedFiles, readDurations, selectGameplayTests, testKey, UNKNOWN_TEST_SECONDS } from '../select-gameplay-tests.mjs'
+import { measure, mergeDurations } from '../update-gameplay-durations.mjs'
 
 const modified = (...paths) => paths.map((file) => ({ status: 'M', paths: [file] }))
 const select = (...paths) => selectGameplayTests('pull_request', modified(...paths))
@@ -14,44 +15,46 @@ const hover = 'resources/js/games/hover/HoverGame.tsx'
 test('selects every Tower spec without selecting unrelated games', () => {
   const selection = select('resources/js/games/tower-throwback/useTowerKeyboardShortcuts.ts')
   assert.equal(selection.mode, 'selected')
-  assert.deepEqual(selection.matrix, { include: [{ shard: 1, grep: selection.grep }] })
-  const match = new RegExp(selection.grep)
-  for (const entry of GAMEPLAY_GAMES) {
-    for (const spec of entry.specs) {
-      assert.equal(match.test(`chromium-desktop ${spec} suite test`), entry.game === 'tower-throwback')
-      assert.equal(match.test(`prefix-${spec} suite test`), false)
-    }
-  }
+  assert.deepEqual(selection.specs, GAMEPLAY_GAMES.find((entry) => entry.game === 'tower-throwback').specs)
 })
 
-test('multiple affected games retain the balanced full groups', () => {
+test('multiple affected games run everything; one game’s files stay focused', () => {
   assert.equal(select(hover, 'resources/js/games/tower-throwback/useTowerKeyboardShortcuts.ts').mode, 'full')
   assert.equal(select(hover, 'resources/js/games/hover/HoverScene.tsx').mode, 'selected')
 })
 
 test('registered specs and Blade shells select the right game, including Cars naming', () => {
-  assert.equal(select('resources/views/games/cars.blade.php').grep, select('tests/e2e/parking-pickup.spec.ts').grep)
+  assert.deepEqual(select('resources/views/games/cars.blade.php'), select('tests/e2e/parking-pickup.spec.ts'))
   for (const entry of GAMEPLAY_GAMES) {
     for (const file of [...entry.ui.map((name) => `resources/js/games/${entry.game}/${name}`),
       `resources/js/games/${entry.game}/index.tsx`, `resources/views/games/${entry.game}.blade.php`,
       ...entry.specs.map((name) => `tests/e2e/${name}`)]) {
-      assert.equal(select(file).mode, 'selected')
+      assert.deepEqual(select(file), { mode: 'selected', specs: entry.specs })
     }
   }
 })
 
 test('unknown, shared, persistence, engine, dependency and routing changes expand to full', () => {
-  for (const file of ['docs/games/hover-homage.md', 'resources/js/games/hover/NewPanel.tsx',
+  for (const file of ['resources/js/games/hover/NewPanel.tsx',
     'resources/js/games/hover/gameProgress.ts', 'resources/js/games/hover/gameTypes.ts',
     'resources/js/games/hover/maps/maps.ts', 'resources/js/games/hover/engine/engine.ts',
     'resources/js/games/_shared/databaseGameData.ts', 'resources/js/games/pwa/sw.ts',
+    'resources/js/games/hover/notes.md', 'public/notes.md',
     'resources/views/layouts/game.blade.php', 'routes/web.php', 'pnpm-lock.yaml',
-    '.github/workflows/ci.yml', 'tests/e2e/new-game.spec.ts', 'a\nnewline.ts']) {
-    const selection = select(hover, file)
-    assert.equal(selection.mode, 'full', file)
-    assert.equal(selection.grep, '')
-    assert.deepEqual(selection.matrix.include.map((group) => group.shard), [1, 2, 3, 4])
+    '.github/workflows/ci.yml', 'tests/e2e/new-game.spec.ts', 'tests/e2e/gameplay-durations.json', 'a\nnewline.ts']) {
+    for (const changes of [[hover, file], ['docs/games/hover-homage.md', file], [file]]) {
+      const selection = select(...changes)
+      assert.equal(selection.mode, 'full', file)
+      assert.deepEqual(selection.specs, GAMEPLAY_GAMES.flatMap((entry) => entry.specs))
+    }
   }
+})
+
+test('only documentation-only PRs select no gameplay; docs beside one game keep that game', () => {
+  assert.deepEqual(select('docs/games/hover-homage.md', 'AGENTS.md', 'README.md'), { mode: 'none', specs: [] })
+  assert.equal(select('docs/games/hover-homage.md', hover).mode, 'selected')
+  assert.equal(selectGameplayTests('pull_request', [{ status: 'D', paths: ['docs/old.md'] }]).mode, 'full')
+  assert.equal(selectGameplayTests('push', modified('docs/games/hover-homage.md')).mode, 'full')
 })
 
 test('deletions, renames and type changes always run full coverage', () => {
@@ -72,22 +75,58 @@ test('empty changes and every non-PR run remain full', () => {
   assert.throws(() => selectGameplayTests('pull_request\n', []))
 })
 
-test('full groups cover every registered project/file exactly once and reject unrelated titles', () => {
-  const expected = GAMEPLAY_PROJECTS.flatMap((project) => GAMEPLAY_GAMES.flatMap((game) => game.specs.map((spec) => [project, spec])))
-  assert.equal(expected.length, 32)
-  assert.deepEqual(FULL_GAMEPLAY_GROUPS.flat().map(JSON.stringify).sort(), expected.map(JSON.stringify).sort())
-  const selection = selectGameplayTests('schedule', [])
-  assert.equal(selection.matrix.include.length, 4)
-  for (const [project, spec] of expected) {
-    const matching = selection.matrix.include.filter((group) => new RegExp(group.grep).test(`${project} ${spec} suite test`))
-    assert.equal(matching.length, 1, `${project}/${spec}`)
-  }
-  for (const group of selection.matrix.include) {
-    const match = new RegExp(group.grep)
-    assert.equal(match.test('webkit-mobile-375 hover.spec.ts suite test'), false)
-    assert.equal(match.test('chromium-desktop other.spec.ts suite test'), false)
-    assert.equal(match.test('prefix-chromium-desktop hover.spec.ts suite test'), false)
-  }
+const fake = (file, title) => ({ key: testKey('chromium-desktop', file, ['Suite', title]), file })
+
+test('packs every test into exactly one shard, longest first, within the shard cap', () => {
+  const tests = [fake('a.spec.ts', 'long'), fake('a.spec.ts', 'short'), fake('b.spec.ts', 'one'), fake('b.spec.ts', 'two'), fake('c.spec.ts', 'three')]
+  const seconds = [400, 100, 300, 200, 100]
+  const durations = Object.fromEntries(tests.map((test, index) => [test.key, seconds[index]]))
+  const plan = planShards(tests, durations, { target: 500, max: 4 })
+  assert.equal(plan.shards, 3)
+  assert.deepEqual(plan.estimates, [400, 400, 300])
+  assert.deepEqual(plan.matrix.include.map((shard) => shard.shard), [1, 2, 3])
+  const assigned = plan.matrix.include.flatMap((shard) => shard.tests.split('\n'))
+  assert.deepEqual(assigned.sort(), tests.map((test) => test.key).sort())
+  assert.equal(planShards(tests, durations, { target: 10, max: 4 }).shards, 4)
+  assert.equal(planShards(tests.slice(0, 2), durations, { target: 10, max: 4 }).shards, 2)
+  assert.equal(planShards(tests, durations, { target: 5000, max: 4 }).shards, 1)
+  assert.throws(() => planShards([], durations))
+  assert.throws(() => planShards([tests[0], tests[0]], durations))
+})
+
+test('unmeasured tests take their file median, or the default for a new file, and are reported', () => {
+  const known = [fake('a.spec.ts', 'one'), fake('a.spec.ts', 'two'), fake('a.spec.ts', 'three')]
+  const durations = { [known[0].key]: 100, [known[1].key]: 300, [known[2].key]: 500 }
+  const plan = planShards([...known, fake('a.spec.ts', 'new'), fake('z.spec.ts', 'new')], durations, { target: 10_000 })
+  assert.deepEqual(plan.estimates, [900 + 300 + UNKNOWN_TEST_SECONDS])
+  assert.deepEqual(plan.unknown.sort(), [fake('a.spec.ts', 'new').key, fake('z.spec.ts', 'new').key])
+})
+
+// New tests are budgeted, not rejected: CI must measure a test before it can be recorded.
+test('Playwright’s own discovery of the gameplay script is scheduled once each within the cap', () => {
+  const tests = listGameplayTests()
+  const expectedFiles = GAMEPLAY_GAMES.flatMap((entry) => entry.specs)
+  assert.deepEqual([...new Set(tests.map((test) => test.file))].sort(), [...expectedFiles].sort())
+  assert.deepEqual([...new Set(tests.map((test) => test.key.slice(1, test.key.indexOf(']'))))].sort(), [...GAMEPLAY_PROJECTS].sort())
+  const plan = planShards(tests, readDurations())
+  assert.ok(plan.shards <= MAX_SHARDS)
+  const assigned = plan.matrix.include.flatMap((shard) => shard.tests.split('\n'))
+  assert.equal(assigned.length, tests.length)
+  assert.deepEqual(new Set(assigned), new Set(tests.map((test) => test.key)))
+})
+
+test('measurements use each test’s final attempt and drop tests no longer listed', () => {
+  const report = { suites: [{ file: 'a.spec.ts', title: 'a.spec.ts', specs: [], suites: [{ title: 'Suite', specs: [
+    { title: 'flaky', tests: [{ projectName: 'chromium-desktop', results: [{ status: 'failed', duration: 90_000 }, { status: 'passed', duration: 30_400 }] }] },
+    { title: 'phone only', tests: [{ projectName: 'chromium-desktop', results: [{ status: 'skipped', duration: 3 }] }] },
+  ] }] }] }
+  const [flaky, phoneOnly] = collectTests(report).map((test) => test.key)
+  assert.equal(flaky, '[chromium-desktop] › a.spec.ts › Suite › flaky')
+  const measured = measure([report])
+  assert.deepEqual(measured, { [flaky]: 30, [phoneOnly]: 1 })
+  const kept = '[chromium-desktop] › b.spec.ts › Suite › kept'
+  assert.deepEqual(mergeDurations({ [kept]: 50, gone: 9, [flaky]: 70 }, measured, new Set([flaky, phoneOnly, kept])),
+    { [flaky]: 30, [phoneOnly]: 1, [kept]: 50 })
 })
 
 test('full registry matches the package gameplay spec and project arguments', () => {
@@ -139,9 +178,10 @@ test('CLI writes single-line outputs and exits nonzero without outputs on Git fa
       const index = line.indexOf('=')
       return [line.slice(0, index), line.slice(index + 1)]
     }))
-    assert.equal(lines.get('shards'), '4')
-    assert.equal(lines.get('grep'), '')
-    assert.deepEqual(JSON.parse(lines.get('matrix')), selectGameplayTests('push', []).matrix)
+    assert.equal(lines.get('mode'), 'full')
+    const matrix = JSON.parse(lines.get('matrix'))
+    assert.equal(lines.get('shards'), String(matrix.include.length))
+    assert.equal(matrix.include.flatMap((shard) => shard.tests.split('\n')).length, listGameplayTests().length)
     rmSync(output)
     Object.assign(env, { GAMEPLAY_EVENT: 'pull_request', GAMEPLAY_BASE_SHA: 'a'.repeat(40), GAMEPLAY_HEAD_SHA: 'b'.repeat(40) })
     assert.equal(run().status, 1)

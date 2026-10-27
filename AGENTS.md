@@ -102,17 +102,24 @@ Non-obvious, verified:
   weekly. The per-game Playwright workflows still support focused manual verification.
   `.github/workflows/browser-checks.yml` owns isolated browser setup. Anonymous checks use
   file sessions/cache; only PWA checks migrate and seed an isolated SQLite fixture.
-  Full gameplay runs use four measured groups, each with one worker and complete project/file
-  isolation. CI and weekly share the selector's group assignments and unique report names.
-  Full groups use project/file grep filters; do not also apply Playwright's native `--shard`,
-  which would omit tests from each group. Selector tests enforce complete, nonduplicated
-  coverage of the gameplay package script's specs and projects; update both when adding coverage.
+  Gameplay shards come from `scripts/select-gameplay-tests.mjs`: it lists the gameplay package
+  script's tests through Playwright (`--list`), then packs whole tests longest-first into shards
+  of about eight minutes (at most eight), using measured seconds in
+  `tests/e2e/gameplay-durations.json`. Each shard runs one worker on an exact `--test-list`, and
+  fails if any listed line resolves to no test. Do not also apply Playwright's native `--shard`.
+  CI and weekly share the selector and unique report names. New tests run at an estimate until
+  measured; refresh after adding or retitling slow tests:
+  `gh run download <run> --pattern 'gameplay-playwright-report-*' --dir <dir>`, then
+  `node scripts/update-gameplay-durations.mjs <dir>`. Selector tests enforce package-script parity
+  with the registered specs and projects, and that every discovered test lands in exactly one shard.
   PRs touching only one game's exact audited UI/entrypoint files, Blade shell or registered
-  gameplay specs run that game in one group; multiple affected games retain all four groups.
+  gameplay specs run only that game's tests; multiple affected games run everything.
   `scripts/select-gameplay-tests.mjs` owns that allow-list. New or unknown paths,
-  engine/types/progress/levels/maps, shared code,
-  dependencies, deletions and renames retain the full run. Main and weekly always run all games,
-  and PWA checks always run. Selection failures fail `Run Tests`; no browser jobs are skipped.
+  engine/types/progress/levels/maps, shared code, the durations file,
+  dependencies, deletions and renames retain the full run. A PR whose every change is under
+  `docs/` or is Markdown outside `resources/` and `public/` skips gameplay, and `Run Tests`
+  accepts that skip only in that mode. Main and weekly always run all games, and PWA checks
+  always run. Selection failures fail `Run Tests`.
   `Run Tests` checks the aggregate gameplay matrix result, so every shard must succeed.
 - CI runs on GitHub-hosted `ubuntu-24.04-arm`.
 
