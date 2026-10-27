@@ -22,6 +22,17 @@ export interface Room {
   rotated: boolean
   /** A perimeter tile of the room that opens onto a corridor or core. */
   door: PlateTile
+  /** The wall the door is in: the outward step from the door tile. */
+  doorSide: DoorSide
+}
+
+export type DoorSide = 'south' | 'east' | 'north' | 'west'
+
+export const DOOR_STEP: Readonly<Record<DoorSide, PlateTile>> = {
+  south: { x: 0, y: 1 },
+  east: { x: 1, y: 0 },
+  north: { x: 0, y: -1 },
+  west: { x: -1, y: 0 },
 }
 
 export type Core = VerticalFootprint
@@ -33,7 +44,7 @@ export type TileUse = 'empty' | 'plate' | 'corridor' | 'room' | 'core'
 export interface RoomCheck {
   ok: boolean
   reason?: string | undefined
-  door?: PlateTile | undefined
+  door?: { tile: PlateTile, side: DoorSide } | undefined
   width: number
   depth: number
 }
@@ -224,7 +235,7 @@ export class Building {
     const def = USES[use]
     const width = rotated ? def.depth : def.width
     const depth = rotated ? def.width : def.depth
-    const result = (reason?: string, door?: PlateTile): RoomCheck => ({ ok: !reason, reason, door, width, depth })
+    const result = (reason?: string, door?: RoomCheck['door']): RoomCheck => ({ ok: !reason, reason, door, width, depth })
     if (!this.isFloor(floor)) return result('That floor is outside the site')
     for (let ty = y; ty < y + depth; ty++) {
       for (let tx = x; tx < x + width; tx++) {
@@ -240,7 +251,7 @@ export class Building {
   placeRoom(use: UseKind, floor: number, x: number, y: number, rotated = false): EditResult {
     const check = this.checkRoom(use, floor, x, y, rotated)
     if (!check.ok || !check.door) return refuse(check.reason ?? 'Cannot place that room')
-    this.rooms.push({ id: this.nextRoomId++, use, floor, x, y, width: check.width, depth: check.depth, rotated, door: check.door })
+    this.rooms.push({ id: this.nextRoomId++, use, floor, x, y, width: check.width, depth: check.depth, rotated, door: check.door.tile, doorSide: check.door.side })
     return this.changed()
   }
 
@@ -391,47 +402,50 @@ export class Building {
    * a corridor or core. Sides are tried street-first (+y), then east, north and
    * west, so the choice is deterministic.
    */
-  private doorFor(floor: number, x: number, y: number, width: number, depth: number): PlateTile | null {
+  private doorFor(floor: number, x: number, y: number, width: number, depth: number): { tile: PlateTile, side: DoorSide } | null {
     const opensOnto = (tx: number, ty: number) => {
       const use = this.inBounds(tx, ty) ? this.tileUse(floor, tx, ty) : 'empty'
       return use === 'corridor' || use === 'core'
     }
-    const sides: { tiles: PlateTile[], outward: PlateTile }[] = [
-      { tiles: Array.from({ length: width }, (_, i) => ({ x: x + i, y: y + depth - 1 })), outward: { x: 0, y: 1 } },
-      { tiles: Array.from({ length: depth }, (_, i) => ({ x: x + width - 1, y: y + i })), outward: { x: 1, y: 0 } },
-      { tiles: Array.from({ length: width }, (_, i) => ({ x: x + i, y })), outward: { x: 0, y: -1 } },
-      { tiles: Array.from({ length: depth }, (_, i) => ({ x, y: y + i })), outward: { x: -1, y: 0 } },
+    const sides: { side: DoorSide, tiles: PlateTile[] }[] = [
+      { side: 'south', tiles: Array.from({ length: width }, (_, i) => ({ x: x + i, y: y + depth - 1 })) },
+      { side: 'east', tiles: Array.from({ length: depth }, (_, i) => ({ x: x + width - 1, y: y + i })) },
+      { side: 'north', tiles: Array.from({ length: width }, (_, i) => ({ x: x + i, y })) },
+      { side: 'west', tiles: Array.from({ length: depth }, (_, i) => ({ x, y: y + i })) },
     ]
-    for (const { tiles, outward } of sides) {
+    for (const { side, tiles } of sides) {
+      const outward = DOOR_STEP[side]
       const middle = (tiles.length - 1) / 2
       const ranked = tiles
         .map((tile, index) => ({ tile, rank: Math.abs(index - middle), index }))
         .sort((a, b) => a.rank - b.rank || a.index - b.index)
       const found = ranked.find(({ tile }) => opensOnto(tile.x + outward.x, tile.y + outward.y))
-      if (found) return found.tile
+      if (found) return { tile: found.tile, side }
     }
     return null
   }
 }
 
-/** A small lot to start from: two lit floors, a core, corridors and four rooms, so people move at once. */
+/** A small block to start from: two floors on the street, a core, corridors and four rooms, so people move at once. */
 export function starterBuilding(): Building {
   const building = new Building()
+  // The lot's street frontage is its +y edge; the starter block sits on it.
+  const top = SITE_DEPTH - 12
   const rect = (x: number, y: number, width: number, depth: number): PlateTile[] =>
-    Array.from({ length: width * depth }, (_, i) => ({ x: x + (i % width), y: y + Math.floor(i / width) }))
+    Array.from({ length: width * depth }, (_, i) => ({ x: x + (i % width), y: top + y + Math.floor(i / width) }))
   const must = (result: EditResult) => {
     if (!result.ok) throw new Error(`Starter building: ${result.reason}`)
   }
-  must(building.paintPlate(0, rect(12, 14, 16, 12)))
-  must(building.paintCorridor(0, rect(13, 19, 14, 1)))
-  must(building.paintCorridor(0, rect(21, 20, 1, 6)))
+  must(building.paintPlate(0, rect(12, 0, 16, 12)))
+  must(building.paintCorridor(0, rect(13, 5, 14, 1)))
+  must(building.paintCorridor(0, rect(21, 6, 1, 6)))
   must(building.inheritFloorBelow(1))
-  must(building.paintCorridor(1, rect(13, 19, 14, 1)))
-  must(building.placeCore(0, 19, 17))
-  must(building.placeRoom('shop', 0, 22, 22))
-  must(building.placeRoom('cafe', 0, 17, 20))
-  must(building.placeRoom('office', 1, 13, 20, true))
-  must(building.placeRoom('studio', 1, 22, 15, false))
+  must(building.paintCorridor(1, rect(13, 5, 14, 1)))
+  must(building.placeCore(0, 19, top + 3))
+  must(building.placeRoom('shop', 0, 22, top + 8))
+  must(building.placeRoom('cafe', 0, 17, top + 6))
+  must(building.placeRoom('office', 1, 13, top + 6, true))
+  must(building.placeRoom('studio', 1, 22, top + 1))
   building.revision = 0
   return building
 }

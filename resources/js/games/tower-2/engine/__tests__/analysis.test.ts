@@ -64,7 +64,7 @@ describe('room ratings', () => {
     const analysis = new BuildingAnalysis(building)
     const studio = building.allRooms().find((room) => room.use === 'studio')!
     expect(analysis.rate(studio).noisy).toBe(false)
-    expect(building.placeRoom('cafe', 1, 23, 20).ok).toBe(true)
+    expect(building.placeRoom('cafe', 1, 23, 34).ok).toBe(true)
     expect(analysis.rate(studio).noisy).toBe(false)
     const shopBelow = building.allRooms().find((room) => room.use === 'shop')!
     expect(building.placeRoom('studio', 1, shopBelow.x, shopBelow.y + 1, false).ok).toBe(false)
@@ -77,7 +77,7 @@ describe('room ratings', () => {
 
   test('a shop upstairs is noted and rated below one on the street', () => {
     const building = starterBuilding()
-    building.placeRoom('shop', 1, 22, 20)
+    building.placeRoom('shop', 1, 22, 34)
     const analysis = new BuildingAnalysis(building)
     const [street, upstairs] = building.allRooms().filter((room) => room.use === 'shop').map((room) => analysis.rate(room))
     expect(upstairs!.notes).toContain('Wants the street floor')

@@ -17,9 +17,10 @@ function slab(): Building {
 describe('starter building', () => {
   test('is a valid two-floor lot with a street entrance, one core and four rooms', () => {
     const building = starterBuilding()
-    expect(building.entrance()).toEqual({ x: 21, y: 25 })
+    expect(building.entrance()).toEqual({ x: 21, y: 39 })
     expect(building.cores().map(({ bottomFloor, topFloor }) => [bottomFloor, topFloor])).toEqual([[0, 1]])
     expect(building.allRooms().map((room) => [room.use, room.floor])).toEqual([['shop', 0], ['cafe', 0], ['office', 1], ['studio', 1]])
+    expect(building.allRooms().map((room) => room.doorSide)).toEqual(['west', 'east', 'north', 'south'])
     expect(building.revision).toBe(0)
   })
 })
@@ -33,7 +34,7 @@ describe('rooms', () => {
     expect(building.placeRoom('shop', 0, 3, 1)).toEqual({ ok: true })
     expect(building.checkRoom('shop', 0, 4, 1, false).reason).toBe('Overlaps a room')
     // Street side (+y) wins: the door is the middle of the south edge, over the corridor.
-    expect(building.room(1)!.door).toEqual({ x: 4, y: 3 })
+    expect(building.room(1)).toMatchObject({ door: { x: 4, y: 3 }, doorSide: 'south' })
   })
 
   test('rotation swaps the footprint, and a door may open onto a core', () => {
@@ -41,7 +42,7 @@ describe('rooms', () => {
     const check = building.checkRoom('office', 0, 2, 0, true)
     expect([check.width, check.depth]).toEqual([5, 4])
     expect(building.placeRoom('studio', 0, 0, 0)).toEqual({ ok: true })
-    expect(building.room(1)!.door).toEqual({ x: 1, y: 3 })
+    expect(building.room(1)).toMatchObject({ door: { x: 1, y: 3 }, doorSide: 'south' })
   })
 })
 
@@ -111,7 +112,7 @@ describe('snapshots', () => {
     const snapshot = JSON.parse(JSON.stringify(building.snapshot()))
     const copy = Building.fromSnapshot(snapshot)
     expect(copy.snapshot()).toEqual(building.snapshot())
-    expect(copy.placeRoom('studio', 1, 22, 20).ok).toBe(true)
+    expect(copy.placeRoom('studio', 1, 22, 34).ok).toBe(true)
     expect(copy.room(5)).toBeDefined()
     const tampered = { ...snapshot, rooms: [...snapshot.rooms, { ...snapshot.rooms[0], id: 9 }] }
     expect(() => Building.fromSnapshot(tampered)).toThrow('Overlaps a room')

@@ -10,7 +10,7 @@ describe('visits', () => {
     const legs = planVisit(analysis, office, 5)!
     expect(legs.map((leg) => leg.kind)).toEqual(['walk', 'ride', 'walk', 'dwell', 'walk', 'ride', 'walk'])
     expect(legs[0]).toMatchObject({ kind: 'walk', floor: 0 })
-    expect(legs[0]!.kind === 'walk' && legs[0]!.points.slice(0, 2)).toEqual([{ x: 21.5, y: 27.5 }, { x: 21.5, y: 25.5 }])
+    expect(legs[0]!.kind === 'walk' && legs[0]!.points.slice(0, 2)).toEqual([{ x: 21.5, y: 41.5 }, { x: 21.5, y: 39.5 }])
     expect(legs[1]).toMatchObject({ from: 0, to: 1 })
     expect(legs[5]).toMatchObject({ from: 1, to: 0 })
     // Each leg starts where the previous one ended.
