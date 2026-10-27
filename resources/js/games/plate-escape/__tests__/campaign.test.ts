@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
-import { createPuzzle, hasWon, removeScrew, screwLock } from '../engine'
+import { createPuzzle, hasWon, type PuzzleState, removeScrew, screwLock, turnDial } from '../engine'
 import { createPlateMesh, plateQuaternion } from '../houseGeometry'
 import { getLevel } from '../level'
 import { traceScrew } from '../screwVisibility'
-import { HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
+import { CLOCKWORK_TRACES, HARBOR_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from './campaignFixtures'
 
 test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES])('level $level has reachable authored win and overflow traces', ({ level, win, lose }) => {
   let state = createPuzzle(level)
@@ -27,8 +27,30 @@ test.each([WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES])
   expect(previous.spare).toHaveLength(getLevel(level).spareCapacity)
 })
 
+/** One action of a trace: a screw id, or a dial turn written `turn:<dial>:<1|-1>`. Every action must be accepted. */
+function act(state: PuzzleState, action: string): PuzzleState {
+  const [kind, dial, step] = action.split(':')
+  const next = kind === 'turn' ? turnDial(state, dial!, Number(step) as 1 | -1) : removeScrew(state, action)
+  expect([action, next]).not.toEqual([action, state])
+  return next
+}
+
+test.each(CLOCKWORK_TRACES)('clockworks level $level has reachable authored win and overflow traces, dial turns included', ({ level, win, lose }) => {
+  let state = createPuzzle(level)
+  for (const action of win) {
+    state = act(state, action)
+    expect(state.overflow).toBeNull()
+  }
+  expect(hasWon(state)).toBe(true)
+  const lost = lose.reduce(act, createPuzzle(level))
+  expect(lost.overflow).not.toBeNull()
+  const before = lose.slice(0, -1).reduce(act, createPuzzle(level))
+  expect(before.overflow).toBeNull()
+  expect(before.spare).toHaveLength(getLevel(level).spareCapacity)
+})
+
 test('authored covers actually intersect the screw’s outward access ray', () => {
-  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES]) {
+  for (const { level: id } of [WORKSHOP_TRACE, ...VILLAGE_TRACES, ...MILL_TRACES, ...HARBOR_TRACES, ...CLOCKWORK_TRACES]) {
     const level = getLevel(id)
     for (const screw of level.screws) {
       const plate = level.plates.find((candidate) => candidate.id === screw.plate)!

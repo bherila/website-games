@@ -131,6 +131,8 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       return `The ${cover.name.toLowerCase()} is ${cover.rail ? 'resting' : 'hanging'} over that screw. It comes away with the ${plate(cover.host!).toLowerCase()}.`
     }
     if (lock?.kind === 'dial') return `Turn the ${plate(lock.plate).toLowerCase()} until its window is over that screw.`
+    const driver = lock?.kind === 'cover' ? PLATES.find((candidate) => candidate.id === lock.plate)!.drivenBy : undefined
+    if (driver) return `The ${plate(lock!.plate).toLowerCase()} is shut over that screw. Free the ${plate(driver).toLowerCase()} and its cord will open it.`
     if (lock?.kind === 'cover') return `The ${plate(lock.plate).toLowerCase()} covers that screw. Release it first.`
     return 'No room for that screw. Collect a matching color or undo.'
   }

@@ -10,9 +10,11 @@ const DIFFICULTY: Record<number, readonly [number, number]> = {
   6: [0.5, 0.8], 7: [0.25, 0.45], 8: [0.25, 0.5], 9: [0.55, 0.85], 10: [0.12, 0.3],
   11: [0.45, 0.75], 12: [0.35, 0.6], 13: [0.22, 0.42], 14: [0.15, 0.32], 15: [0.1, 0.28],
   16: [0.38, 0.6], 17: [0.3, 0.5], 18: [0.18, 0.35], 19: [0.12, 0.28], 20: [0.08, 0.22],
+  // Five colors and fifteen screws leave far fewer random orders that win; the simple policy still wins 21–23 every time.
+  21: [0.045, 0.09], 22: [0.025, 0.055], 23: [0.025, 0.055], 24: [0.01, 0.03], 25: [0.03, 0.065],
 }
 /** Levels that introduce something: no move short of overflowing may doom the board. */
-const TEACHING = new Set([1, 4, 6, 9, 11, 12, 16, 18])
+const TEACHING = new Set([1, 4, 6, 9, 11, 12, 16, 18, 21])
 /** Elsewhere a move may commit to a loss, but the overflow must show within this many removals. */
 const DOOM_HORIZON = 4
 const analyses = new Map(LEVELS.map((level) => [level.id, analyseLevel(level.id)]))
@@ -76,7 +78,7 @@ test('the bearing rule constrains every level rather than being satisfied by acc
 
 test('shared screws shape every level that has them', () => {
   const shared = LEVELS.filter((level) => level.screws.some((screw) => screw.through))
-  expect(shared.map((level) => level.id)).toEqual([6, 7, 8, 9, 10, 14, 15, 20])
+  expect(shared.map((level) => level.id)).toEqual([6, 7, 8, 9, 10, 14, 15, 20, 25])
   for (const level of shared) {
     const boards = analyses.get(level.id)!.boards.filter((board) => board.overflow === null)
     // Some head is locked only because of a shared screw, so it would be free if every screw held
@@ -95,9 +97,26 @@ test('shared screws shape every level that has them', () => {
   }
 })
 
+test('counterweights shape every level that has them: some winnable board waits on a cord and nothing else', () => {
+  const linked = LEVELS.filter((level) => level.plates.some((plate) => plate.drivenBy))
+  expect(linked.map((level) => level.id)).toEqual([21, 22, 23, 24, 25])
+  for (const level of linked) {
+    const analysis = analyses.get(level.id)!
+    for (const driven of level.plates.filter((plate) => plate.drivenBy)) {
+      // A head whose only obstacle is a part still held shut by its weight's cord.
+      expect([driven.id, analysis.boards.some((board) => analysis.canWin(board) && !hasWon(board) && level.screws.some((screw) => {
+        const held = heldPlates(screw)
+        return screwLock(board, screw)?.plate === driven.id && remainingScrews(board, driven.drivenBy!) > 0
+          && !(screw.blockedBy ?? []).some((id) => id !== driven.id && panelState(board, id) === 'pinned')
+          && held.every((plate) => remainingScrews(board, plate) !== 1 || bearingLock(board, plate, held) === null)
+      }))]).toEqual([driven.id, true])
+    }
+  }
+})
+
 test('captive covers shape every level that has them', () => {
   const covered = LEVELS.filter((level) => level.screws.some((screw) => screw.coveredWhenOpen))
-  expect(covered.map((level) => level.id)).toEqual([11, 12, 13, 14, 15, 19, 20])
+  expect(covered.map((level) => level.id)).toEqual([11, 12, 13, 14, 15, 19, 20, 25])
   for (const level of covered) {
     const analysis = analyses.get(level.id)!
     // On a board that can still win, an open part is the only thing in the way of some head:

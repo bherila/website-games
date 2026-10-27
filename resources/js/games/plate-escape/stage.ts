@@ -5,6 +5,7 @@ import type { Point3 } from './level'
  * part lands on; water is not ground, so a part that reaches it sinks.
  */
 export type StageId = 'garden' | 'jetty' | 'pier' | 'workbench' | 'quay' | 'sea' | 'toy-track' | 'parlour' | 'platform' | 'lineside' | 'railway'
+  | 'dresser' | 'lobby' | 'moat' | 'music-room' | 'toyshop'
 
 interface Surface {
   kind: 'ground' | 'water'
@@ -109,6 +110,47 @@ export const STAGES: Record<StageId, Stage> = {
     surfaces: [
       { kind: 'ground', top: -1.55, rect: [0.1, 0, 2.6, 1.0] },
       { kind: 'ground', top: -2.4, circle: [0, 0, 4.6] },
+    ],
+  },
+  // A clock on a dresser top; a hanging weight swings clear of the dresser's front, above the floor.
+  dresser: {
+    target: [0, -0.15, 0],
+    distance: 0.92,
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, -0.25, 1.5, 1.0] },
+      { kind: 'ground', top: -3.4, circle: [0, 0, 4.2] },
+    ],
+  },
+  // A lift on a raised marble landing in a lobby.
+  lobby: {
+    target: [0, 0.0, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0, 1.75, 1.55] },
+      { kind: 'ground', top: -2.05, circle: [0, 0, 3.9] },
+    ],
+  },
+  // A gatehouse on a grassy island, with the moat all round it.
+  moat: {
+    target: [0, -0.35, 0.4],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0.75, 1.75, 2.25] },
+      { kind: 'water', top: -2.0, circle: [0, 0, 4.4] },
+    ],
+  },
+  // A cabinet gramophone on a round, rug-covered dais in a music room.
+  'music-room': {
+    target: [0, -0.1, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, circle: [0, 0, 2.0] },
+      { kind: 'ground', top: -1.95, circle: [0, 0, 3.9] },
+    ],
+  },
+  // A toy shop counter, with the shop floor well below it.
+  toyshop: {
+    target: [0, -0.05, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.55, rect: [0, 0, 1.7, 1.3] },
+      { kind: 'ground', top: -2.8, circle: [0, 0, 4.2] },
     ],
   },
   // A stone pier head with the sea below it on every side.

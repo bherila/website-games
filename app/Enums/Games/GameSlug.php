@@ -52,7 +52,7 @@ enum GameSlug: string
         $level = (int) $slot;
         $maximum = match ($this) {
             self::ChicksChallenge => 45,
-            self::PlateEscape => 20,
+            self::PlateEscape => 25,
             self::MathHorde, self::MarbleWorks => 12,
             default => 25,
         };

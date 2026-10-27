@@ -74,7 +74,7 @@ test('empty changes and every non-PR run remain full', () => {
 
 test('full groups cover every registered project/file exactly once and reject unrelated titles', () => {
   const expected = GAMEPLAY_PROJECTS.flatMap((project) => GAMEPLAY_GAMES.flatMap((game) => game.specs.map((spec) => [project, spec])))
-  assert.equal(expected.length, 24)
+  assert.equal(expected.length, 30)
   assert.deepEqual(FULL_GAMEPLAY_GROUPS.flat().map(JSON.stringify).sort(), expected.map(JSON.stringify).sort())
   const selection = selectGameplayTests('schedule', [])
   assert.equal(selection.matrix.include.length, 4)

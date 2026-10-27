@@ -62,6 +62,19 @@ coupling pin runs through both drawbars, the tender's sides stand on its drawbar
 hatch drops open over the tender screw below it. Every railway level has three spare slots; 16 and
 18 are teaching levels.
 
+The clockworks (levels 21–25) add linked counterweights, with five colors and fifteen screws.
+A weight plate hangs on a cord over pulleys to another part. While any screw holds the weight,
+the part it drives stays shut over the heads behind it; take the weight's last screw and it drops
+down its cord to a stop, and the cord pulls the part to a fixed open position where it covers
+nothing. Cuckoo Clock teaches it with one pinecone weight and the cuckoo's door, sash-fashion (three
+spare slots). Lift Cage has a weight and a gate on the front and another pair on the back.
+Drawbridge's counterweight hauls the bridge up off the stone apron in front of the gate, against
+the arch. Gramophone opens one cabinet two ways: a stop-pin collar on the front and a counterweighted
+record hatch on the back. Clockwork Robot, the assessment, combines a drive weight that lifts its
+spring-box hatch, a visor that slides down its rail onto its chest, and a shoulder bolt through each
+arm into the side behind it. Each part a cord drives covers a screw that holds its own host, so its
+weight is always the only way in.
+
 Small painted decals mark the harbor objects: PIP on the low outer stern corner and a weathered
 brass LIGHT plaque on the lantern's front stone base. Their transparent WebP textures live in
 `assets/`; the planes travel with their panels and never participate in selection raycasts or
@@ -95,6 +108,14 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
   outline shows where each captive cover will come to rest while it is still screwed shut. The hint
   for a head under one names it and its host, for example "The bait flap is hanging over that
   screw. It comes away with the stern batten."
+- A counterweight is a weight plate hanging on a visible cord over pulleys to the part it drives.
+  The part has no screws: it stays shut while any screw holds the weight. Take the weight's last
+  screw and it drops to the end of its cord, and the cord pulls the part (a door, gate, hatch or
+  drawbridge) to its open position, where it covers nothing; dashed outlines show that position,
+  and the stop where the weight will hang, beforehand. Both stay there until the part they hang on comes off. Undo puts the screw back and
+  with it the shut part. There is no timing: the outcome depends only on which screws are out, and
+  under reduced motion the parts appear at their end positions at once. The hint for a head under a
+  shut part names the weight that opens it.
 - Parts that fall into the harbor splash and sink; a part lying flat, such as the boat's seat,
   drops onto whatever is below and fades there.
 - The windmill sails (levels 3 and 10) and the waterwheel turn slowly, once every 20–24
@@ -129,10 +150,10 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
 `villageLevels.ts` authors levels 3–5, `millLevels.ts` levels 6–10, `harborLevels.ts` levels
-11–15 and `railwayLevels.ts` levels 16–20 (their colors, chosen by a solver search, are in
-`RAILWAY_PALETTES`). `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
-sea, and the railway's toy track, parlour, platform, lineside and main line, built in
-`railwayScenery.ts`): the surfaces parts
+11–15, `railwayLevels.ts` levels 16–20 (their colors, chosen by a solver search, are in
+`RAILWAY_PALETTES`) and `clockworkLevels.ts` levels 21–25. `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
+sea, the railway's toy track, parlour, platform, lineside and main line, built in
+`railwayScenery.ts`, and the clockworks' dresser, lobby, moat, music room and toy shop): the surfaces parts
 land on, where water is, and where the camera looks. `engine.ts`
 is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
 cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
@@ -143,6 +164,12 @@ releases and names the supporting plate. `panelState()` reports a plate as pinne
 or railed panel with no screws, still on its `host`) or gone; `Screw.coveredWhenOpen` names the
 captive panels that cover a head while open, and an open panel never bears on its host.
 `Plate.outline` gives a shaped panel its polygon, and `Plate.rail` a shutter's downhill travel.
+`Plate.drivenBy` names the counterweight that moves a screwless part: `panelState()` reports it
+pinned while the weight has screws and open after, so a cover blocks while it is pinned and the
+state is derived from `removed` like every other panel. The weight is an ordinary railed panel on
+the same host. `Plate.cord` lists the pulleys, from the weight to the part; `counterweight.ts`
+ties the cord to the top of the weight and the leading or free edge of the part and draws it as
+rods that follow both parts through their motion.
 `Plate.hinge` marks a captive panel and
 `PuzzleLevel.rotor` a decorative turning group; neither changes the puzzle model. `screwVisibility.ts` traces
 nearest physical hits: glass can reveal a head visually while keeping it locked; opaque
@@ -170,7 +197,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–20 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–25 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -183,8 +210,8 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   bearing rule constrains every level. From every reachable board short of overflow, the assembly
   must still be finishable with unlimited storage, so no move sets a mechanical trap that a later
   overflow would hide; `solverGates.test.ts` keeps such a trap, built from today's rules, that
-  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12, 16, 18) no move short of overflowing may doom
-  the board; elsewhere a doomed board must overflow within four more removals (13–15, 17, 19 and 20 use this). The solver also
+  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12, 16, 18, 21) no move short of overflowing may doom
+  the board; elsewhere a doomed board must overflow within four more removals (13–15, 17, 19, 20 and 22–25 use this). The solver also
   reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
   that keep a win, and the fewest spares a win needs. Levels 1–12 are winnable from every board
   short of overflow, by that simple policy, and without using a spare. From level 13 a move may
@@ -208,7 +235,12 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   heads the engine says (two for the music box), clear at centre and rim, and hides the rest.
   Each level with shared screws must reach a lock that would vanish if every screw held one
   plate, and a move that releases two plates at once. (Turning sharing off cannot make a level
-  unsolvable, since it only removes locks, so this is the necessity gate for shared screws.) The
+  unsolvable, since it only removes locks, so this is the necessity gate for shared screws.)
+  Each level with counterweights must reach a board that can still win where a part held shut by
+  its weight's cord is the only thing in the way of some head, and cutting any one cord (the part
+  then stays shut until its host comes off) must leave the level impossible to finish
+  (`solverGates.test.ts`). A cord that would have to open its own weight is a loop the structural
+  gate rejects, and no level's covers and cords form one. The
   authored win and overflow traces in `campaignFixtures.ts` were generated from it. The solver
   assumes every uncovered head is reachable by orbiting; geometry tests and browser journeys
   check access.
@@ -224,7 +256,12 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   cross each pinned plate inside it; an open captive panel sits in front of its host and crosses
   the access ray of exactly the heads that list it in `coveredWhenOpen`, so ordinary hinged doors
   block none; a shaped panel holds each head, rim included; turning covers cover at every angle,
-  and no other head facing a rotor lies under its sweep. Motion tests check, on each level's own
+  and no other head facing a rotor lies under its sweep. A counterweight's part, shut, covers exactly
+  the heads that list it, rim included; open, neither it, its weight at the end of its drop, its cord
+  nor its pulleys stand over any head. A sliding part's cord keeps its length through the motion, and
+  a hinged part's cord only shortens. In the clockworks every part's details stand clear of every
+  head, and every dashed resting outline, a weight's stop included, lies over exactly the heads its
+  part will cover. Motion tests check, on each level's own
   stage, that every part lands without passing through the ground, never jumps between frames, and
   falls clear (or, lying flat, comes to rest), that a rotor stops within half a second, and that a
   hinge turns about its edge.
@@ -241,21 +278,24 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   ends on the railway's introduction. A railway journey plays levels 16–20, losing and winning each
   through the dial buttons: the first turn is refused with the stop-pin hint, every dial's control
   is on screen, a selector's turn leaves the other selector alone, and the first turn is undone
-  and replayed with an arrow key. Another checks that the sails turn, stop when reached for, resume when left
+  and replayed with an arrow key, and goes on to the clockworks. A clockworks journey plays levels 21–25: on each it
+  loses, undoes and retries, drops every weight first to see its part open and the head behind it
+  offered, undoes to see it shut again, checks that the Gramophone's collar refuses to turn with its
+  pin in, and wins. Another checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the twenty-level boundary and monotonic star saves.
+  Page and API tests cover public access, the twenty-five-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–20 and rejects unreleased level 21.
+the API accepts slots 1–25 and rejects unreleased level 26.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–20 are released. Levels 21–30 below are a design plan, not playable content. The
+Levels 1–25 are released. Levels 26–30 below are a design plan, not playable content. The
 campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
 festival. Each group of five has a teaching level, practice and a final combination puzzle.
 Geometry and panel arrangement provide variation between new mechanics.
@@ -318,11 +358,11 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 | 18 | Station Clock — released | Introduce Pearl, the fifth color, with a hex-socket mark; the clock face is a familiar dial. Teaching level, three spares; from here five colors and fifteen screws. |
 | 19 | Signal Box — released | Two separate selector dials on different faces and a railed shutter; which selector to work first decides which colors arrive early. Three spares. |
 | 20 | Locomotive — released | Railway assessment: engine or tender first, with a coupling pin through both drawbars and a coal hatch that drops open over a tender screw. Three spares. |
-| 21 | Cuckoo Clock | Introduce linked counterweights (pinecone weights). Releasing a visible weight drives another part to a fixed position and opens access; there is no timing challenge. |
-| 22 | Lift Cage | Practice two clearly connected weight/cover pairs on different faces. Releasing the right pair exposes the needed color first. |
-| 23 | Drawbridge | A counterweight opens a hinged bridge section. Plan the release before taking screws from the next layer. |
-| 24 | Gramophone | Collar alignment and a counterweighted hatch expose different layers of the same housing. Use free inspection to choose an order. |
-| 25 | Clockwork Robot | Combine counterweights, sliders and shared fasteners. Clockworks assessment with a readable dependency chain and no new rule. |
+| 21 | Cuckoo Clock — released | Introduce linked counterweights: the pinecone weight's chain lifts the cuckoo's door off the perch screw. Teaching level, three spares; there is no timing challenge. |
+| 22 | Lift Cage — released | Practice two clearly connected weight/gate pairs, on the front and back of the shaft. Releasing the right pair exposes the needed color first. |
+| 23 | Drawbridge — released | A counterweight hauls the hinged bridge up off the stone apron, against the gate arch. Plan the release before taking screws from the next layer. |
+| 24 | Gramophone — released | A stop-pin collar on the front and a counterweighted record hatch on the back expose different layers of the same cabinet. Use free inspection to choose an order. |
+| 25 | Clockwork Robot — released | Combine a counterweighted hatch, a visor that slides down its rail and shoulder bolts through each arm. Clockworks assessment with a readable dependency chain and no new rule. |
 | 26 | Carousel | Introduce a releasable staging rack. Freeing its marked cover adds one spare slot for this attempt; decide whether to open it early. |
 | 27 | Balloon Basket | The staging rack is behind a sliding sign. Balance the cost of reaching extra storage against collecting the next tray color directly. |
 | 28 | Puppet Theater | Shared frame supports and a collar offer two routes to the staging rack. The theater is untimed; there is no rhythm-input rule. |
@@ -366,9 +406,15 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    removals are scored and gated like the rest.
 5. **At level 18:** add Pearl and its hex mark consistently to heads, trays, storage,
    instructions and accessible labels. Five colors still mean two active trays.
-6. **Before level 21:** add authored counterweight dependencies with fixed end positions.
-   Keep dependencies acyclic and test both motion and undo. There are no timed windows,
-   speed requirements or outcomes determined by frame rate.
+6. **Implemented for levels 21–25:** a part a counterweight drives names its weight
+   (`drivenBy`). It has no screws of its own, so the cord alone holds it: shut while any screw
+   holds the weight, open once the weight has dropped, gone with its host. Its open pose is its
+   own `hinge` or `rail`, fixed, and at that pose it covers nothing, since a counterweight only ever
+   opens access; the weight is a railed panel that drops to a fixed stop on the same host and hangs
+   there. The state is derived from `removed`, so undo, retry and the solver needed nothing new.
+   Links are authored and acyclic: no cord has to open its own weight, directly or through covers.
+   Motion is a pure function of time since release and ends at the same pose at any frame rate;
+   reduced motion shows the end pose at once. There are no timed windows or speed requirements.
 7. **Before level 26:** derive spare capacity from whether the staging rack has been released.
    Restoring an earlier snapshot restores its capacity and stored screws together. The extra
    slot resets on retry and is never a permanent purchase or consumable.

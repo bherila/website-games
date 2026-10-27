@@ -104,8 +104,8 @@ test('each authored level has complete color sets and a support for every panel'
   for (const level of LEVELS) {
     expect(new Set(level.screws.map((screw) => screw.id)).size).toBe(level.screws.length)
     for (const color of level.trayColors) expect(level.screws.filter((screw) => screw.color === color)).toHaveLength(3)
-    // A dial has no screws of its own: it turns on its host and goes with it.
-    for (const plate of level.plates) expect(plate.dial ? level.plates.some((candidate) => candidate.id === plate.host) : level.screws.some((screw) => heldPlates(screw).includes(plate.id))).toBe(true)
+    // A dial, or a part a counterweight drives, has no screws of its own: it stays on its host and goes with it.
+    for (const plate of level.plates) expect(plate.dial || plate.drivenBy ? level.plates.some((candidate) => candidate.id === plate.host) : level.screws.some((screw) => heldPlates(screw).includes(plate.id))).toBe(true)
     for (const screw of level.screws) for (const plate of heldPlates(screw)) expect(level.plates.some((candidate) => candidate.id === plate)).toBe(true)
     const ids = level.plates.map((plate) => plate.id)
     for (const screw of level.screws) for (const cover of screw.blockedBy ?? []) expect(ids).toContain(cover)
@@ -125,7 +125,7 @@ test('each authored level has complete color sets and a support for every panel'
       }
     }
   }
-  expect(() => getLevel(LEVELS.length + 1)).toThrow('Unknown Plate Escape level')
+  expect(() => getLevel(Math.max(...LEVELS.map((level) => level.id)) + 1)).toThrow('Unknown Plate Escape level')
 })
 
 const ROOFS = ['left-roof-1', 'left-roof-2', 'right-roof-1', 'right-roof-2']

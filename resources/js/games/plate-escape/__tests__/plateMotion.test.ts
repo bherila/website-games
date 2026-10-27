@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { plateQuaternion } from '../houseGeometry'
 import { LEVELS } from '../level'
-import { FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, panelSamples, ROTOR_START_SECONDS, ROTOR_STOP_SECONDS, rotorPose } from '../plateMotion'
+import { FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, panelSamples, RAIL_SECONDS, railPose, ROTOR_START_SECONDS, ROTOR_STOP_SECONDS, rotorPose } from '../plateMotion'
 import { groundAt, type StageId } from '../stage'
 
 const plates = [...new Map(LEVELS.flatMap((level) => level.plates.map((plate) => ({ plate, stage: level.stage ?? 'garden' as StageId })))
@@ -102,4 +102,30 @@ test('a hinged panel starts closed and finishes opening on time', () => {
   // The hinge edge stays put while the panel turns about it.
   const edge = new THREE.Vector3(-door.size[0] / 2, 0, 0)
   expect(edge.clone().applyQuaternion(open.quaternion).add(open.position).distanceTo(edge.applyQuaternion(rotation).add(start))).toBeLessThan(1e-9)
+})
+
+test('a dropped weight and the part its cord drives each stop at a fixed end, whatever the time since, and the weight hangs clear of the ground', () => {
+  for (const level of LEVELS) {
+    for (const driven of level.plates.filter((plate) => plate.drivenBy)) {
+      const weight = level.plates.find((plate) => plate.id === driven.drivenBy)!
+      for (const plate of [driven, weight]) {
+        const start = new THREE.Vector3().fromArray(plate.position)
+        const rotation = plateQuaternion(plate)
+        const pose = (t: number) => plate.hinge ? hingePose(plate, start, rotation, t) : railPose(plate, start, rotation, t)
+        const lasts = plate.hinge ? HINGE_SECONDS : RAIL_SECONDS
+        expect(pose(0).position.distanceTo(start)).toBeLessThan(1e-9)
+        // Reduced motion shows the end at once; a slow frame, a long pause or a fast one land in the same place.
+        for (const later of [lasts, lasts + 1 / 30, 60]) {
+          expect(pose(later).position.distanceTo(pose(lasts).position)).toBeLessThan(1e-9)
+          expect(pose(later).quaternion.angleTo(pose(lasts).quaternion)).toBeLessThan(1e-9)
+        }
+        // It travels the whole way smoothly, never jumping between frames.
+        for (let frame = 1; frame <= Math.ceil(lasts * 60); frame++) expect(pose(frame / 60).position.distanceTo(pose((frame - 1) / 60).position)).toBeLessThan(0.35)
+      }
+      const end = railPose(weight, new THREE.Vector3().fromArray(weight.position), plateQuaternion(weight), RAIL_SECONDS)
+      for (const point of panelSamples(weight).map((sample) => sample.applyQuaternion(end.quaternion).add(end.position))) {
+        expect(point.y).toBeGreaterThan(groundAt(point.x, point.z, level.stage))
+      }
+    }
+  }
 })

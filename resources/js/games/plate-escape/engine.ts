@@ -81,19 +81,22 @@ export function remainingScrews(state: PuzzleState, plateId: string): number {
  * A panel is pinned while any screw holds it. A hinged or railed panel with
  * none left is open, hanging on its host, until the host itself lets go; any
  * other panel with none left is gone. A dial has no screws: it is open, free to
- * turn over the heads behind it, for as long as its host stays.
+ * turn over the heads behind it, for as long as its host stays. A part a
+ * counterweight drives has no screws either: its cord holds it shut (pinned)
+ * while any screw holds the weight, and open once the weight has dropped.
  */
 export type PanelState = 'pinned' | 'open' | 'gone'
 
 export function panelState(state: PuzzleState, plateId: string): PanelState {
   if (remainingScrews(state, plateId) > 0) return 'pinned'
-  const host = getLevel(state.level).plates.find((plate) => plate.id === plateId)?.host
-  return host !== undefined && remainingScrews(state, host) > 0 ? 'open' : 'gone'
+  const plate = getLevel(state.level).plates.find((candidate) => candidate.id === plateId)
+  if (plate?.host === undefined || remainingScrews(state, plate.host) === 0) return 'gone'
+  return plate.drivenBy !== undefined && remainingScrews(state, plate.drivenBy) > 0 ? 'pinned' : 'open'
 }
 
-/** Plates no screw holds any more; a dial counts once it has come away with its host. */
+/** Plates no screw holds any more; a screwless part (a dial, or one a counterweight drives) counts once it has come away with its host. */
 export function freedPlates(state: PuzzleState): number {
-  return getLevel(state.level).plates.filter((plate) => plate.dial ? panelState(state, plate.id) === 'gone' : remainingScrews(state, plate.id) === 0).length
+  return getLevel(state.level).plates.filter((plate) => plate.dial || plate.drivenBy ? panelState(state, plate.id) === 'gone' : remainingScrews(state, plate.id) === 0).length
 }
 
 export function hasWon(state: PuzzleState): boolean {
@@ -111,7 +114,8 @@ export function hasWon(state: PuzzleState): boolean {
 export function screwLock(state: PuzzleState, screw: Screw): ScrewLock | null {
   if (state.removed.includes(screw.id)) return null
   if (!showing(state, screw)) return { kind: 'dial', plate: screw.underDial!.dial }
-  const cover = (screw.blockedBy ?? []).find((id) => remainingScrews(state, id) > 0)
+  // A cover is in the way while it is pinned: by its own screws, or by the cord of the weight that drives it.
+  const cover = (screw.blockedBy ?? []).find((id) => panelState(state, id) === 'pinned')
     ?? (screw.coveredWhenOpen ?? []).find((id) => panelState(state, id) === 'open')
   if (cover) return { kind: 'cover', plate: cover }
   const held = heldPlates(screw)

@@ -14,7 +14,7 @@ export const GAMEPLAY_GAMES = [
   { game: 'hover', ui: ['HoverGame.tsx', 'HoverScene.tsx'], specs: ['hover.spec.ts'] },
   { game: 'marble-sort', ui: ['MarbleSortGame.tsx', 'MarbleSortScene.tsx'], specs: ['marble-sort.spec.ts'] },
   { game: 'marble-works', ui: ['MarbleWorksGame.tsx', 'MarbleWorksScene.tsx'], specs: ['marble-works.spec.ts'] },
-  { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts'] },
+  { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts', 'plate-escape-harbor.spec.ts', 'plate-escape-railway.spec.ts', 'plate-escape-clockworks.spec.ts'] },
   { game: 'math-horde', ui: ['MathHordeGame.tsx', 'MathHordeScene.tsx'], specs: ['math-horde.spec.ts'] },
   {
     game: 'tower-throwback',
@@ -28,9 +28,11 @@ const MOBILE = 'chromium-mobile-375'
 export const GAMEPLAY_PROJECTS = [DESKTOP, MOBILE]
 
 // Measured on GitHub's ARM runners, then balanced by complete project/file
-// units. The baseline estimates are 171, 173, 175 and 173 seconds; retain every
-// unit, including the native mobile Tower journey. Shared by CI and
-// weekly regression; update these assignments when measured durations drift.
+// units; retain every unit, including the native mobile Tower journey. Shared
+// by CI and weekly regression; update these assignments when measured
+// durations drift. Plate Escape's campaign journeys run 5–9 minutes each per
+// project, so each arc is its own file and the groups split them
+// (2026-10-27: about 18 minutes per group against the 30-minute job limit).
 export const FULL_GAMEPLAY_GROUPS = [
   [
     [DESKTOP, 'tower-throwback.visual.spec.ts'],
@@ -38,7 +40,8 @@ export const FULL_GAMEPLAY_GROUPS = [
     [DESKTOP, 'math-horde.spec.ts'],
     [MOBILE, 'chicks-challenge.spec.ts'],
     [MOBILE, 'tower-throwback.journey.spec.ts'],
-    [MOBILE, 'plate-escape.spec.ts'],
+    [MOBILE, 'plate-escape-clockworks.spec.ts'],
+    [DESKTOP, 'plate-escape.spec.ts'],
   ],
   [
     [MOBILE, 'tower-throwback.visual.spec.ts'],
@@ -46,6 +49,8 @@ export const FULL_GAMEPLAY_GROUPS = [
     [DESKTOP, 'hover.spec.ts'],
     [MOBILE, 'marble-works.spec.ts'],
     [MOBILE, '2048.journey.spec.ts'],
+    [DESKTOP, 'plate-escape-clockworks.spec.ts'],
+    [MOBILE, 'plate-escape-harbor.spec.ts'],
   ],
   [
     [MOBILE, 'parking-pickup.spec.ts'],
@@ -54,6 +59,8 @@ export const FULL_GAMEPLAY_GROUPS = [
     [MOBILE, 'hover.spec.ts'],
     [DESKTOP, 'tower-throwback.drawcalls.spec.ts'],
     [DESKTOP, 'chicks-challenge.spec.ts'],
+    [MOBILE, 'plate-escape-railway.spec.ts'],
+    [MOBILE, 'plate-escape.spec.ts'],
   ],
   [
     [DESKTOP, 'marble-sort.spec.ts'],
@@ -62,7 +69,8 @@ export const FULL_GAMEPLAY_GROUPS = [
     [DESKTOP, 'marble-works.spec.ts'],
     [MOBILE, 'tower-throwback.drawcalls.spec.ts'],
     [DESKTOP, '2048.journey.spec.ts'],
-    [DESKTOP, 'plate-escape.spec.ts'],
+    [DESKTOP, 'plate-escape-railway.spec.ts'],
+    [DESKTOP, 'plate-escape-harbor.spec.ts'],
   ],
 ]
 

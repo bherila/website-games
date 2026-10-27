@@ -1,4 +1,4 @@
-import type { Plate, PuzzleLevel, Screw } from '../level'
+import { LEVELS, type Plate, type PuzzleLevel, type Screw } from '../level'
 import { analyseLevel } from './puzzleSolver'
 
 const TRAP = 900
@@ -38,7 +38,12 @@ jest.mock('../level', () => {
       ...pad('coral', 2), ...pad('mint', 2), ...pad('blue', 2), ...pad('amber', 3),
     ],
   })
-  const LEVELS = [...actual.LEVELS, trap, deadlock(903, true), deadlock(904, false)]
+  // Each counterweight's cord cut in turn: the part it drove stays shut until its host comes off.
+  const cut = actual.LEVELS.flatMap((level) => level.plates.filter((plate) => plate.drivenBy).map((driven, index): PuzzleLevel => ({
+    ...level, id: 10_000 + level.id * 10 + index, name: `${level.name} (${driven.id} cut)`,
+    plates: level.plates.map((plate) => plate === driven ? { ...plate, drivenBy: plate.host! } : plate),
+  })))
+  const LEVELS = [...actual.LEVELS, trap, deadlock(903, true), deadlock(904, false), ...cut]
   return { ...actual, LEVELS, getLevel: (id: number) => LEVELS.find((level) => level.id === id) ?? actual.getLevel(id) }
 })
 
@@ -73,4 +78,15 @@ test('a jamming dial that can lock against the bearing rule fails the structural
   expect(free.structuralDeadEnds).toEqual([])
   expect(free.win.indexOf('turn:dial:1')).toBeLessThan(free.win.indexOf('load-1'))
   expect(free.win.indexOf('load-1')).toBeLessThan(free.win.indexOf('held'))
+})
+
+test('cutting any counterweight\'s cord leaves its part shut over a screw its host needs: the level can no longer be finished', () => {
+  const cut = LEVELS.filter((level) => level.id >= 10_000)
+  // Lift Cage has two cords; every other clockworks level has one.
+  expect(cut.map((level) => level.id)).toEqual([10_210, 10_220, 10_221, 10_230, 10_240, 10_250])
+  for (const level of cut) {
+    const analysis = analyseLevel(level.id)
+    expect([level.name, analysis.win]).toEqual([level.name, []])
+    expect(analysis.structuralDeadEnds.some((board) => board.removed.length === 0)).toBe(true)
+  }
 })

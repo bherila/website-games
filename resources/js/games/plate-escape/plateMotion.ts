@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 import { PANEL_FACE } from './houseGeometry'
-import type { Plate, Rotor } from './level'
+import type { Plate, PuzzleLevel, Rotor } from './level'
 import { groundAt, type StageId, waterAt } from './stage'
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -144,6 +144,20 @@ export function railPose(plate: Plate, position: THREE.Vector3, quaternion: THRE
   const progress = Math.min(1, Math.max(0, t / RAIL_SECONDS)) ** 2
   const along = new THREE.Vector3().fromArray(plate.rail!.along).normalize()
   return { position: position.clone().addScaledVector(along, plate.rail!.travel * progress), quaternion: quaternion.clone() }
+}
+
+/** Where a hinged or railed part comes to rest: the end of its swing or of its rail. */
+export function restingPose(plate: Plate, position: THREE.Vector3, quaternion: THREE.Quaternion): { position: THREE.Vector3, quaternion: THREE.Quaternion } {
+  return plate.hinge ? hingePose(plate, position, quaternion, HINGE_SECONDS) : railPose(plate, position, quaternion, RAIL_SECONDS)
+}
+
+/**
+ * Parts whose resting place a dashed outline shows before they move: a captive
+ * cover, a part a counterweight drives, and the counterweight itself.
+ */
+export function outlinedPlates(level: Pick<PuzzleLevel, 'plates' | 'screws'>): Plate[] {
+  return level.plates.filter((plate) => plate.drivenBy || level.plates.some((other) => other.drivenBy === plate.id)
+    || level.screws.some((screw) => screw.coveredWhenOpen?.includes(plate.id)))
 }
 
 /** Turns a part's pose `angle` radians about the rotor's axis. */
