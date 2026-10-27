@@ -63,7 +63,11 @@ export function geometryFor(state: EngineState): TowerGeometry {
   return geometries.get(state) ?? oneDimensionalGeometry
 }
 
-/** Install before running an engine state; keep geometry outside save payloads. */
+/**
+ * Install before running an engine state; keep geometry outside save payloads.
+ * Geometry belongs to this state object only: copies (`{ ...state }`) and
+ * reloaded saves start on the default, so every copy site re-installs it.
+ */
 export function setTowerGeometry(state: EngineState, geometry: TowerGeometry): void {
   geometries.set(state, geometry)
 }

@@ -319,6 +319,19 @@ deterministic, with no DOM or three.js imports, so most of the work is in the ge
 
 The O(n²) eval scans (finding 9) get worse in 2D, so a spatial index per floor belongs in that shared core.
 
+**Status after step 2 (#188, #194).** The `TowerGeometry` seam exists, and only the one-dimensional geometry is
+installed. Before a second geometry runs on the shared engine:
+
+- **Geometry does not travel with copies or saves.** It is held per state object, so `{ ...state }`, a save
+  and reload, or `createEngineState` start on the one-dimensional default. Every private planning copy
+  (`engine.ts` loan planning, `placement.ts` floor-landing prediction, `TowerScene` bulk preview) calls
+  `setTowerGeometry(copy, geometryFor(state))`; a new copy site must too, and loading a Tower 2 save must
+  install its geometry.
+- **Movement and route costs are still one-dimensional.** `people.ts` steps `person.x` by
+  `Math.sign(dx) × speed` while `geometry.distance` decides when a leg ends; `routing.ts` `searchPath` charges
+  `|toFloor − fromFloor|` per ride; `heatmaps.ts` `noiseField` bounds its scan by an x range. These agree
+  under the 1D geometry. A 2D geometry needs a "step along a path" operation and path-based leg costs.
+
 ### Must change: rendering and input
 
 - **Camera and picking.** `scene/camera.ts` (`createCameraRig`, `panByPixels`, `zoomBy`) and `sceneController.screenToTile` assume an orthographic side view where screen `y` is the floor. Isometric needs:
