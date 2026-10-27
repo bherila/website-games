@@ -172,7 +172,9 @@ roofs and terraces on setbacks, solar, efficient plant and recycling raise it. I
 tenants pay a premium for a green building), counts toward the higher star ratings, and can set scenario
 goals ("a net-zero office").
 
-Keep it legible: no pipe or cable drawing, no hidden failure. Every shortfall shows on its overlay and in the
+Keep it coarse and legible: **service is worked out per floor, never per unit.** A floor is either inside a
+plant room's reach through its core or it isn't. There's no pipe, duct or cable drawing and no routing to
+individual units. A unit's use only sets how much it draws. No hidden failure either. Every shortfall shows on its overlay and in the
 issue list before it bites, as Tower Throwback's issue badges do.
 
 ### Floor plates
