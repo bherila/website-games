@@ -1,5 +1,16 @@
 import { expect, type Page, test } from '@playwright/test'
 
+declare global {
+  interface Window {
+    /** Read-only test hook installed by the Tower 2 scene. */
+    __tower2?: {
+      tileToClient(floor: number, x: number, y: number): { x: number, y: number }
+      drawCalls(): number
+      visitors(): number
+    }
+  }
+}
+
 /** Screen point of a tile's centre on a floor, from the scene's read-only test hook. */
 async function tile(page: Page, floor: number, x: number, y: number): Promise<{ x: number, y: number }> {
   return page.evaluate(([f, tx, ty]) => window.__tower2!.tileToClient(f!, tx!, ty!), [floor, x, y])
