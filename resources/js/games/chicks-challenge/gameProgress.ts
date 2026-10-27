@@ -6,16 +6,19 @@ import {
 import type { LevelSelectProgress } from '../_shared/LevelSelectGrid'
 import { isRecord, parseInteger, parseStars } from '../_shared/progressParsers'
 import { PROGRESS_STORAGE_KEY, TOTAL_LEVELS } from './gameTypes'
+import { LEVEL_LAYOUT_REVISIONS } from './levelLayoutRevisions'
 
 export interface SavedChicksProgress {
   version: 1
   unlockedLevel: number
   stars: Record<number, number>
   bestMoves: Record<number, number>
+  /** Missing revisions belong to the original layouts (revision 1). */
+  layoutRevisions?: Record<number, number>
 }
 
 export function defaultProgress(): SavedChicksProgress {
-  return { version: 1, unlockedLevel: 1, stars: {}, bestMoves: {} }
+  return { version: 1, unlockedLevel: 1, stars: {}, bestMoves: {}, layoutRevisions: {} }
 }
 
 export const CHICKS_GAME_DATA = defineGameData<SavedChicksProgress>({
@@ -29,6 +32,7 @@ export const CHICKS_GAME_DATA = defineGameData<SavedChicksProgress>({
     let unlockedLevel = parseInteger(profile?.data.unlocked_level, 1) ?? 1
     const stars: Record<number, number> = {}
     const bestMoves: Record<number, number> = {}
+    const layoutRevisions: Record<number, number> = {}
     let found = Boolean(profile)
 
     for (let level = 1; level <= TOTAL_LEVELS; level += 1) {
@@ -47,11 +51,12 @@ export const CHICKS_GAME_DATA = defineGameData<SavedChicksProgress>({
       stars[level] = rowStars
       if (rowBestMoves !== null) {
         bestMoves[level] = rowBestMoves
+        layoutRevisions[level] = row.data.layout_revision === undefined ? 1 : parseInteger(row.data.layout_revision, 1) ?? 0
       }
       unlockedLevel = Math.max(unlockedLevel, Math.min(level + 1, TOTAL_LEVELS))
     }
 
-    return found ? parseSavedProgress({ version: 1, unlockedLevel, stars, bestMoves }) : null
+    return found ? parseSavedProgress({ version: 1, unlockedLevel, stars, bestMoves, layoutRevisions }) : null
   },
 })
 
@@ -88,14 +93,16 @@ export function saveProgress(progress: SavedChicksProgress): void {
 
 /**
  * Records a win: unlocks the next level, keeps the best stars, and keeps the
- * lowest winning move count. Never lowers existing bests.
+ * lowest winning move count within the current layout. Obsolete bests reset.
  */
 export function recordWin(progress: SavedChicksProgress, levelId: number, moves: number, stars: number): SavedChicksProgress {
+  const current = parseSavedProgress(progress) ?? defaultProgress()
   return {
     version: 1,
-    unlockedLevel: Math.max(progress.unlockedLevel, Math.min(levelId + 1, TOTAL_LEVELS)),
-    stars: { ...progress.stars, [levelId]: Math.max(progress.stars[levelId] ?? 0, stars) },
-    bestMoves: { ...progress.bestMoves, [levelId]: Math.min(progress.bestMoves[levelId] ?? Number.POSITIVE_INFINITY, moves) },
+    unlockedLevel: Math.max(current.unlockedLevel, Math.min(levelId + 1, TOTAL_LEVELS)),
+    stars: { ...current.stars, [levelId]: Math.max(current.stars[levelId] ?? 0, stars) },
+    bestMoves: { ...current.bestMoves, [levelId]: Math.min(current.bestMoves[levelId] ?? Number.POSITIVE_INFINITY, moves) },
+    layoutRevisions: { ...current.layoutRevisions, [levelId]: LEVEL_LAYOUT_REVISIONS[levelId] ?? 1 },
   }
 }
 
@@ -113,9 +120,21 @@ export function parseSavedProgress(value: unknown): SavedChicksProgress | null {
 
   const unlockedLevel = parseInteger(value.unlockedLevel, 1)
   const stars = parseStars(value.stars)
-  const bestMoves = parseBestMoves(value.bestMoves)
-  if (unlockedLevel === null || stars === null || bestMoves === null) {
+  const savedBests = parseBestMoves(value.bestMoves)
+  if (unlockedLevel === null || stars === null || savedBests === null) {
     return null
+  }
+
+  const bestMoves: Record<number, number> = {}
+  const layoutRevisions: Record<number, number> = {}
+  const revisions = isRecord(value.layoutRevisions) ? value.layoutRevisions : {}
+  for (const [key, moves] of Object.entries(savedBests)) {
+    const level = Number(key)
+    const revision = revisions[key] === undefined ? 1 : parseInteger(revisions[key], 1)
+    if (revision === (LEVEL_LAYOUT_REVISIONS[level] ?? 1)) {
+      bestMoves[level] = moves
+      layoutRevisions[level] = revision
+    }
   }
 
   return {
@@ -123,6 +142,7 @@ export function parseSavedProgress(value: unknown): SavedChicksProgress | null {
     unlockedLevel: Math.min(Math.max(unlockedLevel, highestWonLevel(stars) + 1), TOTAL_LEVELS),
     stars,
     bestMoves,
+    layoutRevisions,
   }
 }
 
@@ -145,6 +165,8 @@ function highestWonLevel(stars: Record<number, number>): number {
 }
 
 function encodeProgress(progress: SavedChicksProgress) {
+  // Legacy callers must not stamp an old best as belonging to today's layout.
+  progress = parseSavedProgress(progress) ?? defaultProgress()
   const levelIds = new Set([
     ...Object.keys(progress.stars).map(Number),
     ...Object.keys(progress.bestMoves).map(Number),
@@ -165,6 +187,7 @@ function encodeProgress(progress: SavedChicksProgress) {
         data: {
           version: 1,
           stars: progress.stars[level] ?? 0,
+          layout_revision: LEVEL_LAYOUT_REVISIONS[level] ?? 1,
           ...(progress.bestMoves[level] === undefined ? {} : { best_moves: progress.bestMoves[level] }),
         },
       })),

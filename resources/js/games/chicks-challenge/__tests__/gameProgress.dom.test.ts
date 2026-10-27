@@ -1,6 +1,7 @@
 import { definitionRowKey } from '../../_shared/gameDataPersistence'
-import { CHICKS_GAME_DATA, defaultProgress, loadProgress, loadSavedProgress, recordWin, type SavedChicksProgress,saveProgress } from '../gameProgress'
+import { CHICKS_GAME_DATA, defaultProgress, loadProgress, loadSavedProgress, parseSavedProgress, recordWin, type SavedChicksProgress,saveProgress } from '../gameProgress'
 import { PROGRESS_STORAGE_KEY, TOTAL_LEVELS } from '../gameTypes'
+import { LEVEL_LAYOUT_REVISIONS } from '../levelLayoutRevisions'
 
 describe('chips progress persistence', () => {
   beforeEach(() => {
@@ -12,7 +13,7 @@ describe('chips progress persistence', () => {
   })
 
   it('round-trips a saved progress object', () => {
-    const saved = { version: 1 as const, unlockedLevel: 4, stars: { 1: 3, 2: 1 }, bestMoves: { 1: 12, 2: 40 } }
+    const saved = { version: 1 as const, unlockedLevel: 4, stars: { 1: 3, 2: 1 }, bestMoves: { 1: 12, 2: 40 }, layoutRevisions: { 1: 1, 2: 1 } }
     saveProgress(saved)
 
     expect(loadSavedProgress()).toEqual(saved)
@@ -36,7 +37,7 @@ describe('chips progress persistence', () => {
       JSON.stringify({ version: 1, unlockedLevel: 3, stars: { 1: 99, 2: 2 }, bestMoves: { 2: 20 } }),
     )
 
-    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 3, stars: { 2: 2 }, bestMoves: { 2: 20 } })
+    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 3, stars: { 2: 2 }, bestMoves: { 2: 20 }, layoutRevisions: { 2: 1 } })
   })
 
   it('loadProgress adapts saved progress to the level-select shape', () => {
@@ -108,13 +109,14 @@ describe('chips progress persistence', () => {
     expect(TOTAL_LEVELS).toBeGreaterThan(40)
     expect(loaded.unlockedLevel).toBe(41)
     expect(loaded.stars).toEqual(stars)
+    for (const level of [7, 8, 12, 22, 23, 24, 37, 39, 40]) delete bestMoves[level]
     expect(loaded.bestMoves).toEqual(bestMoves)
   })
 
-  it('keeps an old save that had not finished the pack exactly as it was', () => {
+  it('keeps an old save’s unchanged bests, stars and unlock', () => {
     window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 12, stars: { 1: 3, 11: 2 }, bestMoves: { 1: 16, 11: 25 } }))
 
-    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 12, stars: { 1: 3, 11: 2 }, bestMoves: { 1: 16, 11: 25 } })
+    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 12, stars: { 1: 3, 11: 2 }, bestMoves: { 1: 16, 11: 25 }, layoutRevisions: { 1: 1, 11: 1 } })
   })
 
   it('decodes account rows from a finished 40-level pack into the first new level, keeping stars', () => {
@@ -130,7 +132,7 @@ describe('chips progress persistence', () => {
 
     expect(decoded?.unlockedLevel).toBe(41)
     expect(decoded?.stars).toEqual({ 7: 3, 40: 2 })
-    expect(decoded?.bestMoves).toEqual({ 7: 19, 40: 130 })
+    expect(decoded?.bestMoves).toEqual({})
   })
 
   it('persists a recorded win across a save/load round trip', () => {
@@ -138,5 +140,48 @@ describe('chips progress persistence', () => {
     saveProgress(won)
 
     expect(loadSavedProgress()).toEqual(won)
+  })
+
+  it('revisions every released layout and only marks the nine redrawn levels as changed', () => {
+    expect(Object.keys(LEVEL_LAYOUT_REVISIONS).map(Number)).toEqual(Array.from({ length: TOTAL_LEVELS }, (_, index) => index + 1))
+    expect(Object.entries(LEVEL_LAYOUT_REVISIONS).filter(([, revision]) => revision !== 1).map(([id]) => Number(id)))
+      .toEqual([7, 8, 12, 22, 23, 24, 37, 39, 40])
+  })
+
+  it.each([7, 8, 12, 22, 23, 24, 37, 39, 40])('clears an old best on redrawn level %i while preserving stars and unlocks', (level) => {
+    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 45, stars: { [level]: 3, 1: 2 }, bestMoves: { [level]: 19, 1: 16 } }))
+
+    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 45, stars: { [level]: 3, 1: 2 }, bestMoves: { 1: 16 }, layoutRevisions: { 1: 1 } })
+  })
+
+  it('records a new-layout best independently of an obsolete smaller count', () => {
+    const won = recordWin({ version: 1, unlockedLevel: 9, stars: { 7: 3 }, bestMoves: { 7: 19 } }, 7, 46, 2)
+    saveProgress(won)
+
+    expect(loadSavedProgress()).toEqual({ version: 1, unlockedLevel: 9, stars: { 7: 3 }, bestMoves: { 7: 46 }, layoutRevisions: { 7: 2 } })
+    expect(recordWin(won, 7, 50, 1).bestMoves[7]).toBe(46)
+    expect(recordWin(won, 7, 45, 3).bestMoves[7]).toBe(45)
+  })
+
+  it('round-trips new layout revisions through account rows', () => {
+    const won = recordWin(recordWin(defaultProgress(), 1, 16, 3), 7, 46, 2)
+    const encoded = CHICKS_GAME_DATA.encode(won)
+    expect(encoded.find((slot) => slot.scope === 'level' && slot.slot === '7')?.data).toEqual({ version: 1, stars: 2, best_moves: 46, layout_revision: 2 })
+    const rows = new Map(encoded.map((slot) => [definitionRowKey(slot.scope, slot.slot), { ...slot, game: 'chicks-challenge' as const, revision: 1, updatedAt: null }]))
+
+    expect(CHICKS_GAME_DATA.decode(rows)).toEqual(won)
+  })
+
+  it('promotes old stars without relabelling an obsolete best as a new-layout score', () => {
+    const encoded = CHICKS_GAME_DATA.encode({ version: 1, unlockedLevel: 8, stars: { 7: 3 }, bestMoves: { 7: 19 } })
+
+    expect(encoded.find((slot) => slot.scope === 'level')?.data).toEqual({ version: 1, stars: 3, layout_revision: 2 })
+  })
+
+  it('discards incompatible best metadata without losing earned stars', () => {
+    for (const revision of [0, '2', 3]) {
+      expect(parseSavedProgress({ version: 1, unlockedLevel: 8, stars: { 7: 3 }, bestMoves: { 7: 19 }, layoutRevisions: { 7: revision } }))
+        .toEqual({ version: 1, unlockedLevel: 8, stars: { 7: 3 }, bestMoves: {}, layoutRevisions: {} })
+    }
   })
 })
