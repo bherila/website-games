@@ -61,6 +61,15 @@ test.describe('Tower Throwback draw-call budget', () => {
 
     test(`a large saved tower stays within the draw-call budget at ${time}`, async ({ page, isMobile }) => {
       if (!isMobile) await page.setViewportSize({ width: 1280, height: 720 })
+      // The saved simulation is paused. Render deliberate real frames instead
+      // of spending software-GPU time drawing continuously during UI setup.
+      const now = new Date()
+      await page.clock.install({ time: new Date(now.getTime() - 3_600_000) })
+      await page.clock.pauseAt(now)
+      const atlasFailures: string[] = []
+      page.on('console', (message) => {
+        if (message.text().includes('style-gate atlas failed to load')) atlasFailures.push(message.text())
+      })
       expect(largeTower.units.length).toBeGreaterThanOrEqual(1_400)
       expect(largeTower.units.length).toBeLessThanOrEqual(1_500)
       await page.addInitScript(({ key, saved }) => {
@@ -69,10 +78,10 @@ test.describe('Tower Throwback draw-call budget', () => {
         key: SANDBOX_STORAGE_KEY,
         saved: JSON.stringify({ ...largeTower, speed: 0, clock: { ...largeTower.clock, minute: time === 'day' ? 720 : 60 } }),
       })
-      const atlasResponse = page.waitForResponse((response) => /\/style-gate(?:-[^/]+)?\.webp(?:\?.*)?$/.test(response.url()))
       await page.goto('/tower-throwback?renderStats=1')
       await page.getByTestId('resume-autosave').click()
-      expect((await atlasResponse).ok()).toBe(true)
+      // The real HUD publishes at 10 Hz; include that first snapshot.
+      await page.clock.runFor(150)
       await expect(page.locator('canvas').first()).toBeVisible()
       await expect(page.getByTestId('speed-0')).toHaveAttribute('aria-pressed', 'true')
 
@@ -83,13 +92,19 @@ test.describe('Tower Throwback draw-call budget', () => {
       await inventory.click()
       await expect(page.getByRole('dialog', { name: 'Tower inventory' })).toContainText(`${largeTower.units.length.toLocaleString()} units`)
       await page.getByRole('button', { name: 'Close tower inventory', exact: true }).click()
-      await page.waitForFunction(() => window.__TOWER_VISUAL_READY__ === true, undefined, { timeout: 30_000 })
+      await expect.poll(async () => {
+        await page.clock.runFor(150)
+        return page.evaluate(() => window.__TOWER_VISUAL_READY__ === true)
+      }).toBe(true)
+      expect(atlasFailures, 'measure the loaded atlas rather than fallback artwork').toEqual([])
       // Discard the initial sample before the action, then prove a post-fit
       // render reported a viewport enclosing the complete occupied range.
       await page.evaluate(() => { delete window.__TOWER_DRAW_CALLS__ })
-      await page.getByTestId('zoom-fit').click()
+      await page.getByTestId('zoom-fit').focus()
+      await page.keyboard.press('Enter')
       let sample = { fits: false, calls: 0 }
       await expect.poll(async () => {
+        await page.clock.runFor(16)
         sample = await page.evaluate(() => {
           const camera = document.querySelector('[data-testid="camera-floor-range"]')?.getBoundingClientRect()
           const occupied = document.querySelector('[data-testid="occupied-floor-range"]')?.getBoundingClientRect()
