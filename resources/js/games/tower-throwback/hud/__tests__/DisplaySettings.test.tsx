@@ -5,12 +5,13 @@ import { cssRamp } from '../../scene/diagnosticPalette'
 import { DisplaySettings } from '../DisplaySettings'
 
 function renderSettings(
-  overrides: Partial<{ paletteMode: DiagnosticPaletteMode; motion: MotionPreference; motionReduced: boolean }> = {},
+  overrides: Partial<{ paletteMode: DiagnosticPaletteMode; motion: MotionPreference; motionReduced: boolean; inline: boolean }> = {},
 ) {
   const onSetPaletteMode = jest.fn()
   const onSetMotion = jest.fn()
   render(
     <DisplaySettings
+      inline={overrides.inline ?? false}
       paletteMode={overrides.paletteMode ?? 'classic'}
       motion={overrides.motion ?? 'system'}
       motionReduced={overrides.motionReduced ?? false}
@@ -28,6 +29,16 @@ describe('DisplaySettings', () => {
     expect(screen.queryByTestId('display-settings-panel')).toBeNull()
     fireEvent.click(screen.getByTestId('display-settings-toggle'))
     expect(screen.getByTestId('display-settings-panel')).toBeInTheDocument()
+  })
+
+  it('labels the phone control and expands settings inside the sheet scroll flow', () => {
+    renderSettings({ inline: true })
+    const trigger = screen.getByRole('button', { name: 'Display and accessibility settings' })
+    expect(trigger).toHaveTextContent('Display')
+    fireEvent.click(trigger)
+    expect(screen.getByTestId('display-settings-panel')).not.toHaveClass('absolute')
+    fireEvent.click(screen.getByTestId('palette-mode-colorSafe'))
+    expect(screen.getByTestId('motion-reduced')).toBeInTheDocument()
   })
 
   it('reports the active choices via aria-pressed', () => {

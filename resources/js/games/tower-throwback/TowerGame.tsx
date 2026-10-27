@@ -783,6 +783,7 @@ export function TowerGame(): ReactElement {
   )
   const displayControl = (
     <DisplaySettings
+      inline={narrowHud}
       paletteMode={presentation.diagnosticPalette}
       motion={presentation.motion}
       motionReduced={presentation.motionReduced}
@@ -794,8 +795,8 @@ export function TowerGame(): ReactElement {
     <>
       <div className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 shadow ${HUD_TOOLBAR_BUTTON}`}>
         <SoundToggle muted={muted} onMutedChange={toggleMute} title="Shortcut: M" className="inline-flex h-auto w-auto items-center gap-1.5 rounded-none text-sm hover:opacity-80">
-          <span>{muted ? '🔇' : '🔊'}</span>
-          <kbd className="rounded bg-black/25 px-1 text-[10px]">M</kbd>
+          <span>{narrowHud ? muted ? 'Unmute' : 'Mute' : muted ? '🔇' : '🔊'}</span>
+          <kbd className="hidden rounded bg-black/25 px-1 text-[10px] sm:inline">M</kbd>
         </SoundToggle>
         <input
           type="range"
@@ -816,7 +817,7 @@ export function TowerGame(): ReactElement {
         title="Keyboard shortcuts (?)"
         className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
       >
-        <kbd className="rounded bg-black/25 px-1 text-[10px]">?</kbd>
+        {narrowHud ? <span>Help</span> : <kbd className="rounded bg-black/25 px-1 text-[10px]">?</kbd>}
       </button>
     </>
   )

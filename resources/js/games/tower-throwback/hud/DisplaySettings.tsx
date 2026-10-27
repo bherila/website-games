@@ -13,6 +13,8 @@ import { cssRamp } from '../scene/diagnosticPalette'
 import { HUD_TOOLBAR_BUTTON } from './hudButtonStyles'
 
 interface DisplaySettingsProps {
+  /** The phone More sheet expands settings in its own scroll flow. */
+  inline?: boolean
   paletteMode: DiagnosticPaletteMode
   motion: MotionPreference
   /** Whether the resolved preference is currently reducing motion. */
@@ -33,6 +35,7 @@ const MOTION_OPTIONS: Array<{ value: MotionPreference; label: string }> = [
 ]
 
 export function DisplaySettings({
+  inline = false,
   paletteMode,
   motion,
   motionReduced,
@@ -65,7 +68,7 @@ export function DisplaySettings({
   }, [open])
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={`relative ${inline && open ? 'w-full' : ''}`} ref={containerRef}>
       <button
         type="button"
         data-testid="display-settings-toggle"
@@ -77,7 +80,7 @@ export function DisplaySettings({
           open ? 'bg-sky-500/80 text-slate-950' : HUD_TOOLBAR_BUTTON
         }`}
       >
-        <span aria-hidden="true">👁</span>
+        {inline ? 'Display' : <span aria-hidden="true">👁</span>}
       </button>
 
       {open && (
@@ -85,7 +88,7 @@ export function DisplaySettings({
           data-testid="display-settings-panel"
           role="group"
           aria-label="Display and accessibility settings"
-          className="absolute right-0 z-30 mt-1 w-56 rounded-lg border border-white/10 bg-slate-950/95 p-3 text-white shadow-xl backdrop-blur-sm"
+          className={`${inline ? 'mt-2 w-full' : 'absolute right-0 z-30 mt-1 w-56'} rounded-lg border border-white/10 bg-slate-950/95 p-3 text-white shadow-xl backdrop-blur-sm`}
         >
           <div className="text-[10px] font-bold uppercase tracking-wide text-white/60">Overlay colours</div>
           <div className="mt-1 flex overflow-hidden rounded-md bg-white/5 text-[12px]">
