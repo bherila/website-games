@@ -1,9 +1,12 @@
 # Harbor decal textures
 
-Two transparent, optimized WebP face textures, imported through Vite. Each is below 60 KB.
+Five transparent, optimized WebP face textures, imported through Vite. Each is below 60 KB.
 
 - `pip-name.webp`: cream PIP lettering on worn navy timber; level 11 stern, low outer corner (user-approved placement clear of the opened bait flap).
 - `harbor-light-plaque.webp`: one large LIGHT inscription on weathered brass; level 12 front stone base.
+- `sea-chest-anchor.webp`: cream rope-and-anchor paint; level 13 chest front.
+- `crane-load-rating.webp`: bold 5 T plate; level 14 cab back.
+- `lightship-07.webp`: painted cream 07; level 15 port hull.
 
 The textured planes sit at plate-local z=0.145, belong to their panel's decoration group, disable raycasting and release their textures through the existing scene disposal path. Level IDs scope the artwork so later harbor objects do not inherit it by reusing a panel name.
 
@@ -31,3 +34,20 @@ Final edit prompt:
 
 > Edit this weathered brass lighthouse plaque. Preserve the warm brass, aged verdigris near the clipped rounded corners, raised border, genuinely transparent cutout background, flat frontal view and painterly toy-diorama style. Replace the two lines HARBOR LIGHT and the sun icon with exactly one very large bold engraved word "LIGHT", dark navy, on ONE line filling most of the plaque. The word must be easy to read when the plaque is 30 pixels wide on a phone. Make the plaque slightly taller, approximately 1.8:1 proportions. No extra text, no screws, no rivets, no external shadows or other objects.
 
+### Sea Chest
+
+`sea-chest-anchor.webp` paints a compact rope-and-anchor mark on the left front. The mark stays left of the hasp and lock plate throughout their motion and away from the end flap on the other end.
+
+> Use case: stylized-concept. Asset: one transparent painted decal for the front of a small sea chest in a charming hand-painted wooden toy diorama. Make a bold cream-painted anchor inside a simple loop of cream rope, with restrained dark navy outlines and subtle chipped paint texture. Exactly one compact circular rope-and-anchor emblem, flat and front-facing, centered, no perspective. It must remain recognizable at 20–30 pixels wide: broad simple strokes, few rope twists, no fine ornament. Genuine transparent cutout, including empty spaces inside rope and anchor; NO backing board or solid background, no scene, no shadows beyond the painted strokes, no text, no brands, no nails, no screws, no watermark. Minimal transparent padding.
+
+### Harbor Crane
+
+`crane-load-rating.webp` marks the upper-right cab back. The counterweight is already below this band before its diagonal rail reaches the plaque's horizontal range. The texture is flat and front-facing; using the cab back keeps the inscription readable at normal viewing angles.
+
+> Use case: stylized-concept. Asset: one transparent load-rating plaque texture for the cab roof of a miniature harbor crane in a charming hand-painted toy diorama, matching weathered cream and navy harbor signs. A squat wide rectangular aged cream enamel plate with dark navy edging, gently rounded corners, a few subtle weathered paint chips. Exact text: "5 T" on ONE line, very large bold dark navy block numerals and letter, high contrast and legible at 20–30 pixels wide. Flat front-facing 2D texture, approximately 1.8:1 proportions, minimal transparent padding, genuinely transparent outside the plaque. No perspective, no scene or external shadow, no additional words, no rivets, no screw heads, no brands or watermark.
+
+### Lightship
+
+`lightship-07.webp` paints the fictional number 07 on the port hull, forward of its screw. The mast shutter remains inside this side of the hull, and the stern flap stays at the other end.
+
+> Use case: stylized-concept. Asset: one transparent painted hull lettering texture for a miniature red wooden lightship in a charming hand-painted toy diorama. Exact inscription: "07" in two very large bold cream maritime stencil numerals, with restrained thin dark navy painted edging and slight worn paint chips. The numerals alone, painted directly on a hull: genuine transparent background outside strokes AND inside the counters of 0 and 7, NO board, NO plaque, NO rectangular backing. Flat front-facing 2D decal, approximately 2:1 composition, minimal padding. Must read clearly at 20–30 pixels wide. No scene, no perspective, no external shadows, no extra lettering, no vessel names, no real brands, no hardware, no watermark.
