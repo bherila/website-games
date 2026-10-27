@@ -26,9 +26,9 @@
         "lint": "eslint . --cache",
         "lint:fix": "eslint . --fix",
         "postinstall": "node scripts/spotlight-noindex.mjs",
-        "test:e2e:gameplay": "playwright test tests/e2e/plate-escape.spec.ts tests/e2e/2048.journey.spec.ts tests/e2e/block-blaster.spec.ts tests/e2e/marble-sort.spec.ts tests/e2e/hover.spec.ts tests/e2e/math-horde.spec.ts tests/e2e/tower-throwback.visual.spec.ts tests/e2e/tower-throwback.drawcalls.spec.ts tests/e2e/tower-throwback.journey.spec.ts tests/e2e/parking-pickup.spec.ts tests/e2e/chicks-challenge.spec.ts tests/e2e/marble-works.spec.ts --project=chromium-desktop --project=chromium-mobile-375",
+        "test:e2e:gameplay": "playwright test tests/e2e/plate-escape.spec.ts tests/e2e/plate-escape-harbor.spec.ts tests/e2e/plate-escape-railway.spec.ts tests/e2e/plate-escape-clockworks.spec.ts tests/e2e/2048.journey.spec.ts tests/e2e/block-blaster.spec.ts tests/e2e/marble-sort.spec.ts tests/e2e/hover.spec.ts tests/e2e/math-horde.spec.ts tests/e2e/tower-throwback.visual.spec.ts tests/e2e/tower-throwback.drawcalls.spec.ts tests/e2e/tower-throwback.journey.spec.ts tests/e2e/parking-pickup.spec.ts tests/e2e/chicks-challenge.spec.ts tests/e2e/marble-works.spec.ts --project=chromium-desktop --project=chromium-mobile-375",
         "test:e2e:2048": "playwright test tests/e2e/2048.journey.spec.ts --project=chromium-desktop --project=chromium-mobile-375",
-        "test:e2e:plate-escape": "playwright test tests/e2e/plate-escape.spec.ts --project=chromium-desktop --project=chromium-mobile-375"
+        "test:e2e:plate-escape": "playwright test tests/e2e/plate-escape.spec.ts tests/e2e/plate-escape-harbor.spec.ts tests/e2e/plate-escape-railway.spec.ts tests/e2e/plate-escape-clockworks.spec.ts --project=chromium-desktop --project=chromium-mobile-375"
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.14.0",
