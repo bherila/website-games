@@ -75,6 +75,20 @@ spring-box hatch, a visor that slides down its rail onto its chest, and a should
 arm into the side behind it. Each part a cord drives covers a screw that holds its own host, so its
 weight is always the only way in.
 
+The fair (levels 26–30) adds the staging rack: a cover painted with the rack's peg rail that, once
+its screws are out, opens a third spare slot for the rest of the attempt. The slot shows from the
+start, locked under the same mark beside the two spare slots, and opens when the rack is freed.
+Each fair level has five colors, fifteen screws and two spare slots plus the rack. Carousel teaches
+it: the rack is in plain sight on the mirror drum behind the horses, and with it no move dooms the
+board. Balloon Basket hides the rack behind the ride sign, which slides down its rail onto the
+basket's skid when freed. Puppet Theater offers two routes to it: pull the collar's stop pin and turn
+the collar's window over the rack's screw, or take down the header the collar hangs from, which is
+bolted through both posts. Ferris Wheel, a night scene with the screws and colors as bright as ever,
+puts two spoke bolts behind a hub collar, a gondola that slides down onto the frame, and the marked
+rack on the rim. Festival Float, the assessment, combines a clock collar, a linked counterweight on
+the back arch whose cord lifts a hatch off the screw behind it, a garland bolted through the front
+arch, a canopy on both arches, and an optional early rack route.
+
 Small painted decals mark the harbor objects: PIP on the low outer stern corner and a weathered
 brass LIGHT plaque on the lantern's front stone base. Their transparent WebP textures live in
 `assets/`; the planes travel with their panels and never participate in selection raycasts or
@@ -151,9 +165,9 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
 `level.ts` owns the released registry, outward normals, local up vectors and palette;
 `villageLevels.ts` authors levels 3–5, `millLevels.ts` levels 6–10, `harborLevels.ts` levels
 11–15, `railwayLevels.ts` levels 16–20 (their colors, chosen by a solver search, are in
-`RAILWAY_PALETTES`) and `clockworkLevels.ts` levels 21–25. `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
+`RAILWAY_PALETTES`) `clockworkLevels.ts` levels 21–25 and `fairLevels.ts` levels 26–30, whose finishes and scenery live in `fairScenery.ts`. `stage.ts` describes each level's permanent base (garden, jetty, pier, workbench, quay,
 sea, the railway's toy track, parlour, platform, lineside and main line, built in
-`railwayScenery.ts`, and the clockworks' dresser, lobby, moat, music room and toy shop): the surfaces parts
+`railwayScenery.ts`, and the clockworks' dresser, lobby, moat, music room and toy shop, and the fair's fairground, balloon field, showground, midway and parade): the surfaces parts
 land on, where water is, and where the camera looks. `engine.ts`
 is a pure immutable puzzle model. `screwLock()` reports why a head cannot move yet: an authored
 cover prerequisite prevents axial access through attached panels, including heads glimpsed at an
@@ -163,6 +177,10 @@ every plate counts every screw that holds it; a bearing lock exempts parts the s
 releases and names the supporting plate. `panelState()` reports a plate as pinned, open (a hinged
 or railed panel with no screws, still on its `host`) or gone; `Screw.coveredWhenOpen` names the
 captive panels that cover a head while open, and an open panel never bears on its host.
+`PuzzleLevel.rack` names the staging rack's cover. `spareCapacity()` derives a board's spare slots
+from the screws taken: the level's own, plus one once no screw holds the rack's cover. Nothing is
+stored, so an undo snapshot restores capacity and stored screws together, a retry starts shut, and
+the screw that frees the rack can take the slot it opens.
 `Plate.outline` gives a shaped panel its polygon, and `Plate.rail` a shutter's downhill travel.
 `Plate.drivenBy` names the counterweight that moves a screwless part: `panelState()` reports it
 pinned while the weight has screws and open after, so a cover blocks while it is pinned and the
@@ -197,7 +215,7 @@ is capped at 1.5; automated browser profiles use DPR 1 for functional input cove
 performance benchmark.
 
 The game uses the shared star-progress codec (`bwh.plate-escape.progress.v1` anonymously), registered
-with the authenticated profile/level API. Levels 1–25 and the default profile are supported; active
+with the authenticated profile/level API. Levels 1–30 and the default profile are supported; active
 save slots are intentionally unsupported. Game Select hydrates its progress through the common registry.
 
 ## Validation
@@ -210,8 +228,8 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   bearing rule constrains every level. From every reachable board short of overflow, the assembly
   must still be finishable with unlimited storage, so no move sets a mechanical trap that a later
   overflow would hide; `solverGates.test.ts` keeps such a trap, built from today's rules, that
-  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12, 16, 18, 21) no move short of overflowing may doom
-  the board; elsewhere a doomed board must overflow within four more removals (13–15, 17, 19, 20 and 22–25 use this). The solver also
+  the older checks passed. On teaching levels (1, 4, 6, 9, 11, 12, 16, 18, 21, 26) no move short of overflowing may doom
+  the board; elsewhere a doomed board must overflow within four more removals (13–15, 17, 19, 20, 22–25 and 27–30 use this). The solver also
   reports the win chance of collecting whenever a tray is open, the smallest share of safe moves
   that keep a win, and the fewest spares a win needs. Levels 1–12 are winnable from every board
   short of overflow, by that simple policy, and without using a spare. From level 13 a move may
@@ -244,6 +262,27 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   authored win and overflow traces in `campaignFixtures.ts` were generated from it. The solver
   assumes every uncovered head is reachable by orbiting; geometry tests and browser journeys
   check access.
+  The fair's colors were chosen by searching random colorings through the solver.
+  `fairSolver.test.ts` analyses each fair level and the same board without its rack, which is the
+  rack's necessity gate. Without the rack more boards doom, a doomed board can run past the
+  four-removal horizon, and random play wins under 0.6 times as often. With it, storage never
+  exceeds the capacity each board derives, and some board fills the rack's slot. On the
+  carousel no board dooms with the rack, and some do without it. Random play wins rarely with
+  fifteen screws in five colors on two trays, so the fair's bands sit lower than the harbor's:
+
+  | Level | Random win (rack / none) | Doomed boards (rack / none) | Longest hidden doom (rack / none) | Fewest spares |
+  | --- | --- | --- | --- | --- |
+  | 26 Carousel | 0.43 / 0.07 | 0 / 153 | 0 / 10 | 2 |
+  | 27 Balloon Basket | 0.17 / 0.07 | 0 / 32 | 0 / 7 | 1 |
+  | 28 Puppet Theater | 0.11 / 0.05 | 0 / 452 | 0 / 10 | 1 |
+  | 29 Ferris Wheel | 0.12 / 0.04 | 0 / 272 | 0 / 11 | 0 |
+  | 30 Festival Float | 0.03 / 0.01 | 22 / 164 | 2 / 7 | 0 |
+
+  It also replays the authored fair traces, written with dial turns, each of which frees the rack.
+- `stagingRack.test.ts` checks the rack on a small board: undo through the release restores
+  capacity and storage together, a screw parked in the rack's slot goes back to the board when the
+  release is undone, a stored screw drains from that slot, and retry starts shut.
+  `CollectionTrays.test.tsx` checks the locked slot and its mark, opening and closing again.
 - Pure model tests cover tray cascades, capacity, duplicate taps, immutable undo snapshots,
   support removal, bearing locks, shared-screw counting and release, a drop flap and a railed
   shutter covering and then freeing the screws below them, workshop overflow, recovery and a
@@ -281,21 +320,24 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   and replayed with an arrow key, and goes on to the clockworks. A clockworks journey plays levels 21–25: on each it
   loses, undoes and retries, drops every weight first to see its part open and the head behind it
   offered, undoes to see it shut again, checks that the Gramophone's collar refuses to turn with its
-  pin in, and wins. Another checks that the sails turn, stop when reached for, resume when left
+  pin in, and wins, and goes on to the fair. A fair journey plays levels 26–30: on each it sees the rack's slot
+  locked from the start, loses with the rack still shut, retries, wins along an authored trace, and
+  when the rack opens checks the open slot and hint, undoes to see it shut again, and frees it once
+  more; in the theater a refused collar turn names the stop pin. Another checks that the sails turn, stop when reached for, resume when left
   alone, and stay paused (also after reload) with Pause motion.
 - The gameplay registry includes both project/file units in the shared four CI/weekly groups.
-  Page and API tests cover public access, the twenty-five-level boundary and monotonic star saves.
+  Page and API tests cover public access, the thirty-level boundary and monotonic star saves.
 
 Earlier one- and two-level saves retain their stars and infer the next released level from
 their recorded clears. Frontend progress and catalog totals derive from the released registry;
-the API accepts slots 1–25 and rejects unreleased level 26.
+the API accepts slots 1–30 and rejects level 31.
 
 Future work: additional authored levels, haptics, and representative phone testing before making rendering-performance claims.
 
 
 ## Planned campaign: 30 levels
 
-Levels 1–25 are released. Levels 26–30 below are a design plan, not playable content. The
+Levels 1–30 are released. The
 campaign expands from a tiny village and its mill into a harbor, a railway, clockworks and a
 festival. Each group of five has a teaching level, practice and a final combination puzzle.
 Geometry and panel arrangement provide variation between new mechanics.
@@ -363,11 +405,11 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
 | 23 | Drawbridge — released | A counterweight hauls the hinged bridge up off the stone apron, against the gate arch. Plan the release before taking screws from the next layer. |
 | 24 | Gramophone — released | A stop-pin collar on the front and a counterweighted record hatch on the back expose different layers of the same cabinet. Use free inspection to choose an order. |
 | 25 | Clockwork Robot — released | Combine a counterweighted hatch, a visor that slides down its rail and shoulder bolts through each arm. Clockworks assessment with a readable dependency chain and no new rule. |
-| 26 | Carousel | Introduce a releasable staging rack. Freeing its marked cover adds one spare slot for this attempt; decide whether to open it early. |
-| 27 | Balloon Basket | The staging rack is behind a sliding sign. Balance the cost of reaching extra storage against collecting the next tray color directly. |
-| 28 | Puppet Theater | Shared frame supports and a collar offer two routes to the staging rack. The theater is untimed; there is no rhythm-input rule. |
-| 29 | Ferris Wheel | Multiple small cars share storage. Use familiar collar, slider and shared-support rules, with a rack route and clear night-scene lighting. |
-| 30 | Festival Float | Final assessment: a rotating clock collar, linked counterweight hatch and shared canopy supports around one coherent float, with an optional early rack route. No surprise final mechanic. |
+| 26 | Carousel — released | Introduce the staging rack: its marked cover is in plain sight on the mirror drum, and freeing it adds one spare slot for this attempt. Canopy on rounding boards, horses hung from them over the drum's screws. Teaching level: no move dooms the board while the rack can open. |
+| 27 | Balloon Basket — released | The staging rack is behind the ride sign, which slides down its rail onto the skid when freed. Sandbags cover the sides; the burner deck rests on them. |
+| 28 | Puppet Theater — released | Two routes to the rack: pull the stop pin and turn the collar to it, or take down the header it hangs from, bolted through both posts. Curtains hung from the header cover the backdrop. Untimed; no rhythm-input rule. |
+| 29 | Ferris Wheel — released | Night scene with bright screws: a hub collar over two spoke bolts through the frame, a gondola that slides down onto the frame's leg, another covering the rim, and the marked rack on the rim. |
+| 30 | Festival Float — released | Final assessment: a clock collar, a linked counterweight on the back arch whose cord lifts the hatch off the arch's screw, shared canopy supports (a garland bolted through the front arch, the canopy resting on both arches), and an optional early rack route. No new rule. |
 
 ### Mechanic contracts and implementation order
 
@@ -406,7 +448,7 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    removals are scored and gated like the rest.
 5. **At level 18:** add Pearl and its hex mark consistently to heads, trays, storage,
    instructions and accessible labels. Five colors still mean two active trays.
-6. **Implemented for levels 21–25:** a part a counterweight drives names its weight
+6. **Implemented for levels 21–25, and used again on level 30:** a part a counterweight drives names its weight
    (`drivenBy`). It has no screws of its own, so the cord alone holds it: shut while any screw
    holds the weight, open once the weight has dropped, gone with its host. Its open pose is its
    own `hinge` or `rail`, fixed, and at that pose it covers nothing, since a counterweight only ever
@@ -415,9 +457,15 @@ wall and roof cases. Each object needs its own art, where the houses reused one 
    Links are authored and acyclic: no cord has to open its own weight, directly or through covers.
    Motion is a pure function of time since release and ends at the same pose at any frame rate;
    reduced motion shows the end pose at once. There are no timed windows or speed requirements.
-7. **Before level 26:** derive spare capacity from whether the staging rack has been released.
-   Restoring an earlier snapshot restores its capacity and stored screws together. The extra
-   slot resets on retry and is never a permanent purchase or consumable.
+7. **Implemented for levels 26–30:** spare capacity is derived from whether the staging rack has
+   been released: a level names its rack's cover (`PuzzleLevel.rack`), and `spareCapacity()` is the
+   level's base plus one once no screw holds that cover. No `PuzzleState` field is added, so
+   restoring an earlier snapshot restores its capacity and stored screws together, and the extra
+   slot resets on retry; it is never a permanent purchase or consumable. The screw that frees the
+   rack can take the slot it opens. The slot is visible and locked from the start, showing the
+   rack's peg-rail mark, which is also painted on the cover; the footer, the storage label and the
+   overflow dialog count only open slots and say when the rack is still shut, and freeing the rack
+   or undoing that shows a short hint.
 
 Build and validate in batches: 3–5, 6–10, then 11–12 (checked on a phone before authoring
 13–15), the dial test board (choose its stop rule before authoring 16), 16–20, 21–25 and 26–30. Only released
