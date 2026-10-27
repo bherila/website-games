@@ -118,6 +118,14 @@ export class FloorPlateModel {
   placeVerticalFootprint(footprint: VerticalFootprint): void {
     this.validateFootprint(footprint)
     if (this.verticals.has(footprint.id)) throw new RangeError('Vertical footprint id already exists')
+    for (const other of this.verticals.values()) {
+      // Stacked ranges may reuse the same tiles; a shared floor may not.
+      if (footprint.bottomFloor <= other.topFloor && other.bottomFloor <= footprint.topFloor
+        && footprint.x < other.x + other.width && other.x < footprint.x + footprint.width
+        && footprint.y < other.y + other.depth && other.y < footprint.y + footprint.depth) {
+        throw new RangeError(`Vertical footprint ${footprint.id} overlaps ${other.id}`)
+      }
+    }
     this.requirePlateCoverage(footprint)
     if (footprint.kind === 'core') floorNumber(footprint.bottomFloor - 1)
     this.verticals.set(footprint.id, { ...footprint })

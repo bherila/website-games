@@ -211,6 +211,26 @@ describe('explicit vertical footprints', () => {
     expect(model.coresMissingPlant()).toEqual([])
   })
 
+  test('cores, risers and exit stairs cannot share a tile on a shared floor', () => {
+    const model = new FloorPlateModel({ width: 6, depth: 6 })
+    for (let floor = 0; floor <= 9; floor++) model.paint(floor, rectangle(0, 0, 6, 6))
+    const core = vertical({ id: 'core', x: 1, y: 1, bottomFloor: 0, topFloor: 4 })
+    model.placeVerticalFootprint(core)
+    // One corner tile on one shared floor is enough to refuse, for every kind.
+    for (const kind of ['core', 'riser', 'exit-stair'] as const) {
+      expect(() => model.placeVerticalFootprint(vertical({ id: `new-${kind}`, kind, x: 2, y: 2, bottomFloor: 4, topFloor: 9 }))).toThrow('overlaps core')
+    }
+    expect(model.verticalFootprintsAt(4)).toEqual([core])
+    // Edge contact on shared floors, and the same tiles on stacked ranges, are allowed.
+    model.placeVerticalFootprint(vertical({ id: 'stair', kind: 'exit-stair', x: 3, y: 1, width: 1, depth: 2, bottomFloor: 0, topFloor: 9 }))
+    model.placeVerticalFootprint(vertical({ id: 'upper-core', x: 1, y: 1, bottomFloor: 5, topFloor: 9 }))
+    expect(model.verticalFootprintsAt(4).map((footprint) => footprint.id)).toEqual(['core', 'stair'])
+    expect(model.verticalFootprintsAt(5).map((footprint) => footprint.id)).toEqual(['stair', 'upper-core'])
+    // A removed footprint frees its tiles.
+    model.removeVerticalFootprint('core')
+    expect(() => model.placeVerticalFootprint(vertical({ id: 'riser', kind: 'riser', x: 2, y: 2, width: 1, depth: 1, bottomFloor: 0, topFloor: 4 }))).not.toThrow()
+  })
+
   test('callers cannot move stored footprints by changing their input or returned objects', () => {
     const model = new FloorPlateModel({ width: 4, depth: 3 })
     model.paint(0, rectangle(0, 0, 4, 3))
