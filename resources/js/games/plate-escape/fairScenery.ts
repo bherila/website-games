@@ -111,8 +111,12 @@ export function decorateFairPlate(details: THREE.Group, plate: Plate, screws: re
         edging.push(ax * 0.96, ay * 0.97, 0.135, bx * 0.96, by * 0.97, 0.135)
       }
       details.add(inert(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(edging, 3)), new THREE.LineBasicMaterial({ color: GOLD }))))
-      const lintel = Math.min(...outline.filter(([x]) => Math.abs(x) < 0.5).map(([, y]) => y))
-      for (let x = -width / 2 + 0.2; x < width / 2 - 0.1; x += 0.26) if (clear(screws, x, lintel + 0.12, 0.33)) bulb(details, x, lintel + 0.12, 0.17)
+      // The lintel's underside is the top of the opening: the highest vertex inside the outer legs.
+      const outer = Math.max(...outline.map(([x]) => Math.abs(x)))
+      const lintel = Math.max(...outline.filter(([x]) => Math.abs(x) < outer - 1e-6).map(([, y]) => y))
+      if (Number.isFinite(lintel)) {
+        for (let x = -width / 2 + 0.2; x < width / 2 - 0.1; x += 0.26) if (clear(screws, x, lintel + 0.12, 0.33)) bulb(details, x, lintel + 0.12, 0.17)
+      }
       return true
     }
     case 'girder': {

@@ -5,7 +5,7 @@ import { cordLength, cordPoints, createCord, createPulleys, placeCord } from '..
 import { dialAngle } from '../dial'
 import { createPuzzle, showing } from '../engine'
 import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
-import { heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
+import { getLevel, heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
 import { HINGE_SECONDS, hingePose, outlinedPlates, RAIL_SECONDS, railPose, restingPose, rotorPose } from '../plateMotion'
 
 /** Even-odd crossings of a ray toward +X against the panel's outline. */
@@ -451,4 +451,19 @@ test('each dashed resting outline, a counterweight\'s stop included, lies over e
   }
   // Every counterweight shows where it will hang: six of them across the clockworks, and the float's.
   expect(weights).toHaveLength(7)
+})
+
+test('the fair arches hang their lamps under the lintel, inside the arch', () => {
+  const level = getLevel(30)
+  for (const plate of level.plates.filter((candidate) => candidate.finish === 'arch')) {
+    const bulbs: THREE.Mesh[] = []
+    decoratePlate(plate, 0, level.screws.filter((screw) => screw.plate === plate.id), level.id).traverse((object) => {
+      if (object instanceof THREE.Mesh && object.geometry instanceof THREE.SphereGeometry) bulbs.push(object)
+    })
+    expect(bulbs.length).toBeGreaterThan(0)
+    for (const bulb of bulbs) {
+      expect(Number.isFinite(bulb.position.y)).toBe(true)
+      expect(insideOutline(plate, bulb.position.x, bulb.position.y)).toBe(true)
+    }
+  }
 })
