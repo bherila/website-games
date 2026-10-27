@@ -1,7 +1,7 @@
-# Tower 2: plan (parked)
+# Tower 2: plan and prototype
 
-**Status: designed, not started.** This is the agreed design and an execution plan, kept here so the
-work can start in a later session without repeating the discussion. Nothing below is built yet.
+**Status: step 4 prototype playable at the unlisted `/tower-2`.** This is the agreed design and the
+execution plan. Steps 2 and 4 are built; see "The prototype" for what exists and what it leaves out.
 
 Tower 2 is a new game in the line of Tower Throwback. You draw the building as well as fill it: each
 floor's outline (setbacks, wings, atriums) and the rooms inside it. You work isometrically, one floor at a
@@ -371,6 +371,37 @@ Run the steps in order. Steps 2–3 and step 4 can proceed in parallel once step
 
 Suggested split for parallel agents: one on steps 2–3 (in the Tower Throwback code), one on step 4 (new code
 only). The coordinator merges step 2 first.
+
+## The prototype
+
+`/tower-2` is unlisted: it is not in the games hub, the PWA shell list or search (`noindex`), and it saves
+only to this browser (`localStorage` key `tower-2-prototype`). It answers "is drawing floors fun?", so it
+has no economy, stars, tenants or schedules.
+
+- **Site:** a 40×40 lot with six floors (street floor G to 5). The street runs along the lot's +y edge.
+  A starter block of two floors, a core and four rooms loads first, so visitors move at once.
+- **Tools:** Floor (drag to paint plate), Clear (plate, corridors and touched rooms; never a core), Atrium
+  (cuts from this floor up), Corridor, Core (2×2, stretches over the contiguous free floors around the one
+  you place it on; Select it to raise or lower either end), and the four uses as fixed modules: studio 3×4,
+  startup office 4×5, shop 3×3 and café 4×4. A room needs a corridor or core along one side; its door goes
+  on the street-most such side. **Copy floor below** copies the outline only.
+- **Rules it shows:** people walk corridors only; the entrance is the street-floor corridor tile nearest the
+  street; a room is served when a route of corridors and cores (including transfers between cores) reaches
+  it from there. Ratings mix daylight (steps to glass, capped at 6), the door's walk to a core, street
+  footfall for shops and cafés, and noise from shops and cafés beside or below studios.
+- **View and controls:** isometric cutaway (floors above hidden, below ghosted), quarter-turn rotation,
+  an exterior view, and light and walk overlays. Desktop: drag to draw, right-drag or scroll to pan,
+  Ctrl+scroll to zoom, Q/E rotate, Page Up/Down change floor, 1–0 pick tools, R turns a room, O cycles
+  overlays, X toggles the exterior, I copies the floor below, Ctrl+Z/Ctrl+Shift+Z undo and redo. Phone:
+  a Draw/Move toggle for one finger, and two fingers pan and zoom.
+- **Code:** `engine/` holds `floorPlate` (plates and cores), `building` (corridors, rooms, cores, edits
+  that validate first and explain refusals), `analysis` (walkable tiles, daylight, street service, ratings),
+  `floorPaths` and `people` (seeded visitors). `scene/` holds the projection, the camera derived from it,
+  merged per-floor geometry and the renderer. `interaction.ts` maps tools to previews and edits.
+  `tests/e2e/tower-2.spec.ts` plays the core loop on desktop and phone.
+
+Next, after playtesting: overhang reach and cost, wet modules and risers, two exit stairs per floor, a
+stack strip for core ranges, and then the economy (step 5).
 
 ## Open questions, with recommendations (not yet confirmed)
 

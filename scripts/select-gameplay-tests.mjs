@@ -16,6 +16,7 @@ export const GAMEPLAY_GAMES = [
   { game: 'marble-works', ui: ['MarbleWorksGame.tsx', 'MarbleWorksScene.tsx'], specs: ['marble-works.spec.ts'] },
   { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts', 'plate-escape-harbor.spec.ts', 'plate-escape-railway.spec.ts', 'plate-escape-clockworks.spec.ts', 'plate-escape-fair.spec.ts'] },
   { game: 'math-horde', ui: ['MathHordeGame.tsx', 'MathHordeScene.tsx'], specs: ['math-horde.spec.ts'] },
+  { game: 'tower-2', ui: ['Tower2Game.tsx', 'Tower2Scene.tsx'], specs: ['tower-2.spec.ts'] },
   {
     game: 'tower-throwback',
     ui: ['TowerGame.tsx', 'TowerScene.tsx', 'useTowerKeyboardShortcuts.ts'],

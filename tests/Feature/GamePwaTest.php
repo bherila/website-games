@@ -36,14 +36,15 @@ class GamePwaTest extends TestCase
         $this->assertSame(1, preg_match('/GAME_SHELL_ROUTES = \[(.*?)\] as const/s', $policy, $match));
         preg_match_all("/'([^']+)'/", $match[1], $listed);
 
-        // Every parameterless game page, minus the API, media, the worker itself and the
-        // Mandarin preview and QA pages, which are operator tools rather than games.
+        // Every parameterless game page, minus the API, media, the worker itself, the
+        // Mandarin preview and QA pages, which are operator tools rather than games, and
+        // the unlisted Tower 2 prototype, which every installed app should not download.
         $pages = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($route): bool => in_array('GET', $route->methods(), true)
                 && str_starts_with((string) $route->getName(), 'games.')
                 && $route->parameterNames() === []
                 && ! str_starts_with($route->uri(), 'api/')
-                && ! in_array($route->getName(), ['games.service-worker', 'games.mandarin.preview', 'games.mandarin.qa'], true))
+                && ! in_array($route->getName(), ['games.service-worker', 'games.mandarin.preview', 'games.mandarin.qa', 'games.tower-2'], true))
             ->map(fn ($route): string => '/'.ltrim($route->uri(), '/'))
             ->unique()->sort()->values()->all();
 
