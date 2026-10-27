@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { dialSlotPosition } from './dial'
 import { decorateHarborPlate } from './harborDecals'
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
+import { createLineside, createParlour, createPlatform, createRailway, createToyTrack, decorateLined } from './railwayScenery'
 import type { StageId } from './stage'
 
 /** A panel's local Z follows its outward normal, including the pitched roof. */
@@ -228,6 +229,10 @@ export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw
   }
   if (plate.dial) {
     decorateDial(details, plate)
+    return details
+  }
+  if (plate.finish === 'loco' || plate.finish === 'lacquer') {
+    decorateLined(details, plate, screws)
     return details
   }
   if (plate.finish === 'plank') {
@@ -572,6 +577,11 @@ const SCENERY: Record<StageId, (theme?: PuzzleLevel['theme']) => THREE.Group> = 
   workbench: createWorkbench,
   quay: createQuay,
   sea: createSea,
+  'toy-track': createToyTrack,
+  parlour: createParlour,
+  platform: createPlatform,
+  lineside: createLineside,
+  railway: createRailway,
 }
 
 const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!
@@ -620,6 +630,12 @@ function decorateDial(details: THREE.Group, plate: Plate): void {
   grip.rotation.x = Math.PI / 2
   grip.position.z = DIAL_FACE + 0.11
   details.add(grip)
+  // A dial held by a stop pin has a red stop on its rim at the top, where it rests against the pin
+  // above the dial until the pin comes out. It turns with the disc.
+  if (plate.dial?.pins?.length) {
+    const stop = box(details, [0.16, 0.14, 0.08], [0, radius - 0.1, DIAL_FACE + 0.04], '#c0392b')
+    stop.userData.dialStop = true
+  }
 }
 
 /** Distance from a cover to the parallel wall behind it, or 0 when it has none. */

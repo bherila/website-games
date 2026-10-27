@@ -2,6 +2,7 @@ import type { Dial } from './dial'
 import { createHarborLevels } from './harborLevels'
 import { createLabLevels } from './labLevels'
 import { createMillLevels } from './millLevels'
+import { createRailwayLevels } from './railwayLevels'
 import type { StageId } from './stage'
 import { createVillageLevels } from './villageLevels'
 
@@ -41,7 +42,7 @@ export interface Plate {
   /** A disc that turns over the screws behind it; it has no screws of its own and stays with its host. */
   dial?: Dial
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
-    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial'
+    | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer'
   color: string
 }
 
@@ -148,7 +149,7 @@ const introductoryLevels: readonly PuzzleLevel[] = [
   },
 ]
 
-export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels()]
+export const LEVELS: readonly PuzzleLevel[] = [...introductoryLevels, ...createVillageLevels(PLATES, SCREWS, introductoryLevels[1]!), ...createMillLevels(PLATES, SCREWS), ...createHarborLevels(), ...createRailwayLevels()]
 
 /** Boards for trying a mechanism before any level uses it: reached only by link, never listed, never saved. */
 export const LAB_LEVELS: readonly PuzzleLevel[] = createLabLevels()

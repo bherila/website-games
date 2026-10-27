@@ -86,6 +86,35 @@ export const HARBOR_TRACES = [
   },
 ]
 
+/** Dials, each held by a stop pin (16–20); turns are written as `turn:<dial>:<1|-1>`. */
+export const RAILWAY_TRACES = [
+  {
+    level: 16,
+    win: ['smokebox-pin', 'side-left-1', 'cab-back-1', 'boiler-top-1', 'chimney-1', 'boiler-top-2', 'turn:smokebox-door:1', 'turn:smokebox-door:1', 'smokebox-door-0', 'turn:smokebox-door:1', 'smokebox-door-1', 'side-left-2', 'side-right-1', 'turn:smokebox-door:1', 'smokebox-door-2', 'turn:smokebox-door:1', 'smokebox-door-3'],
+    lose: ['side-left-1', 'cab-back-1', 'boiler-top-1', 'smokebox-door-2'],
+  },
+  {
+    level: 17,
+    win: ['front-pin', 'front-2', 'lid-1', 'back-1', 'deck-1', 'deck-2', 'end-right-1', 'turn:tune-dial:1', 'tune-dial-0', 'end-left-1', 'turn:tune-dial:1', 'tune-dial-1', 'turn:tune-dial:1', 'tune-dial-2', 'turn:tune-dial:1', 'tune-dial-3'],
+    lose: ['front-pin', 'lid-1', 'deck-1', 'deck-2', 'end-left-1'],
+  },
+  {
+    level: 18,
+    win: ['face-pin', 'back-1', 'back-2', 'back-3', 'left-1', 'right-1', 'roof-1', 'roof-2', 'roof-3', 'left-2', 'right-2', 'turn:clock-face:1', 'turn:clock-face:1', 'clock-face-0', 'turn:clock-face:1', 'clock-face-1', 'turn:clock-face:1', 'clock-face-2', 'turn:clock-face:1', 'clock-face-3'],
+    lose: ['back-2', 'left-1', 'right-1', 'roof-2'],
+  },
+  {
+    level: 19,
+    win: ['front-pin', 'right-pin', 'left-1', 'shutter-1', 'base-back-2', 'roof-left-1', 'roof-right-1', 'back-1', 'base-back-1', 'turn:front-selector:-1', 'front-selector-0', 'turn:front-selector:1', 'front-selector-1', 'turn:front-selector:1', 'front-selector-2', 'turn:side-selector:-1', 'side-selector-0', 'turn:side-selector:1', 'side-selector-1', 'turn:side-selector:1', 'side-selector-2'],
+    lose: ['right-pin', 'shutter-1', 'roof-left-1', 'front-selector-1'],
+  },
+  {
+    level: 20,
+    win: ['smokebox-pin', 'boiler-top-1', 'boiler-top-2', 'engine-near-1', 'engine-far-1', 'tender-near-1', 'tender-back-1', 'turn:smokebox-door:1', 'turn:smokebox-door:1', 'smokebox-door-0', 'tender-far-1', 'coal-hatch-1', 'turn:smokebox-door:1', 'turn:smokebox-door:1', 'smokebox-door-2', 'coupling-pin', 'bunker-rail-1', 'turn:smokebox-door:-1', 'smokebox-door-1', 'turn:smokebox-door:1', 'turn:smokebox-door:1', 'smokebox-door-3'],
+    lose: ['boiler-top-1', 'tender-far-1', 'coal-hatch-1', 'bunker-rail-1'],
+  },
+] as const
+
 /** Lab boards, played with dial turns written as `turn:<dial>:<1|-1>`. */
 export const LAB_TRACES = [
   {
