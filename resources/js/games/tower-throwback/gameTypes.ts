@@ -255,6 +255,12 @@ export interface Unit {
   damageKind: DamageKind | null
   /** Exclusive game-day boundary for the post-repair incident eval penalty. */
   incidentPenaltyUntilDay: number | null
+  /**
+   * After a move-out for poor service, the first morning the unit is shown to
+   * tenants again (null/absent: any morning). Spreads re-leasing over several
+   * mornings instead of refilling a whole jammed tower at one 08:00 pass.
+   */
+  relistOnDay?: number | null
 }
 
 // ── Elevators ──────────────────────────────────────────────────────────────
@@ -305,8 +311,8 @@ export interface Shaft {
    * `avgWaitGameMin` is the live EMA (drives the heatmap overlay);
    * `peakWaitGameMin` is the worst avg since the last daily pass;
    * `dailyPeaksGameMin` holds the previous daily windows' peaks, newest first
-   * (at most `TUNING.evalWeights.congestionHistoryDays − 1`). The eval reads the worst of the
-   * whole week, so a quiet weekend window cannot hide weekday rush congestion.
+   * (at most `TUNING.evalWeights.congestionHistoryDays − 1`). The eval reads the worst of
+   * them, so a quiet weekend window cannot hide Friday's rush from Monday's pass.
    * Absent in saves from before the history existed (treated as empty).
    */
   stats: { avgWaitGameMin: number; peakWaitGameMin: number; dailyPeaksGameMin?: number[] }
@@ -740,11 +746,12 @@ export const TUNING = {
     congestionFactor: 1.0,
     congestionCap: 25,
     /**
-     * Days of daily-peak waits the congestion term remembers (the current
-     * window plus the previous ones). A full week, so the Monday 08:00 pass —
-     * whose own window is the quiet Sunday — still sees last week's rushes.
+     * Daily-peak windows the congestion term remembers (the current one plus
+     * the previous ones). Three, so the Monday 08:00 pass — whose own window
+     * is the quiet Sunday — still sees Friday's rush. A full week was tried:
+     * one jam then blocked every lease for seven days and emptied the tower.
      */
-    congestionHistoryDays: 7,
+    congestionHistoryDays: 3,
     /** Full eval drag on an office with no reachable same-floor restroom. */
     restroomComfortPenalty: 12,
     /** A restroom within this many tiles is "well-served" (0 drag); past it the drag grades up to full at restroomRangeTiles. */
@@ -763,6 +770,8 @@ export const TUNING = {
   stress: {
     weeklyMarksBase: 3,
     lowEvalRiskDays: 3,
+    /** A unit vacated for poor service re-lists 1..relistSpreadDays mornings later, spread per unit. */
+    relistSpreadDays: 7,
   },
   elevators: {
     idleAnswerDefault: 3,

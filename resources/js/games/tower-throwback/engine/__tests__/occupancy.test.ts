@@ -342,7 +342,7 @@ describe('evalUnit — term isolation', () => {
     expect(evalBreakdown(state, office).congestionPenalty).toBe(0)
   })
 
-  it('remembers a week of daily peaks, then forgets them', () => {
+  it('remembers the last few daily peaks, then forgets them', () => {
     const { state, office } = commuteTower()
     const shaftId = placeShaft(state, 'standard', 20, 0, 5)
     const shaft = state.shafts.find((s) => s.id === shaftId)!
@@ -351,44 +351,105 @@ describe('evalUnit — term isolation', () => {
     expect(shaft.stats.peakWaitGameMin).toBe(0)
     const days = TUNING.evalWeights.congestionHistoryDays
     for (let window = 1; window < days; window += 1) {
-      // …still counts through the rest of the week of quiet windows…
+      // …still counts through the following quiet windows…
       expect(evalBreakdown(state, office).congestionPenalty).toBe(18)
       occupancyPass(state, [])
     }
-    // …and is gone a full week later.
+    // …and is gone once it falls out of the history.
     expect(shaft.stats.dailyPeaksGameMin).toHaveLength(days - 1)
     expect(evalBreakdown(state, office).congestionPenalty).toBe(0)
   })
 
-  it('a weekly stress move-out does not re-lease at the quiet Monday pass', () => {
+  it('the Monday pass still sees Friday\'s rush through the quiet weekend', () => {
     const { state, office } = commuteTower()
     const shaftId = placeShaft(state, 'standard', 20, 0, 5)
     const shaft = state.shafts.find((s) => s.id === shaftId)!
-    state.clock.day = 1
-    occupancyPass(state, []) // Monday: the office leases on a calm shaft
-    expect(office.occupied).toBe(true)
-
-    // Tuesday–Friday rushes jam the shaft; Saturday and Sunday are quiet.
-    for (const peak of [30, 30, 30, 30, 0, 0]) {
-      state.clock.day += 1
+    // Each pass reads the previous day's traffic: Saturday 08:00 closes Friday's
+    // jammed window, Sunday and Monday close the quiet weekend days.
+    for (const [day, peak] of [[6, 40], [7, 0]] as const) {
+      state.clock.day = day
       shaft.stats.peakWaitGameMin = peak
-      office.lowEvalDays = 0 // isolate the weekly stress path from the 3-day rule
       occupancyPass(state, [])
-      office.occupied = true
     }
-    office.stressMarks = 99
-    const events: EngineEvent[] = []
-    weeklyStressPass(state, events) // end of Sunday
-    expect(office.occupied).toBe(false)
-    expect(events).toContainEqual(expect.objectContaining({ type: 'unitVacated', unitId: office.id, reason: 'elevatorCrowded' }))
-
-    // Monday 08:00: this window saw only Sunday's empty cars, but the tenants'
-    // week did not get better — the unit stays empty and earns no rent.
-    state.clock.day += 1
+    state.clock.day = 8
     shaft.stats.peakWaitGameMin = 0
-    occupancyPass(state, [])
-    expect(office.occupied).toBe(false)
-    expect(office.vacancyReason).toBe('elevatorCrowded')
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(TUNING.evalWeights.congestionCap)
+  })
+
+  describe('staggered re-listing after a service move-out', () => {
+    function jamThenCalm(state: EngineState, shaftId: number, jammed: boolean): void {
+      const shaft = state.shafts.find((s) => s.id === shaftId)!
+      shaft.stats.peakWaitGameMin = jammed ? 40 : 0
+      shaft.stats.dailyPeaksGameMin = []
+    }
+
+    it('waits for its own relist morning even after service recovers', () => {
+      const { state, office } = commuteTower()
+      const shaftId = placeShaft(state, 'standard', 20, 0, 5)
+      state.clock.day = 2 // a Tuesday
+      office.occupied = true
+      office.lowEvalDays = TUNING.stress.lowEvalRiskDays - 1
+      jamThenCalm(state, shaftId, true)
+      occupancyPass(state, [])
+      expect(office.occupied).toBe(false)
+      const relist = office.relistOnDay!
+      expect(relist).toBeGreaterThanOrEqual(3)
+      expect(relist).toBeLessThanOrEqual(2 + TUNING.stress.relistSpreadDays)
+
+      for (let day = 3; day <= 2 + TUNING.stress.relistSpreadDays + 2; day += 1) {
+        state.clock.day = day
+        jamThenCalm(state, shaftId, false) // the elevators are fine again
+        occupancyPass(state, [])
+        if (day < relist) {
+          expect(office.occupied).toBe(false)
+          expect(office.vacancyReason).toBe('elevatorCrowded')
+        }
+      }
+      expect(office.occupied).toBe(true)
+      expect(office.relistOnDay).toBeNull()
+    })
+
+    it('spreads units vacated at the same pass over different mornings', () => {
+      const { state } = commuteTower()
+      const shaftId = placeShaft(state, 'standard', 20, 0, 5)
+      const offices = Array.from({ length: 24 }, (_, i) =>
+        injectUnit(state, { kind: 'officeS', floor: 4, x: (i % 4) * 6, width: 6, storeys: 1, occupied: true, lowEvalDays: TUNING.stress.lowEvalRiskDays - 1 }),
+      )
+      state.clock.day = 2
+      jamThenCalm(state, shaftId, true)
+      occupancyPass(state, [])
+      const mornings = new Set(offices.map((unit) => unit.relistOnDay))
+      expect(offices.every((unit) => !unit.occupied)).toBe(true)
+      expect(mornings.size).toBeGreaterThanOrEqual(5)
+      for (const morning of mornings) {
+        expect(morning).toBeGreaterThanOrEqual(3)
+        expect(morning).toBeLessThanOrEqual(2 + TUNING.stress.relistSpreadDays)
+      }
+    })
+
+    it('books the next viewing when a viewing fails', () => {
+      const { state, office } = commuteTower()
+      const shaftId = placeShaft(state, 'standard', 20, 0, 5)
+      state.clock.day = 3
+      office.relistOnDay = 3
+      jamThenCalm(state, shaftId, true) // still jammed on its viewing morning
+      occupancyPass(state, [])
+      expect(office.occupied).toBe(false)
+      expect(office.relistOnDay).toBeGreaterThan(3)
+      expect(office.relistOnDay).toBeLessThanOrEqual(3 + TUNING.stress.relistSpreadDays)
+    })
+
+    it('does not delay a unit that lost its route or a never-leased unit', () => {
+      const { state, office } = commuteTower()
+      office.occupied = true
+      occupancyPass(state, []) // no shaft: evicted for no route
+      expect(office.vacancyReason).toBe('noRoute')
+      expect(office.relistOnDay ?? null).toBeNull()
+      placeShaft(state, 'standard', 20, 0, 5)
+      state.clock.day = 2
+      occupancyPass(state, [])
+      expect(office.occupied).toBe(true)
+    })
   })
 
   it('occupancyPass resets every shaft peak wait after evaluating (fresh 24h window)', () => {

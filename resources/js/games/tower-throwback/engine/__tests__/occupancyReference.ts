@@ -534,6 +534,22 @@ export function vacateUnit(unit: Unit, reason: VacancyReason, events: EngineEven
   events.push({ type: 'unitVacated', unitId, unitKind, floor, reason })
 }
 
+/**
+ * After a move-out for poor service (the 3-day low-eval rule or the weekly
+ * stress pass), the unit goes back on the market 1..relistSpreadDays mornings
+ * later — a different morning per unit and per move-out. Every vacancy in a
+ * jammed tower sees the same congestion signal, so without this they all
+ * re-leased together at one 08:00, jammed the elevators together and left
+ * together: the tower swung between full and empty. The spread comes from a
+ * hash of (unit id, day), not the rng, so it adds no draws.
+ */
+function scheduleRelisting(state: EngineState, unit: Unit): void {
+  let h = Math.imul(unit.id ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(state.clock.day, 0xc2b2ae35)
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
+  h ^= h >>> 15
+  unit.relistOnDay = state.clock.day + 1 + ((h >>> 0) % TUNING.stress.relistSpreadDays)
+}
+
 // ── Leasing ──────────────────────────────────────────────────────────────────
 
 function fillPopulation(state: EngineState, unit: Unit): void {
@@ -562,7 +578,13 @@ function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, even
   if (unit.flags.noRoute) {
     return
   }
+  if (unit.relistOnDay != null && state.clock.day < unit.relistOnDay) {
+    return // not back on the market yet; keeps its move-out reason
+  }
   if (unit.evalScore < TUNING.rent.leasabilityThreshold[unit.rentTier]) {
+    if (unit.relistOnDay != null) {
+      scheduleRelisting(state, unit) // a failed viewing books the next one
+    }
     // Name the blocker the same way a move-out is explained, so a unit that has
     // never leased is not a silent dead end. State only — no event, no rng.
     unit.vacancyReason = dominantVacancyReason(unit, breakdown, 'lowEval')
@@ -570,6 +592,7 @@ function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, even
   }
   unit.occupied = true
   unit.vacancyReason = null
+  unit.relistOnDay = null
   unit.lowEvalDays = 0
   fillPopulation(state, unit)
   events.push({ type: 'unitLeased', unitId: unit.id })
@@ -642,6 +665,7 @@ export function occupancyPass(state: EngineState, events: EngineEvent[]): void {
       unit.lowEvalDays += 1
       if (unit.lowEvalDays >= TUNING.stress.lowEvalRiskDays) {
         vacateUnit(unit, dominantVacancyReason(unit, breakdown, 'lowEval'), events)
+      scheduleRelisting(state, unit)
       }
     } else {
       unit.lowEvalDays = 0

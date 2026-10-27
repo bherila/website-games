@@ -756,11 +756,11 @@ describe('sandbox persistence', () => {
 
   it('loads saves from before the weekly congestion history and round-trips the history', () => {
     const state = builtState()
-    state.shafts[0]!.stats.dailyPeaksGameMin = [12.5, 0, 31]
+    state.shafts[0]!.stats.dailyPeaksGameMin = [12.5, 0]
     saveSandbox(state, 'slot-a')
     const current = loadSandbox('slot-a')!
-    expect(current.shafts[0]!.stats.dailyPeaksGameMin).toEqual([12.5, 0, 31])
-    expect(restoreSandbox(current).shafts[0]!.stats.dailyPeaksGameMin).toEqual([12.5, 0, 31])
+    expect(current.shafts[0]!.stats.dailyPeaksGameMin).toEqual([12.5, 0])
+    expect(restoreSandbox(current).shafts[0]!.stats.dailyPeaksGameMin).toEqual([12.5, 0])
 
     // An older save has only the two original stats; it loads with an empty history.
     const legacyShafts = current.shafts.map((shaft) => ({
@@ -777,7 +777,26 @@ describe('sandbox persistence', () => {
       stats: { ...shaft.stats, dailyPeaksGameMin: [1, 'x', -4, 2, 3, 4, 5, 6, 7, 8] },
     }))
     expect(importSandbox(JSON.stringify({ ...current, shafts: noisy }), 'slot-c').ok).toBe(true)
-    expect(loadSandbox('slot-c')!.shafts[0]!.stats.dailyPeaksGameMin).toEqual([1, 2, 3, 4, 5, 6])
+    expect(loadSandbox('slot-c')!.shafts[0]!.stats.dailyPeaksGameMin).toEqual(
+      [1, 2, 3, 4, 5, 6].slice(0, TUNING.evalWeights.congestionHistoryDays - 1),
+    )
+  })
+
+  it('round-trips a unit\'s relist day and loads older units without one', () => {
+    const state = builtState()
+    const unit = state.units.find((candidate) => candidate.kind !== 'slab' && candidate.kind !== 'lobby')!
+    unit.relistOnDay = 12
+    saveSandbox(state, 'slot-a')
+    const current = loadSandbox('slot-a')!
+    expect(current.units.find((candidate) => candidate.id === unit.id)!.relistOnDay).toBe(12)
+    expect(restoreSandbox(current).units.find((candidate) => candidate.id === unit.id)!.relistOnDay).toBe(12)
+
+    const legacyUnits = current.units.map(({ relistOnDay: _relist, ...rest }) => rest)
+    expect(importSandbox(JSON.stringify({ ...current, units: legacyUnits }), 'slot-b').ok).toBe(true)
+    expect(loadSandbox('slot-b')!.units.every((candidate) => (candidate.relistOnDay ?? null) === null)).toBe(true)
+
+    const corrupt = current.units.map((candidate) => (candidate.id === unit.id ? { ...candidate, relistOnDay: 'soon' } : candidate))
+    expect(importSandbox(JSON.stringify({ ...current, units: corrupt }), 'slot-c').ok).toBe(false)
   })
 
   it('ignores malformed nested stored saves when building slot summaries', () => {

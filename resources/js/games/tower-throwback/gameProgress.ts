@@ -1440,6 +1440,8 @@ function parseUnit(value: unknown): Unit | null {
   const incidentPenaltyUntilDay = value.incidentPenaltyUntilDay === undefined
     ? null
     : parseNullableInteger(value.incidentPenaltyUntilDay)
+  // Saves from before staggered re-listing have no relist day: any morning.
+  const relistOnDay = value.relistOnDay === undefined ? null : parseNullableInteger(value.relistOnDay)
   if (
     id === null ||
     kind === null ||
@@ -1461,7 +1463,8 @@ function parseUnit(value: unknown): Unit | null {
     infested === null ||
     offline === null ||
     damageKind === undefined ||
-    incidentPenaltyUntilDay === undefined
+    incidentPenaltyUntilDay === undefined ||
+    relistOnDay === undefined
   ) {
     return null
   }
@@ -1496,6 +1499,7 @@ function parseUnit(value: unknown): Unit | null {
     offline,
     damageKind,
     incidentPenaltyUntilDay,
+    ...(relistOnDay === null ? {} : { relistOnDay }),
   }
 }
 
