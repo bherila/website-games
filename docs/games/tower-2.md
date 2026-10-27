@@ -33,6 +33,26 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 
 ## Design
 
+### Principle: fun first, detail only where it makes a decision
+Tower 2 has many systems: four pressures, modules, upgrades, land, parking, utilities and an environmental
+rating. Each one earns its place only if it gives the player a decision they can see and act on. Detail that
+doesn't change a decision stays out of sight. In practice:
+- **It works by default.** Early on, systems look after themselves: the street grid, mains water and basic
+  trash cover a small tower without any action, and the first plant needs appear only as the tower grows.
+- **Systems unlock with stars**, one at a time, each with a short explanation and its own overlay. A
+  one-star tower is just floors, rooms and an elevator.
+- **Coarse, not granular.** Services are reckoned per floor, routes per core, plots per plot. Nothing is
+  drawn or managed per unit or per pipe.
+- **Warnings before penalties.** Every shortfall shows on its overlay and in the issue list before it costs
+  anything, and the fix is a module to place, not a chore to repeat.
+- **No upkeep chores.** Nothing needs topping up, scheduling or babysitting. A decision, once made, holds until
+  the tower outgrows it.
+- **Depth for those who want it.** The inspector and overlays show the numbers for players who like to
+  optimise; nobody needs them to play well.
+
+Each new system in this plan should pass one test: in a five-minute session, does it create at least one
+interesting choice, and does it ask for no repeated busywork? If not, simplify it or cut it.
+
 ### The loop
 1. **Shape the shell.** Paint a floor's footprint on the site grid; each floor inherits the one below. Step it back, cantilever it out, or leave a void for an atrium.
 2. **Place cores.** Elevator and stair shafts run through a range of floors. They are the only way between floors, and they take floor area on every floor they pass.
