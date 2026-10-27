@@ -111,8 +111,8 @@ covers. The stern board is outside the bait flap's sweep; both decals clear the 
 - A counterweight is a weight plate hanging on a visible cord over pulleys to the part it drives.
   The part has no screws: it stays shut while any screw holds the weight. Take the weight's last
   screw and it drops to the end of its cord, and the cord pulls the part (a door, gate, hatch or
-  drawbridge) to its open position, where it covers nothing; a dashed outline shows that position
-  beforehand. Both stay there until the part they hang on comes off. Undo puts the screw back and
+  drawbridge) to its open position, where it covers nothing; dashed outlines show that position,
+  and the stop where the weight will hang, beforehand. Both stay there until the part they hang on comes off. Undo puts the screw back and
   with it the shut part. There is no timing: the outcome depends only on which screws are out, and
   under reduced motion the parts appear at their end positions at once. The hint for a head under a
   shut part names the weight that opens it.
@@ -260,7 +260,8 @@ save slots are intentionally unsupported. Game Select hydrates its progress thro
   the heads that list it, rim included; open, neither it, its weight at the end of its drop, its cord
   nor its pulleys stand over any head. A sliding part's cord keeps its length through the motion, and
   a hinged part's cord only shortens. In the clockworks every part's details stand clear of every
-  head. Motion tests check, on each level's own
+  head, and every dashed resting outline, a weight's stop included, lies over exactly the heads its
+  part will cover. Motion tests check, on each level's own
   stage, that every part lands without passing through the ground, never jumps between frames, and
   falls clear (or, lying flat, comes to rest), that a rotor stops within half a second, and that a
   hinge turns about its edge.

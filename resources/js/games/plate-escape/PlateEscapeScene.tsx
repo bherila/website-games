@@ -8,7 +8,7 @@ import { dialAngle } from './dial'
 import { bearingLock, type PuzzleState, screwLock } from './engine'
 import { coverStandoff, createPlateMesh, createStage, decoratePlate, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from './houseGeometry'
 import { COLORS, getLevel, heldPlates, type ScrewColor } from './level'
-import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, RAIL_SECONDS, railPose, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
+import { FADE_SECONDS, FALL_SECONDS, fallPose, HINGE_SECONDS, hingePose, nextRotorSpeed, outlinedPlates, RAIL_SECONDS, railPose, restingPose, ROTOR_IDLE_SECONDS, rotorPose } from './plateMotion'
 import { SCREW_MARKS } from './screwMarks'
 import { facesCamera, ORBIT_POLAR, traceScrew } from './screwVisibility'
 import { STAGES } from './stage'
@@ -139,12 +139,11 @@ export function PlateEscapeScene({ state, view, motion, onTargets, onError, onPl
         screwGroups.set(screw.id, screwGroup)
       }
     }
-    // A dashed outline shows where each captive cover will come to rest, before it is freed, and
-    // where each part a counterweight drives will open to.
+    // A dashed outline shows where each captive cover will come to rest before it is freed, where each
+    // part a counterweight drives will open to, and where the weight itself will hang.
     const landings = new Map<string, THREE.LineLoop>()
-    for (const plate of PLATES.filter((candidate) => candidate.drivenBy || SCREWS.some((screw) => screw.coveredWhenOpen?.includes(candidate.id)))) {
-      const start = new THREE.Vector3().fromArray(plate.position)
-      const pose = plate.hinge ? hingePose(plate, start, plateFrames.get(plate.id)!, HINGE_SECONDS) : railPose(plate, start, plateFrames.get(plate.id)!, RAIL_SECONDS)
+    for (const plate of outlinedPlates(level)) {
+      const pose = restingPose(plate, new THREE.Vector3().fromArray(plate.position), plateFrames.get(plate.id)!)
       const points = plateOutline(plate).getPoints(12).map((point) => new THREE.Vector3(point.x, point.y, 0.15))
       const loop = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: '#fff8e6', dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.85 }))
       loop.computeLineDistances()

@@ -6,7 +6,7 @@ import { dialAngle } from '../dial'
 import { createPuzzle, showing } from '../engine'
 import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
 import { heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
-import { HINGE_SECONDS, hingePose, RAIL_SECONDS, railPose, rotorPose } from '../plateMotion'
+import { HINGE_SECONDS, hingePose, outlinedPlates, RAIL_SECONDS, railPose, restingPose, rotorPose } from '../plateMotion'
 
 /** Even-odd crossings of a ray toward +X against the panel's outline. */
 function insideOutline(plate: Plate, x: number, y: number): boolean {
@@ -421,4 +421,26 @@ test('in the clockworks every part\'s details (case trim, clock faces, weights, 
     }
     carved.forEach((details) => disposeObject(details))
   }
+})
+
+test('each dashed resting outline, a counterweight\'s stop included, lies over exactly the heads its part will cover', () => {
+  const weights: string[] = []
+  for (const level of LEVELS) {
+    for (const plate of outlinedPlates(level)) {
+      if (level.plates.some((other) => other.drivenBy === plate.id)) weights.push(`${level.id}:${plate.id}`)
+      // The outline as the scene draws it, filled in so a ray inside it counts.
+      const pose = restingPose(plate, vector(plate.position), plateQuaternion(plate))
+      const fill = new THREE.Mesh(new THREE.ShapeGeometry(plateOutline(plate)), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }))
+      fill.position.z = 0.15
+      const outline = placed(fill, pose.position, pose.quaternion)
+      for (const screw of level.screws.filter((candidate) => candidate.plate !== plate.id)) {
+        const crossing = accessRays(level, screw).filter((ray) => ray.intersectObject(outline).length > 0).length
+        const lands = screw.coveredWhenOpen?.includes(plate.id) ?? false
+        expect({ level: level.id, plate: plate.id, screw: screw.id, crossing: crossing > 0 }).toEqual({ level: level.id, plate: plate.id, screw: screw.id, crossing: lands })
+      }
+      disposeObject(outline)
+    }
+  }
+  // Every counterweight shows where it will hang: six of them across the clockworks.
+  expect(weights).toHaveLength(6)
 })
