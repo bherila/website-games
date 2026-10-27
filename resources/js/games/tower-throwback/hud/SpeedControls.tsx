@@ -21,8 +21,9 @@ const OPTIONS: Array<{ value: GameSpeed; label: string; shortcut: string }> = [
 
 export function SpeedControls({ speed, fastMode, fastModeActive, onSetSpeed, onSetFastMode }: SpeedControlsProps): ReactElement {
   return (
-    <div className="flex items-stretch gap-1.5">
-      <div className="flex overflow-hidden rounded-lg bg-slate-950/70 shadow-lg backdrop-blur-sm" role="group" aria-label="Game speed">
+    // On the narrowest phones the Fast switch wraps below rather than squeezing the speed buttons.
+    <div className="flex flex-wrap items-stretch gap-1.5">
+      <div className="flex shrink-0 overflow-hidden rounded-lg bg-slate-950/70 shadow-lg backdrop-blur-sm" role="group" aria-label="Game speed">
         {OPTIONS.map((option) => (
           <button
             key={option.value}

@@ -11,6 +11,29 @@ test.describe('Tower Throwback real player journey', () => {
   // Functional input coverage uses the phone's CSS layout without high-DPI render cost.
   test.use({ deviceScaleFactor: 1 })
 
+  test('every speed control stays fully tappable on a 320px phone', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.goto('/tower-throwback')
+    await page.evaluate(() => window.localStorage.clear())
+    await page.reload()
+    await page.getByTestId('map-city-tower').tap()
+    await page.getByTestId('lobby-1').tap()
+    await page.getByTestId('start').tap()
+    await expect(page.locator('[data-map-id="city-tower"]')).toBeVisible()
+    for (const speed of [0, 1, 2, 4, 8, 16]) {
+      const control = page.getByTestId(`speed-${speed}`)
+      const box = (await control.boundingBox())!
+      expect(box.x, `speed ${speed} starts on screen`).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width, `speed ${speed} ends on screen`).toBeLessThanOrEqual(320)
+      expect(box.width, `speed ${speed} is not squeezed`).toBeGreaterThanOrEqual(44)
+      // Nothing clips or covers it: its centre hits the button itself.
+      const hit = await page.evaluate(({ x, y, id }) => document.elementFromPoint(x, y)?.closest(`[data-testid="${id}"]`) !== null, { x: box.x + box.width / 2, y: box.y + box.height / 2, id: `speed-${speed}` })
+      expect(hit, `speed ${speed} is not covered`).toBe(true)
+    }
+    await expect(page.getByTestId('fast-mode-toggle')).toBeInViewport({ ratio: 1 })
+  })
+
   test('starts, builds, saves locally, reloads, and resumes the same tower', async ({ page }, testInfo) => {
     test.setTimeout(360_000)
     const mobile = testInfo.project.name === 'chromium-mobile-375'
