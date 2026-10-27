@@ -8,6 +8,14 @@
 import currency from 'currency.js'
 import { type ReactElement, useEffect, useRef, useState } from 'react'
 
+import {
+  normalizeWheelPx,
+  type PinchSnapshot,
+  pinchSnapshot,
+  pinchUpdate,
+  wheelPanDelta,
+  wheelZoomFactor,
+} from '../_shared/three/touchGestures'
 import { itemDef, shaftDef } from './engine/catalog'
 import { buildHudSnapshot, stepEngine } from './engine/engine'
 import { congestionField, noiseField } from './engine/heatmaps'
@@ -24,14 +32,6 @@ import { type HeatmapTileSample, type InspectableHeatmapKind, sampleHeatmapField
 import { placementRangeTiles } from './scene/placementRange'
 import { createSceneController, type PlacementGhost, type RenderMetrics, type SceneController } from './scene/sceneController'
 import { shaftCapAt, type ShaftCapHit, shaftResizeCommandForDrag, shaftResizePreview } from './scene/shaftResize'
-import {
-  normalizeWheelPx,
-  type PinchSnapshot,
-  pinchSnapshot,
-  pinchUpdate,
-  wheelPanDelta,
-  wheelZoomFactor,
-} from './scene/touchGestures'
 import { getVisualTestConfig, markVisualReady, shouldShowRenderCost } from './visualTestMode'
 
 export type OverlayKind = 'noise' | 'congestion' | 'eval' | null

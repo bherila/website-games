@@ -2,7 +2,7 @@
  * Shown when the WebGL renderer cannot be CREATED at all — a blocked or
  * software-disabled GPU, an exhausted context pool, a browser without WebGL.
  *
- * This is distinct from context loss (`contextLoss.ts`), which happens after a
+ * This is distinct from context loss (`_shared/three/contextLoss.ts`), which happens after a
  * successful start and is recoverable in place. Here there is no canvas to
  * recover, so the job is to say so plainly, offer a retry, and keep the player's
  * save reachable instead of leaving a blank rectangle behind.

@@ -1,6 +1,6 @@
 /**
  * Renderer INITIALISATION failure (distinct from context loss, which is covered
- * in `scene/__tests__/contextLoss.dom.test.ts`). A browser that cannot create a
+ * in `_shared/three/__tests__/contextLoss.dom.test.ts`). A browser that cannot create a
  * WebGL context at all must not take the React shell down with it.
  */
 import { fireEvent, render, screen } from '@testing-library/react'

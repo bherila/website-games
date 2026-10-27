@@ -13,6 +13,7 @@
 
 import * as THREE from 'three'
 
+import { attachContextLossHandlers, type ContextLossCallbacks } from '../../_shared/three/contextLoss'
 import { getMap } from '../engine/maps'
 import type { EngineState } from '../gameTypes'
 import { FLOOR_MAX, FLOOR_MIN, GRID_WIDTH } from '../gameTypes'
@@ -33,7 +34,6 @@ import {
   disposeConstructionEnvelopeLayer,
   setConstructionEnvelope,
 } from './constructionEnvelopeLayer'
-import { attachContextLossHandlers, type ContextLossCallbacks } from './contextLoss'
 import { createDynamicPools, disposeDynamicPools, syncDynamic } from './dynamicPools'
 import { createEvalLayer, disposeEvalLayer, syncEvalLayer } from './evalLayer'
 import { createHeatmapLayer, disposeHeatmapLayer, type HeatmapKind, setHeatmap } from './heatmapLayer'
