@@ -2,9 +2,9 @@ import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
 import { cordLength, cordPoints, createCord, createPulleys, placeCord } from '../counterweight'
-import { dialAngle } from '../dial'
+import { dialAngle, dialSlotPosition } from '../dial'
 import { createPuzzle, showing } from '../engine'
-import { coverStandoff, createPlateMesh, decoratePlate, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
+import { CLOCK_FACE, coverStandoff, createPlateMesh, decoratePlate, DIAL_WINDOW, PANEL_FACE, plateOutline, plateQuaternion, screwAnchorOn, throughShafts } from '../houseGeometry'
 import { getLevel, heldPlates, LAB_LEVELS, LEVELS, type Plate, PLATES, type PuzzleLevel, type Screw } from '../level'
 import { HINGE_SECONDS, hingePose, outlinedPlates, RAIL_SECONDS, railPose, restingPose, rotorPose } from '../plateMotion'
 
@@ -20,73 +20,166 @@ function insideOutline(plate: Plate, x: number, y: number): boolean {
   return inside
 }
 
-test('harbor decals fit their own panels, clear heads and captive sweeps, and never occlude selection', () => {
-  for (const [levelId, plateId] of [[11, 'transom'], [12, 'base-front'], [13, 'front'], [14, 'cab-back'], [15, 'port']] as const) {
-    const level = LEVELS.find((candidate) => candidate.id === levelId)!
-    const plate = level.plates.find((candidate) => candidate.id === plateId)!
-    const details = decoratePlate(plate, 0, level.screws, levelId)
-    const decals = details.children.filter((child) => child.name.startsWith('harbor-decal:'))
-    expect(decals).toHaveLength(1)
-    const decal = decals[0] as THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
-    expect(decal).toBeInstanceOf(THREE.Mesh)
-    const { width, height } = decal.geometry.parameters
-    for (const dx of [-width / 2, width / 2]) {
-      for (const dy of [-height / 2, height / 2]) expect(insideOutline(plate, decal.position.x + dx, decal.position.y + dy)).toBe(true)
-    }
-    for (const screw of level.screws.filter((candidate) => candidate.plate === plateId)) {
-      const dx = Math.max(Math.abs(screw.position[0] - decal.position.x) - width / 2, 0)
-      const dy = Math.max(Math.abs(screw.position[1] - decal.position.y) - height / 2, 0)
-      expect(Math.hypot(dx, dy)).toBeGreaterThan(0.245)
-    }
-    if (levelId === 11) {
-      const flap = level.plates.find((candidate) => candidate.id === 'bait-flap')!
-      expect(decal.position.x + width / 2).toBeLessThan(-flap.size[0] / 2)
-    }
-    if (levelId >= 13) {
-      const inversePlate = new THREE.Matrix4().compose(new THREE.Vector3().fromArray(plate.position), plateQuaternion(plate), new THREE.Vector3(1, 1, 1)).invert()
-      const painted = new THREE.Box2(new THREE.Vector2(decal.position.x - width / 2, decal.position.y - height / 2), new THREE.Vector2(decal.position.x + width / 2, decal.position.y + height / 2))
-      for (const cover of level.plates.filter((candidate) => candidate.hinge || candidate.rail)) {
-        const body = createPlateMesh(cover, [])
-        body.geometry.computeBoundingBox()
-        const intervals = 128
-        for (let index = 0; index <= intervals; index++) {
-          const progress = index / intervals
-          const position = new THREE.Vector3().fromArray(cover.position)
-          const rotation = plateQuaternion(cover)
-          // Uniform angles include the quarter-turn; rails have linear bounds.
-          const pose = cover.rail ? railPose(cover, position, rotation, Math.sqrt(progress) * RAIL_SECONDS) : hingePose(cover, position, rotation, (1 - Math.cbrt(1 - progress)) * HINGE_SECONDS)
-          const frame = new THREE.Matrix4().compose(pose.position, pose.quaternion, new THREE.Vector3(1, 1, 1))
-          const sweep = body.geometry.boundingBox!.clone().applyMatrix4(inversePlate.clone().multiply(frame))
-          // Bound travel between adjacent samples. Per-pose boxes preserve
-          // the empty upper corner beside the crane's diagonal rail.
-          sweep.expandByScalar(cover.rail ? cover.rail.travel / intervals : Math.hypot(...cover.size, 2 * PANEL_FACE) * Math.PI / intervals)
-          if (sweep.max.z > decal.position.z) {
-            expect([levelId, cover.id, painted.intersectsBox(new THREE.Box2(new THREE.Vector2(sweep.min.x, sweep.min.y), new THREE.Vector2(sweep.max.x, sweep.max.y)))]).toEqual([levelId, cover.id, false])
-          }
+const decalPanels = [
+  [11, 'transom', 'pip'], [12, 'base-front', 'light'], [13, 'front', 'anchor'], [14, 'cab-back', '5t'], [15, 'port', '07'],
+  [16, 'side-right', 'toy-engine-16'], [17, 'front', 'music-box-note'], [18, 'right', 'station-stop'], [19, 'front', 'signal-box-sign'], [20, 'engine-near', 'locomotive-20'],
+  [21, 'front', 'cuckoo-bird'], [22, 'front', 'lift-up'], [23, 'right', 'gatehouse-crown'], [24, 'front', 'gramophone-78'], [25, 'chest', 'robot-25'],
+  [26, 'board-front', 'carousel-whirl'], [27, 'basket-back', 'basket-balloon'], [28, 'header', 'theater-tickets'], [29, 'wheel', 'wheel-ride'], [30, 'garland', 'float-fair'],
+] as const
+
+test.each(decalPanels)('level %i %s decal %s fits its panel, clears puzzle parts, and never occludes selection', (levelId, plateId, name) => {
+  const level = LEVELS.find((candidate) => candidate.id === levelId)!
+  const plate = level.plates.find((candidate) => candidate.id === plateId)!
+  const details = decoratePlate(plate, 0, level.screws, levelId)
+  const decals = details.children.filter((child) => child.name.startsWith('harbor-decal:'))
+  expect(decals).toHaveLength(1)
+  const decal = decals[0] as THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
+  expect(decal).toBeInstanceOf(THREE.Mesh)
+  expect(decal.name).toBe(`harbor-decal:${name}`)
+  expect(decal.parent).toBe(details)
+  expect(decal.position.z).toBeCloseTo(0.145)
+  const { width, height } = decal.geometry.parameters
+  for (const dx of [-width / 2, width / 2]) {
+    for (const dy of [-height / 2, height / 2]) expect(insideOutline(plate, decal.position.x + dx, decal.position.y + dy)).toBe(true)
+  }
+  for (const screw of level.screws.filter((candidate) => candidate.plate === plateId)) {
+    const dx = Math.max(Math.abs(screw.position[0] - decal.position.x) - width / 2, 0)
+    const dy = Math.max(Math.abs(screw.position[1] - decal.position.y) - height / 2, 0)
+    expect(Math.hypot(dx, dy)).toBeGreaterThan(levelId >= 16 ? 0.295 : 0.245)
+  }
+  if (levelId === 11) {
+    const flap = level.plates.find((candidate) => candidate.id === 'bait-flap')!
+    expect(decal.position.x + width / 2).toBeLessThan(-flap.size[0] / 2)
+  }
+  if (levelId >= 13) {
+    const inversePlate = new THREE.Matrix4().compose(new THREE.Vector3().fromArray(plate.position), plateQuaternion(plate), new THREE.Vector3(1, 1, 1)).invert()
+    const painted = new THREE.Box2(new THREE.Vector2(decal.position.x - width / 2, decal.position.y - height / 2), new THREE.Vector2(decal.position.x + width / 2, decal.position.y + height / 2))
+    // Compare each physical window at every stop, rather than only the
+    // initial visible openings. Perpendicular/back-facing dials are not
+    // painted over by a decal on this face.
+    for (const dialPlate of level.plates.filter((candidate) => candidate.dial && new THREE.Vector3().fromArray(candidate.normal).dot(new THREE.Vector3().fromArray(plate.normal)) > 0.999)) {
+      const dial = dialPlate.dial!
+      for (let stop = 0; stop < dial.stops; stop++) {
+        for (const window of dial.windows) {
+          const [x, y] = dialSlotPosition(dial, window + stop)
+          const centre = new THREE.Vector3(x, y, 0).applyQuaternion(plateQuaternion(dialPlate)).add(new THREE.Vector3().fromArray(dialPlate.position)).applyMatrix4(inversePlate)
+          const dx = Math.max(Math.abs(centre.x - decal.position.x) - width / 2, 0)
+          const dy = Math.max(Math.abs(centre.y - decal.position.y) - height / 2, 0)
+          expect([dialPlate.id, stop, window, Math.hypot(dx, dy) > DIAL_WINDOW + 0.05]).toEqual([dialPlate.id, stop, window, true])
         }
-        disposeObject(body)
       }
     }
-    details.updateMatrixWorld(true)
-    const ray = new THREE.Raycaster(decal.position.clone().add(new THREE.Vector3(0, 0, 5)), new THREE.Vector3(0, 0, -1))
-    expect(ray.intersectObject(decal)).toHaveLength(0)
-    expect(decal.material.transparent).toBe(true)
-    expect(decal.material.map?.colorSpace).toBe(THREE.SRGBColorSpace)
-    const disposed = jest.spyOn(decal.material.map!, 'dispose')
-    disposeObject(details)
-    expect(disposed).toHaveBeenCalledTimes(1)
-    // Reused panel names must not inherit another level's markings.
-    for (const other of [...LEVELS.map((candidate) => candidate.id), 16].filter((id) => id !== levelId)) {
-      const unrelated = decoratePlate(plate, 0, level.screws, other)
-      expect(unrelated.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
-      disposeObject(unrelated)
+    if (plate.finish === 'clock') {
+      const dx = Math.max(Math.abs(CLOCK_FACE.x - decal.position.x) - width / 2, 0)
+      const dy = Math.max(Math.abs(CLOCK_FACE.y - decal.position.y) - height / 2, 0)
+      expect(Math.hypot(dx, dy)).toBeGreaterThan(CLOCK_FACE.radius + 0.035)
     }
-    for (const other of level.plates.filter((candidate) => candidate.id !== plateId)) {
-      const unrelated = decoratePlate(other, 0, level.screws, levelId)
-      expect(unrelated.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
-      disposeObject(unrelated)
+    const covers = new Set([level.rack, ...level.screws.flatMap((screw) => [...(screw.blockedBy ?? []), ...(screw.coveredWhenOpen ?? [])])])
+    // Include driven parts and weights even though they do not have their
+    // own screws, and static covers such as the rack and right gondola.
+    for (const cover of level.plates.filter((candidate) => candidate.id !== plateId && (candidate.hinge || candidate.rail || covers.has(candidate.id)))) {
+      const body = createPlateMesh(cover, [])
+      body.geometry.computeBoundingBox()
+      const intervals = cover.hinge || cover.rail ? 128 : 1
+      for (let index = 0; index <= intervals; index++) {
+        const progress = index / intervals
+        const position = new THREE.Vector3().fromArray(cover.position)
+        const rotation = plateQuaternion(cover)
+        // Uniform angles include the quarter-turn; rails have linear bounds.
+        const pose = cover.rail ? railPose(cover, position, rotation, Math.sqrt(progress) * RAIL_SECONDS)
+          : cover.hinge ? hingePose(cover, position, rotation, (1 - Math.cbrt(1 - progress)) * HINGE_SECONDS)
+            : { position, quaternion: rotation }
+        const frame = new THREE.Matrix4().compose(pose.position, pose.quaternion, new THREE.Vector3(1, 1, 1))
+        const sweep = body.geometry.boundingBox!.clone().applyMatrix4(inversePlate.clone().multiply(frame))
+        // Bound travel between adjacent samples. Per-pose boxes preserve
+        // the empty upper corner beside the crane's diagonal rail.
+        sweep.expandByScalar(cover.rail ? cover.rail.travel / intervals : cover.hinge ? Math.hypot(...cover.size, 2 * PANEL_FACE) * Math.PI / intervals : 0)
+        if (sweep.max.z > decal.position.z) {
+          expect([levelId, cover.id, painted.intersectsBox(new THREE.Box2(new THREE.Vector2(sweep.min.x, sweep.min.y), new THREE.Vector2(sweep.max.x, sweep.max.y)))]).toEqual([levelId, cover.id, false])
+        }
+      }
+      disposeObject(body)
     }
   }
+  details.updateMatrixWorld(true)
+  const ray = new THREE.Raycaster(decal.position.clone().add(new THREE.Vector3(0, 0, 5)), new THREE.Vector3(0, 0, -1))
+  expect(ray.intersectObject(decal)).toHaveLength(0)
+  expect(decal.material.transparent).toBe(true)
+  expect(decal.material.depthWrite).toBe(false)
+  expect(decal.material.map?.colorSpace).toBe(THREE.SRGBColorSpace)
+  const disposed = jest.spyOn(decal.material.map!, 'dispose')
+  disposeObject(details)
+  expect(disposed).toHaveBeenCalledTimes(1)
+  // Reused panel names must not inherit another level's markings.
+  for (const other of [...LEVELS.map((candidate) => candidate.id), 31, undefined].filter((id) => id !== levelId)) {
+    const unrelated = decoratePlate(plate, 0, level.screws, other)
+    expect(unrelated.children.some((child) => child.name === decal.name)).toBe(false)
+    disposeObject(unrelated)
+  }
+  for (const other of level.plates.filter((candidate) => candidate.id !== plateId)) {
+    const unrelated = decoratePlate(other, 0, level.screws, levelId)
+    expect(unrelated.children.some((child) => child.name.startsWith('harbor-decal:'))).toBe(false)
+    disposeObject(unrelated)
+  }
+  const wrongFinish = decoratePlate({ ...plate, finish: 'glass' }, 0, level.screws, levelId)
+  expect(wrongFinish.children.some((child) => child.name === decal.name)).toBe(false)
+  disposeObject(wrongFinish)
+})
+
+test.each(decalPanels.filter(([levelId]) => levelId >= 16))('level %i %s decal %s stays visible above its own details and neighboring panels', (levelId, plateId) => {
+  const level = LEVELS.find((candidate) => candidate.id === levelId)!
+  const assembly = new THREE.Group()
+  let decal!: THREE.Mesh<THREE.PlaneGeometry>
+  let paintedPanel!: THREE.Group
+  for (const plate of level.plates) {
+    const panel = new THREE.Group()
+    panel.name = plate.id
+    panel.position.fromArray(plate.position)
+    panel.quaternion.copy(plateQuaternion(plate))
+    const details = decoratePlate(plate, 0, level.screws, levelId)
+    panel.add(createPlateMesh(plate, level.screws.filter((screw) => screw.plate === plate.id)), details)
+    assembly.add(panel)
+    if (plate.id === plateId) {
+      decal = details.children.find((child) => child.name.startsWith('harbor-decal:')) as THREE.Mesh<THREE.PlaneGeometry>
+      paintedPanel = panel
+    }
+  }
+  const plate = level.plates.find((candidate) => candidate.id === plateId)!
+  // If paint is placed on a captive part, also inspect its middle and
+  // landing against every other panel, since it travels with that part.
+  for (const progress of plate.rail ? [0, 0.5, 1] : [0]) {
+    if (plate.rail) {
+      const pose = railPose(plate, new THREE.Vector3().fromArray(plate.position), plateQuaternion(plate), Math.sqrt(progress) * RAIL_SECONDS)
+      paintedPanel.position.copy(pose.position)
+      paintedPanel.quaternion.copy(pose.quaternion)
+    }
+    assembly.updateMatrixWorld(true)
+    const blockers: THREE.Mesh[] = []
+    assembly.traverse((object) => {
+      // Lines behind the paint are decorative strokes; raised mesh details
+      // (especially the signal-box brace/ledges) really can hide a decal.
+      if (object instanceof THREE.Mesh && !object.name.startsWith('harbor-decal:')) {
+        // Some scenery disables selection raycasts. Use its actual rendered
+        // triangles with a normal mesh raycast when checking visibility.
+        const rendered = new THREE.Mesh(object.geometry, object.material)
+        rendered.name = object.name || object.parent?.name || object.parent?.parent?.name || ''
+        rendered.matrixWorld.copy(object.matrixWorld)
+        blockers.push(rendered)
+      }
+    })
+    const normal = new THREE.Vector3(0, 0, 1).transformDirection(decal.matrixWorld)
+    const { width, height } = decal.geometry.parameters
+    for (const x of [-0.5, 0, 0.5]) {
+      for (const y of [-0.5, 0, 0.5]) {
+        const point = new THREE.Vector3(x * width, y * height, 0).applyMatrix4(decal.matrixWorld)
+        const ray = new THREE.Raycaster(point.addScaledVector(normal, 5), normal.clone().negate(), 0, 5 - 1e-4)
+        // Include every static panel, not just puzzle covers: the basket's
+        // skid can hide a badge even though no screw lists it as a cover.
+        expect([x, y, ray.intersectObjects(blockers, false).map(({ object }) => object.name)]).toEqual([x, y, []])
+      }
+    }
+  }
+  disposeObject(assembly)
 })
 
 test('wall and roof frames keep screw heads facing outward without distorting the panel', () => {
