@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
+import { CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from './cloudPayload'
 import {
   acquireLease,
   type CloudLeaseConflict,
@@ -270,7 +271,10 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
     // in-flight push can be reported against the save the player actually has.
     setLocal((prev) => ({ ...prev, [slotId]: digest }))
 
-    if (!fitsCloudBudget(serialized)) {
+    // The cloud copy is the compressed v3 envelope; the budget applies to what
+    // the server stores, so measure the envelope, not the raw save.
+    const envelope = encodeCloudPayload(serialized)
+    if (!fitsCloudBudget(JSON.stringify(envelope))) {
       // Predict the server's rejection rather than firing a request that will
       // 422 and then be swallowed. The local save is already written and safe.
       setOutcome(slotId, { kind: 'tooLarge', digest })
@@ -293,8 +297,8 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
       }
       const result = await pushCloudSlot({
         slot: slotId,
-        payload: saved,
-        wireVersion: saved.version,
+        payload: envelope,
+        wireVersion: CLOUD_ENVELOPE_WIRE_VERSION,
         token,
         game_day: saved.clock.day,
         star: saved.star,
@@ -352,12 +356,14 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
     if (cloud === null) {
       return null
     }
-    // Defence in depth: validate the opaque blob against the current wire
+    // Unwrap a v3 envelope (legacy raw saves pass through), refusing formats
+    // this client does not know. Then validate against the current wire
     // contract before it is allowed anywhere near local storage.
-    if (migrateSandboxPayload(cloud.payload) === null) {
+    const decoded = decodeCloudPayload(cloud.payload)
+    if (decoded === null || migrateSandboxPayload(decoded) === null) {
       return null
     }
-    const result = importSandbox(JSON.stringify(cloud.payload), slotId)
+    const result = importSandbox(JSON.stringify(decoded), slotId)
     if (!result.ok) {
       return null
     }

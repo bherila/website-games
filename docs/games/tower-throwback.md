@@ -428,6 +428,16 @@ consequence-bearing engine auxiliary state). Derived grid, routing, and renderin
 load. Autosave runs at midnight settlement and on `visibilitychange`/unmount. V1 snapshots migrate
 in memory; malformed or unknown future versions are rejected without overwriting stored bytes.
 
+**Cloud copies** of a slot use wire version 3: an envelope
+`{format: "tower-throwback/gzip+base64", version: 3, data}` whose `data` is the base64 gzip of the
+save JSON (`cloudPayload.ts`, `fflate`). A large tower's JSON passes the 1 MiB cloud cap; the
+envelope is about 22× smaller (the 1,417-unit bot tower: 960 KB of JSON, 44 KB enveloped).
+The server stores the envelope as-is, applies the cap to it, and requires the payload's shape to
+match its declared wire version. Local saves stay uncompressed. Older raw v1/v2 cloud saves still
+restore; an older client that meets an envelope reads `version: 3` as an unknown future save and
+refuses it without touching local storage, and this client likewise refuses an envelope `format`
+or `version` it does not know.
+
 Import also re-checks each save against its map's *current* geometry — floor range, endgame
 placement floors, and horizontal build exclusions. That is deliberately stricter than a pure
 schema check: a save is only loadable if the same layout would still be placeable today. The
@@ -489,6 +499,10 @@ Small, deliberate gaps between this spec and the shipped v1 sim:
   they place anywhere a slab exists.
 - **Congestion sampling** measures REAL queued minutes per boarding (the earlier
   patience-derived estimate over-counted the left-behind ×0.75 patience chop).
+- **Daily pass cost**: the 08:00 occupancy pass builds a per-pass unit index (units by floor,
+  amenity and noise sources near each floor, restrooms, landmark candidates, infested units,
+  parking counts) so each eval term reads its neighbors instead of rescanning every unit. Results
+  are identical to the full scan; `occupancyIndex.test.ts` compares both on the fixtures.
 - **Engine stepping** interleaves elevator service with the 8 Hz person ticks so
   large real-time steps (CI soak chunks, hitchy frames) cannot starve queues.
 

@@ -47,9 +47,19 @@ class TowerSaveSlot extends Model
      * is newer than anything the frontend can migrate is rejected so an
      * out-of-date client never clobbers a slot with data it cannot read back.
      *
+     * 1 and 2 are raw save objects. 3 is the compressed envelope
+     * `{format: ENVELOPE_FORMAT, version: 3, data: <base64 gzip of the save JSON>}`
+     * (see `resources/js/games/tower-throwback/cloudPayload.ts`).
+     *
      * @var list<int>
      */
-    public const SUPPORTED_WIRE_VERSIONS = [1, 2];
+    public const SUPPORTED_WIRE_VERSIONS = [1, 2, 3];
+
+    /** Wire version whose payload is the compressed envelope. */
+    public const ENVELOPE_WIRE_VERSION = 3;
+
+    /** The envelope's `format` marker; must match `CLOUD_ENVELOPE_FORMAT` in the client. */
+    public const ENVELOPE_FORMAT = 'tower-throwback/gzip+base64';
 
     protected $fillable = [
         'user_id',

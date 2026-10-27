@@ -264,11 +264,12 @@ export function stepHotelMinute(state: EngineState, minute: number): void {
 }
 
 /** Flag refresh used by occupancyPass: reception dependency + vacant-room reasons. */
-export function refreshHotelRoomFlags(state: EngineState, unit: Unit): void {
+/** @param receptionExists `hotelReceptionExists(state)`, precomputed by a caller that refreshes many units. */
+export function refreshHotelRoomFlags(state: EngineState, unit: Unit, receptionExists?: boolean): void {
   if (!isHotelRoom(unit)) {
     return
   }
-  unit.flags.noReception = !hotelReceptionExists(state)
+  unit.flags.noReception = !(receptionExists ?? hotelReceptionExists(state))
   if (!unit.occupied) {
     if (unit.flags.noReception) {
       unit.vacancyReason = 'noReception'

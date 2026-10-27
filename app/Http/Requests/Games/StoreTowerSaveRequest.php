@@ -32,7 +32,7 @@ class StoreTowerSaveRequest extends TowerSaveSlotRouteRequest
     {
         return [
             ...parent::rules(),
-            'payload' => ['required', 'array', $this->payloadSizeRule()],
+            'payload' => ['required', 'array', $this->payloadSizeRule(), $this->payloadShapeRule()],
             'wire_version' => ['required', 'integer', Rule::in(TowerSaveSlot::SUPPORTED_WIRE_VERSIONS)],
             'lease_token' => ['required', 'string', 'max:64'],
             'game_day' => ['nullable', 'integer', 'min:0'],
@@ -67,6 +67,43 @@ class StoreTowerSaveRequest extends TowerSaveSlotRouteRequest
             $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             if ($encoded === false || strlen($encoded) > self::MAX_PAYLOAD_BYTES) {
                 $fail('The save payload is too large.');
+            }
+        };
+    }
+
+    /**
+     * The payload's shape must match its declared wire version: a v3 payload is
+     * exactly the compressed envelope, and a v1/v2 payload is a raw save, never
+     * an envelope. The envelope is still opaque here — its data is checked to be
+     * base64, not decompressed — and the size rule above measures it as stored.
+     */
+    private function payloadShapeRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if (! is_array($value)) {
+                return;
+            }
+            $isEnvelope = array_key_exists('format', $value);
+            if ((int) $this->input('wire_version') !== TowerSaveSlot::ENVELOPE_WIRE_VERSION) {
+                if ($isEnvelope) {
+                    $fail('A compressed save must declare wire version 3.');
+                }
+
+                return;
+            }
+            $data = $value['data'] ?? null;
+            $keys = array_keys($value);
+            sort($keys);
+            if (
+                $keys !== ['data', 'format', 'version']
+                || $value['format'] !== TowerSaveSlot::ENVELOPE_FORMAT
+                || $value['version'] !== TowerSaveSlot::ENVELOPE_WIRE_VERSION
+                || ! is_string($data)
+                || $data === ''
+                || preg_match('/\A[A-Za-z0-9+\/]+={0,2}\z/', $data) !== 1
+                || strlen($data) % 4 !== 0
+            ) {
+                $fail('The compressed save envelope is malformed.');
             }
         };
     }
