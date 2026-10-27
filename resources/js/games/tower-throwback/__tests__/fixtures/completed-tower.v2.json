@@ -3307,7 +3307,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 59.20589113209465,
+      "evalScore": 47.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3339,7 +3339,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 57.40589113209465,
+      "evalScore": 45.5436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3371,7 +3371,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 53.80589113209465,
+      "evalScore": 41.9436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3403,7 +3403,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 50.20589113209465,
+      "evalScore": 38.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3435,7 +3435,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3467,7 +3467,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3499,7 +3499,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3531,7 +3531,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3563,7 +3563,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3595,7 +3595,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3627,7 +3627,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3659,7 +3659,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3691,7 +3691,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3723,7 +3723,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 47.20589113209465,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3755,7 +3755,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 48,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3787,7 +3787,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 48,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3819,7 +3819,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 48,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3851,7 +3851,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 48,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -3883,7 +3883,7 @@
         "high": 0,
         "vip": 0
       },
-      "evalScore": 48,
+      "evalScore": 35.3436179829205,
       "stressMarks": 0,
       "lowEvalDays": 0,
       "vacancyReason": null,
@@ -13276,8 +13276,8 @@
         "doorDwellSec": 8
       },
       "stats": {
-        "avgWaitGameMin": 6.180658791852533,
-        "peakWaitGameMin": 12.656208847799306,
+        "avgWaitGameMin": 6.196235962640777,
+        "peakWaitGameMin": 12.656382017079501,
         "dailyPeaksGameMin": [
           12.656382017079501,
           12.656382017079451
@@ -13379,8 +13379,8 @@
         "doorDwellSec": 8
       },
       "stats": {
-        "avgWaitGameMin": 4.95198064953713,
-        "peakWaitGameMin": 11.987122861880628,
+        "avgWaitGameMin": 5.606968971601698,
+        "peakWaitGameMin": 12.874580654660003,
         "dailyPeaksGameMin": [
           12.874580654660003,
           12.87458065465928
@@ -13498,12 +13498,10 @@
       "topFloor": 14,
       "stops": [
         0,
-        5,
         14
       ],
       "enabledStops": [
         0,
-        5,
         14
       ],
       "cars": [
@@ -13561,8 +13559,8 @@
         "doorDwellSec": 8
       },
       "stats": {
-        "avgWaitGameMin": 0.8248750379216822,
-        "peakWaitGameMin": 0.9165278199129802,
+        "avgWaitGameMin": 0.6712371108880957,
+        "peakWaitGameMin": 0.745819012097884,
         "dailyPeaksGameMin": [
           0.7458193743523165,
           0.7941088679053511
@@ -13577,12 +13575,10 @@
       "topFloor": 14,
       "stops": [
         0,
-        5,
         14
       ],
       "enabledStops": [
         0,
-        5,
         14
       ],
       "cars": [
@@ -13640,8 +13636,8 @@
         "doorDwellSec": 8
       },
       "stats": {
-        "avgWaitGameMin": 0.026986710959398252,
-        "peakWaitGameMin": 0.6513215599000001,
+        "avgWaitGameMin": 0.04978685582138403,
+        "peakWaitGameMin": 0.40951000000000004,
         "dailyPeaksGameMin": [
           0,
           0

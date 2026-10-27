@@ -32,7 +32,7 @@ import {
   wheelPanDelta,
   wheelZoomFactor,
 } from './scene/touchGestures'
-import { getVisualTestConfig, markVisualReady } from './visualTestMode'
+import { getVisualTestConfig, markVisualReady, shouldShowRenderCost } from './visualTestMode'
 
 export type OverlayKind = 'noise' | 'congestion' | 'eval' | null
 
@@ -406,6 +406,7 @@ export function TowerScene({
     let visualResizeShown = false
     let lastViewport: CameraViewport | null = null
     const visualTestConfig = getVisualTestConfig()
+    const publishRendererReady = shouldShowRenderCost()
 
     const resize = (): void => {
       const rect = canvas.getBoundingClientRect()
@@ -490,6 +491,9 @@ export function TowerScene({
       // Presentation glides share the pause: interpolating toward positions the
       // sim is no longer producing would drift the render away from state.
       controller.render(state, stepDt)
+      // Diagnostic tests can sample the next actual render after a camera
+      // change without waiting for the separately throttled React readout.
+      if (publishRendererReady) window.__TOWER_DRAW_CALLS__ = controller.getRenderMetrics().drawCalls
       renderMetricsAccum += dt
       if (renderMetricsAccum >= RENDER_METRICS_INTERVAL_SEC) {
         renderMetricsAccum %= RENDER_METRICS_INTERVAL_SEC
@@ -505,7 +509,7 @@ export function TowerScene({
         lastViewport = viewport
         onViewportChangeRef.current?.(viewport)
       }
-      if (!visualReadyMarked && visualTestConfig !== null) {
+      if (!visualReadyMarked && publishRendererReady) {
         visualReadyFrames = controller.isReady() ? visualReadyFrames + 1 : 0
         if (visualReadyFrames >= 8) {
           visualReadyMarked = true

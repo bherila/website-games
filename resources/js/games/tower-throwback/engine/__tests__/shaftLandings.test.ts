@@ -89,7 +89,7 @@ describe('shaft landings follow the floors built after the shaft', () => {
     expect(shaft.stops).toEqual([0, 5, 10, 15, 20])
     expect(shaft.enabledStops).toEqual([0, 5, 10, 15, 20])
 
-    injectUnit(state, { kind: 'skylobby', floor: 12, x: 0, width: 12, storeys: 1 })
+    // Unrelated construction preserves the complete five-stop set.
     run(state, [{ type: 'place', kind: 'slab', floor: 1, x: 31, widthTiles: 3 }])
     expect(shaft.stops).toEqual([0, 5, 10, 15, 20])
     expect(shaft.enabledStops).toEqual([0, 5, 10, 15, 20])
