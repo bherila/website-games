@@ -23,6 +23,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Progression | Stars unlock advanced versions of each use: studios lead to 1-, 2- and 3-bedroom condos, startup offices to executive offices, and so on. |
 | Upgrades | Two kinds: **in place** (same footprint, applied without disturbing the plan) and **remodel** (demolish and rebuild a floor to change its layout). |
 | Floor plates | A new floor inherits the floor below's outline with a single click, then can be edited. |
+| Lobbies and basements | As in Tower Throwback. Street lobbies sit on the ground floor but may be split into separate entrances (twin towers). Any number of sky lobbies go on upper floors, unlocked by stars. Basements go several floors deep once excavation unlocks, for parking, plant and transit. |
 
 ## Design
 
@@ -44,7 +45,8 @@ Each one is a rule the player can see as an overlay, and each costs something el
 | Neighbours and noise | `adjacency(useA, useB, direction)` gives −2 to +2, including the rooms directly above and below. |
 
 ### Mixed use and stacking
-Any floor can hold any use, as in Tower Throwback, subject to the four pressures. A typical growth path: a
+Any floor can hold any use, as in Tower Throwback, subject to the four pressures. The ground floor may have
+several street entrances, and basements below it hold parking, plant and transit once excavation unlocks. A typical growth path: a
 podium of shops at street level, office floors above, then a **sky lobby** floor where residents and hotel
 guests change cores, then residential or hotel floors on top. Sky lobbies arrive with stars, as in
 Tower Throwback, and make tall mixed-use towers work: they break long elevator runs and give each use its own
@@ -194,7 +196,6 @@ only). The coordinator merges step 2 first.
 | Question | Recommendation |
 | --- | --- |
 | Corridors drawn, or implied by a corridor spine? | Drawn, since circulation is one of the four pressures; modules place against them |
-| One lobby, or several entrances from the start? | One street lobby first; sky lobbies come with stars, as decided above |
 | Buy neighbouring plots in the sandbox? | Not in the prototype |
 | Simulation as detailed as Tower Throwback's? | Keep its people model, but cap the crowd |
 | Plan size and people limit? | 40×40 tiles per floor and about 1,500 people, to stay smooth on phones |
