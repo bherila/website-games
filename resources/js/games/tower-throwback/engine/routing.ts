@@ -318,3 +318,125 @@ export function hasRouteToLobby(state: EngineState, unit: Unit, opts: RouteOpts 
   }
   return false
 }
+
+// ── Load-aware elevator choice ──────────────────────────────────────────────
+
+export interface ElevatorChoice {
+  shaftId: number
+  /** Extra walk tiles over the route's own elevator (0 for that one). */
+  extraWalk: number
+}
+
+/**
+ * Elevators interchangeable with an elevator leg: passenger (or, for staff,
+ * service) shafts with enabled landings on both of the leg's floor segments,
+ * costing at most `loadSpreadWalkTiles` more walking between `prevX` (where the
+ * rider stands before boarding) and `nextX` (where they head after alighting).
+ * Includes the leg's own shaft (extra 0). Shaft id order.
+ */
+export function equivalentElevators(
+  state: EngineState,
+  leg: JourneyLeg,
+  prevX: number,
+  nextX: number,
+  opts: { staff?: boolean; avoidShaftId?: number } = {},
+): ElevatorChoice[] {
+  if (leg.type !== 'elevator' || leg.shaftId === undefined) {
+    return []
+  }
+  const fromSeg = segmentAt(state, leg.fromFloor, leg.fromX)
+  const toSeg = segmentAt(state, leg.toFloor, leg.toX)
+  if (!fromSeg || !toSeg) {
+    return []
+  }
+  const walk = (x: number): number => Math.abs(prevX - x) + Math.abs(x - nextX)
+  const baseline = walk(leg.fromX)
+  const choices: ElevatorChoice[] = []
+  for (const shaft of state.shafts) {
+    if (shaft.id === opts.avoidShaftId || (shaftDef(shaft.kind).serviceOnly === true) !== (opts.staff === true)) {
+      continue
+    }
+    if (!shaft.enabledStops.includes(leg.fromFloor) || !shaft.enabledStops.includes(leg.toFloor)) {
+      continue
+    }
+    const a = segmentAt(state, leg.fromFloor, shaft.x)
+    const b = segmentAt(state, leg.toFloor, shaft.x)
+    if (!a || !b || segKey(a) !== segKey(fromSeg) || segKey(b) !== segKey(toSeg)) {
+      continue
+    }
+    const extraWalk = walk(shaft.x) - baseline
+    if (shaft.id === leg.shaftId || extraWalk <= TUNING.routing.loadSpreadWalkTiles) {
+      choices.push({ shaftId: shaft.id, extraWalk: Math.max(0, extraWalk) })
+    }
+  }
+  return choices
+}
+
+/**
+ * Re-pick each elevator leg of a planned journey among its equivalent
+ * elevators by current load (fewest riders already planned onto it), then
+ * extra walk, then shaft id — so one shaft no longer carries every rider just
+ * because the route search breaks distance ties toward the lowest id (and its
+ * segment-pair memo then repeats that choice for everyone). Walk legs are
+ * rebuilt around the chosen columns. Deterministic: `loadOf` is a pure
+ * function of the people list, and ties fall to shaft ids.
+ */
+export function spreadElevatorLegs(
+  state: EngineState,
+  fromX: number,
+  toX: number,
+  legs: JourneyLeg[],
+  loadOf: (shaftId: number) => number,
+  opts: { staff?: boolean; avoidShaftId?: number } = {},
+): JourneyLeg[] {
+  const fixed = legs.filter((leg) => leg.type !== 'walk')
+  if (!fixed.some((leg) => leg.type === 'elevator')) {
+    return legs
+  }
+  let changed = false
+  let x = fromX
+  for (let i = 0; i < fixed.length; i += 1) {
+    const leg = fixed[i]!
+    const nextX = fixed[i + 1]?.fromX ?? toX
+    if (leg.type === 'elevator') {
+      const choices = equivalentElevators(state, leg, x, nextX, opts)
+      if (choices.length < 2) {
+        x = leg.toX
+        continue
+      }
+      let best: ElevatorChoice | null = null
+      let bestLoad = Infinity
+      for (const choice of choices) {
+        const load = loadOf(choice.shaftId)
+        if (load < bestLoad || (load === bestLoad && best !== null && choice.extraWalk < best.extraWalk)) {
+          best = choice
+          bestLoad = load
+        }
+      }
+      if (best && best.shaftId !== leg.shaftId) {
+        const shaft = state.shafts.find((candidate) => candidate.id === best.shaftId)!
+        fixed[i] = { ...leg, fromX: shaft.x, toX: shaft.x, shaftId: shaft.id }
+        changed = true
+      }
+    }
+    x = fixed[i]!.toX
+  }
+  if (!changed) {
+    return legs
+  }
+  const rebuilt: JourneyLeg[] = []
+  let floor = legs[0]!.fromFloor
+  x = fromX
+  for (const leg of fixed) {
+    if (x !== leg.fromX) {
+      rebuilt.push({ type: 'walk', fromFloor: floor, fromX: x, toFloor: floor, toX: leg.fromX })
+    }
+    rebuilt.push(leg)
+    floor = leg.toFloor
+    x = leg.toX
+  }
+  if (x !== toX) {
+    rebuilt.push({ type: 'walk', fromFloor: floor, fromX: x, toFloor: floor, toX })
+  }
+  return rebuilt
+}

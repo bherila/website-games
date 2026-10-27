@@ -22,6 +22,7 @@ import { noiseExposureAt } from '../heatmaps'
 import { refreshHotelRoomFlags } from '../hotel'
 import { infestedNeighborPenalty, requestEvalBonus } from '../incidents'
 import { getMap } from '../maps'
+import { congestionPenalty } from '../occupancy'
 import { parkingShortfall, refreshParkingFlags } from '../parking'
 import { pickWeighted } from '../rng'
 import { findRoute, hasRouteToLobby } from '../routing'
@@ -246,32 +247,11 @@ function noiseTerm(state: EngineState, unit: Unit): number {
 }
 
 /**
- * Congestion penalty from the BEST (least-congested) shaft serving the unit's
- * floor segment — riders take whichever elevator is quickest, so adding a relief
- * shaft on a jammed floor actually lowers the penalty (not just when it happens
- * to be the closest). Uses each shaft's daily PEAK wait, not the live EMA, so a
- * shaft that jams at rush but calms by the 08:00 pass still penalizes.
+ * Congestion is not indexed: the reference shares production's rule (the
+ * commute route's interchangeable elevators) instead of freezing a copy.
  */
 function congestionTerm(state: EngineState, unit: Unit): number {
-  const segment = segmentOf(state, unit.floor, unit.x)
-  if (!segment) {
-    return 0
-  }
-  let bestWait = Infinity
-  for (const shaft of state.shafts) {
-    if (!shaft.enabledStops.includes(unit.floor)) {
-      continue
-    }
-    const width = shaftDef(shaft.kind).width
-    if (shaft.x + width - 1 < segment.x0 || shaft.x > segment.x1) {
-      continue
-    }
-    bestWait = Math.min(bestWait, shaft.stats.peakWaitGameMin)
-  }
-  if (bestWait === Infinity) {
-    return 0
-  }
-  return Math.min(bestWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+  return congestionPenalty(state, unit)
 }
 
 function trashTerm(state: EngineState, unit: Unit): number {
@@ -470,6 +450,22 @@ export function vacateUnit(unit: Unit, reason: VacancyReason, events: EngineEven
   events.push({ type: 'unitVacated', unitId, unitKind, floor, reason })
 }
 
+/**
+ * After a move-out for poor service (the 3-day low-eval rule or the weekly
+ * stress pass), the unit goes back on the market 1..relistSpreadDays mornings
+ * later — a different morning per unit and per move-out. Every vacancy in a
+ * jammed tower sees the same congestion signal, so without this they all
+ * re-leased together at one 08:00, jammed the elevators together and left
+ * together: the tower swung between full and empty. The spread comes from a
+ * hash of (unit id, day), not the rng, so it adds no draws.
+ */
+function scheduleRelisting(state: EngineState, unit: Unit): void {
+  let h = Math.imul(unit.id ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(state.clock.day, 0xc2b2ae35)
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
+  h ^= h >>> 15
+  unit.relistOnDay = state.clock.day + 1 + ((h >>> 0) % TUNING.stress.relistSpreadDays)
+}
+
 // ── Leasing ──────────────────────────────────────────────────────────────────
 
 function fillPopulation(state: EngineState, unit: Unit): void {
@@ -498,7 +494,13 @@ function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, even
   if (unit.flags.noRoute) {
     return
   }
+  if (unit.relistOnDay != null && state.clock.day < unit.relistOnDay) {
+    return // not back on the market yet; keeps its move-out reason
+  }
   if (unit.evalScore < TUNING.rent.leasabilityThreshold[unit.rentTier]) {
+    if (unit.relistOnDay != null) {
+      scheduleRelisting(state, unit) // a failed viewing books the next one
+    }
     // Name the blocker the same way a move-out is explained, so a unit that has
     // never leased is not a silent dead end. State only — no event, no rng.
     unit.vacancyReason = dominantVacancyReason(unit, breakdown, 'lowEval')
@@ -506,6 +508,7 @@ function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, even
   }
   unit.occupied = true
   unit.vacancyReason = null
+  unit.relistOnDay = null
   unit.lowEvalDays = 0
   fillPopulation(state, unit)
   events.push({ type: 'unitLeased', unitId: unit.id })
@@ -578,6 +581,7 @@ export function occupancyPass(state: EngineState, events: EngineEvent[]): void {
       unit.lowEvalDays += 1
       if (unit.lowEvalDays >= TUNING.stress.lowEvalRiskDays) {
         vacateUnit(unit, dominantVacancyReason(unit, breakdown, 'lowEval'), events)
+      scheduleRelisting(state, unit)
       }
     } else {
       unit.lowEvalDays = 0
@@ -591,10 +595,14 @@ export function occupancyPass(state: EngineState, events: EngineEvent[]): void {
   // only fires on boarding), so relax its stale live avg toward 0 — otherwise a
   // shaft whose traffic source was demolished shows phantom congestion on the
   // heatmap forever and can re-seed a high peak from one sparse future boarding.
+  // The closing window's peak joins the week of history the congestion term
+  // reads (newest first, bounded), then a fresh window starts.
+  const historyLength = TUNING.evalWeights.congestionHistoryDays - 1
   for (const shaft of state.shafts) {
     if (shaft.stats.peakWaitGameMin === 0) {
       shaft.stats.avgWaitGameMin *= 1 - TUNING.elevators.idleWaitDecayPerPass
     }
+    shaft.stats.dailyPeaksGameMin = [shaft.stats.peakWaitGameMin, ...(shaft.stats.dailyPeaksGameMin ?? [])].slice(0, historyLength)
     shaft.stats.peakWaitGameMin = 0
   }
 }

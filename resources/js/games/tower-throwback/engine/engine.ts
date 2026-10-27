@@ -473,7 +473,7 @@ function clonePlacementState(state: EngineState): EngineState {
         idleAnswerThreshold: shaft.program.idleAnswerThreshold,
         doorDwellSec: shaft.program.doorDwellSec,
       },
-      stats: { ...shaft.stats },
+      stats: { ...shaft.stats, dailyPeaksGameMin: [...(shaft.stats.dailyPeaksGameMin ?? [])] },
     })),
     pendingLoanCommands: [...state.pendingLoanCommands],
     grid: createGridLayers(),

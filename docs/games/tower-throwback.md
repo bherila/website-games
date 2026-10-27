@@ -170,7 +170,7 @@ eval(unit) = clamp(0, 100,
   + glassBonus                                // +3 if within 8 tiles of a glass elevator column
   + liveWorkBonus                             // residential only: +4 while occupied office seats ≥ 25% of tower residents (live near work)
   − noisePenalty                              // see noise model, cap 30
-  − congestionPenalty                         // avgWaitGameMin at nearest serving stop × 1.5, cap 25
+  − congestionPenalty                         // worst peak wait of the last 3 daily windows on the unit's commute route × congestionFactor, cap 25
   − trashPenalty                              // 10 if trash overflow within 16 tiles
   − dirtyPenalty                              // hotel rooms: 15 while dirty
   − incidentPenalty                           // 10 while explosion/fire-damaged and for 3 game-days after repair
@@ -232,6 +232,8 @@ low rent ×1.5 · avg ×1.0 · high ×0.7.
   toleranceMultiplier)` OR it spent ≥3 consecutive days below its leasability threshold.
   `vacancyReason` = dominant cause ("elevator too crowded", "too noisy", "no restroom nearby",
   "rent too high", "no route to lobby", "hotel room dirty / no reception"). Marks reset weekly.
+- A unit vacated by the weekly pass or the 3-day low-eval rule re-lists 1..7 mornings later (see
+  "Staggered re-listing" under As-built deviations), so a service move-out costs rent.
 
 ## Spawn schedules & rates
 
@@ -414,6 +416,13 @@ consumes zero disaster rng draws. Legacy saves default this option to on.
 - **Max 2 elevator legs per journey** (one transfer — the classic manual rule); stairs/escalator
   legs don't count. Route cache keyed by segment pair, invalidated on `structureVersion`.
 - Units with no route to a ground lobby get `flags.noRoute` and cannot lease.
+- **Load-aware elevator choice**: the route search and its memo stay structural and load-blind,
+  but each journey re-picks every elevator leg among the interchangeable elevators — enabled
+  landings on the same two floor segments, at most `loadSpreadWalkTiles` (60) extra walking —
+  by the riders already planned onto each (current and future legs of everyone in the tower),
+  then extra walk, then shaft id. Walks are rebuilt around the chosen column. Deterministic: the
+  load is counted from the people list. The congestion penalty reads the least-congested
+  elevator of each commute leg's interchangeable set, matching where riders actually go.
 
 ---
 
@@ -499,6 +508,18 @@ Small, deliberate gaps between this spec and the shipped v1 sim:
   they place anywhere a slab exists.
 - **Congestion sampling** measures REAL queued minutes per boarding (the earlier
   patience-derived estimate over-counted the left-behind ×0.75 patience chop).
+- **Congestion penalty** reads the elevators on the unit's commute: the elevator legs of a fresh
+  route from the street entrance to the unit's floor segment. Each shaft contributes its worst
+  daily peak (the peak of its smoothed wait) over the last `congestionHistoryDays` (3) daily
+  windows, so the Monday 08:00 pass — whose own window is the quiet Sunday — still sees Friday's
+  rush. Each commute leg counts the least-congested of its interchangeable elevators (riders
+  spread over them; see Routing rules), so a distant idle shaft on the same floor no longer hides
+  the jammed one people actually ride, while a relief elevator beside it does relieve it.
+- **Staggered re-listing**: a unit vacated for poor service (the 3-day low-eval rule or the weekly
+  stress pass) is shown to tenants again 1..`relistSpreadDays` mornings later, a different morning
+  per unit and move-out (a hash of unit id and day; no rng draw). A viewing that fails books the
+  next one the same way. A jammed tower therefore loses rent steadily instead of refilling at one
+  08:00, jamming, and emptying together. Route evictions and incident damage are not delayed.
 - **Daily pass cost**: the 08:00 occupancy pass builds a per-pass unit index (units by floor,
   amenity and noise sources near each floor, restrooms, landmark candidates, infested units,
   parking counts) so each eval term reads its neighbors instead of rescanning every unit. Results
@@ -583,6 +604,7 @@ this table in the same commit; the test fails otherwise.
 | `evalWeights.liveWorkMinJobShare` | `0.25` |
 | `evalWeights.congestionFactor` | `1` |
 | `evalWeights.congestionCap` | `25` |
+| `evalWeights.congestionHistoryDays` | `3` |
 | `evalWeights.restroomComfortPenalty` | `12` |
 | `evalWeights.restroomComfortFreeTiles` | `12` |
 | `evalWeights.trashPenalty` | `10` |
@@ -594,6 +616,7 @@ this table in the same commit; the test fails otherwise.
 | `noise.floorPropagation` | `[1,0.5,0.25]` |
 | `stress.weeklyMarksBase` | `3` |
 | `stress.lowEvalRiskDays` | `3` |
+| `stress.relistSpreadDays` | `7` |
 | `elevators.idleAnswerDefault` | `3` |
 | `elevators.idleAnswerMax` | `15` |
 | `elevators.doorDwellDefaultSec` | `8` |
@@ -698,6 +721,7 @@ this table in the same commit; the test fails otherwise.
 | `incidents.requestEvalBonus` | `3` |
 | `incidents.requestEvalBonusDays` | `7` |
 | `routing.maxElevatorLegs` | `2` |
+| `routing.loadSpreadWalkTiles` | `60` |
 | `grid.adjacencyTiles` | `3` |
 | `grid.restroomRangeTiles` | `32` |
 | `grid.skylobbyMinWidth` | `12` |

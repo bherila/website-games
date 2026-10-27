@@ -21,6 +21,8 @@ import type {
   EngineState,
   IncomeTier,
   ItemKind,
+  JourneyLeg,
+  Shaft,
   Unit,
   VacancyReason,
 } from '../gameTypes'
@@ -34,7 +36,7 @@ import { infestedNeighborPenalty, requestEvalBonus } from './incidents'
 import { getMap } from './maps'
 import { functionalStalls, rampServedFloors, refreshParkingFlags } from './parking'
 import { pickWeighted } from './rng'
-import { findRoute, hasRouteToLobby } from './routing'
+import { equivalentElevators, findRoute, hasRouteToLobby } from './routing'
 import { ELEVATOR_CROWDED_WAIT_MIN } from './shaftIssues'
 import { weeklyStressThreshold } from './tenantStress'
 import { vipWeeklyPass } from './vip'
@@ -401,32 +403,110 @@ function noiseTerm(state: EngineState, unit: Unit, index: OccupancyIndex): numbe
 }
 
 /**
- * Congestion penalty from the BEST (least-congested) shaft serving the unit's
- * floor segment — riders take whichever elevator is quickest, so adding a relief
- * shaft on a jammed floor actually lowers the penalty (not just when it happens
- * to be the closest). Uses each shaft's daily PEAK wait, not the live EMA, so a
- * shaft that jams at rush but calms by the 08:00 pass still penalizes.
+ * The wait a shaft's riders have recently faced: the worst daily peak over the
+ * last `congestionHistoryDays` windows (the current one included). A single
+ * daily window let the Monday pass read Sunday — offices closed, empty cars —
+ * and re-lease every unit the weekly stress pass had just emptied; three
+ * windows reach back to Friday.
  */
-function congestionTerm(state: EngineState, unit: Unit): number {
+export function recentPeakWait(shaft: Shaft): number {
+  let worst = shaft.stats.peakWaitGameMin
+  for (const peak of shaft.stats.dailyPeaksGameMin ?? []) {
+    worst = Math.max(worst, peak)
+  }
+  return worst
+}
+
+/**
+ * Congestion penalty from the elevators this unit's commuters actually ride.
+ * The route from the street entrance to the unit's floor segment fixes which
+ * floors they ride between (a fresh, cache-bypassing search, so the answer
+ * never depends on the non-serialized path memo). Riders spread over every
+ * elevator interchangeable with each leg (routing.equivalentElevators, the
+ * same rule people.planJourney uses), so a leg counts the least-congested of
+ * those; the worst leg sets the penalty.
+ *
+ * It used to take the least-congested shaft with any stop on the segment.
+ * Routing was load-blind then, so an untouched shaft on the floor zeroed the
+ * penalty for every unit while the shaft people did use jammed.
+ */
+export function congestionPenalty(state: EngineState, unit: Unit): number {
   const segment = segmentOf(state, unit.floor, unit.x)
-  if (!segment) {
+  const commute = segment ? commuteLegs(state, segment) : null
+  if (!commute) {
     return 0
   }
-  let bestWait = Infinity
-  for (const shaft of state.shafts) {
-    if (!shaft.enabledStops.includes(unit.floor)) {
-      continue
+  let worstWait = 0
+  let x = commute.entranceX
+  for (let i = 0; i < commute.legs.length; i += 1) {
+    const leg = commute.legs[i]!
+    const nextX = commute.legs[i + 1]?.fromX ?? unit.x
+    if (leg.type === 'elevator') {
+      let legWait = Infinity
+      for (const choice of equivalentElevators(state, leg, x, nextX)) {
+        const shaft = state.shafts.find((candidate) => candidate.id === choice.shaftId)
+        if (shaft) {
+          legWait = Math.min(legWait, recentPeakWait(shaft))
+        }
+      }
+      if (legWait !== Infinity) {
+        worstWait = Math.max(worstWait, legWait)
+      }
     }
-    const width = shaftDef(shaft.kind).width
-    if (shaft.x + width - 1 < segment.x0 || shaft.x > segment.x1) {
-      continue
-    }
-    bestWait = Math.min(bestWait, shaft.stats.peakWaitGameMin)
+    x = leg.toX
   }
-  if (bestWait === Infinity) {
-    return 0
+  return Math.min(worstWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+}
+
+function congestionTerm(state: EngineState, unit: Unit): number {
+  return congestionPenalty(state, unit)
+}
+
+/**
+ * Where commuters enter: the left edge of the first anchor-floor segment, the
+ * same point as `people.streetEntrance` (not imported: people → economy →
+ * occupancy would form an import cycle).
+ */
+function commuteEntrance(state: EngineState): Segment | null {
+  return getSegments(state).get(getMap(state.mapId).lobbyAnchorFloor)?.[0] ?? null
+}
+
+interface CommuteRoute {
+  entranceX: number
+  /** The route's non-walk legs (elevators, stairs, escalators), in order. */
+  legs: readonly JourneyLeg[]
+}
+
+interface CommuteCache {
+  structureVersion: number
+  bySegment: Map<string, CommuteRoute | null>
+}
+
+/**
+ * Commute routes per floor segment, derived purely from the structure and
+ * dropped whenever `structureVersion` moves. It is not the router's path memo
+ * (which remembers whichever endpoints asked first and is not saved), so a
+ * restored game computes the same answer as an uninterrupted one.
+ */
+const commuteCache = new WeakMap<EngineState, CommuteCache>()
+
+function commuteLegs(state: EngineState, segment: Segment): CommuteRoute | null {
+  let cache = commuteCache.get(state)
+  if (!cache || cache.structureVersion !== state.structureVersion) {
+    cache = { structureVersion: state.structureVersion, bySegment: new Map() }
+    commuteCache.set(state, cache)
   }
-  return Math.min(bestWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+  const key = `${segment.floor}:${segment.x0}`
+  if (cache.bySegment.has(key)) {
+    return cache.bySegment.get(key) ?? null
+  }
+  const entrance = commuteEntrance(state)
+  const route = entrance
+    ? findRoute(state, entrance.floor, entrance.x0, segment.floor, segment.x0, { bypassCache: true })
+    : null
+  const commute = entrance && route ? { entranceX: entrance.x0, legs: route.filter((leg) => leg.type !== 'walk') } : null
+  cache.bySegment.set(key, commute)
+  return commute
 }
 
 function trashTerm(unit: Unit, index: OccupancyIndex): number {
@@ -629,6 +709,22 @@ export function vacateUnit(unit: Unit, reason: VacancyReason, events: EngineEven
   events.push({ type: 'unitVacated', unitId, unitKind, floor, reason })
 }
 
+/**
+ * After a move-out for poor service (the 3-day low-eval rule or the weekly
+ * stress pass), the unit goes back on the market 1..relistSpreadDays mornings
+ * later — a different morning per unit and per move-out. Every vacancy in a
+ * jammed tower sees the same congestion signal, so without this they all
+ * re-leased together at one 08:00, jammed the elevators together and left
+ * together: the tower swung between full and empty. The spread comes from a
+ * hash of (unit id, day), not the rng, so it adds no draws.
+ */
+function scheduleRelisting(state: EngineState, unit: Unit): void {
+  let h = Math.imul(unit.id ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(state.clock.day, 0xc2b2ae35)
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
+  h ^= h >>> 15
+  unit.relistOnDay = state.clock.day + 1 + ((h >>> 0) % TUNING.stress.relistSpreadDays)
+}
+
 // ── Leasing ──────────────────────────────────────────────────────────────────
 
 function fillPopulation(state: EngineState, unit: Unit): void {
@@ -657,7 +753,13 @@ function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, even
   if (unit.flags.noRoute) {
     return
   }
+  if (unit.relistOnDay != null && state.clock.day < unit.relistOnDay) {
+    return // not back on the market yet; keeps its move-out reason
+  }
   if (unit.evalScore < TUNING.rent.leasabilityThreshold[unit.rentTier]) {
+    if (unit.relistOnDay != null) {
+      scheduleRelisting(state, unit) // a failed viewing books the next one
+    }
     // Name the blocker the same way a move-out is explained, so a unit that has
     // never leased is not a silent dead end. State only — no event, no rng.
     unit.vacancyReason = dominantVacancyReason(unit, breakdown, 'lowEval')
@@ -665,6 +767,7 @@ function tryLease(state: EngineState, unit: Unit, breakdown: EvalBreakdown, even
   }
   unit.occupied = true
   unit.vacancyReason = null
+  unit.relistOnDay = null
   unit.lowEvalDays = 0
   fillPopulation(state, unit)
   events.push({ type: 'unitLeased', unitId: unit.id })
@@ -727,10 +830,14 @@ export function occupancyPass(state: EngineState, events: EngineEvent[]): void {
   // only fires on boarding), so relax its stale live avg toward 0 — otherwise a
   // shaft whose traffic source was demolished shows phantom congestion on the
   // heatmap forever and can re-seed a high peak from one sparse future boarding.
+  // The closing window's peak joins the week of history the congestion term
+  // reads (newest first, bounded), then a fresh window starts.
+  const historyLength = TUNING.evalWeights.congestionHistoryDays - 1
   for (const shaft of state.shafts) {
     if (shaft.stats.peakWaitGameMin === 0) {
       shaft.stats.avgWaitGameMin *= 1 - TUNING.elevators.idleWaitDecayPerPass
     }
+    shaft.stats.dailyPeaksGameMin = [shaft.stats.peakWaitGameMin, ...(shaft.stats.dailyPeaksGameMin ?? [])].slice(0, historyLength)
     shaft.stats.peakWaitGameMin = 0
   }
 }
@@ -762,6 +869,7 @@ function settleUnit(state: EngineState, unit: Unit, liveWork: boolean, index: Oc
     unit.lowEvalDays += 1
     if (unit.lowEvalDays >= TUNING.stress.lowEvalRiskDays) {
       vacateUnit(unit, dominantVacancyReason(unit, breakdown, 'lowEval'), events)
+      scheduleRelisting(state, unit)
     }
   } else {
     unit.lowEvalDays = 0
@@ -783,6 +891,7 @@ export function weeklyStressPass(state: EngineState, events: EngineEvent[]): voi
       const threshold = weeklyStressThreshold(unit.rentTier)
       if (unit.stressMarks >= threshold) {
         vacateUnit(unit, dominantVacancyReason(unit, evalBreakdown(state, unit), 'elevatorCrowded'), events)
+        scheduleRelisting(state, unit)
       }
     }
     unit.stressMarks = 0
