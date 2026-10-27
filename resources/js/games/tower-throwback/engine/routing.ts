@@ -13,14 +13,14 @@
  * fewer elevator legs always wins, then shorter walk+climb distance.
  * Deterministic tie-breaks: edges expand in shaft/unit id order and FIFO
  * insertion order settles equal costs. Cached per (fromSegment, toSegment,
- * staff, avoidShaftId), invalidated when structureVersion changes.
+ * staff, avoidShaftId), invalidated when structureVersion or the geometry changes.
  */
 
 import type { EngineState, JourneyLeg, Unit } from '../gameTypes'
 import { TUNING } from '../gameTypes'
 import { shaftDef } from './catalog'
 import { getMap } from './maps'
-import { geometryFor, type Segment } from './towerGeometry'
+import { geometryFor, type Segment, type TowerGeometry } from './towerGeometry'
 
 export interface RouteOpts {
   staff?: boolean
@@ -53,6 +53,8 @@ interface RouteGraph {
 
 interface RoutingCache {
   version: number
+  /** Graphs and paths are built from this geometry's segments; another geometry starts fresh. */
+  geometry: TowerGeometry
   graphs: Map<string, RouteGraph>
   paths: Map<string, RouteEdge[] | null>
 }
@@ -65,10 +67,11 @@ function segKey(seg: Segment): string {
 
 function getCache(state: EngineState): RoutingCache {
   const cached = cacheMap.get(state)
-  if (cached && cached.version === state.structureVersion) {
+  const geometry = geometryFor(state)
+  if (cached && cached.version === state.structureVersion && cached.geometry === geometry) {
     return cached
   }
-  const fresh: RoutingCache = { version: state.structureVersion, graphs: new Map(), paths: new Map() }
+  const fresh: RoutingCache = { version: state.structureVersion, geometry, graphs: new Map(), paths: new Map() }
   cacheMap.set(state, fresh)
   return fresh
 }
