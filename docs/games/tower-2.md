@@ -133,10 +133,40 @@ within a range. Coverage shows as an overlay, like light and walking distance.
 | Water | Mains pressure reaches only so high, so booster pumps and break tanks are needed every so many floors, and a rooftop tank serves the top. | Floors above their pump's reach have low pressure, a desirability penalty and complaints. |
 | Trash | Tower Throwback's trash chain (trash rooms, housekeeping, recycling) carries over, now with collection by core and service elevator. | Overflow brings dirt and pests, as in Tower Throwback. |
 
+**Demand follows people.** Each use already keeps its own schedule in Tower Throwback's simulation, so utility
+demand comes from who is in, hour by hour, not from a flat number per room:
+- offices peak through the working day;
+- flats peak in the morning and evening;
+- hotels peak at morning and evening showers, all week;
+- restaurants peak at meals, fitness at the start and end of the day.
+
+A mixed-use tower therefore has a flatter load than a single-use one, which is another reason to mix uses.
+
+**Battery storage.** Battery rooms (plant modules) charge from solar or cheap off-peak grid power and discharge
+at the peak. They lower the peak the grid connection must carry, cut the energy bill, and keep essentials such
+as elevators and lights running through a brownout. They're the alternative to paying for a bigger grid
+connection.
+
+**Hot water.** Hot water is its own load, served by water heaters or heat pumps in plant rooms with storage
+tanks, and sized for each use's demand:
+
+| Use | Hot-water demand |
+| --- | --- |
+| Hotel room | High, with morning and evening peaks every day |
+| Flat / condo | Medium, with morning and evening peaks |
+| Fitness centre | High at opening and after work |
+| Restaurant | Medium, around meals |
+| Office | Low |
+
+Undersized heating or storage means cold showers at the peak: a desirability hit, felt most by hotel guests,
+whose reviews count. Heat pumps and heat recovery (for example from plant or a data room) cost more but raise the
+environmental rating.
+
 Plant tends to gather on **mechanical floors** every 15–20 floors, which is where sky lobbies want to be too. That
 gives a natural rhythm to a tall tower and a real choice about what shares those floors.
 
-**Environmental rating.** A tower-wide score from energy and water use per occupant, trash recycled, public
+**Environmental rating.** A tower-wide score from energy (including peak demand and how much storage and solar
+cover it), hot and cold water use per occupant, trash recycled, public
 and green space, and daylight (good daylight cuts lighting energy, so the light pressure pays twice). Green
 roofs and terraces on setbacks, solar, efficient plant and recycling raise it. It feeds desirability (some
 tenants pay a premium for a green building), counts toward the higher star ratings, and can set scenario
