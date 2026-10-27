@@ -1,6 +1,7 @@
 import { expect, type Locator,test } from '@playwright/test'
 
 import { FAIR_TRACES } from '../../resources/js/games/plate-escape/__tests__/campaignFixtures'
+import { createPuzzle, rackOpen, removeScrew, turnDial } from '../../resources/js/games/plate-escape/engine'
 import { getLevel } from '../../resources/js/games/plate-escape/level'
 
 // The fair's journey has its own file so the gameplay groups can balance it (see scripts/select-gameplay-tests.mjs).
