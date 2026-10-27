@@ -23,6 +23,11 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Progression | Stars unlock advanced versions of each use: studios lead to 1-, 2- and 3-bedroom condos, startup offices to executive offices, and so on. |
 | Upgrades | Two kinds: **in place** (same footprint, applied without disturbing the plan) and **remodel** (demolish and rebuild a floor to change its layout). |
 | Floor plates | A new floor inherits the floor below's outline with a single click, then can be edited. |
+| Land | The site is a city block of plots. You start on one and buy neighbours as you grow, then build further buildings on them. In the sandbox the neighbouring plots are empty; a scenario may fill them with existing buildings you have to buy out. |
+| Several buildings | All buildings share one economy and population, so people can live in one and work in another. A building needs a street lobby, or a sky bridge to one that has a route to the street. |
+| Sky bridges | Bridges link buildings at the same floor, so one sky lobby can serve two towers. |
+| Public space | Plazas and other public space raise nearby desirability, bring footfall to shops, count toward the star rating, and host events. |
+| Parking | Surface parking is built beside a tower, then upgraded to an underground garage entrance with basement parking spaces. |
 | Lobbies and basements | As in Tower Throwback. Street lobbies sit on the ground floor but may be split into separate entrances (twin towers). Any number of sky lobbies go on upper floors, unlocked by stars. Basements go several floors deep once excavation unlocks, for parking, plant and transit. |
 
 ## Design
@@ -74,6 +79,47 @@ Upgrades come in two kinds:
 - **Remodel:** changing a floor's layout, for example merging two studios into a 2-bedroom condo, or turning
   startup offices into an executive suite. The floor's tenants move out, it is demolished and rebuilt, and it
   takes build time and cost before it re-leases. It's a planned investment, not a free swap.
+
+### Land, several buildings and sky bridges
+The site is a city block divided into plots. You start on one; neighbouring plots go on sale as you grow,
+gated by stars and priced by plot. Plots differ:
+- a corner plot has two street frontages;
+- one faces a park or river and has views;
+- one has a height limit;
+- one sits over a rail cutting, so columns are restricted.
+
+So the decision is whether to build tall on the land you have or buy sideways. In the **sandbox**,
+neighbouring plots are **empty**. A **scenario** may instead fill them with existing low-rise buildings that
+shade you and block views, so buying one and demolishing or replacing it has a purpose beyond room.
+
+Each building has its own cores; all buildings share one economy and population. People may live in one
+building and work in another, so commuting between buildings becomes part of circulation: a walk across the
+ground plaza, or a sky bridge.
+
+**Sky bridges** link two buildings at the same floor. Both ends must be supported, and the span limit grows
+with stars; Tower Throwback's Niagara skybridge already works this way, merging the walk routes on both sides.
+A building needs a street lobby **or** a bridge to a building with a route to the street, so a residential tower
+can be reached only through a sky lobby and a bridge. Bridges cast a little shade on what lies below them.
+
+Light ties this together: your own second tower shades your first. Spacing buildings, keeping a plaza open
+between them, and stepping back upper floors all buy daylight and views back.
+
+### Plazas and public space
+Ground plazas on unbuilt plot area, and terraces on setback roofs. All four of these effects are wanted:
+- **Desirability:** a bonus for units within walking distance, falling off with distance (like Tower
+  Throwback's amenity term).
+- **Footfall:** shops and cafés facing a plaza earn more.
+- **Stars:** public space counts toward the star rating, or a VIP's checklist, so a tower can't rate highly
+  without it.
+- **Events:** plazas host markets or concerts that draw visitors, like Tower Throwback's event spaces.
+
+They cost land that isn't leased, plus upkeep.
+
+### Parking
+**Surface parking** is built on open plot area beside a tower, cheap and early. Later it upgrades to an
+**underground garage**: a ramp entrance at ground level, plus parking spaces on basement floors. That frees the
+surface for a plaza or another building. It follows Tower Throwback's parking model (ramp-served basement
+floors, demand from offices and hotel suites), with the surface lot as a new first step.
 
 ### Floor plates
 A new floor copies the outline of the floor below with a single click (**Inherit floor below**), then can be
@@ -187,6 +233,9 @@ Run the steps in order. Steps 2–3 and step 4 can proceed in parallel once step
    It leaves out the economy and stars. It needs a new Vite entrypoint, Blade shell and route; follow
    AGENTS.md and the per-game CI wiring used by earlier games.
 5. **Playtest, then decide** the economy, tenants, scenarios and simulation depth for the first real slice.
+   Plazas fit straight into the existing scoring and belong in that first slice. Buying land, several buildings,
+   sky bridges and the surface-to-underground parking upgrade come after it, with a "Twin Towers" scenario to
+   teach them.
 
 Suggested split for parallel agents: one on steps 2–3 (in the Tower Throwback code), one on step 4 (new code
 only). The coordinator merges step 2 first.
@@ -196,7 +245,6 @@ only). The coordinator merges step 2 first.
 | Question | Recommendation |
 | --- | --- |
 | Corridors drawn, or implied by a corridor spine? | Drawn, since circulation is one of the four pressures; modules place against them |
-| Buy neighbouring plots in the sandbox? | Not in the prototype |
 | Simulation as detailed as Tower Throwback's? | Keep its people model, but cap the crowd |
 | Plan size and people limit? | 40×40 tiles per floor and about 1,500 people, to stay smooth on phones |
 | Share the engine, or copy it? | Share, through steps 2–3, so fixes reach both games |
