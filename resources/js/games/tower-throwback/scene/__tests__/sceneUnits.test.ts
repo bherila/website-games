@@ -788,7 +788,7 @@ describe('elevator stop labels and click mapping', () => {
     expect(layer.rebuilt.children).toEqual(children)
   })
 
-  it('reuses cached stop-label textures across structure rebuilds and keeps cached maps undisposed', () => {
+  it('batches repeated floor labels across shafts, preserving positions and cached textures across rebuilds', () => {
     const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
     let canvasCount = 0
     const context = {
@@ -820,10 +820,11 @@ describe('elevator stop labels and click mapping', () => {
       const state = makeTestState()
       placeSlabRow(state, 0, 0, 12)
       placeSlabRow(state, 1, 0, 12)
-      const shaftId = placeShaft(state, 'standard', 4, 0, 1)
-      const shaft = state.shafts.find((candidate) => candidate.id === shaftId)!
-      shaft.stops = [41, 42]
-      shaft.enabledStops = [41, 42]
+      for (const x of [2, 6, 10]) placeShaft(state, 'standard', x, 0, 1)
+      for (const shaft of state.shafts) {
+        shaft.stops = [41, 42]
+        shaft.enabledStops = [41, 42]
+      }
 
       const scene = new THREE.Scene()
       const layer = createStructureLayer(scene)
@@ -833,6 +834,21 @@ describe('elevator stop labels and click mapping', () => {
       expect(canvasCount).toBe(2)
       expect(firstTextures).toHaveLength(2)
       expect(firstTextures.every((texture) => texture.userData.cached === true)).toBe(true)
+      for (const floor of [41, 42]) {
+        const labels = layer.rebuilt.getObjectByName(`elevator-stop-label:${floor}`) as THREE.InstancedMesh
+        expect(labels).toBeInstanceOf(THREE.InstancedMesh)
+        expect(labels.count).toBe(3)
+        const matrix = new THREE.Matrix4()
+        for (const [index, x] of [3, 7, 11].entries()) {
+          labels.getMatrixAt(index, matrix)
+          const position = new THREE.Vector3().setFromMatrixPosition(matrix)
+          const scale = new THREE.Vector3().setFromMatrixScale(matrix)
+          expect(position.x).toBe(x)
+          expect(position.y).toBeCloseTo(floor * FLOOR_H + 0.72, 4)
+          expect(labels.position.z).toBe(0.7)
+          expect(scale.toArray()).toEqual([1.25, 0.75, 1])
+        }
+      }
 
       state.structureVersion += 1
       syncStructure(layer, state)

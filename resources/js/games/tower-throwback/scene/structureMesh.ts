@@ -347,13 +347,16 @@ function stopLabelTexture(label: string): THREE.CanvasTexture | null {
   return texture
 }
 
-function makeStopLabel(label: string): THREE.Mesh | null {
+function makeStopLabel(label: string, count: number): THREE.InstancedMesh | null {
   const texture = stopLabelTexture(label)
   if (!texture) {
     return null
   }
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
-  return new THREE.Mesh(QUAD, material)
+  const mesh = new THREE.InstancedMesh(QUAD, material, count)
+  mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage)
+  mesh.name = `elevator-stop-label:${label}`
+  return mesh
 }
 
 function setInstance(mesh: THREE.InstancedMesh, i: number, x: number, y: number, w: number, h: number, color: number): void {
@@ -474,13 +477,27 @@ export function syncStructure(layer: StructureLayer, state: EngineState): void {
   stopMesh.position.z = Z_STOP
   layer.rebuilt.add(stopMesh)
 
+  // The same floor number is shared by every serving shaft. Batch those
+  // quads per cached label texture instead of drawing once per landing.
+  const labels = new Map<string, ReturnType<typeof elevatorStopLabels>>()
   for (const stop of elevatorStopLabels(shafts)) {
-    const label = makeStopLabel(stop.label)
+    const group = labels.get(stop.label) ?? []
+    group.push(stop)
+    labels.set(stop.label, group)
+  }
+  for (const [text, stops] of labels) {
+    const label = makeStopLabel(text, stops.length)
     if (!label) {
       continue
     }
-    label.scale.set(Math.min(stop.width, 1.25), 0.75, 1)
-    label.position.set(stop.x, stop.floor * FLOOR_H + 0.72, Z_STOP_LABEL)
+    stops.forEach((stop, index) => {
+      dummy.position.set(stop.x, stop.floor * FLOOR_H + 0.72, 0)
+      dummy.scale.set(Math.min(stop.width, 1.25), 0.75, 1)
+      dummy.rotation.set(0, 0, 0)
+      dummy.updateMatrix()
+      label.setMatrixAt(index, dummy.matrix)
+    })
+    label.position.z = Z_STOP_LABEL
     layer.rebuilt.add(label)
   }
 }

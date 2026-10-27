@@ -509,6 +509,8 @@ The draw-call gate retains the small endgame scene and also resumes the committe
 morning-rush save at day and night. It verifies the restored unit count through Inventory and
 waits for real renderer telemetry before enforcing the same 128-call ceiling, so a failed load
 cannot pass as a small tower. The compressed save stays in test fixtures, outside the game bundle.
+Repeated elevator floor-number plates share an instanced batch per label texture, keeping every
+landing's original position and size while avoiding one draw per shaft and floor.
 
 ## As-built deviations
 
