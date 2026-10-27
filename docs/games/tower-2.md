@@ -28,6 +28,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Sky bridges | Bridges link buildings at the same floor, so one sky lobby can serve two towers. |
 | Public space | Plazas and other public space raise nearby desirability, bring footfall to shops, count toward the star rating, and host events. |
 | Parking | Surface parking is built beside a tower, then upgraded to an underground garage entrance with basement parking spaces. |
+| Cores, risers and exits | Cores bundle elevators, a stair and a utility riser. Wet modules must sit near a riser. Every floor needs two separated exit stairs. |
 | Environment and utilities | The simulation includes utilities (electricity, water, trash) and an environmental rating. |
 | Lobbies and basements | As in Tower Throwback. Street lobbies sit on the ground floor but may be split into separate entrances (twin towers). Any number of sky lobbies go on upper floors, unlocked by stars. Basements go several floors deep once excavation unlocks, for parking, plant and transit. |
 
@@ -141,6 +142,31 @@ They cost land that isn't leased, plus upkeep.
 **underground garage**: a ramp entrance at ground level, plus parking spaces on basement floors. That frees the
 surface for a plaza or another building. It follows Tower Throwback's parking model (ramp-served basement
 floors, demand from offices and hotel suites), with the surface lot as a new first step.
+
+### Cores, risers and exit stairs
+These three are one family: vertical modules that stack through a range of floors and take the same footprint
+on every floor they pass. Inherit floor below keeps them aligned.
+
+**Cores** are the backbone. A core holds an elevator bank (1–4 cars, local or express), a stair, and a utility
+riser for power, water and drains. Where cores go decides walking distances, how sky lobbies split the tower
+(express cores run to a sky lobby, local cores serve above it), and how much area each floor gives up.
+A service core carries trash and housekeeping. Standalone elevators stay possible as a premium option, such
+as glass elevators in an atrium.
+
+**Risers and wet modules.** Modules that need plumbing (bathrooms in condos and hotel rooms, kitchens,
+restaurants, restrooms, fitness rooms) are **wet** and must sit within a few tiles of a riser. Dry modules
+(offices, shops, storage) go anywhere. While placing a wet module, the reachable area is shaded, like the
+light overlay. A wet module out of reach simply can't be placed; there's no hidden penalty. A **standalone
+riser** is a small, cheap shaft with no elevator. When a wing grows too far from the core, the choice is a riser
+(cheap, but a long walk to the elevators remains) or a second core (expensive, but it fixes both).
+
+**Exit stairs.** Every occupied floor needs a route to **two separated exit stairs** within a set walking
+distance. Stairs in cores count, and a **standalone exit stair** is a small, cheap module for wings and
+far corners. The two exits must be apart, so two stairs in one core count once. An egress overlay shades tiles
+by distance to the nearest exits. A floor short of exits shows the warning while you build and **can't lease
+until it complies**: one clear rule, not a degrading score. Exits also matter in fires (Tower Throwback's
+incidents): a floor with good exits evacuates faster and loses less. This is the classic reason a tall,
+deep or long floor plate needs a second core, a scissor stair, or a stair at each end of a wing.
 
 ### Environment and utilities
 Utilities make the building's services visible and give height a cost, without asking the player to draw pipes.
