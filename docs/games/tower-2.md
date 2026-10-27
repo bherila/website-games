@@ -16,7 +16,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Relation | A new game and route that shares Tower Throwback's engine where it fits. Saves are separate. |
 | Platform | Desktop first, with a mouse; still playable on a phone. |
 | Loop | A star-rated sandbox like Tower Throwback, plus a scenario track that teaches each layout pressure. |
-| Layout pressures | All four: light and views, circulation, structure and cost, neighbours and noise. |
+| Layout pressures | All four: light and views, circulation, cost (including overhangs), neighbours and noise. Structure is kept light: cantilevers are allowed without structural simulation. |
 | Look | Tower Throwback's neo-90s management-sim style in isometric, but **more vibrant and less muted**: one bold, saturated hue per use. Overlays keep their own palette. |
 | Rooms | **Modules**: each use comes in fixed sizes that snap to the plan grid, rather than free-drawn rectangles. |
 | Mixed use | The same freedom as Tower Throwback: any use on any floor. A tower can stack uses, for example offices first, then a sky lobby, then residential above. |
@@ -68,7 +68,7 @@ Each one is a rule the player can see as an overlay, and each costs something el
 | --- | --- |
 | Light and views | `daylight(tile)` = tiles to the nearest glass edge or atrium, capped at 6 (1 tile = 3 m). Views add a bonus by height and facing, and lose it behind a taller neighbour. |
 | Circulation | `walk(room)` = path length from door to core on the corridor graph. Cores use Tower Throwback's capacity and queue model, including load-aware routing. |
-| Structure and cost | A tile is supported if the floor below has it, or it lies within cantilever reach of a supported tile on a column line. Reach grows with stars. Cost scales with area, height and unsupported span. |
+| Cost and overhangs | Cantilevers are allowed without a structural simulation: no columns, loads or collapse. A floor may overhang the one below by up to a generous reach (a few tiles, growing with stars), and each overhanging tile costs more to build. Otherwise cost scales with area and height. |
 | Neighbours and noise | `adjacency(useA, useB, direction)` gives −2 to +2, including the rooms directly above and below. |
 
 ### Mixed use and stacking
@@ -108,7 +108,7 @@ gated by stars and priced by plot. Plots differ:
 - a corner plot has two street frontages;
 - one faces a park or river and has views;
 - one has a height limit;
-- one sits over a rail cutting, so columns are restricted.
+- one sits over a rail cutting, where nothing can stand on the ground.
 
 So the decision is whether to build tall on the land you have or buy sideways. In the **sandbox**,
 neighbouring plots are **empty**. A **scenario** may instead fill them with existing low-rise buildings that
@@ -273,12 +273,12 @@ later convenience; the shell is what must be one click.
 | --- | --- | --- |
 | Corner Plot | Twelve flats on a small corner site, all with daylight | Daylight depth |
 | Two Cores | An office slab where no desk is more than 20 m from a core | Circulation |
-| Over the Station | Build above a rail cutting with columns allowed only on two lines | Structure and cantilevers |
+| Over the Station | Build over a rail cutting where nothing can stand on the ground | Cantilevers and sky bridges |
 | Mixed Block | Shops, a restaurant, offices and flats with no complaints | Neighbours and stacking |
 | Light Well | A deep inherited footprint with a satisfaction target | Atriums and setbacks |
 
 ### Camera and controls
-- **Desktop:** drag to paint a footprint or a room, click to select, right-drag to pan. Page Up/Down changes floor, Q/E rotate the view in 90° steps, and a key cycles the light, walk, structure and mood overlays.
+- **Desktop:** drag to paint a footprint or a room, click to select, right-drag to pan. Page Up/Down changes floor, Q/E rotate the view in 90° steps, and a key cycles the light, walk, egress and mood overlays.
 - **Phone:** one finger edits with the active tool, two fingers pan and zoom. A floor stepper sits at the edge, and a Draw/Move toggle prevents accidental edits.
 
 ## What carries over from Tower Throwback
