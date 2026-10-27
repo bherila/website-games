@@ -25,7 +25,54 @@ import { itemDef } from './catalog'
 import { postImmediate } from './economy'
 import { getSegments, slabAt } from './grid'
 import { getMap } from './maps'
-import { findRoute } from './routing'
+import { findRoute, type RouteOpts, spreadElevatorLegs } from './routing'
+
+/**
+ * Riders already planned onto each shaft: everyone whose remaining legs
+ * (current one included) ride it, excluding the person being planned.
+ */
+function plannedRidersByShaft(state: EngineState, excludePersonId: number | null): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const person of state.people) {
+    if (person.id === excludePersonId) {
+      continue
+    }
+    for (let i = person.legIndex; i < person.legs.length; i += 1) {
+      const shaftId = person.legs[i]!.shaftId
+      if (shaftId !== undefined) {
+        counts.set(shaftId, (counts.get(shaftId) ?? 0) + 1)
+      }
+    }
+  }
+  return counts
+}
+
+/**
+ * The route a rider actually takes: the structural route, with each elevator
+ * leg moved to the least-loaded interchangeable elevator (routing.spreadElevatorLegs).
+ * The route search and its segment-pair memo stay load-blind and shared; the
+ * elevator choice is made live per journey, so the memo cannot pin every rider
+ * to the shaft it happened to cache first.
+ */
+function planJourney(
+  state: EngineState,
+  personId: number | null,
+  fromFloor: number,
+  fromX: number,
+  toFloor: number,
+  toX: number,
+  opts: RouteOpts,
+): JourneyLeg[] | null {
+  const legs = findRoute(state, fromFloor, fromX, toFloor, toX, opts)
+  if (legs === null || legs.length === 0) {
+    return legs
+  }
+  let counts: Map<number, number> | null = null
+  return spreadElevatorLegs(state, fromX, toX, legs, (shaftId) => {
+    counts ??= plannedRidersByShaft(state, personId)
+    return counts.get(shaftId) ?? 0
+  }, opts)
+}
 
 /** Street entrance: left edge of the first ground-floor segment (shared spawn point). */
 export function streetEntrance(state: EngineState): { floor: number; x: number } | null {
@@ -146,7 +193,7 @@ export function spawnPerson(state: EngineState, opts: SpawnOpts): Person | null 
     getAux(state).overflow.push(opts)
     return null
   }
-  const legs = findRoute(state, opts.floor, opts.x, opts.toFloor, opts.toX, { staff: opts.staff === true })
+  const legs = planJourney(state, null, opts.floor, opts.x, opts.toFloor, opts.toX, { staff: opts.staff === true })
   if (legs === null || legs.length === 0) {
     return null
   }
@@ -196,7 +243,7 @@ function replanJourney(state: EngineState, person: Person): void {
     despawnPerson(state, person.id)
     return
   }
-  const legs = findRoute(state, person.floor, person.x, final.toFloor, final.toX, { staff: plan?.staff === true })
+  const legs = planJourney(state, person.id, person.floor, person.x, final.toFloor, final.toX, { staff: plan?.staff === true })
   if (legs === null) {
     despawnPerson(state, person.id) // no route left — abandon, like a patience expiry
     return
@@ -304,7 +351,7 @@ export function replanShaftAfterResize(state: EngineState, shaft: Shaft, removed
     }
     const final = person.legs[person.legs.length - 1]!
     const plan = getAux(state).plans.get(person.id)
-    const tail = findRoute(state, current.toFloor, current.toX, final.toFloor, final.toX, { staff: plan?.staff === true })
+    const tail = planJourney(state, person.id, current.toFloor, current.toX, final.toFloor, final.toX, { staff: plan?.staff === true })
     if (tail === null) {
       despawnPerson(state, person.id) // no route left from the alight point — abandon, like a patience expiry
       continue
@@ -379,7 +426,7 @@ function completeJourney(state: EngineState, person: Person, events: EngineEvent
 
 function startReturnJourney(state: EngineState, person: Person, returnTo: { floor: number; x: number }): void {
   const plan = getAux(state).plans.get(person.id)
-  const legs = findRoute(state, person.floor, person.x, returnTo.floor, returnTo.x, { staff: plan?.staff === true })
+  const legs = planJourney(state, person.id, person.floor, person.x, returnTo.floor, returnTo.x, { staff: plan?.staff === true })
   if (legs === null || legs.length === 0) {
     despawnPerson(state, person.id)
     return
@@ -445,7 +492,7 @@ function onPatienceExpired(state: EngineState, person: Person): void {
     person.irritated = true
     const final = person.legs[person.legs.length - 1]!
     const plan = getAux(state).plans.get(person.id)
-    const alt = findRoute(state, person.floor, person.x, final.toFloor, final.toX, {
+    const alt = planJourney(state, person.id, person.floor, person.x, final.toFloor, final.toX, {
       staff: plan?.staff === true,
       avoidShaftId: leg.shaftId,
     })

@@ -21,6 +21,7 @@ import type {
   EngineState,
   IncomeTier,
   ItemKind,
+  JourneyLeg,
   Shaft,
   Unit,
   VacancyReason,
@@ -35,7 +36,7 @@ import { infestedNeighborPenalty, requestEvalBonus } from './incidents'
 import { getMap } from './maps'
 import { functionalStalls, rampServedFloors, refreshParkingFlags } from './parking'
 import { pickWeighted } from './rng'
-import { findRoute, hasRouteToLobby } from './routing'
+import { equivalentElevators, findRoute, hasRouteToLobby } from './routing'
 import { ELEVATOR_CROWDED_WAIT_MIN } from './shaftIssues'
 import { weeklyStressThreshold } from './tenantStress'
 import { vipWeeklyPass } from './vip'
@@ -417,22 +418,48 @@ export function recentPeakWait(shaft: Shaft): number {
 }
 
 /**
- * Congestion penalty from the elevators this unit's commuters actually ride:
- * the elevator legs of the route from the street entrance to the unit's floor
- * segment (a fresh, cache-bypassing search, so the answer never depends on the
- * non-serialized path memo). The worst recent peak among those legs counts.
+ * Congestion penalty from the elevators this unit's commuters actually ride.
+ * The route from the street entrance to the unit's floor segment fixes which
+ * floors they ride between (a fresh, cache-bypassing search, so the answer
+ * never depends on the non-serialized path memo). Riders spread over every
+ * elevator interchangeable with each leg (routing.equivalentElevators, the
+ * same rule people.planJourney uses), so a leg counts the least-congested of
+ * those; the worst leg sets the penalty.
  *
- * It used to take the least-congested shaft with a stop on the segment, on
- * the theory that riders pick the quickest elevator — but routing is
- * load-blind, so an untouched shaft on the floor (ties go to the lowest shaft
- * id) zeroed the penalty for every unit while the shaft people did use jammed.
+ * It used to take the least-congested shaft with any stop on the segment.
+ * Routing was load-blind then, so an untouched shaft on the floor zeroed the
+ * penalty for every unit while the shaft people did use jammed.
  */
-function congestionTerm(state: EngineState, unit: Unit): number {
+export function congestionPenalty(state: EngineState, unit: Unit): number {
   const segment = segmentOf(state, unit.floor, unit.x)
-  if (!segment) {
+  const commute = segment ? commuteLegs(state, segment) : null
+  if (!commute) {
     return 0
   }
-  return congestionPenaltyForSegment(state, segment)
+  let worstWait = 0
+  let x = commute.entranceX
+  for (let i = 0; i < commute.legs.length; i += 1) {
+    const leg = commute.legs[i]!
+    const nextX = commute.legs[i + 1]?.fromX ?? unit.x
+    if (leg.type === 'elevator') {
+      let legWait = Infinity
+      for (const choice of equivalentElevators(state, leg, x, nextX)) {
+        const shaft = state.shafts.find((candidate) => candidate.id === choice.shaftId)
+        if (shaft) {
+          legWait = Math.min(legWait, recentPeakWait(shaft))
+        }
+      }
+      if (legWait !== Infinity) {
+        worstWait = Math.max(worstWait, legWait)
+      }
+    }
+    x = leg.toX
+  }
+  return Math.min(worstWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+}
+
+function congestionTerm(state: EngineState, unit: Unit): number {
+  return congestionPenalty(state, unit)
 }
 
 /**
@@ -444,54 +471,42 @@ function commuteEntrance(state: EngineState): Segment | null {
   return getSegments(state).get(getMap(state.mapId).lobbyAnchorFloor)?.[0] ?? null
 }
 
-interface CommuteShaftCache {
+interface CommuteRoute {
+  entranceX: number
+  /** The route's non-walk legs (elevators, stairs, escalators), in order. */
+  legs: readonly JourneyLeg[]
+}
+
+interface CommuteCache {
   structureVersion: number
-  bySegment: Map<string, readonly Shaft[]>
+  bySegment: Map<string, CommuteRoute | null>
 }
 
 /**
- * Commute shafts per floor segment, derived purely from the structure and
+ * Commute routes per floor segment, derived purely from the structure and
  * dropped whenever `structureVersion` moves. It is not the router's path memo
  * (which remembers whichever endpoints asked first and is not saved), so a
  * restored game computes the same answer as an uninterrupted one.
  */
-const commuteShaftCache = new WeakMap<EngineState, CommuteShaftCache>()
+const commuteCache = new WeakMap<EngineState, CommuteCache>()
 
-function commuteShafts(state: EngineState, segment: Segment): readonly Shaft[] {
-  let cache = commuteShaftCache.get(state)
+function commuteLegs(state: EngineState, segment: Segment): CommuteRoute | null {
+  let cache = commuteCache.get(state)
   if (!cache || cache.structureVersion !== state.structureVersion) {
     cache = { structureVersion: state.structureVersion, bySegment: new Map() }
-    commuteShaftCache.set(state, cache)
+    commuteCache.set(state, cache)
   }
   const key = `${segment.floor}:${segment.x0}`
-  const cached = cache.bySegment.get(key)
-  if (cached) {
-    return cached
+  if (cache.bySegment.has(key)) {
+    return cache.bySegment.get(key) ?? null
   }
   const entrance = commuteEntrance(state)
   const route = entrance
     ? findRoute(state, entrance.floor, entrance.x0, segment.floor, segment.x0, { bypassCache: true })
     : null
-  const shafts: Shaft[] = []
-  for (const leg of route ?? []) {
-    if (leg.type !== 'elevator' || leg.shaftId === undefined) {
-      continue
-    }
-    const shaft = state.shafts.find((candidate) => candidate.id === leg.shaftId)
-    if (shaft) {
-      shafts.push(shaft)
-    }
-  }
-  cache.bySegment.set(key, shafts)
-  return shafts
-}
-
-function congestionPenaltyForSegment(state: EngineState, segment: Segment): number {
-  let worstWait = 0
-  for (const shaft of commuteShafts(state, segment)) {
-    worstWait = Math.max(worstWait, recentPeakWait(shaft))
-  }
-  return Math.min(worstWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+  const commute = entrance && route ? { entranceX: entrance.x0, legs: route.filter((leg) => leg.type !== 'walk') } : null
+  cache.bySegment.set(key, commute)
+  return commute
 }
 
 function trashTerm(unit: Unit, index: OccupancyIndex): number {

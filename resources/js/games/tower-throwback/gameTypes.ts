@@ -924,6 +924,12 @@ export const TUNING = {
   },
   routing: {
     maxElevatorLegs: 2,
+    /**
+     * Load-aware elevator choice: a rider takes a less-loaded elevator between
+     * the same two floor segments when it costs at most this many extra walk
+     * tiles (one game-minute of walking) over the route's own elevator.
+     */
+    loadSpreadWalkTiles: 60,
   },
   grid: {
     adjacencyTiles: 3,

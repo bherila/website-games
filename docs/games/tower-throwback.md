@@ -416,6 +416,13 @@ consumes zero disaster rng draws. Legacy saves default this option to on.
 - **Max 2 elevator legs per journey** (one transfer — the classic manual rule); stairs/escalator
   legs don't count. Route cache keyed by segment pair, invalidated on `structureVersion`.
 - Units with no route to a ground lobby get `flags.noRoute` and cannot lease.
+- **Load-aware elevator choice**: the route search and its memo stay structural and load-blind,
+  but each journey re-picks every elevator leg among the interchangeable elevators — enabled
+  landings on the same two floor segments, at most `loadSpreadWalkTiles` (60) extra walking —
+  by the riders already planned onto each (current and future legs of everyone in the tower),
+  then extra walk, then shaft id. Walks are rebuilt around the chosen column. Deterministic: the
+  load is counted from the people list. The congestion penalty reads the least-congested
+  elevator of each commute leg's interchangeable set, matching where riders actually go.
 
 ---
 
@@ -505,8 +512,9 @@ Small, deliberate gaps between this spec and the shipped v1 sim:
   route from the street entrance to the unit's floor segment. Each shaft contributes its worst
   daily peak (the peak of its smoothed wait) over the last `congestionHistoryDays` (3) daily
   windows, so the Monday 08:00 pass — whose own window is the quiet Sunday — still sees Friday's
-  rush, and following the route keeps an idle shaft on the same floor from hiding the jammed one
-  people actually ride.
+  rush. Each commute leg counts the least-congested of its interchangeable elevators (riders
+  spread over them; see Routing rules), so a distant idle shaft on the same floor no longer hides
+  the jammed one people actually ride, while a relief elevator beside it does relieve it.
 - **Staggered re-listing**: a unit vacated for poor service (the 3-day low-eval rule or the weekly
   stress pass) is shown to tenants again 1..`relistSpreadDays` mornings later, a different morning
   per unit and move-out (a hash of unit id and day; no rng draw). A viewing that fails books the
@@ -713,6 +721,7 @@ this table in the same commit; the test fails otherwise.
 | `incidents.requestEvalBonus` | `3` |
 | `incidents.requestEvalBonusDays` | `7` |
 | `routing.maxElevatorLegs` | `2` |
+| `routing.loadSpreadWalkTiles` | `60` |
 | `grid.adjacencyTiles` | `3` |
 | `grid.restroomRangeTiles` | `32` |
 | `grid.skylobbyMinWidth` | `12` |

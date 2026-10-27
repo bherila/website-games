@@ -11,7 +11,6 @@ import type {
   EngineState,
   IncomeTier,
   ItemKind,
-  Shaft,
   Unit,
   VacancyReason,
 } from '../../gameTypes'
@@ -23,6 +22,7 @@ import { noiseExposureAt } from '../heatmaps'
 import { refreshHotelRoomFlags } from '../hotel'
 import { infestedNeighborPenalty, requestEvalBonus } from '../incidents'
 import { getMap } from '../maps'
+import { congestionPenalty } from '../occupancy'
 import { parkingShortfall, refreshParkingFlags } from '../parking'
 import { pickWeighted } from '../rng'
 import { findRoute, hasRouteToLobby } from '../routing'
@@ -247,95 +247,11 @@ function noiseTerm(state: EngineState, unit: Unit): number {
 }
 
 /**
- * The wait a shaft's riders have recently faced: the worst daily peak over the
- * last `congestionHistoryDays` windows (the current one included). A single
- * daily window let the Monday pass read Sunday — offices closed, empty cars —
- * and re-lease every unit the weekly stress pass had just emptied.
- */
-export function recentPeakWait(shaft: Shaft): number {
-  let worst = shaft.stats.peakWaitGameMin
-  for (const peak of shaft.stats.dailyPeaksGameMin ?? []) {
-    worst = Math.max(worst, peak)
-  }
-  return worst
-}
-
-/**
- * Congestion penalty from the elevators this unit's commuters actually ride:
- * the elevator legs of the route from the street entrance to the unit's floor
- * segment (a fresh, cache-bypassing search, so the answer never depends on the
- * non-serialized path memo). The worst recent peak among those legs counts.
- *
- * It used to take the least-congested shaft with a stop on the segment, on
- * the theory that riders pick the quickest elevator — but routing is
- * load-blind, so an untouched shaft on the floor (ties go to the lowest shaft
- * id) zeroed the penalty for every unit while the shaft people did use jammed.
+ * Congestion is not indexed: the reference shares production's rule (the
+ * commute route's interchangeable elevators) instead of freezing a copy.
  */
 function congestionTerm(state: EngineState, unit: Unit): number {
-  const segment = segmentOf(state, unit.floor, unit.x)
-  if (!segment) {
-    return 0
-  }
-  return congestionPenaltyForSegment(state, segment)
-}
-
-/**
- * Where commuters enter: the left edge of the first anchor-floor segment, the
- * same point as `people.streetEntrance` (not imported: people → economy →
- * occupancy would form an import cycle).
- */
-function commuteEntrance(state: EngineState): Segment | null {
-  return getSegments(state).get(getMap(state.mapId).lobbyAnchorFloor)?.[0] ?? null
-}
-
-interface CommuteShaftCache {
-  structureVersion: number
-  bySegment: Map<string, readonly Shaft[]>
-}
-
-/**
- * Commute shafts per floor segment, derived purely from the structure and
- * dropped whenever `structureVersion` moves. It is not the router's path memo
- * (which remembers whichever endpoints asked first and is not saved), so a
- * restored game computes the same answer as an uninterrupted one.
- */
-const commuteShaftCache = new WeakMap<EngineState, CommuteShaftCache>()
-
-function commuteShafts(state: EngineState, segment: Segment): readonly Shaft[] {
-  let cache = commuteShaftCache.get(state)
-  if (!cache || cache.structureVersion !== state.structureVersion) {
-    cache = { structureVersion: state.structureVersion, bySegment: new Map() }
-    commuteShaftCache.set(state, cache)
-  }
-  const key = `${segment.floor}:${segment.x0}`
-  const cached = cache.bySegment.get(key)
-  if (cached) {
-    return cached
-  }
-  const entrance = commuteEntrance(state)
-  const route = entrance
-    ? findRoute(state, entrance.floor, entrance.x0, segment.floor, segment.x0, { bypassCache: true })
-    : null
-  const shafts: Shaft[] = []
-  for (const leg of route ?? []) {
-    if (leg.type !== 'elevator' || leg.shaftId === undefined) {
-      continue
-    }
-    const shaft = state.shafts.find((candidate) => candidate.id === leg.shaftId)
-    if (shaft) {
-      shafts.push(shaft)
-    }
-  }
-  cache.bySegment.set(key, shafts)
-  return shafts
-}
-
-function congestionPenaltyForSegment(state: EngineState, segment: Segment): number {
-  let worstWait = 0
-  for (const shaft of commuteShafts(state, segment)) {
-    worstWait = Math.max(worstWait, recentPeakWait(shaft))
-  }
-  return Math.min(worstWait * TUNING.evalWeights.congestionFactor, TUNING.evalWeights.congestionCap)
+  return congestionPenalty(state, unit)
 }
 
 function trashTerm(state: EngineState, unit: Unit): number {

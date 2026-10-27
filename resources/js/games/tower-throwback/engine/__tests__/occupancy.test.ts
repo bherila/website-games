@@ -283,11 +283,11 @@ describe('evalUnit — term isolation', () => {
     expect(evalUnit(state, apt)).toBe(30)
   })
 
-  /** Lobby floor 0 at x 0..40, office floors above; commuters enter at x 0. */
+  /** Lobby floor 0 at x 0..100, office floors above; commuters enter at x 0. */
   function commuteTower(topFloor = 5): { state: EngineState; office: Unit } {
     const state = makeTestState()
     for (let floor = 0; floor <= topFloor; floor += 1) {
-      placeSlabRow(state, floor, 0, 40)
+      placeSlabRow(state, floor, 0, 100)
     }
     const office = injectUnit(state, { kind: 'officeS', floor: 3, x: 0, width: 6, storeys: 1 })
     place(state, 'restroom', 3, 8) // adjacent restroom → no comfort drag, isolate congestion
@@ -309,10 +309,10 @@ describe('evalUnit — term isolation', () => {
     expect(evalUnit(state, office)).toBe(60 - congestionCap)
   })
 
-  it('congestion follows the shaft on the commute, not an untouched one on the same floor', () => {
+  it('congestion follows the shaft on the commute, not a distant one on the same floor', () => {
     const { state, office } = commuteTower()
     const riddenId = placeShaft(state, 'standard', 20, 0, 5) // nearer the entrance: the route takes it
-    const idleId = placeShaft(state, 'standard', 30, 0, 5)
+    const idleId = placeShaft(state, 'standard', 70, 0, 5) // 100 tiles of extra walk: not interchangeable
     state.shafts.find((s) => s.id === riddenId)!.stats.peakWaitGameMin = 20
     state.shafts.find((s) => s.id === idleId)!.stats.peakWaitGameMin = 0
 
@@ -320,10 +320,19 @@ describe('evalUnit — term isolation', () => {
     expect(evalBreakdown(state, office).congestionPenalty).toBe(20 * TUNING.evalWeights.congestionFactor)
   })
 
+  it('an interchangeable elevator beside the jammed one relieves the penalty', () => {
+    const { state, office } = commuteTower()
+    const jammedId = placeShaft(state, 'standard', 20, 0, 5)
+    const reliefId = placeShaft(state, 'standard', 30, 0, 5) // 20 extra tiles: riders spread onto it
+    state.shafts.find((s) => s.id === jammedId)!.stats.peakWaitGameMin = 20
+    state.shafts.find((s) => s.id === reliefId)!.stats.peakWaitGameMin = 3
+    expect(evalBreakdown(state, office).congestionPenalty).toBe(3 * TUNING.evalWeights.congestionFactor)
+  })
+
   it('re-derives the commute shaft when the structure changes', () => {
     const { state, office } = commuteTower()
     const riddenId = placeShaft(state, 'standard', 20, 0, 5)
-    const otherId = placeShaft(state, 'standard', 30, 0, 5)
+    const otherId = placeShaft(state, 'standard', 70, 0, 5)
     state.shafts.find((s) => s.id === riddenId)!.stats.peakWaitGameMin = 20
     state.shafts.find((s) => s.id === otherId)!.stats.peakWaitGameMin = 4
     expect(evalBreakdown(state, office).congestionPenalty).toBe(20)
