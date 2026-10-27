@@ -864,7 +864,8 @@ export function TowerGame(): ReactElement {
               <RenderPoolReadout utilization={renderPoolUtilization} metrics={renderMetrics} />
             </div>
             {!visualTestMode && (
-              <div className="mt-2">
+              // The row keeps its height before the first save, so the controls below never jump under a finger.
+              <div className="mt-2 min-h-[26px]">
                 <SaveHealthReadout health={autosave.health} now={saveHealthNow} />
               </div>
             )}

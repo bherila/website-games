@@ -64,6 +64,8 @@ test.describe('Tower Throwback real player journey', () => {
     if (mobile) {
       await activate(page.getByTestId('zoom-out'))
     }
+    // Where Build sits before anything is saved; the first autosave must not move it.
+    const buildAt = (await page.getByRole('button', { name: 'Build' }).boundingBox())!.y
     await activate(page.getByRole('button', { name: 'Build' }))
 
     await activate(page.getByTestId('family-lobbies'))
@@ -72,6 +74,8 @@ test.describe('Tower Throwback real player journey', () => {
       // Keep gestures inside the phone's exposed playfield beside its build palette.
       await touchPlacement(touch, canvas, { floor: 0, x: 194 }, { floor: 0, x: 201 })
       await expect(page.getByTestId('funds')).toHaveText('$1,997,600')
+      await expect(page.getByTestId('save-health')).toBeVisible({ timeout: 20_000 })
+      expect((await page.getByRole('button', { name: 'Done' }).boundingBox())!.y, 'the save readout must not push the controls down').toBe(buildAt)
       await activate(page.getByRole('button', { name: 'Done' }))
       await activate(page.getByTestId('zoom-in'))
       await activate(page.getByTestId('zoom-in'))
