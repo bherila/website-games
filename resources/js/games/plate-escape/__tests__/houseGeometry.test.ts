@@ -323,13 +323,20 @@ test('a dial\'s window crosses exactly the heads the engine shows at each stop, 
     // Each dial on its own: a selector turns only itself, so the others never stand over its heads.
     for (const plate of level.plates.filter((candidate) => candidate.dial)) {
       const dial = plate.dial!
+      // Every head behind the dial comes into a window at some stop.
+      for (const screw of level.screws.filter((candidate) => candidate.underDial?.dial === plate.id)) {
+        const stops = Array.from({ length: dial.stops }, (_, stop) => ({ ...createPuzzle(level.id), dials: { ...createPuzzle(level.id).dials, [plate.id]: stop } }))
+        expect({ level: level.id, screw: screw.id, seen: stops.some((board) => showing(board, screw)) }).toEqual({ level: level.id, screw: screw.id, seen: true })
+      }
       for (let stop = 0; stop < dial.stops; stop++) {
         const turned = plateQuaternion(plate).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), dialAngle(dial, stop)))
         const disc = placed(new THREE.Group().add(createPlateMesh(plate, []), decoratePlate(plate)), vector(plate.position), turned)
         const board = { ...createPuzzle(level.id), dials: { ...createPuzzle(level.id).dials, [plate.id]: stop } }
         const shown = level.screws.filter((screw) => screw.underDial?.dial === plate.id && showing(board, screw))
-        // A two-window dial shows a head in each window.
-        expect({ level: level.id, dial: plate.id, stop, shown: shown.length }).toEqual({ level: level.id, dial: plate.id, stop, shown: dial.windows.length })
+        // A head in each window that is over a filled slot: a two-window dial shows two, and an empty slot shows none.
+        const filled = new Set(level.screws.filter((screw) => screw.underDial?.dial === plate.id).map((screw) => screw.underDial!.slot))
+        const expected = dial.windows.filter((window) => filled.has((window + stop) % dial.stops)).length
+        expect({ level: level.id, dial: plate.id, stop, shown: shown.length }).toEqual({ level: level.id, dial: plate.id, stop, shown: expected })
         for (const screw of level.screws) {
           const rays = accessRays(level, screw)
           const blocked = rays.filter((ray) => ray.intersectObject(disc).length > 0).length
