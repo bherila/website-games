@@ -80,51 +80,31 @@ export class FloorPaths {
       if (!isWalkableFloorTile(input.tiles[cell]!)) continue
       const x = cell % this.width
       const y = Math.floor(cell / this.width)
-      const adjacent = [y > 0 ? cell - this.width : -1, x + 1 < this.width ? cell + 1 : -1,
-        y + 1 < this.depth ? cell + this.width : -1, x > 0 ? cell - 1 : -1]
-      for (let direction = 0; direction < 4; direction++) {
-        const neighbor = adjacent[direction]!
-        if (neighbor >= 0 && isWalkableFloorTile(input.tiles[neighbor]!)) this.neighbors[cell * 4 + direction] = neighbor
-      }
+      const base = cell * 4
+      if (y > 0 && isWalkableFloorTile(input.tiles[cell - this.width]!)) this.neighbors[base] = cell - this.width
+      if (x + 1 < this.width && isWalkableFloorTile(input.tiles[cell + 1]!)) this.neighbors[base + 1] = cell + 1
+      if (y + 1 < this.depth && isWalkableFloorTile(input.tiles[cell + this.width]!)) this.neighbors[base + 2] = cell + this.width
+      if (x > 0 && isWalkableFloorTile(input.tiles[cell - 1]!)) this.neighbors[base + 3] = cell - 1
     }
     const queue = new Int32Array(cells)
     let count = 0
     for (let cell = 0; cell < cells; cell++) {
       if (!isWalkableFloorTile(input.tiles[cell]!) || this.regions[cell] !== -1) continue
-      let head = 0
-      let tail = 1
       queue[0] = cell
       this.regions[cell] = count
-      while (head < tail) {
-        const current = queue[head++]!
-        for (let direction = 0; direction < 4; direction++) {
-          const next = this.neighbors[current * 4 + direction]!
-          if (next < 0 || this.regions[next] !== -1) continue
-          this.regions[next] = count
-          queue[tail++] = next
-        }
-      }
+      this.bfs(queue, this.regions, 1, 0)
       count++
     }
     this.regionCount = count
 
     // One multi-source BFS makes repeated room-to-core scoring an O(1) lookup.
-    let head = 0
-    let tail = 0
+    let seeds = 0
     for (let cell = 0; cell < cells; cell++) {
       if (input.tiles[cell] !== FloorTile.Core) continue
       this.coreDistances[cell] = 0
-      queue[tail++] = cell
+      queue[seeds++] = cell
     }
-    while (head < tail) {
-      const current = queue[head++]!
-      for (let direction = 0; direction < 4; direction++) {
-        const next = this.neighbors[current * 4 + direction]!
-        if (next < 0 || this.coreDistances[next] !== -1) continue
-        this.coreDistances[next] = this.coreDistances[current]! + 1
-        queue[tail++] = next
-      }
-    }
+    this.bfs(queue, this.coreDistances, seeds, 1)
     // A few deterministic far-apart landmarks tighten Manhattan's bound around
     // walls. |d(landmark, cell) - d(landmark, goal)| is admissible and consistent
     // on this undirected unit-cost graph, so A* still returns an exact shortest path.
@@ -134,18 +114,8 @@ export class FloorPaths {
     for (let count = 0; count < 8 && landmark >= 0; count++) {
       const distances = new Int32Array(cells).fill(-1)
       distances[landmark] = 0
-      head = 0
-      tail = 1
       queue[0] = landmark
-      while (head < tail) {
-        const current = queue[head++]!
-        for (let direction = 0; direction < 4; direction++) {
-          const next = this.neighbors[current * 4 + direction]!
-          if (next < 0 || distances[next] !== -1) continue
-          distances[next] = distances[current]! + 1
-          queue[tail++] = next
-        }
-      }
+      this.bfs(queue, distances, 1, 1)
       landmarks.push(distances)
       landmark = -1
       let farthest = 0
@@ -159,6 +129,25 @@ export class FloorPaths {
       }
     }
     this.landmarkDistances = landmarks
+  }
+
+  /**
+   * Breadth-first fill from the first `seeds` cells of `queue`, whose `out` entries are already set.
+   * Unvisited cells hold -1; each newly reached cell gets its parent's value plus `step`
+   * (1 for distances, 0 to propagate a component label). `queue` is reused as scratch.
+   */
+  private bfs(queue: Int32Array, out: Int32Array, seeds: number, step: 0 | 1): void {
+    let head = 0
+    let tail = seeds
+    while (head < tail) {
+      const current = queue[head++]!
+      for (let direction = 0; direction < 4; direction++) {
+        const next = this.neighbors[current * 4 + direction]!
+        if (next < 0 || out[next] !== -1) continue
+        out[next] = out[current]! + step
+        queue[tail++] = next
+      }
+    }
   }
 
   connectedRegions(): WalkableRegions {
