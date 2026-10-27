@@ -1,0 +1,161 @@
+# Tower 2: plan (parked)
+
+**Status: designed, not started.** This is the agreed design and an execution plan, kept here so the
+work can start in a later session without repeating the discussion. Nothing below is built yet.
+
+Tower 2 is a new game in the line of Tower Throwback. You draw the building as well as fill it: each
+floor's outline (setbacks, wings, atriums) and the rooms inside it. You work isometrically, one floor at a
+time. It shares Tower Throwback's engine where that fits, with its own route and saves.
+
+## Decisions already made (2026-10-26)
+
+| Topic | Decision |
+| --- | --- |
+| Control | The player shapes the shell (footprint, setbacks, wings, atriums) and lays out rooms inside it. |
+| View | Isometric, one floor at a time. Floors above are cut away and floors below fade. An exterior view shows the whole tower. |
+| Relation | A new game and route that shares Tower Throwback's engine where it fits. Saves are separate. |
+| Platform | Desktop first, with a mouse; still playable on a phone. |
+| Loop | A star-rated sandbox like Tower Throwback, plus a scenario track that teaches each layout pressure. |
+| Layout pressures | All four: light and views, circulation, structure and cost, neighbours and noise. |
+| Look | Tower Throwback's neo-90s management-sim style in isometric, but **more vibrant and less muted**: one bold, saturated hue per use. Overlays keep their own palette. |
+
+## Design
+
+### The loop
+1. **Shape the shell.** Paint a floor's footprint on the site grid; each floor inherits the one below. Step it back, cantilever it out, or leave a void for an atrium.
+2. **Place cores.** Elevator and stair shafts run through a range of floors. They are the only way between floors, and they take floor area on every floor they pass.
+3. **Lay out rooms.** Draw rooms and choose each one's use. Corridors connect doors to cores. A room's score comes from its light, its walk to a core and its neighbours.
+4. **Watch it run.** People keep schedules, ride the cores and walk the corridors, as in Tower Throwback. Bad plans show as queues, empty units and complaints.
+5. **Rise.** Population and satisfaction earn stars, which unlock uses, taller cores and bigger plates.
+
+### The four pressures
+Each one is a rule the player can see as an overlay, and each costs something elsewhere.
+
+| Pressure | Rule (first draft; tune in the prototype) |
+| --- | --- |
+| Light and views | `daylight(tile)` = tiles to the nearest glass edge or atrium, capped at 6 (1 tile = 3 m). Views add a bonus by height and facing, and lose it behind a taller neighbour. |
+| Circulation | `walk(room)` = path length from door to core on the corridor graph. Cores use Tower Throwback's capacity and queue model, including load-aware routing. |
+| Structure and cost | A tile is supported if the floor below has it, or it lies within cantilever reach of a supported tile on a column line. Reach grows with stars. Cost scales with area, height and unsupported span. |
+| Neighbours and noise | `adjacency(useA, useB, direction)` gives −2 to +2, including the rooms directly above and below. |
+
+### Starting uses
+
+| Use | Wants | Tolerates | Dislikes nearby |
+| --- | --- | --- | --- |
+| Office | Daylight, a short walk to a core | Some depth, noise by day | Restaurants on the same floor |
+| Flat | Daylight, views, quiet | Longer walks | Shops and restaurants directly below |
+| Hotel room | Views, a short walk to a core | Small rooms | Plant rooms, offices above |
+| Shop | Ground-floor or atrium frontage, footfall | No daylight | Nothing in particular |
+| Restaurant | Views or a terrace, footfall | Depth | Flats directly above |
+| Storage / plant | Nothing | A dark interior | Is disliked by most uses |
+
+### Scenarios (each teaches one pressure)
+
+| Scenario | Brief | Teaches |
+| --- | --- | --- |
+| Corner Plot | Twelve flats on a small corner site, all with daylight | Daylight depth |
+| Two Cores | An office slab where no desk is more than 20 m from a core | Circulation |
+| Over the Station | Build above a rail cutting with columns allowed only on two lines | Structure and cantilevers |
+| Mixed Block | Shops, a restaurant, offices and flats with no complaints | Neighbours and stacking |
+| Light Well | A deep inherited footprint with a satisfaction target | Atriums and setbacks |
+
+### Camera and controls
+- **Desktop:** drag to paint a footprint or a room, click to select, right-drag to pan. Page Up/Down changes floor, Q/E rotate the view in 90° steps, and a key cycles the light, walk, structure and mood overlays.
+- **Phone:** one finger edits with the active tool, two fingers pan and zoom. A floor stepper sits at the edge, and a Draw/Move toggle prevents accidental edits.
+
+## What carries over from Tower Throwback
+
+From the Tower Throwback review of 2026-10-26 (issue #5, PRs #173, #176, #178). The engine is pure and
+deterministic, with no DOM or three.js imports, so most of the work is in the geometry seam and the renderer.
+
+### Reusable almost unchanged
+
+| Area | Files / functions | Notes |
+|---|---|---|
+| Deterministic loop | `engine/engine.ts` `stepEngine`, `effectiveSpeed`, the person-tick interleave; `TowerScene.tsx` fixed-timestep, rAF park/wake | Geometry-free. Keep the "commands in, events out" contract. |
+| RNG and determinism tests | `engine/rng.ts`; `engine/__tests__/determinism.test.ts`, `starProgressionScenario.ts`, golden-log style | Carry the id-order iteration rule over unchanged. |
+| Clock and phases | `engine/clock.ts` `advanceClock`, `phaseOf`, `isWeekend` | As is. |
+| Economy and loans | `engine/economy.ts` `accrue`, `postImmediate`, `requestSpend`, `settleMidnight`, `acceptLoan`, `normalizeLoanOffer` | Only the maintenance and rent loops read the catalog. |
+| Stars, milestones, VIP rubric | `engine/stars.ts` `populationOf`, `applyStarUp`, `applyStarLoss`; `engine/vip.ts` scoring and the visit state machine | VIP routes go through `findRoute`, so they inherit the 2D routing. |
+| Elevator SCAN | `engine/elevators.ts` `stepElevators`, hall-call assignment, programs, home floors | Purely vertical. A shaft's column becomes a footprint instead of an `x`, but the policy is unchanged. |
+| Schedules and spawn rates | `engine/schedules.ts` `stepSchedules` (office, resident, shopper, diner, theater, conference, event, hotel) | Only the spawn positions are geometric (`people.streetEntrance`). |
+| Hotel, trash, parking, incident state machines | `engine/hotel.ts`, `trash.ts`, `parking.ts`, `incidents.ts` (bomb choice and ransom, fire response timing, repair cost) | Their "nearest" and "adjacent" helpers need 2D distances (see below). |
+| Save infrastructure | `gameProgress.ts` versioned `SavedSandbox`, `migrateSandboxPayload`, runtime snapshots (`snapshot*Runtime`); `saveHealth.ts`, `useDirtyAutosave.ts`, `dirtyCommands.ts` (exhaustive over `EngineCommand`), `cloudSync.ts`, `useCloudSaveSync.ts`, `saveBudget.ts` | Reuse the pattern and the code. Write a new schema with compact encoding or compression from day one (finding 8). |
+| Cloud API | `app/Http/Controllers/Api/TowerSaveController.php`, `app/Models/TowerSaveSlot.php`, `StoreTowerSaveRequest` | The payload is opaque and the lease model is generic. Add a game key or a sibling table, and a wire version. |
+| HUD shell | `hud/TopBar`, `FinancialsPanel`, `Toasts`, `ToastHistoryDrawer`, `IncidentBanner`, `TenantRequestCard`, `LoanDialog`, `TowerIssuesNavigator`, `TowerInventory`, `GettingStarted`, `SpeedControls`, `BuildPalette` (family flyouts, search, tooltips), `overlays/SaveLoadOverlay`, `NewGameOverlay`, `dialogFocus`, `blockingModals` | Mostly reusable. They read `HudSnapshot` and catalog defs. |
+| Catalog schema and balance invariants | `engine/catalog.ts` `ItemDef` (cost, maintenance, income, capacity, noise, affinity, star gate), `UPGRADE_PATHS`; the `TUNING` block and the spec-table check in `balance.test.ts` | Footprints change from `width × storeys` to `w × d × h`, and rotation is new. |
+| Map / build-direction model | `engine/maps.ts` `MapDefinition`; `engine/mapGeometry.ts` `supportFloorFor`, `outwardNeighbour`, `inwardNeighbour`, `isExcavated`, `buildStep`, `floorLabelFor` | Already handles building up and down from an anchor floor (Niagara builds both ways). |
+
+### Must change: the geometry seam
+
+| Today (1D cutaway) | Tower 2 (2D plan per floor) | Where |
+|---|---|---|
+| `Unit {floor, x, width, storeys}` | `{floor, x, y, w, d, h, rotation}` plus a door or entrance tile | `gameTypes.ts`, `placement.ts` `newUnit`, `itemFootprint` |
+| Grid layers indexed `(floor, x)` over `GRID_WIDTH` 375 | `(floor, x, y)`. At 64×64 that is about 450k cells per layer across 110 floors, still fine as typed arrays | `engine/grid.ts` `tileIndex`, `rebuildGrid`, `createGridLayers` |
+| Walkability = "a slab is here"; a floor's walkable areas are horizontal runs (`floorSegments`) | Walkable floor or corridor tiles. A unit is reachable only through its door. Walkable areas become flood-filled connected regions; walk legs become tile paths (A* or a corridor graph) | `grid.floorSegments`/`getSegments`; `routing.ts` `searchPath`, `materialize`; `people.ts` walk legs (`fromX`/`toX` become point lists) |
+| Every "distance" is a 1D tile gap (`tileGap`) | 2D distance, or path distance on the floor | `occupancy.ts` `amenityTerm`, `landmarkTerm`, `affinityTerm`, `trashTerm`, `restroomComfortTerm`/`nearestRestroomGap`; `heatmaps.ts` `noiseExposureAt` and its fields; `incidents.ts` adjacency (fire spread "horizontally touching", roaches "within 6 tiles"); `parking.ts` and `hotel.ts` "near a shaft stop" checks; `grid.nearestShaftStopDistance` |
+| Placement rules: support beneath, overlap in x, shafts span floors | Rectangle overlap, per-tile support, the door must open onto a walkable tile, shafts and stairs are footprints with a facing | `placement.ts` `validateItemPlacement`, `validateShaftPlacement`, `computeShaftStops` (fix findings 1 and 10 there first) |
+| Falls void = an x-range exclusion | 2D exclusion polygons or masks per floor | `mapGeometry.ts` `intersectingBuildExclusion`, `horizontalBuildRegions` |
+
+**Suggested approach.** First move the 1D distance and adjacency helpers in Tower Throwback behind a small `TowerGeometry` interface, for example `segmentOf`, `distance(a, b)`, `adjacent(unit)`, `footprintCells(unit)`, `nearestStop(...)`. Prove with the golden logs and the completed-tower fixture that the output stays byte-identical. Then Tower 2 supplies a 2D implementation and shares everything listed under "Reusable".
+
+The O(n²) eval scans (finding 9) get worse in 2D, so a spatial index per floor belongs in that shared core.
+
+### Must change: rendering and input
+
+- **Camera and picking.** `scene/camera.ts` (`createCameraRig`, `panByPixels`, `zoomBy`) and `sceneController.screenToTile` assume an orthographic side view where screen `y` is the floor. Isometric needs:
+  - a rotated orthographic camera;
+  - picking by casting a ray against the active floor's plane;
+  - a cutaway: hide or ghost floors above the active one and dim those below;
+  - depth sorting for sprites.
+
+  The floor navigator (`hud/FloorNavigator.tsx`) becomes the main control, not an aid.
+- **Art.** `scene/structureMesh.ts` (merged z-layer quads), `scene/styleGateArt.ts` and the generated side-view atlas manifest don't carry over. Tower 2 needs isometric tiles: floors, walls with cutaway variants, room interiors and props.
+- **What does carry over** is the scene architecture:
+  - the mount-once `TowerScene` with refs;
+  - `dynamicPools.ts` (instanced fixed-cap pools with presentation-only glide);
+  - heatmaps, which get simpler as per-floor 2D textures;
+  - issue badges;
+  - the `contextLoss` and disposal helpers;
+  - the `visualTestMode` harness and the draw-call budget spec (add a large-tower scenario, finding 14).
+- **Touch input** also carries over: `scene/touchGestures.ts` and the shift-drag grid builder.
+
+## Execution plan
+
+Run the steps in order. Steps 2–3 and step 4 can proceed in parallel once step 1 is done.
+
+1. **Precondition.** Tower Throwback's open engine work has merged: #176 (save compression and the linear
+   08:00 pass) and #178 (congestion, staggered re-leasing, load-aware routing). Tower 2 shares that engine.
+2. **Geometry seam in Tower Throwback.** Move the 1-D distance and adjacency helpers listed above behind a
+   small `TowerGeometry` interface: `segmentOf`, `distance(a, b)`, `adjacent(unit)`, `footprintCells(unit)`,
+   `nearestStop(...)`. The golden logs and the completed-tower fixture must stay byte-identical. There is
+   no player-visible change. Put the per-floor spatial index (from #176) behind the same interface.
+3. **Shared engine module.** Move the parts in "Reusable almost unchanged" into a game-neutral module, for
+   example `resources/js/games/_shared/tower-engine/`, that both games import. Tower Throwback's suites, golden
+   logs and e2e must pass unchanged after each move.
+4. **First playable prototype**, at an unlisted route like the Plate Escape lab boards. It answers one
+   question: is drawing floors fun? Scope:
+   - one site, six floors, footprint painting with inheritance, setbacks and one atrium;
+   - room drawing with four uses, doors, corridors and one core type;
+   - floor stepping and the isometric cutaway view, on desktop and a phone;
+   - light and walk overlays computed live;
+   - a handful of people walking from the lobby to rooms through cores and corridors.
+
+   It leaves out the economy and stars. It needs a new Vite entrypoint, Blade shell and route; follow
+   AGENTS.md and the per-game CI wiring used by earlier games.
+5. **Playtest, then decide** the economy, tenants, scenarios and simulation depth for the first real slice.
+
+Suggested split for parallel agents: one on steps 2–3 (in the Tower Throwback code), one on step 4 (new code
+only). The coordinator merges step 2 first.
+
+## Open questions, with recommendations (not yet confirmed)
+
+| Question | Recommendation |
+| --- | --- |
+| Rooms drawn freely, or snapped to sizes per use? | Free rectangles with a minimum size per use |
+| Corridors drawn, or implied by a corridor spine? | Drawn, since circulation is one of the four pressures |
+| One lobby, or several entrances and a sky lobby from the start? | One lobby first; sky lobbies come with stars |
+| Buy neighbouring plots in the sandbox? | Not in the prototype |
+| Simulation as detailed as Tower Throwback's? | Keep its people model, but cap the crowd |
+| Plan size and people limit? | 40×40 tiles per floor and about 1,500 people, to stay smooth on phones |
+| Share the engine, or copy it? | Share, through steps 2–3, so fixes reach both games |
