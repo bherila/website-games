@@ -20,6 +20,7 @@ import { itemDef, shaftDef } from './engine/catalog'
 import { buildHudSnapshot, stepEngine } from './engine/engine'
 import { congestionField, noiseField } from './engine/heatmaps'
 import { applyPlacement, validatePlacement } from './engine/placement'
+import { geometryFor, setTowerGeometry } from './engine/towerGeometry'
 import type { EngineCommand, EngineEvent, EngineState, HudSnapshot, ItemKind, ShaftKind } from './gameTypes'
 import { TUNING } from './gameTypes'
 import type { SelectedTool } from './hud/BuildPalette'
@@ -266,6 +267,7 @@ export function bulkGhostsForCommands(state: EngineState, commands: PlaceItemCmd
       shaft: new Int32Array(state.grid.shaft),
     },
   }
+  setTowerGeometry(scratchState, geometryFor(state))
 
   return commands.map((cmd) => {
     const verdict = validatePlacement(scratchState, cmd)

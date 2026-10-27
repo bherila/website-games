@@ -1,5 +1,6 @@
-import { makeTestState } from '../engine/__tests__/testState'
+import { injectUnit, makeTestState, placeShaft } from '../engine/__tests__/testState'
 import { stepEngine } from '../engine/engine'
+import { geometryFor, oneDimensionalGeometry, setTowerGeometry } from '../engine/towerGeometry'
 import {
   beginPlacementDrag,
   bulkGhostsForCommands,
@@ -23,6 +24,23 @@ describe('bulkGhostsForCommands', () => {
     expect(state.units).toEqual([])
     expect(state.structureVersion).toBe(0)
     expect(state.grid.slab.some((cell) => cell !== 0)).toBe(false)
+  })
+
+  it('validates on a scratch copy that keeps the live state’s geometry', () => {
+    // Every private planning copy must carry the geometry: the engine's loan
+    // planning clone, placement's floor-landing prediction, and this preview.
+    // A slab added across an express shaft predicts new landings, which reads segments.
+    const state = makeTestState({ star: 5, maxStarReached: 5 })
+    injectUnit(state, { kind: 'slab', floor: 0, x: 0, width: 60, storeys: 1 })
+    injectUnit(state, { kind: 'slab', floor: 2, x: 0, width: 60, storeys: 1 })
+    placeShaft(state, 'express', 20, 0, 2)
+    const segments = jest.fn(oneDimensionalGeometry.segments)
+    const custom = { ...oneDimensionalGeometry, segments }
+    setTowerGeometry(state, custom)
+    bulkGhostsForCommands(state, [{ type: 'place', kind: 'slab', floor: 1, x: 20, widthTiles: 2 }])
+    const copies = segments.mock.calls.map(([queried]) => queried).filter((queried) => queried !== state)
+    expect(copies.length).toBeGreaterThan(0)
+    for (const copy of copies) expect(geometryFor(copy)).toBe(custom)
   })
 })
 
