@@ -159,3 +159,37 @@ export const LAB_TRACES = [
     lose: ['door-pin', 'dial-2', 'turn:dial:-1', 'dial-1', 'back-2', 'top-1'],
   },
 ] as const
+
+/**
+ * The fair (26–30), with dial turns written as `turn:<dial>:<1|-1>`. Each win frees the staging rack
+ * early: on the carousel straight away, on the basket after the sign, in the theater by turning the
+ * collar to it, and on the wheel and float first of all. The float's counterweight drops before the
+ * screw behind its hatch comes out.
+ */
+export const FAIR_TRACES = [
+  {
+    level: 26,
+    win: ['rack-1', 'canopy-front-1', 'canopy-back-1', 'canopy-left-1', 'canopy-right-1', 'horse-front-1', 'horse-front-2', 'horse-back-1', 'board-front-1', 'horse-back-2', 'board-back-1', 'drum-front-1', 'drum-front-2', 'drum-back-1', 'drum-back-2'],
+    lose: ['canopy-back-1', 'canopy-left-1', 'horse-front-1'],
+  },
+  {
+    level: 27,
+    win: ['sign-1', 'sign-2', 'rack-1', 'burner-1', 'burner-2', 'basket-front-2', 'basket-front-1', 'sandbag-left-1', 'basket-back-1', 'basket-back-2', 'basket-left-1', 'sandbag-right-1', 'basket-right-1', 'skid-1', 'skid-2'],
+    lose: ['burner-1', 'basket-back-1', 'basket-back-2'],
+  },
+  {
+    level: 28,
+    win: ['header-pin', 'turn:collar:-1', 'rack-1', 'header-left', 'turn:collar:-1', 'post-right-1', 'post-left-1', 'post-left-2', 'post-right-2', 'curtain-left-1', 'curtain-right-1', 'roof-1', 'backdrop-1', 'backdrop-2', 'roof-2', 'header-right', 'backdrop-3'],
+    lose: ['header-right', 'curtain-left-1', 'curtain-right-1'],
+  },
+  {
+    level: 29,
+    win: ['rack-1', 'rack-2', 'wheel-pin', 'turn:collar:-1', 'spoke-a', 'turn:collar:1', 'turn:collar:1', 'spoke-b', 'rim-c', 'car-a-2', 'tower-2', 'car-a-1', 'car-b-1', 'rim-b', 'rim-a', 'tower-1', 'tower-back-1', 'tower-back-2'],
+    lose: ['rack-1', 'car-a-1', 'car-b-1'],
+  },
+  {
+    level: 30,
+    win: ['rack-1', 'rack-2', 'canopy-left-1', 'canopy-right-1', 'garland-left', 'garland-right', 'arch-back-1', 'clock-pin', 'arch-front-1', 'weight-1', 'arch-back-2', 'skirt-left-1', 'skirt-right-1', 'turn:clock:-1', 'clock-a', 'turn:clock:1', 'turn:clock:1', 'clock-b'],
+    lose: ['canopy-left-1', 'garland-left', 'garland-right'],
+  },
+] as const

@@ -12,9 +12,11 @@ const DIFFICULTY: Record<number, readonly [number, number]> = {
   16: [0.38, 0.6], 17: [0.3, 0.5], 18: [0.18, 0.35], 19: [0.12, 0.28], 20: [0.08, 0.22],
   // Five colors and fifteen screws leave far fewer random orders that win; the simple policy still wins 21–23 every time.
   21: [0.045, 0.09], 22: [0.025, 0.055], 23: [0.025, 0.055], 24: [0.01, 0.03], 25: [0.03, 0.065],
+  // At the fair the staging rack's third slot gives random play more room.
+  26: [0.32, 0.55], 27: [0.12, 0.24], 28: [0.08, 0.16], 29: [0.08, 0.16], 30: [0.02, 0.05],
 }
 /** Levels that introduce something: no move short of overflowing may doom the board. */
-const TEACHING = new Set([1, 4, 6, 9, 11, 12, 16, 18, 21])
+const TEACHING = new Set([1, 4, 6, 9, 11, 12, 16, 18, 21, 26])
 /** Elsewhere a move may commit to a loss, but the overflow must show within this many removals. */
 const DOOM_HORIZON = 4
 const analyses = new Map(LEVELS.map((level) => [level.id, analyseLevel(level.id)]))
