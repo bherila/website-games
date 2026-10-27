@@ -23,6 +23,7 @@
 import type { EngineState, Unit } from '../gameTypes'
 import { TUNING } from '../gameTypes'
 import { spawnPerson, streetEntrance } from './people'
+import { geometryFor } from './towerGeometry'
 
 export const TRASH_HAUL_MINUTE = 4 * 60
 
@@ -61,25 +62,13 @@ function trashRooms(state: EngineState): Unit[] {
   return state.units.filter((u) => u.kind === 'trashRoom' && !u.offline)
 }
 
-function tileGap(aX: number, aWidth: number, bX: number, bWidth: number): number {
-  const aHi = aX + aWidth - 1
-  const bHi = bX + bWidth - 1
-  if (bX > aHi) {
-    return bX - aHi
-  }
-  if (aX > bHi) {
-    return aX - bHi
-  }
-  return 0
-}
-
-function nearestRoom(rooms: Unit[], unit: Unit): Unit {
+function nearestRoom(state: EngineState, rooms: Unit[], unit: Unit): Unit {
   let best = rooms[0]!
   let bestKey: [number, number, number] = [Infinity, Infinity, Infinity]
   for (const room of rooms) {
     const key: [number, number, number] = [
       Math.abs(room.floor - unit.floor),
-      tileGap(unit.x, unit.width, room.x, room.width),
+      geometryFor(state).distance(unit, room),
       room.id,
     ]
     if (
@@ -113,7 +102,7 @@ export function generateDailyTrash(state: EngineState): void {
     if (trash === 0) {
       continue
     }
-    const room = nearestRoom(rooms, unit)
+    const room = nearestRoom(state, rooms, unit)
     const factor = room.grade === 'recycling' || recyclingCenter ? TUNING.trash.recyclingHaulFactor : 1
     loads.set(room.id, (loads.get(room.id) ?? 0) + trash * factor)
   }

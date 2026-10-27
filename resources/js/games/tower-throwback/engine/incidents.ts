@@ -31,11 +31,12 @@ import type { EngineEvent, EngineState, FireState, ItemKind, TenantRequest, Unit
 import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { accrue, postImmediate, requestSpend } from './economy'
-import { getSegments, isSlabFamily } from './grid'
+import { isSlabFamily } from './grid'
 import { vacateUnit } from './occupancy'
 import { parkingShortfall } from './parking'
 import { randomInt } from './rng'
 import { populationOf } from './stars'
+import { geometryFor, oneDimensionalGeometry, type TowerGeometry } from './towerGeometry'
 
 const THREAT_DEADLINE_MIN = 60
 export const REQUEST_GENERATION_MINUTE = 8 * 60
@@ -92,18 +93,6 @@ function unitsInIdOrder(state: EngineState): Unit[] {
   return state.units // id-ascending by EngineState invariant — no sort needed
 }
 
-function tileGap(aX: number, aWidth: number, bX: number, bWidth: number): number {
-  const aHi = aX + aWidth - 1
-  const bHi = bX + bWidth - 1
-  if (bX > aHi) {
-    return bX - aHi
-  }
-  if (aX > bHi) {
-    return aX - bHi
-  }
-  return 0
-}
-
 // ── Bomb threats ─────────────────────────────────────────────────────────────
 
 /** Daily threat probability (exported for the math test). */
@@ -146,7 +135,7 @@ function securityCoverage(state: EngineState, floor: number, x: number): number 
     if (office.kind !== 'securityOffice' || office.offline) {
       continue
     }
-    const distance = Math.abs(office.floor - floor) + tileGap(x, 1, office.x, office.width) / 10
+    const distance = Math.abs(office.floor - floor) + geometryFor(state).distance({ x, width: 1 }, office) / 10
     if (best === null || distance < best) {
       best = distance
     }
@@ -252,7 +241,7 @@ function resolveFire(state: EngineState, events: EngineEvent[], outcome: string)
 
 function burnUnprotectedSegment(state: EngineState, target: Unit, events: EngineEvent[]): void {
   const center = target.x + Math.floor(target.width / 2)
-  const segment = getSegments(state).get(target.floor)?.find((candidate) => center >= candidate.x0 && center <= candidate.x1)
+  const segment = geometryFor(state).segmentOf(state, target.floor, center)
   if (segment) {
     state.activeFire!.burningUnitIds = unitsInIdOrder(state)
       .filter(
@@ -299,22 +288,9 @@ function rollFire(state: EngineState, events: EngineEvent[]): void {
  */
 function adjacentFireUnitIds(state: EngineState, fire: FireState): number[] {
   const burning = new Set(fire.burningUnitIds)
-  const burningEdges = new Set<number>()
-  for (const source of unitsInIdOrder(state)) {
-    if (burning.has(source.id) && source.floor === fire.floor) {
-      burningEdges.add(source.x - 1)
-      burningEdges.add(source.x + source.width)
-    }
-  }
-  const additions: number[] = []
-  for (const candidate of unitsInIdOrder(state)) {
-    if (candidate.floor !== fire.floor || isSlabFamily(candidate.kind) || burning.has(candidate.id)) {
-      continue
-    }
-    if (burningEdges.has(candidate.x + candidate.width - 1) || burningEdges.has(candidate.x)) {
-      additions.push(candidate.id)
-    }
-  }
+  const sources = unitsInIdOrder(state).filter((unit) => burning.has(unit.id))
+  const candidates = unitsInIdOrder(state).filter((unit) => !isSlabFamily(unit.kind) && !burning.has(unit.id))
+  const additions = geometryFor(state).touchingNeighbors(sources, candidates, fire.floor).map((unit) => unit.id)
   return additions
 }
 
@@ -413,14 +389,8 @@ function rollRoachSpawn(state: EngineState, events: EngineEvent[]): void {
 }
 
 /** Same floor within roachAdjacencyTiles, or directly above/below with x overlap. */
-export function roachAdjacent(a: Unit, b: Unit): boolean {
-  if (a.floor === b.floor) {
-    return tileGap(a.x, a.width, b.x, b.width) <= TUNING.incidents.roachAdjacencyTiles
-  }
-  if (Math.abs(a.floor - b.floor) === 1) {
-    return tileGap(a.x, a.width, b.x, b.width) === 0
-  }
-  return false
+export function roachAdjacent(a: Unit, b: Unit, geometry: TowerGeometry = oneDimensionalGeometry): boolean {
+  return geometry.adjacent(a, b, TUNING.incidents.roachAdjacencyTiles)
 }
 
 function rollRoachSpread(state: EngineState, events: EngineEvent[]): void {
@@ -431,7 +401,7 @@ function rollRoachSpread(state: EngineState, events: EngineEvent[]): void {
       if (candidate.infested || infectedToday.has(candidate.id) || isSlabFamily(candidate.kind)) {
         continue
       }
-      if (!roachAdjacent(source, candidate)) {
+      if (!roachAdjacent(source, candidate, geometryFor(state))) {
         continue
       }
       if (state.rng.next() < TUNING.incidents.roachSpreadP) {
@@ -488,7 +458,7 @@ export function repairUnit(state: EngineState, unitId: number, events: EngineEve
 /** @param infested The tower's infested units in id order, when the caller already has them. */
 export function infestedNeighborPenalty(state: EngineState, unit: Unit, infested?: readonly Unit[]): number {
   for (const other of infested ?? unitsInIdOrder(state)) {
-    if (other.id !== unit.id && other.infested && roachAdjacent(other, unit)) {
+    if (other.id !== unit.id && other.infested && roachAdjacent(other, unit, geometryFor(state))) {
       return TUNING.incidents.roachNeighborEvalPenalty
     }
   }
@@ -505,7 +475,7 @@ function operatingFoodNear(state: EngineState, office: Unit): boolean {
       !u.offline &&
       !u.infested &&
       Math.abs(u.floor - office.floor) <= REQUEST_FOOD_RANGE_FLOORS &&
-      tileGap(office.x, office.width, u.x, u.width) <= REQUEST_FOOD_RANGE_TILES,
+      geometryFor(state).distance(office, u) <= REQUEST_FOOD_RANGE_TILES,
   )
 }
 

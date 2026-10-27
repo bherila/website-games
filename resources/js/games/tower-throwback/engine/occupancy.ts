@@ -29,7 +29,7 @@ import type {
 import { TUNING } from '../gameTypes'
 import { itemDef, shaftDef } from './catalog'
 import { isWeekend } from './clock'
-import { getSegments, isSlabFamily, type Segment } from './grid'
+import { isSlabFamily } from './grid'
 import { noiseExposureAt } from './heatmaps'
 import { hotelReceptionExists, refreshHotelRoomFlags } from './hotel'
 import { infestedNeighborPenalty, requestEvalBonus } from './incidents'
@@ -39,6 +39,7 @@ import { pickWeighted } from './rng'
 import { equivalentElevators, findRoute, hasRouteToLobby } from './routing'
 import { ELEVATOR_CROWDED_WAIT_MIN } from './shaftIssues'
 import { weeklyStressThreshold } from './tenantStress'
+import { geometryFor, type Segment } from './towerGeometry'
 import { vipWeeklyPass } from './vip'
 
 /** Per-source amenity bonuses; conference/eventSpace are tower-wide per receiver category. */
@@ -72,29 +73,8 @@ export interface EvalBreakdown {
   requestBonus: number
 }
 
-/** Horizontal tile gap between two footprints (0 when they overlap or touch). */
-function tileGap(aX: number, aWidth: number, bX: number, bWidth: number): number {
-  const aHi = aX + aWidth - 1
-  const bHi = bX + bWidth - 1
-  if (bX > aHi) {
-    return bX - aHi
-  }
-  if (aX > bHi) {
-    return aX - bHi
-  }
-  return 0
-}
-
 function unitsInIdOrder(state: EngineState): Unit[] {
   return state.units // id-ascending by EngineState invariant — no sort needed
-}
-
-function segmentOf(state: EngineState, floor: number, x: number): Segment | null {
-  const runs = getSegments(state).get(floor)
-  if (!runs) {
-    return null
-  }
-  return runs.find((run) => x >= run.x0 && x <= run.x1) ?? null
 }
 
 // ── Per-pass unit index ─────────────────────────────────────────────────────
@@ -131,32 +111,11 @@ export interface OccupancyIndex {
   noteOccupancyChange: (unit: Unit, wasOccupied: boolean) => void
 }
 
-function pushTo(map: Map<number, Unit[]>, floor: number, unit: Unit): void {
-  const list = map.get(floor)
-  if (list) {
-    list.push(unit)
-  } else {
-    map.set(floor, [unit])
-  }
-}
-
-/** Units from floors [floor − reach, floor + reach], merged back into id order. */
-function nearFloors(byFloor: ReadonlyMap<number, readonly Unit[]>, floor: number, reach: number): Unit[] {
-  const merged: Unit[] = []
-  for (let f = floor - reach; f <= floor + reach; f += 1) {
-    const list = byFloor.get(f)
-    if (list) {
-      merged.push(...list)
-    }
-  }
-  return merged.sort((a, b) => a.id - b.id)
-}
-
 export function buildOccupancyIndex(state: EngineState): OccupancyIndex {
-  const byFloor = new Map<number, Unit[]>()
-  const restroomsByFloor = new Map<number, Unit[]>()
-  const amenitiesByFloor = new Map<number, Unit[]>()
-  const noiseByFloor = new Map<number, Unit[]>()
+  const byFloor = geometryFor(state).createUnitIndex()
+  const restroomsByFloor = geometryFor(state).createUnitIndex()
+  const amenitiesByFloor = geometryFor(state).createUnitIndex()
+  const noiseByFloor = geometryFor(state).createUnitIndex()
   const landmarkKind = getMap(state.mapId).endgameItem
   const landmarkCandidates: Unit[] = []
   const infested: Unit[] = []
@@ -165,16 +124,16 @@ export function buildOccupancyIndex(state: EngineState): OccupancyIndex {
   let suites = 0
   let occupiedOffices = 0
   for (const unit of unitsInIdOrder(state)) {
-    pushTo(byFloor, unit.floor, unit)
+    byFloor.add(unit)
     const def = itemDef(unit.kind)
     if (unit.kind === 'restroom') {
-      pushTo(restroomsByFloor, unit.floor, unit)
+      restroomsByFloor.add(unit)
     }
     if (AMENITY_BONUS[unit.kind] !== undefined) {
-      pushTo(amenitiesByFloor, unit.floor, unit)
+      amenitiesByFloor.add(unit)
     }
     if (def.noise) {
-      pushTo(noiseByFloor, unit.floor, unit)
+      noiseByFloor.add(unit)
     }
     if (unit.kind === landmarkKind) {
       landmarkCandidates.push(unit)
@@ -195,28 +154,12 @@ export function buildOccupancyIndex(state: EngineState): OccupancyIndex {
   }
   const rampServed = rampServedFloors(state)
   const stalls = functionalStalls(state).length
-  const amenityMemo = new Map<number, Unit[]>()
-  const noiseMemo = new Map<number, Unit[]>()
   const noiseReach = TUNING.noise.floorPropagation.length - 1
   return {
-    byFloor,
-    restroomsByFloor,
-    amenitiesNear: (floor) => {
-      let list = amenityMemo.get(floor)
-      if (!list) {
-        list = nearFloors(amenitiesByFloor, floor, TUNING.evalWeights.amenityRadiusFloors)
-        amenityMemo.set(floor, list)
-      }
-      return list
-    },
-    noiseNear: (floor) => {
-      let list = noiseMemo.get(floor)
-      if (!list) {
-        list = nearFloors(noiseByFloor, floor, noiseReach)
-        noiseMemo.set(floor, list)
-      }
-      return list
-    },
+    byFloor: byFloor.byFloor,
+    restroomsByFloor: restroomsByFloor.byFloor,
+    amenitiesNear: (floor) => amenitiesByFloor.near(floor, TUNING.evalWeights.amenityRadiusFloors),
+    noiseNear: (floor) => noiseByFloor.near(floor, noiseReach),
     conferenceCenters,
     eventSpaces,
     landmarkCandidates,
@@ -247,7 +190,7 @@ export function buildOccupancyIndex(state: EngineState): OccupancyIndex {
  * probe that must not seed the sim's endpoint-specific path memo.
  */
 function isReachable(state: EngineState, unit: Unit, other: Unit): boolean {
-  if (segmentOf(state, unit.floor, unit.x) === null || segmentOf(state, other.floor, other.x) === null) {
+  if (geometryFor(state).segmentOf(state, unit.floor, unit.x) === null || geometryFor(state).segmentOf(state, other.floor, other.x) === null) {
     return true
   }
   return findRoute(state, unit.floor, unit.x, other.floor, other.x, { bypassCache: true }) !== null
@@ -264,7 +207,7 @@ function amenityTerm(state: EngineState, unit: Unit, index: OccupancyIndex): num
     const perSource = AMENITY_BONUS[other.kind] ?? 0
     const inRange =
       Math.abs(other.floor - unit.floor) <= w.amenityRadiusFloors &&
-      tileGap(unit.x, unit.width, other.x, other.width) <= w.amenityRadiusTiles &&
+      geometryFor(state).distance(unit, other) <= w.amenityRadiusTiles &&
       isReachable(state, unit, other)
     if (inRange) {
       bonus += perSource
@@ -296,7 +239,7 @@ function landmarkTerm(state: EngineState, unit: Unit, index: OccupancyIndex): nu
   const w = TUNING.evalWeights
   const inRange =
     Math.abs(landmark.floor - unit.floor) <= w.landmarkRadiusFloors &&
-    tileGap(unit.x, unit.width, landmark.x, landmark.width) <= w.landmarkRadiusTiles
+    geometryFor(state).distance(unit, landmark) <= w.landmarkRadiusTiles
   return inRange && isReachable(state, unit, landmark) ? w.landmarkBonus : 0
 }
 
@@ -335,12 +278,12 @@ function affinityTerm(state: EngineState, unit: Unit, index: OccupancyIndex): nu
   // "Good neighbors" must actually share the unit's walkable segment — two
   // clusters split by an elevator-only gap on the same floor aren't neighbors.
   // Skip the segment gate when the unit has no segment (unplaced/degenerate).
-  const seg = segmentOf(state, unit.floor, unit.x)
+  const seg = geometryFor(state).segmentOf(state, unit.floor, unit.x)
   const sameFloor = (index.byFloor.get(unit.floor) ?? []).filter(
     (other) =>
       other.floor === unit.floor &&
       itemDef(other.kind).affinityGroup === group &&
-      (seg === null || segmentOf(state, other.floor, other.x)?.x0 === seg.x0),
+      (seg === null || geometryFor(state).segmentOf(state, other.floor, other.x)?.x0 === seg.x0),
   )
   return sameFloor.length >= TUNING.evalWeights.affinityMinUnits ? TUNING.evalWeights.affinityBonus : 0
 }
@@ -354,7 +297,7 @@ function glassTerm(state: EngineState, unit: Unit): number {
     if (unit.floor < shaft.bottomFloor || unit.floor > shaft.topFloor) {
       continue
     }
-    if (tileGap(unit.x, unit.width, shaft.x, shaftDef('glass').width) <= w.glassRadiusTiles) {
+    if (geometryFor(state).distance({ x: unit.x, width: unit.width }, { x: shaft.x, width: shaftDef('glass').width }) <= w.glassRadiusTiles) {
       return w.glassBonus
     }
   }
@@ -431,7 +374,7 @@ export function recentPeakWait(shaft: Shaft): number {
  * penalty for every unit while the shaft people did use jammed.
  */
 export function congestionPenalty(state: EngineState, unit: Unit): number {
-  const segment = segmentOf(state, unit.floor, unit.x)
+  const segment = geometryFor(state).segmentOf(state, unit.floor, unit.x)
   const commute = segment ? commuteLegs(state, segment) : null
   if (!commute) {
     return 0
@@ -468,7 +411,7 @@ function congestionTerm(state: EngineState, unit: Unit): number {
  * occupancy would form an import cycle).
  */
 function commuteEntrance(state: EngineState): Segment | null {
-  return getSegments(state).get(getMap(state.mapId).lobbyAnchorFloor)?.[0] ?? null
+  return geometryFor(state).segments(state).get(getMap(state.mapId).lobbyAnchorFloor)?.[0] ?? null
 }
 
 interface CommuteRoute {
@@ -509,13 +452,13 @@ function commuteLegs(state: EngineState, segment: Segment): CommuteRoute | null 
   return commute
 }
 
-function trashTerm(unit: Unit, index: OccupancyIndex): number {
+function trashTerm(state: EngineState, unit: Unit, index: OccupancyIndex): number {
   const w = TUNING.evalWeights
   for (const other of index.byFloor.get(unit.floor) ?? []) {
     if (other.id === unit.id || !other.flags.trashOverflow) {
       continue
     }
-    if (other.floor === unit.floor && tileGap(unit.x, unit.width, other.x, other.width) <= w.trashRadiusTiles) {
+    if (other.floor === unit.floor && geometryFor(state).distance(unit, other) <= w.trashRadiusTiles) {
       return w.trashPenalty
     }
   }
@@ -536,7 +479,7 @@ function restroomComfortTerm(state: EngineState, unit: Unit, index: OccupancyInd
   }
   // No walkable segment → the office can't host a restroom on its floor and is
   // unroutable anyway (noRoute); don't stack a comfort drag on top.
-  if (segmentOf(state, unit.floor, unit.x) === null) {
+  if (geometryFor(state).segmentOf(state, unit.floor, unit.x) === null) {
     return 0
   }
   const range = TUNING.grid.restroomRangeTiles
@@ -569,7 +512,7 @@ export function evalBreakdown(state: EngineState, unit: Unit, liveWork?: boolean
   const noisePenalty = noiseTerm(state, unit, idx)
   const congestionPenalty = congestionTerm(state, unit)
   const restroomComfortPenalty = restroomComfortTerm(state, unit, idx)
-  const trashPenalty = trashTerm(unit, idx)
+  const trashPenalty = trashTerm(state, unit, idx)
   const dirtyPenalty = unit.dirty ? w.dirtyPenalty : 0
   const incidentPenalty = unit.offline || (unit.incidentPenaltyUntilDay !== null && state.clock.day < unit.incidentPenaltyUntilDay)
     ? w.incidentPenalty
@@ -636,26 +579,8 @@ export function evalUnit(state: EngineState, unit: Unit): number {
  * Infinity when none is reachable on the floor.
  */
 function nearestRestroomGap(state: EngineState, unit: Unit, index: OccupancyIndex): number {
-  const segment = segmentOf(state, unit.floor, unit.x)
-  if (!segment) {
-    return Infinity
-  }
-  let best = Infinity
-  for (const other of index.restroomsByFloor.get(unit.floor) ?? []) {
-    if (
-      other.kind !== 'restroom' ||
-      other.floor !== unit.floor ||
-      other.x < segment.x0 ||
-      other.x + other.width - 1 > segment.x1
-    ) {
-      continue
-    }
-    const gap = tileGap(unit.x, unit.width, other.x, other.width)
-    if (gap < best) {
-      best = gap
-    }
-  }
-  return best
+  const candidates = (index.restroomsByFloor.get(unit.floor) ?? []).filter((other) => other.kind === 'restroom')
+  return geometryFor(state).nearestOnSegment(state, unit, candidates)
 }
 
 function hasRestroomInRange(state: EngineState, unit: Unit, index: OccupancyIndex): boolean {
