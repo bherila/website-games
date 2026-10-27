@@ -18,8 +18,9 @@ import * as THREE from 'three'
 
 import { disposeObject } from '../../_shared/three/threeUtils'
 import { shaftDef } from '../engine/catalog'
-import { getSegments, isSlabFamily } from '../engine/grid'
+import { isSlabFamily } from '../engine/grid'
 import { getMap } from '../engine/maps'
+import { geometryFor } from '../engine/towerGeometry'
 import { type EngineState, FLOOR_MAX, FLOOR_MIN, GRID_WIDTH, type Unit } from '../gameTypes'
 import { elevatorStopLabels } from './elevatorStops'
 import {
@@ -416,7 +417,7 @@ export function syncStructure(layer: StructureLayer, state: EngineState): void {
   layer.unitMesh = unitMesh
 
   // Slab edge strips per walkable run.
-  const runs = [...getSegments(state).entries()].flatMap(([, segs]) => segs)
+  const runs = [...geometryFor(state).segments(state).entries()].flatMap(([, segs]) => segs)
   const slabMesh = instanced(runs.length)
   runs.forEach((run, i) => {
     const width = run.x1 - run.x0 + 1

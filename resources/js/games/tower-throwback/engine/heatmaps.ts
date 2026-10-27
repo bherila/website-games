@@ -120,9 +120,10 @@ export function noiseField(state: EngineState): Float32Array {
 
 /** Per-tile nearest-serving-shaft wait (game-minutes); 0 off-segment or unserved. */
 export function congestionField(state: EngineState): Float32Array {
+  const geometry = geometryFor(state)
   const field = new Float32Array(FLOOR_COUNT * GRID_WIDTH)
   const shafts = state.shafts
-  for (const [floor, segments] of geometryFor(state).segments(state)) {
+  for (const [floor, segments] of geometry.segments(state)) {
     for (const segment of segments) {
       const serving = shafts.filter((shaft) => {
         if (!shaft.enabledStops.includes(floor)) {
@@ -139,7 +140,7 @@ export function congestionField(state: EngineState): Float32Array {
         let wait = 0
         for (const shaft of serving) {
           const width = shaftDef(shaft.kind).width
-          const gap = geometryFor(state).distance({ x }, { x: shaft.x, width })
+          const gap = geometry.distance({ x }, { x: shaft.x, width })
           if (gap < bestGap) {
             bestGap = gap
             wait = shaft.stats.avgWaitGameMin

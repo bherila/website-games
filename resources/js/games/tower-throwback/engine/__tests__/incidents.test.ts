@@ -12,10 +12,12 @@ import {
   requestEvalBonus,
   resolveBombThreat,
   respondToFire,
+  roachAdjacent,
   stepIncidentMinute,
   stepIncidents,
 } from '../incidents'
 import { evalUnit } from '../occupancy'
+import { oneDimensionalGeometry, setTowerGeometry } from '../towerGeometry'
 import { injectUnit, makeTestState, placeSlabRow, setStars } from './testState'
 
 function injectThreat(state: EngineState, floor: number, x: number): BombThreatState {
@@ -627,5 +629,16 @@ describe('determinism with incidents live', () => {
     expect(first).not.toContain('placementRejected')
     expect(run(42)).toBe(first)
     expect(run(43)).not.toBe(first)
+  })
+})
+
+describe('roach adjacency', () => {
+  it('follows the state’s geometry rather than a fixed one-dimensional rule', () => {
+    const state = makeTestState()
+    const a = injectUnit(state, { kind: 'fastfood', floor: 0, x: 0, width: 6, storeys: 1 })
+    const b = injectUnit(state, { kind: 'fastfood', floor: 0, x: 40, width: 6, storeys: 1 })
+    expect(roachAdjacent(state, a, b)).toBe(false)
+    setTowerGeometry(state, { ...oneDimensionalGeometry, adjacent: () => true })
+    expect(roachAdjacent(state, a, b)).toBe(true)
   })
 })

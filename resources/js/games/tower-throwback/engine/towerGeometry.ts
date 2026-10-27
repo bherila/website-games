@@ -41,7 +41,8 @@ export interface FloorUnitIndex {
 }
 
 export interface TowerGeometry {
-  segments(state: EngineState, cached?: boolean): Map<number, Segment[]>
+  /** Walkable runs per floor. Caching, if any, is the implementation's own business. */
+  segments(state: EngineState): Map<number, Segment[]>
   segmentOf(state: EngineState, floor: number, x: number): Segment | null
   /** Horizontal distance between points or inclusive tile footprints. */
   distance(a: HorizontalPosition, b: HorizontalPosition): number
@@ -62,7 +63,11 @@ export function geometryFor(state: EngineState): TowerGeometry {
   return geometries.get(state) ?? oneDimensionalGeometry
 }
 
-/** Install before running an engine state; keep geometry outside save payloads. */
+/**
+ * Install before running an engine state; keep geometry outside save payloads.
+ * Geometry belongs to this state object only: copies (`{ ...state }`) and
+ * reloaded saves start on the default, so every copy site re-installs it.
+ */
 export function setTowerGeometry(state: EngineState, geometry: TowerGeometry): void {
   geometries.set(state, geometry)
 }
@@ -206,7 +211,7 @@ function createUnitIndex(): FloorUnitIndex {
 }
 
 export const oneDimensionalGeometry: TowerGeometry = {
-  segments: (state, cached = true) => cached ? getSegments(state) : floorSegments(state),
+  segments: getSegments,
   segmentOf: segmentContaining,
   distance,
   adjacent(a, b, horizontalReach) {

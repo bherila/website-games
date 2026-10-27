@@ -54,7 +54,7 @@ Final edit prompt:
 
 ## Railway, clockworks and fair (levels 16–30)
 
-One generated cutout per level, with the same cream/navy painted finish. Only transparent padding was cropped before downsampling to at most 384 px and encoding as WebP; generated originals stay outside the repository. The placement table and clearance tests are in `harborDecals.ts` and `__tests__/houseGeometry.test.ts`.
+One generated cutout per level, with the same cream/navy painted finish. Only transparent padding was cropped before downsampling to at most 384 px and encoding as WebP; generated originals stay outside the repository. The placement table and clearance tests are in `campaignDecals.ts` and `__tests__/houseGeometry.test.ts`.
 
 | Level | Texture | Plate | WebP bytes |
 | --- | --- | --- | ---: |

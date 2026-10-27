@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 
+import { decorateCampaignPlate } from './campaignDecals'
 import { dialSlotPosition } from './dial'
 import { createBalloonField, createFairground, createMidway, createParade, createShowground, decorateFairPlate } from './fairScenery'
-import { decorateHarborPlate } from './harborDecals'
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
 import { createLineside, createParlour, createPlatform, createRailway, createToyTrack, decorateLined } from './railwayScenery'
 import type { StageId } from './stage'
@@ -369,7 +369,7 @@ function decorateHead(details: THREE.Group, plate: Plate): void {
 /** All architectural details belong to their panel, so they leave with it. */
 export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw[] = [], levelId?: number): THREE.Group {
   const details = new THREE.Group()
-  decorateHarborPlate(details, plate, levelId)
+  decorateCampaignPlate(details, plate, levelId)
   if (decorateFairPlate(details, plate, screws, levelId)) return details
   const [width, height] = plate.size
   const cream = '#fff2d7'

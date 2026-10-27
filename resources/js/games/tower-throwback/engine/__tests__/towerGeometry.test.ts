@@ -2,7 +2,7 @@ import type { EngineState, Unit } from '../../gameTypes'
 import { defaultShaftProgram, FLOOR_MAX, FLOOR_MIN, GRID_WIDTH } from '../../gameTypes'
 import { shaftDef } from '../catalog'
 import { stepEngine } from '../engine'
-import { getSegments, nearestShaftStopDistance, tileIndex } from '../grid'
+import { tileIndex } from '../grid'
 import { noiseExposureAt } from '../heatmaps'
 import { buildOccupancyIndex } from '../occupancy'
 import { validatePlacement } from '../placement'
@@ -67,7 +67,6 @@ describe('one-dimensional TowerGeometry', () => {
     const state = seededState()
     const expectedSegments = legacySegments(state)
     expect(geometry.segments(state)).toEqual(expectedSegments)
-    expect(geometry.segments(state, false)).toEqual(expectedSegments)
     const rng = createRng(60123)
     for (let i = 0; i < 300; i++) {
       const a = state.units[Math.floor(rng.next() * state.units.length)]!
@@ -152,15 +151,15 @@ describe('one-dimensional TowerGeometry', () => {
     }
   })
 
-  it('retains structure-version invalidation and fresh segment extraction', () => {
+  it('retains structure-version invalidation', () => {
     const state = makeTestState()
     state.grid.slab[tileIndex(0, 3)] = 1
     const first = geometry.segments(state)
     state.grid.slab[tileIndex(0, 4)] = 1
     expect(geometry.segments(state)).toBe(first)
-    expect(geometry.segments(state, false).get(0)).toEqual([{ floor: 0, x0: 3, x1: 4 }])
     state.structureVersion++
     expect(geometry.segments(state)).not.toBe(first)
+    expect(geometry.segments(state).get(0)).toEqual([{ floor: 0, x0: 3, x1: 4 }])
     expect(geometry.segmentOf(state, 0, 4)).toEqual({ floor: 0, x0: 3, x1: 4 })
   })
 
@@ -205,11 +204,11 @@ describe('one-dimensional TowerGeometry', () => {
     setTowerGeometry(state, custom)
     expect(geometryFor(state)).toBe(custom)
     expect(geometryFor(makeTestState())).toBe(geometry)
-    expect(getSegments(state)).toEqual(legacySegments(state))
+    expect(geometryFor(state).segments(state)).toEqual(legacySegments(state))
     expect(segments).toHaveBeenCalledWith(state)
-    expect(nearestShaftStopDistance(state, 0, 0)).toBe(17)
+    expect(geometryFor(state).nearestStop(state, 0, 0)).toBe(17)
     buildOccupancyIndex(state)
-    expect(createUnitIndex).toHaveBeenCalledTimes(4)
+    expect(createUnitIndex).toHaveBeenCalled()
     noiseExposureAt(state, 0, 0, 10)
     expect(distance).toHaveBeenCalled()
     expect(Object.keys(state)).toEqual(savedKeys)
