@@ -1,5 +1,6 @@
 import { FLOOR_MAX, FLOOR_MIN, GRID_WIDTH } from '../../gameTypes'
-import { createGridLayers, getSegments, nearestShaftStopDistance, rebuildGrid, selectableAt, shaftIdAt, slabAt, tileIndex, unitIdAt } from '../grid'
+import { createGridLayers, rebuildGrid, selectableAt, shaftIdAt, slabAt, tileIndex, unitIdAt } from '../grid'
+import { geometryFor } from '../towerGeometry'
 import { makeTestState, place, placeShaft, placeSlabRow } from './testState'
 
 describe('tileIndex bounds', () => {
@@ -38,11 +39,11 @@ describe('rebuildGrid', () => {
   })
 })
 
-describe('floorSegments', () => {
+describe('geometry segments', () => {
   it('returns one segment for a single contiguous tower', () => {
     const state = makeTestState()
     placeSlabRow(state, 0, 0, 9)
-    const runs = getSegments(state).get(0)
+    const runs = geometryFor(state).segments(state).get(0)
     expect(runs).toEqual([{ floor: 0, x0: 0, x1: 9 }])
   })
 
@@ -50,7 +51,7 @@ describe('floorSegments', () => {
     const state = makeTestState()
     placeSlabRow(state, 0, 0, 4)
     placeSlabRow(state, 0, 10, 14)
-    const runs = getSegments(state).get(0)
+    const runs = geometryFor(state).segments(state).get(0)
     expect(runs).toEqual([
       { floor: 0, x0: 0, x1: 4 },
       { floor: 0, x0: 10, x1: 14 },
@@ -66,21 +67,21 @@ describe('floorSegments', () => {
     }
     place(state, 'skybridge', 2, 5, 5) // spans the gap on floor 2, ends land on both towers
     // Floor 0 (the lobbies) is untouched by the bridge above → still two segments.
-    expect(getSegments(state).get(0)).toHaveLength(2)
+    expect(geometryFor(state).segments(state).get(0)).toHaveLength(2)
   })
 })
 
-describe('nearestShaftStopDistance', () => {
+describe('geometry nearestStop', () => {
   it('measures tile gap to the nearest same-segment stop, Infinity when absent', () => {
     const state = makeTestState()
     placeSlabRow(state, 0, 0, 20)
     placeShaft(state, 'standard', 10, 0, 5)
 
-    expect(nearestShaftStopDistance(state, 0, 10)).toBe(0)
-    expect(nearestShaftStopDistance(state, 0, 5)).toBe(5)
-    expect(nearestShaftStopDistance(state, 0, 13)).toBe(2)
+    expect(geometryFor(state).nearestStop(state, 0, 10)).toBe(0)
+    expect(geometryFor(state).nearestStop(state, 0, 5)).toBe(5)
+    expect(geometryFor(state).nearestStop(state, 0, 13)).toBe(2)
     // Floor 3 has no landing (only floor 0 is slabbed within the shaft span).
-    expect(nearestShaftStopDistance(state, 3, 10)).toBe(Infinity)
+    expect(geometryFor(state).nearestStop(state, 3, 10)).toBe(Infinity)
   })
 })
 

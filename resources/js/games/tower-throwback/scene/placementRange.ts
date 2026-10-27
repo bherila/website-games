@@ -1,5 +1,5 @@
 import { itemDef } from '../engine/catalog'
-import { getSegments } from '../engine/grid'
+import { geometryFor, type Segment } from '../engine/towerGeometry'
 import type { EngineCommand, EngineState } from '../gameTypes'
 import { FLOOR_MAX, FLOOR_MIN, GRID_WIDTH, TUNING } from '../gameTypes'
 
@@ -25,7 +25,7 @@ function spanGap(x: number, lo: number, hi: number): number {
   return 0
 }
 
-function restroomRangeTiles(segments: ReturnType<typeof getSegments>, command: PlaceItemCmd): PlacementRangeTile[] {
+function restroomRangeTiles(segments: ReadonlyMap<number, Segment[]>, command: PlaceItemCmd): PlacementRangeTile[] {
   const width = command.widthTiles ?? itemDef(command.kind).width
   const hi = command.x + width - 1
   const segment = segments.get(command.floor)?.find((candidate) => command.x >= candidate.x0 && hi <= candidate.x1)
@@ -88,7 +88,7 @@ function noiseRangeTiles(command: PlaceItemCmd): PlacementRangeTile[] {
 export function placementRangeTiles(state: EngineState, commands: readonly PlaceItemCmd[]): PlacementRangeTile[] {
   const byTile = new Map<string, PlacementRangeTile>()
   const uniqueCommands = new Map(commands.map((command) => [`${command.kind}:${command.floor}:${command.x}:${command.widthTiles ?? ''}`, command]))
-  const segments = commands.some((command) => command.kind === 'restroom') ? getSegments(state) : null
+  const segments = commands.some((command) => command.kind === 'restroom') ? geometryFor(state).segments(state) : null
   for (const command of uniqueCommands.values()) {
     const tiles = command.kind === 'restroom' && segments ? restroomRangeTiles(segments, command) : noiseRangeTiles(command)
     for (const tile of tiles) {

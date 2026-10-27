@@ -17,7 +17,7 @@ import type {
 import { TUNING } from '../../gameTypes'
 import { itemDef, shaftDef } from '../catalog'
 import { isWeekend } from '../clock'
-import { getSegments, isSlabFamily, type Segment } from '../grid'
+import { isSlabFamily } from '../grid'
 import { noiseExposureAt } from '../heatmaps'
 import { refreshHotelRoomFlags } from '../hotel'
 import { infestedNeighborPenalty, requestEvalBonus } from '../incidents'
@@ -27,6 +27,7 @@ import { parkingShortfall, refreshParkingFlags } from '../parking'
 import { pickWeighted } from '../rng'
 import { findRoute, hasRouteToLobby } from '../routing'
 import { ELEVATOR_CROWDED_WAIT_MIN } from '../shaftIssues'
+import { geometryFor, type Segment } from '../towerGeometry'
 
 /** Per-source amenity bonuses; conference/eventSpace are tower-wide per receiver category. */
 const AMENITY_BONUS: Partial<Record<ItemKind, number>> = {
@@ -77,7 +78,7 @@ function unitsInIdOrder(state: EngineState): Unit[] {
 }
 
 function segmentOf(state: EngineState, floor: number, x: number): Segment | null {
-  const runs = getSegments(state).get(floor)
+  const runs = geometryFor(state).segments(state).get(floor)
   if (!runs) {
     return null
   }

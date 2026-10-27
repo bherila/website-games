@@ -1,8 +1,8 @@
 import type { EngineState } from '../../gameTypes'
-import { getSegments } from '../grid'
 import { spawnPerson, stepPeople } from '../people'
 import { applyDemolish } from '../placement'
 import { findRoute, hasRouteToLobby } from '../routing'
+import { geometryFor } from '../towerGeometry'
 import { injectUnit, makeTestState, place, placeShaft, placeSlabRow, setStars } from './testState'
 
 describe('findRoute — segments and walks', () => {
@@ -176,7 +176,7 @@ describe('skybridge — functional routing (Phase 12)', () => {
 
     const { state } = twinTowers(true)
     // The bridge tiles paint the slab layer: floor 8 becomes ONE walkable run.
-    expect(getSegments(state).get(8)).toEqual([{ floor: 8, x0: 0, x1: 29 }])
+    expect(geometryFor(state).segments(state).get(8)).toEqual([{ floor: 8, x0: 0, x1: 29 }])
 
     const route = findRoute(state, 0, 0, 0, 26)
     expect(route).not.toBeNull()
@@ -195,7 +195,7 @@ describe('skybridge — functional routing (Phase 12)', () => {
     expect(findRoute(state, 0, 0, 0, 26)).not.toBeNull()
     applyDemolish(state, { type: 'demolishUnit', unitId: bridgeId! })
     expect(findRoute(state, 0, 0, 0, 26)).toBeNull()
-    expect(getSegments(state).get(8)).toHaveLength(2) // split back into two runs
+    expect(geometryFor(state).segments(state).get(8)).toHaveLength(2) // split back into two runs
   })
 
   it('foot traffic across the bridge credits pass-by sales', () => {

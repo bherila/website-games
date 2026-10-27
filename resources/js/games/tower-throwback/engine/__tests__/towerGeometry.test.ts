@@ -2,7 +2,7 @@ import type { EngineState, Unit } from '../../gameTypes'
 import { defaultShaftProgram, FLOOR_MAX, FLOOR_MIN, GRID_WIDTH } from '../../gameTypes'
 import { shaftDef } from '../catalog'
 import { stepEngine } from '../engine'
-import { getSegments, nearestShaftStopDistance, tileIndex } from '../grid'
+import { tileIndex } from '../grid'
 import { noiseExposureAt } from '../heatmaps'
 import { buildOccupancyIndex } from '../occupancy'
 import { validatePlacement } from '../placement'
@@ -205,9 +205,9 @@ describe('one-dimensional TowerGeometry', () => {
     setTowerGeometry(state, custom)
     expect(geometryFor(state)).toBe(custom)
     expect(geometryFor(makeTestState())).toBe(geometry)
-    expect(getSegments(state)).toEqual(legacySegments(state))
+    expect(geometryFor(state).segments(state)).toEqual(legacySegments(state))
     expect(segments).toHaveBeenCalledWith(state)
-    expect(nearestShaftStopDistance(state, 0, 0)).toBe(17)
+    expect(geometryFor(state).nearestStop(state, 0, 0)).toBe(17)
     buildOccupancyIndex(state)
     expect(createUnitIndex).toHaveBeenCalledTimes(4)
     noiseExposureAt(state, 0, 0, 10)
