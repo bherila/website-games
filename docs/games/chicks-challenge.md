@@ -281,6 +281,7 @@ interface SavedChicksProgress {
   unlockedLevel: number              // highest playable level id (starts at 1, caps at TOTAL_LEVELS)
   stars: Record<number, number>      // levelId -> best stars (0–3)
   bestMoves: Record<number, number>  // levelId -> lowest winning move count
+  layoutRevisions?: Record<number, number> // layout for each best; missing entries mean revision 1
 }
 ```
 
@@ -288,6 +289,14 @@ Load defensively via `_shared/progressParsers` (corrupt/missing → fresh defaul
 `unlockedLevel = max(unlockedLevel, min(N+1, TOTAL_LEVELS))`, `stars[N] = max(old, earned)`,
 `bestMoves[N] = min(old ?? ∞, moves)`. `loadProgress()` returns the `LevelSelectProgress` shape
 directly (no adapter needed). No mid-level snapshots.
+
+`levelLayoutRevisions.ts` versions every released layout. Levels 7, 8, 12, 22, 23, 24, 37,
+39 and 40 use revision 2 after their redraws; unchanged levels use revision 1. Loading a best
+from another revision drops only that best, retaining lifetime stars and unlocks. New wins stamp
+the current revision. Account level rows carry `layout_revision`; the server compares best moves
+only within one layout, clears the obsolete best on upgrade, and ignores an older client's best
+after that upgrade. Star awards still merge by maximum. Bump the registry entry whenever a layout
+changes again; no local-storage version or level-id change is needed.
 
 ## Level definition schema
 
@@ -436,13 +445,13 @@ mechanics earlier phases taught one at a time. Added in the 2026-10 variety pass
 under a follow camera on a phone. They are now at most 13×15 under the same ids, titles and
 mechanics. 40 stays the phase-8 capstone by solver nodes (about 204k, against 36's 225k and the
 0.8× dominance rule); 37 (about 3k nodes) and 39 (about 17k) keep their order below it. Saved
-best-move counts carry over from the old layouts. Their extra gates live in
+stars carry over from the old layouts; their obsolete best-move counts are cleared. Their extra gates live in
 `__tests__/levelVariety.test.ts`.
 
 **2026-10 variety pass.** Levels 7, 8, 12, 22, 23 and 24 were near-copies of their phase openers
 (the same 11×11 room, one full-width band, two chips below, socket bottom-centre; 24 repeated 19's
 layout with belts for ice). They were redrawn in place under the same ids and titles, so saved stars
-carry over; a best-move count saved on the old layout stays as it was. `__tests__/levelVariety.test.ts`
+carry over; best-move counts from the old layout are cleared by its layout revision. `__tests__/levelVariety.test.ts`
 adds what the pack-wide gates cannot see: flattening each level's ice or belts must change it, and the
 ordering traps of 23 and 42 must be real dead ends.
 

@@ -44,6 +44,16 @@ class GameDataMerger
             return $existing;
         }
 
+        // Best moves are comparable only within one layout. Missing metadata
+        // identifies the original layout, including writes from older clients.
+        $existingLayout = $existing['layout_revision'] ?? 1;
+        $incomingLayout = $incoming['layout_revision'] ?? 1;
+        if ($incomingLayout > $existingLayout) {
+            unset($existing['best_moves']);
+        } elseif ($incomingLayout < $existingLayout) {
+            unset($incoming['best_moves'], $incoming['layout_revision']);
+        }
+
         return $this->mergeArrays($existing, $incoming);
     }
 

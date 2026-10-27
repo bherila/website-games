@@ -110,7 +110,7 @@ class ValidGameDataPayload implements DataAwareRule, ValidationRule
                 return $normalizedKey;
             }
             if (
-                in_array($normalizedKey, ['unlocked_level', 'best_moves'], true)
+                in_array($normalizedKey, ['unlocked_level', 'best_moves', 'layout_revision'], true)
                 && ! $this->isIntegerBetween($entry, 1, self::MAX_SAFE_INTEGER)
             ) {
                 return $normalizedKey;

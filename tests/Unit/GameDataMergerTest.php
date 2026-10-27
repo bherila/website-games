@@ -52,6 +52,23 @@ class GameDataMergerTest extends TestCase
         );
     }
 
+    public function test_new_layout_compares_only_its_own_bests_and_preserves_star_awards(): void
+    {
+        $merger = new GameDataMerger;
+        $this->assertSame(
+            ['stars' => 3, 'layout_revision' => 2, 'best_moves' => 46],
+            $merger->merge(['stars' => 3, 'best_moves' => 19], ['stars' => 2, 'layout_revision' => 2, 'best_moves' => 46]),
+        );
+        $this->assertSame(
+            ['stars' => 3, 'layout_revision' => 2],
+            $merger->merge(['stars' => 3, 'best_moves' => 19], ['layout_revision' => 2]),
+        );
+        $this->assertSame(
+            ['stars' => 3, 'layout_revision' => 3],
+            $merger->merge(['stars' => 3, 'layout_revision' => 2, 'best_moves' => 46], ['layout_revision' => 3]),
+        );
+    }
+
     public function test_list_values_are_replaced_instead_of_recursively_merged(): void
     {
         $result = (new GameDataMerger)->merge(
