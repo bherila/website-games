@@ -112,11 +112,6 @@ export class FloorPlateModel {
     if (present && this.plates.get(floor)?.[index] !== 1) throw new RangeError('A utility tile needs a floor plate')
     const mask = this.getUtilityTiles(floor)
     mask[index] = present ? 1 : 0
-    for (const vertical of this.verticals.values()) {
-      if (vertical.kind === 'core' && vertical.bottomFloor - 1 === floor && !this.hasPlantSupport(vertical, mask)) {
-        throw new RangeError(`Core ${vertical.id} needs a plant or utility tile on floor ${floor}`)
-      }
-    }
     this.storeMask(this.utilities, floor, mask)
   }
 
@@ -124,13 +119,25 @@ export class FloorPlateModel {
     this.validateFootprint(footprint)
     if (this.verticals.has(footprint.id)) throw new RangeError('Vertical footprint id already exists')
     this.requirePlateCoverage(footprint)
-    if (footprint.kind === 'core') {
-      floorNumber(footprint.bottomFloor - 1)
-      if (!this.hasPlantSupport(footprint, this.utilities.get(footprint.bottomFloor - 1))) {
-        throw new RangeError(`Core ${footprint.id} needs a plant or utility tile on floor ${footprint.bottomFloor - 1}`)
-      }
-    }
+    if (footprint.kind === 'core') floorNumber(footprint.bottomFloor - 1)
     this.verticals.set(footprint.id, { ...footprint })
+  }
+
+  /**
+   * Cores, in placement order, whose machine room is still a ghost: plate sits
+   * beneath the footprint's bottom floor but none of it is a utility tile. A
+   * base over no plate (a ground floor without a basement, a cantilever) needs
+   * nothing. Reported rather than enforced, so painting a basement later never
+   * deadlocks against the plate a utility tile needs.
+   */
+  coresMissingPlant(): VerticalFootprint[] {
+    return [...this.verticals.values()]
+      .filter((vertical) => {
+        if (vertical.kind !== 'core') return false
+        const below = vertical.bottomFloor - 1
+        return this.coversAny(vertical, this.plates.get(below)) && !this.coversAny(vertical, this.utilities.get(below))
+      })
+      .map((vertical) => ({ ...vertical }))
   }
 
   removeVerticalFootprint(id: string): boolean {
@@ -173,7 +180,7 @@ export class FloorPlateModel {
     floorRange(footprint.bottomFloor, footprint.topFloor)
   }
 
-  private hasPlantSupport(footprint: VerticalFootprint, mask?: Uint8Array): boolean {
+  private coversAny(footprint: VerticalFootprint, mask?: Uint8Array): boolean {
     if (!mask) return false
     for (let y = footprint.y; y < footprint.y + footprint.depth; y++) {
       for (let x = footprint.x; x < footprint.x + footprint.width; x++) {

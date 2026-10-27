@@ -101,12 +101,13 @@ describe('floor plates', () => {
 })
 
 describe('explicit vertical footprints', () => {
-  test('a core from floor 15 to 30 needs plate in its range and one plant/utility tile on 14, not a shaft below', () => {
+  test('a sky-lobby core from floor 15 to 30 needs plate in its range and one plant/utility tile on 14, not a shaft below', () => {
     const model = new FloorPlateModel({ width: 9, depth: 7 })
     for (let floor = 15; floor <= 30; floor++) model.paint(floor, rectangle(2, 3, 2, 2))
     model.paint(14, [{ x: 2, y: 3 }])
     model.setUtilityTile(14, { x: 2, y: 3 })
     model.placeVerticalFootprint(vertical())
+    expect(model.coresMissingPlant()).toEqual([])
     expect(model.verticalFootprintsAt(15)).toEqual([vertical()])
     expect(model.verticalFootprintsAt(30)).toEqual([vertical()])
     expect(model.verticalFootprintsAt(14)).toEqual([])
@@ -119,13 +120,13 @@ describe('explicit vertical footprints', () => {
     const model = new FloorPlateModel({ width: 8, depth: 8 })
     for (let floor = 13; floor <= 16; floor++) model.paint(floor, rectangle(0, 0, 8, 8))
     const core = vertical({ topFloor: 16 })
-    expect(() => model.placeVerticalFootprint(core)).toThrow('floor 14')
     model.setUtilityTile(13, { x: 2, y: 3 })
     model.setUtilityTile(14, { x: 7, y: 7 })
-    expect(() => model.placeVerticalFootprint(core)).toThrow('floor 14')
-    expect(model.verticalFootprintsAt(15)).toEqual([])
+    model.placeVerticalFootprint(core)
+    expect(model.verticalFootprintsAt(15)).toEqual([core])
+    expect(model.coresMissingPlant()).toEqual([core])
     model.setUtilityTile(14, { x: 3, y: 4 })
-    expect(() => model.placeVerticalFootprint(core)).not.toThrow()
+    expect(model.coresMissingPlant()).toEqual([])
   })
 
   test('checks every cell on every floor in the core range before placement', () => {
@@ -175,20 +176,39 @@ describe('explicit vertical footprints', () => {
     for (const floor of [1, 2, 3]) expect(area(model, floor)).toBe(25)
   })
 
-  test('a core keeps its plant tile until another one exists or the core is removed', () => {
+  test('removing a core’s last plant tile reports the core until another exists or the core is removed', () => {
     const model = new FloorPlateModel({ width: 6, depth: 6 })
     for (const floor of [14, 15]) model.paint(floor, rectangle(2, 3, 2, 2))
     model.setUtilityTile(14, { x: 2, y: 3 })
     model.placeVerticalFootprint(vertical({ topFloor: 15 }))
-    expect(() => model.setUtilityTile(14, { x: 2, y: 3 }, false)).toThrow('floor 14')
     expect(() => model.erase(14, [{ x: 2, y: 3 }])).toThrow('utility tiles')
-    model.setUtilityTile(14, { x: 3, y: 4 })
     model.setUtilityTile(14, { x: 2, y: 3 }, false)
     expect(model.getUtilityTiles(14)[20]).toBe(0)
+    expect(model.coresMissingPlant().map((core) => core.id)).toEqual(['upper-core'])
+    model.setUtilityTile(14, { x: 3, y: 4 })
+    expect(model.coresMissingPlant()).toEqual([])
+    model.setUtilityTile(14, { x: 3, y: 4 }, false)
     expect(model.removeVerticalFootprint('upper-core')).toBe(true)
     expect(model.removeVerticalFootprint('upper-core')).toBe(false)
-    model.setUtilityTile(14, { x: 3, y: 4 }, false)
+    expect(model.coresMissingPlant()).toEqual([])
     expect(() => model.erase(14, rectangle(2, 3, 2, 2))).not.toThrow()
+  })
+
+  test('a ground-floor core needs no plant until a basement is painted beneath it', () => {
+    const model = new FloorPlateModel({ width: 6, depth: 6 })
+    for (const floor of [0, 1, 2]) model.paint(floor, rectangle(0, 0, 6, 6))
+    const core = vertical({ id: 'ground-core', x: 1, y: 1, bottomFloor: 0, topFloor: 2 })
+    model.placeVerticalFootprint(core)
+    expect(model.coresMissingPlant()).toEqual([])
+    // A basement that misses the footprint still needs nothing.
+    model.paint(-1, [{ x: 5, y: 5 }])
+    expect(model.coresMissingPlant()).toEqual([])
+    // Plate beneath the core turns the machine room into a ghost; the utility
+    // tile that clears it can only go on plate, so this order must be legal.
+    model.paint(-1, rectangle(0, 0, 6, 6))
+    expect(model.coresMissingPlant()).toEqual([core])
+    model.setUtilityTile(-1, { x: 2, y: 2 })
+    expect(model.coresMissingPlant()).toEqual([])
   })
 
   test('callers cannot move stored footprints by changing their input or returned objects', () => {
