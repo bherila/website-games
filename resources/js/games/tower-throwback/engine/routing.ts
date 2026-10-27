@@ -1,7 +1,7 @@
 /**
  * Routing — floor-segment graph search with a structureVersion-keyed cache.
  *
- * Nodes are walkable floor segments (grid.getSegments). Edges: enabled shaft
+ * Nodes are walkable floor segments (TowerGeometry). Edges: enabled shaft
  * stops (passenger shafts; service shafts ONLY for staff journeys — staff ride
  * service elevators exclusively per the spec), stairs (≤
  * TUNING.people.stairsMaxFloors total per journey), escalators, and skybridges.
@@ -19,8 +19,8 @@
 import type { EngineState, JourneyLeg, Unit } from '../gameTypes'
 import { TUNING } from '../gameTypes'
 import { shaftDef } from './catalog'
-import { getSegments, type Segment } from './grid'
 import { getMap } from './maps'
+import { geometryFor, type Segment } from './towerGeometry'
 
 export interface RouteOpts {
   staff?: boolean
@@ -63,14 +63,6 @@ function segKey(seg: Segment): string {
   return `${seg.floor}:${seg.x0}`
 }
 
-function segmentAt(state: EngineState, floor: number, x: number): Segment | null {
-  const runs = getSegments(state).get(floor)
-  if (!runs) {
-    return null
-  }
-  return runs.find((run) => x >= run.x0 && x <= run.x1) ?? null
-}
-
 function getCache(state: EngineState): RoutingCache {
   const cached = cacheMap.get(state)
   if (cached && cached.version === state.structureVersion) {
@@ -100,7 +92,7 @@ function buildGraph(state: EngineState, staff: boolean): RouteGraph {
     }
     const stopSegs: Array<{ floor: number; seg: Segment }> = []
     for (const floor of shaft.enabledStops) {
-      const seg = segmentAt(state, floor, shaft.x)
+      const seg = geometryFor(state).segmentOf(state, floor, shaft.x)
       if (seg) {
         stopSegs.push({ floor, seg })
       }
@@ -128,8 +120,8 @@ function buildGraph(state: EngineState, staff: boolean): RouteGraph {
     if (unit.kind !== 'stairs' && unit.kind !== 'escalator') {
       continue
     }
-    const below = segmentAt(state, unit.floor, unit.x)
-    const above = segmentAt(state, unit.floor + 1, unit.x)
+    const below = geometryFor(state).segmentOf(state, unit.floor, unit.x)
+    const above = geometryFor(state).segmentOf(state, unit.floor + 1, unit.x)
     if (!below || !above) {
       continue
     }
@@ -224,9 +216,9 @@ function searchPath(
       if (stairsUsed > TUNING.people.stairsMaxFloors) {
         continue
       }
-      let dist = node.dist + Math.abs(node.x - edge.boardX) + Math.abs(edge.toFloor - edge.fromFloor)
+      let dist = node.dist + geometryFor(state).distance({ x: node.x }, { x: edge.boardX }) + Math.abs(edge.toFloor - edge.fromFloor)
       if (edge.toKey === toKey) {
-        dist += Math.abs(edge.alightX - toX)
+        dist += geometryFor(state).distance({ x: edge.alightX }, { x: toX })
       }
       open.push({ key: edge.toKey, x: edge.alightX, elevLegs, stairsUsed, dist, path: [...node.path, edge], seq: seq++ })
     }
@@ -275,8 +267,8 @@ export function findRoute(
   toX: number,
   opts: RouteOpts = {},
 ): JourneyLeg[] | null {
-  const fromSeg = segmentAt(state, fromFloor, fromX)
-  const toSeg = segmentAt(state, toFloor, toX)
+  const fromSeg = geometryFor(state).segmentOf(state, fromFloor, fromX)
+  const toSeg = geometryFor(state).segmentOf(state, toFloor, toX)
   if (!fromSeg || !toSeg) {
     return null
   }
@@ -308,9 +300,9 @@ export function findRoute(
 export function hasRouteToLobby(state: EngineState, unit: Unit, opts: RouteOpts = {}): boolean {
   const lobbyFloor = getMap(state.mapId).lobbyAnchorFloor
   if (unit.floor === lobbyFloor) {
-    return segmentAt(state, unit.floor, unit.x) !== null
+    return geometryFor(state).segmentOf(state, unit.floor, unit.x) !== null
   }
-  const lobbySegs = getSegments(state).get(lobbyFloor) ?? []
+  const lobbySegs = geometryFor(state).segments(state).get(lobbyFloor) ?? []
   for (const seg of lobbySegs) {
     if (findRoute(state, unit.floor, unit.x, lobbyFloor, seg.x0, opts) !== null) {
       return true
@@ -344,12 +336,12 @@ export function equivalentElevators(
   if (leg.type !== 'elevator' || leg.shaftId === undefined) {
     return []
   }
-  const fromSeg = segmentAt(state, leg.fromFloor, leg.fromX)
-  const toSeg = segmentAt(state, leg.toFloor, leg.toX)
+  const fromSeg = geometryFor(state).segmentOf(state, leg.fromFloor, leg.fromX)
+  const toSeg = geometryFor(state).segmentOf(state, leg.toFloor, leg.toX)
   if (!fromSeg || !toSeg) {
     return []
   }
-  const walk = (x: number): number => Math.abs(prevX - x) + Math.abs(x - nextX)
+  const walk = (x: number): number => geometryFor(state).distance({ x: prevX }, { x }) + geometryFor(state).distance({ x }, { x: nextX })
   const baseline = walk(leg.fromX)
   const choices: ElevatorChoice[] = []
   for (const shaft of state.shafts) {
@@ -359,8 +351,8 @@ export function equivalentElevators(
     if (!shaft.enabledStops.includes(leg.fromFloor) || !shaft.enabledStops.includes(leg.toFloor)) {
       continue
     }
-    const a = segmentAt(state, leg.fromFloor, shaft.x)
-    const b = segmentAt(state, leg.toFloor, shaft.x)
+    const a = geometryFor(state).segmentOf(state, leg.fromFloor, shaft.x)
+    const b = geometryFor(state).segmentOf(state, leg.toFloor, shaft.x)
     if (!a || !b || segKey(a) !== segKey(fromSeg) || segKey(b) !== segKey(toSeg)) {
       continue
     }

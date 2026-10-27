@@ -15,18 +15,9 @@
 import type { EngineState, Unit } from '../gameTypes'
 import { FLOOR_COUNT, FLOOR_MIN, GRID_WIDTH, TUNING } from '../gameTypes'
 import { itemDef, shaftDef } from './catalog'
-import { getSegments, tileIndex } from './grid'
+import { tileIndex } from './grid'
 import { findRoute } from './routing'
-
-function spanGap(aLo: number, aHi: number, bLo: number, bHi: number): number {
-  if (bLo > aHi) {
-    return bLo - aHi
-  }
-  if (aLo > bHi) {
-    return aLo - bHi
-  }
-  return 0
-}
+import { geometryFor } from './towerGeometry'
 
 /**
  * Summed noise exposure from every noisy unit reaching the receiver span
@@ -56,7 +47,7 @@ export function noiseExposureAt(
     if (propagation === undefined) {
       continue
     }
-    const dist = spanGap(x0, x1, source.x, source.x + source.width - 1)
+    const dist = geometryFor(state).distance({ x: x0, endX: x1 }, source)
     if (dist >= noise.radiusTiles) {
       continue
     }
@@ -82,7 +73,7 @@ export function dominantNoiseSourceAt(state: EngineState, floor: number, x0: num
     if (propagation === undefined) {
       continue
     }
-    const dist = spanGap(x0, x1, source.x, source.x + source.width - 1)
+    const dist = geometryFor(state).distance({ x: x0, endX: x1 }, source)
     if (dist >= noise.radiusTiles) {
       continue
     }
@@ -115,7 +106,7 @@ export function noiseField(state: EngineState): Float32Array {
         const xLo = Math.max(0, srcLo - noise.radiusTiles + 1)
         const xHi = Math.min(GRID_WIDTH - 1, srcHi + noise.radiusTiles - 1)
         for (let x = xLo; x <= xHi; x++) {
-          const dist = spanGap(x, x, srcLo, srcHi)
+          const dist = geometryFor(state).distance({ x }, source)
           if (dist >= noise.radiusTiles) {
             continue
           }
@@ -131,7 +122,7 @@ export function noiseField(state: EngineState): Float32Array {
 export function congestionField(state: EngineState): Float32Array {
   const field = new Float32Array(FLOOR_COUNT * GRID_WIDTH)
   const shafts = state.shafts
-  for (const [floor, segments] of getSegments(state)) {
+  for (const [floor, segments] of geometryFor(state).segments(state)) {
     for (const segment of segments) {
       const serving = shafts.filter((shaft) => {
         if (!shaft.enabledStops.includes(floor)) {
@@ -148,7 +139,7 @@ export function congestionField(state: EngineState): Float32Array {
         let wait = 0
         for (const shaft of serving) {
           const width = shaftDef(shaft.kind).width
-          const gap = spanGap(x, x, shaft.x, shaft.x + width - 1)
+          const gap = geometryFor(state).distance({ x }, { x: shaft.x, width })
           if (gap < bestGap) {
             bestGap = gap
             wait = shaft.stats.avgWaitGameMin
@@ -172,7 +163,7 @@ export function catchmentField(state: EngineState, venue: Unit): Float32Array {
   const field = new Float32Array(FLOOR_COUNT * GRID_WIDTH)
   const venueFloor = venue.floor
   const venueX = venue.x + Math.floor(venue.width / 2)
-  for (const [floor, segments] of getSegments(state)) {
+  for (const [floor, segments] of geometryFor(state).segments(state)) {
     if (floor < FLOOR_MIN || floor >= FLOOR_MIN + FLOOR_COUNT) {
       continue
     }

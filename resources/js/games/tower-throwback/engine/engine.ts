@@ -42,6 +42,7 @@ import {
 import { createRng } from './rng'
 import { stepSchedules } from './schedules'
 import { populationOf } from './stars'
+import { geometryFor, setTowerGeometry } from './towerGeometry'
 import { applyUpgrade, validateUpgrade } from './upgrades'
 import { stepVips } from './vip'
 
@@ -482,6 +483,7 @@ function clonePlacementState(state: EngineState): EngineState {
   // planning against fresh empty layers would reject every support-dependent
   // cell (and miss every overlap) until the first applyPlacement repaints.
   rebuildGrid(clone)
+  setTowerGeometry(clone, geometryFor(state))
   return clone
 }
 

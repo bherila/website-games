@@ -23,9 +23,10 @@ import type { EngineEvent, EngineState, IncomeTier, JourneyLeg, JourneyPurpose, 
 import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { postImmediate } from './economy'
-import { getSegments, slabAt } from './grid'
+import { slabAt } from './grid'
 import { getMap } from './maps'
 import { findRoute, type RouteOpts, spreadElevatorLegs } from './routing'
+import { geometryFor } from './towerGeometry'
 
 /**
  * Riders already planned onto each shaft: everyone whose remaining legs
@@ -77,7 +78,7 @@ function planJourney(
 /** Street entrance: left edge of the first ground-floor segment (shared spawn point). */
 export function streetEntrance(state: EngineState): { floor: number; x: number } | null {
   const lobbyFloor = getMap(state.mapId).lobbyAnchorFloor
-  const seg = getSegments(state).get(lobbyFloor)?.[0]
+  const seg = geometryFor(state).segments(state).get(lobbyFloor)?.[0]
   return seg ? { floor: lobbyFloor, x: seg.x0 } : null
 }
 
@@ -536,7 +537,7 @@ function advanceMovement(state: EngineState, person: Person, dtGameMin: number, 
     }
     if (leg.type === 'walk' || leg.type === 'skybridge') {
       const speed = TUNING.movement.walkTilesPerGameMin
-      const remaining = Math.abs(leg.toX - person.x)
+      const remaining = geometryFor(state).distance({ x: leg.toX }, { x: person.x })
       const need = remaining / speed
       if (need > t) {
         person.x += Math.sign(leg.toX - person.x) * speed * t

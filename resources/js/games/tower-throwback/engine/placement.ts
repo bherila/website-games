@@ -41,7 +41,7 @@ import type {
 } from '../gameTypes'
 import { defaultShaftProgram, GRID_WIDTH, type MapDefinition, TUNING } from '../gameTypes'
 import { EXCAVATION_COST, isItemAvailable, isShaftAvailable, itemDef, shaftDef } from './catalog'
-import { createGridLayers, getSegments, isSlabFamily, nearestShaftStopDistance, rebuildGrid, shaftIdAt, slabAt, slabOwnerAt, unitIdAt } from './grid'
+import { createGridLayers, isSlabFamily, rebuildGrid, shaftIdAt, slabAt, slabOwnerAt, unitIdAt } from './grid'
 import {
   cantileverFacing,
   endgamePlacementFloors,
@@ -61,6 +61,7 @@ import {
 } from './mapGeometry'
 import { getMap } from './maps'
 import { releaseShaftOccupants, replanShaftAfterResize } from './people'
+import { geometryFor, setTowerGeometry } from './towerGeometry'
 
 type PlaceCommand = Extract<EngineCommand, { type: 'place' }>
 type PlaceShaftCommand = Extract<EngineCommand, { type: 'placeShaft' }>
@@ -236,24 +237,22 @@ function validateSupport(map: MapDefinition, state: EngineState, cmd: PlaceComma
 }
 
 function validateOverlap(state: EngineState, cmd: PlaceCommand, fp: Footprint): string | null {
-  if (isSlabFamily(cmd.kind)) {
-    for (let floor = fp.floorLo; floor <= fp.floorHi; floor++) {
-      for (let x = fp.xLo; x <= fp.xHi; x++) {
-        if (slabAt(state, floor, x)) {
-          return 'Overlaps an existing floor'
-        }
-        if (unitIdAt(state, floor, x) !== 0) {
-          return 'Overlaps an existing unit'
-        }
-        if (glassColumnAt(state, floor, x)) {
-          return 'Blocked by a glass elevator column'
-        }
+  const cells = geometryFor(state).footprintCells({
+    floor: fp.floorLo, x: fp.xLo, width: fp.width, storeys: fp.floorHi - fp.floorLo + 1,
+  })
+  const slabFamily = isSlabFamily(cmd.kind)
+  for (const { floor, x } of cells) {
+    if (slabFamily) {
+      if (slabAt(state, floor, x)) {
+        return 'Overlaps an existing floor'
       }
-    }
-    return null
-  }
-  for (let floor = fp.floorLo; floor <= fp.floorHi; floor++) {
-    for (let x = fp.xLo; x <= fp.xHi; x++) {
+      if (unitIdAt(state, floor, x) !== 0) {
+        return 'Overlaps an existing unit'
+      }
+      if (glassColumnAt(state, floor, x)) {
+        return 'Blocked by a glass elevator column'
+      }
+    } else {
       if (unitIdAt(state, floor, x) !== 0) {
         return 'Overlaps an existing unit'
       }
@@ -350,7 +349,7 @@ function validateItemPlacement(state: EngineState, cmd: PlaceCommand): Placement
   if (cmd.kind === 'hotelReception' || cmd.kind === map.endgameItem) {
     let nearest = Infinity
     for (let x = fp.xLo; x <= fp.xHi; x++) {
-      nearest = Math.min(nearest, nearestShaftStopDistance(state, cmd.floor, x))
+      nearest = Math.min(nearest, geometryFor(state).nearestStop(state, cmd.floor, x))
     }
     if (nearest > TUNING.grid.adjacencyTiles) {
       return err(`${def.name} must be within ${TUNING.grid.adjacencyTiles} tiles of an elevator stop`)
@@ -403,7 +402,7 @@ function computeShaftStops(state: EngineState, cmd: PlaceShaftCommand): number[]
     return slabbed
   }
 
-  const segments = getSegments(state)
+  const segments = geometryFor(state).segments(state)
   const skylobbyFloors = state.units
     .filter((u) => {
       if (u.kind !== 'skylobby' || u.floor < cmd.bottomFloor || u.floor > cmd.topFloor) return false
@@ -426,6 +425,7 @@ function validateAddedFloorLandings(state: EngineState, cmd: PlaceCommand, fp: F
   // as routing and actual stop refresh, including a bridge joining two runs.
   const projected: EngineState = { ...state, units: [...state.units, newUnit(state.nextId, cmd, fp, getMap(state.mapId))], grid: createGridLayers() }
   rebuildGrid(projected)
+  setTowerGeometry(projected, geometryFor(state))
   for (const shaft of affected) {
     const def = shaftDef(shaft.kind)
     const required = computeShaftStops(projected, { type: 'placeShaft', kind: shaft.kind, x: shaft.x, bottomFloor: shaft.bottomFloor, topFloor: shaft.topFloor })
