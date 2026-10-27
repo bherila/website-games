@@ -28,6 +28,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Sky bridges | Bridges link buildings at the same floor, so one sky lobby can serve two towers. |
 | Public space | Plazas and other public space raise nearby desirability, bring footfall to shops, count toward the star rating, and host events. |
 | Parking | Surface parking is built beside a tower, then upgraded to an underground garage entrance with basement parking spaces. |
+| Environment and utilities | The simulation includes utilities (electricity, water, trash) and an environmental rating. |
 | Lobbies and basements | As in Tower Throwback. Street lobbies sit on the ground floor but may be split into separate entrances (twin towers). Any number of sky lobbies go on upper floors, unlocked by stars. Basements go several floors deep once excavation unlocks, for parking, plant and transit. |
 
 ## Design
@@ -120,6 +121,29 @@ They cost land that isn't leased, plus upkeep.
 **underground garage**: a ramp entrance at ground level, plus parking spaces on basement floors. That frees the
 surface for a plaza or another building. It follows Tower Throwback's parking model (ramp-served basement
 floors, demand from offices and hotel suites), with the surface lot as a new first step.
+
+### Environment and utilities
+Utilities make the building's services visible and give height a cost, without asking the player to draw pipes.
+Plant rooms are modules; **risers run up the cores**, so a plant room serves every floor its core reaches,
+within a range. Coverage shows as an overlay, like light and walking distance.
+
+| Utility | How it works | What goes wrong |
+| --- | --- | --- |
+| Electricity | The street grid connection has a capacity that grows with upgrades. Substations or plant rooms extend supply up the tower; rooftop and setback solar adds to it; backup generators cover outages. | Demand beyond capacity causes brownouts: units lose desirability, and elevators slow or stop. |
+| Water | Mains pressure reaches only so high, so booster pumps and break tanks are needed every so many floors, and a rooftop tank serves the top. | Floors above their pump's reach have low pressure, a desirability penalty and complaints. |
+| Trash | Tower Throwback's trash chain (trash rooms, housekeeping, recycling) carries over, now with collection by core and service elevator. | Overflow brings dirt and pests, as in Tower Throwback. |
+
+Plant tends to gather on **mechanical floors** every 15–20 floors, which is where sky lobbies want to be too. That
+gives a natural rhythm to a tall tower and a real choice about what shares those floors.
+
+**Environmental rating.** A tower-wide score from energy and water use per occupant, trash recycled, public
+and green space, and daylight (good daylight cuts lighting energy, so the light pressure pays twice). Green
+roofs and terraces on setbacks, solar, efficient plant and recycling raise it. It feeds desirability (some
+tenants pay a premium for a green building), counts toward the higher star ratings, and can set scenario
+goals ("a net-zero office").
+
+Keep it legible: no pipe or cable drawing, no hidden failure. Every shortfall shows on its overlay and in the
+issue list before it bites, as Tower Throwback's issue badges do.
 
 ### Floor plates
 A new floor copies the outline of the floor below with a single click (**Inherit floor below**), then can be
@@ -233,7 +257,9 @@ Run the steps in order. Steps 2–3 and step 4 can proceed in parallel once step
    It leaves out the economy and stars. It needs a new Vite entrypoint, Blade shell and route; follow
    AGENTS.md and the per-game CI wiring used by earlier games.
 5. **Playtest, then decide** the economy, tenants, scenarios and simulation depth for the first real slice.
-   Plazas fit straight into the existing scoring and belong in that first slice. Buying land, several buildings,
+   Plazas fit straight into the existing scoring and belong in that first slice; trash carries over from
+   Tower Throwback. Electricity, water and the environmental rating come next, since plant rooms and risers
+   change how floors are planned. Buying land, several buildings,
    sky bridges and the surface-to-underground parking upgrade come after it, with a "Twin Towers" scenario to
    teach them.
 
@@ -247,4 +273,5 @@ only). The coordinator merges step 2 first.
 | Corridors drawn, or implied by a corridor spine? | Drawn, since circulation is one of the four pressures; modules place against them |
 | Simulation as detailed as Tower Throwback's? | Keep its people model, but cap the crowd |
 | Plan size and people limit? | 40×40 tiles per floor and about 1,500 people, to stay smooth on phones |
+| Do utilities ever fail outright (blackouts, burst pipes), or only degrade? | Only degrade, with warnings first; outright failures, if any, belong in Tower Throwback-style incidents |
 | Share the engine, or copy it? | Share, through steps 2–3, so fixes reach both games |
