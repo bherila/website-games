@@ -28,7 +28,7 @@ time. It shares Tower Throwback's engine where that fits, with its own route and
 | Sky bridges | Bridges link buildings at the same floor, so one sky lobby can serve two towers. |
 | Public space | Plazas and other public space raise nearby desirability, bring footfall to shops, count toward the star rating, and host events. |
 | Parking | Surface parking is built beside a tower, then upgraded to an underground garage entrance with basement parking spaces. |
-| Cores, risers and exits | Cores bundle elevators, a stair and a utility riser. Wet modules must sit near a riser. Every floor needs two separated exit stairs. |
+| Cores, risers and exits | Cores bundle elevators, a stair and a utility riser, and each spans its own range of floors (not inherited). Wet modules must sit near a riser. Every floor needs two separated exit stairs that reach the street. |
 | Environment and utilities | The simulation includes utilities (electricity, water, trash) and an environmental rating. |
 | Lobbies and basements | As in Tower Throwback. Street lobbies sit on the ground floor but may be split into separate entrances (twin towers). Any number of sky lobbies go on upper floors, unlocked by stars. Basements go several floors deep once excavation unlocks, for parking, plant and transit. |
 
@@ -144,8 +144,14 @@ surface for a plaza or another building. It follows Tower Throwback's parking mo
 floors, demand from offices and hotel suites), with the surface lot as a new first step.
 
 ### Cores, risers and exit stairs
-These three are one family: vertical modules that stack through a range of floors and take the same footprint
-on every floor they pass. Inherit floor below keeps them aligned.
+These three are one family: vertical modules that each span **their own range of floors** and take the same
+footprint on every floor in that range. Floors outside the range are free. Inheriting a floor plate copies the
+outline only; it never extends a core, riser or stair. A core's range is set on purpose (see below).
+
+For example, a high-rise elevator bank serving floors 15–30 starts at the floor-15 sky lobby. It needs only an
+elevator **machine/pit room** on floor 14, directly beneath its lowest stop. Floors 1–13 below that are free
+for anything, and the low-rise bank that brings people up to the sky lobby is a separate core with its own
+range, such as 0–15.
 
 **Cores** are the backbone. A core holds an elevator bank (1–4 cars, local or express), a stair, and a utility
 riser for power, water and drains. Where cores go decides walking distances, how sky lobbies split the tower
@@ -160,13 +166,35 @@ light overlay. A wet module out of reach simply can't be placed; there's no hidd
 riser** is a small, cheap shaft with no elevator. When a wing grows too far from the core, the choice is a riser
 (cheap, but a long walk to the elevators remains) or a second core (expensive, but it fixes both).
 
-**Exit stairs.** Every occupied floor needs a route to **two separated exit stairs** within a set walking
+**Exit stairs.** Unlike elevators, an exit stair must **reach a street exit**: it runs down to the ground or a
+podium roof that leads out. It may change position at a transfer floor along a protected corridor, but it can't
+simply end. So a stair inside a 15–30 elevator core counts as an exit only if it continues down, or connects at
+floor 15 to a stair that does. Every occupied floor needs a route to **two separated exit stairs** within a set walking
 distance. Stairs in cores count, and a **standalone exit stair** is a small, cheap module for wings and
 far corners. The two exits must be apart, so two stairs in one core count once. An egress overlay shades tiles
 by distance to the nearest exits. A floor short of exits shows the warning while you build and **can't lease
 until it complies**: one clear rule, not a degrading score. Exits also matter in fires (Tower Throwback's
 incidents): a floor with good exits evacuates faster and loses less. This is the classic reason a tall,
 deep or long floor plate needs a second core, a scissor stair, or a stair at each end of a wing.
+
+### Placing cores across floors
+The isometric view shows one floor, but a core spans many. Placing one must stay easy in that view:
+- **Place on the current floor, then stretch.** Drop the core's footprint on the floor you're on, then drag
+  handles to set its top and bottom floors. Page Up/Down with a modifier moves the nearer end one floor; on a
+  phone, steppers do the same.
+- **A stack strip beside the view.** While a core is selected, a narrow elevation strip at the screen edge shows
+  every floor of the tower as a row. The core's range is a bar with draggable ends, and its stops are dots you
+  can toggle per floor (as in Tower Throwback's stop editing). Floors the core can't reach, because no plate is
+  there or something is in the way, are marked, and the reason shows on hover or tap.
+- **Ghosts on other floors.** On floors inside a core's range, its footprint shows as a reserved outline even
+  before those floors are built. On the floor beneath its lowest stop, the required machine/pit room shows as a
+  ghost until it's placed. You can't build over either by accident.
+- **Section view.** A toggle swings the camera to a vertical cut through the selected core, a side view much like
+  Tower Throwback's. It shows the whole stack, its stops and the sky lobby transfers at once. It's the best
+  place to plan elevator zoning, and it's a nod to the first game.
+- **Placement checks before you commit:** the footprint fits on every floor in range, the pit/machine room
+  floor is free, the stops include at least one lobby or sky lobby, and exit stairs reach the street.
+  Problems show on the ghost, before any money is spent.
 
 ### Environment and utilities
 Utilities make the building's services visible and give height a cost, without asking the player to draw pipes.
