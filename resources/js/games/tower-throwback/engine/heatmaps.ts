@@ -47,7 +47,7 @@ export function noiseExposureAt(
     if (propagation === undefined) {
       continue
     }
-    const dist = geometryFor(state).distance({ x: x0, width: x1 - x0 + 1 }, source)
+    const dist = geometryFor(state).distance({ x: x0, endX: x1 }, source)
     if (dist >= noise.radiusTiles) {
       continue
     }
@@ -73,7 +73,7 @@ export function dominantNoiseSourceAt(state: EngineState, floor: number, x0: num
     if (propagation === undefined) {
       continue
     }
-    const dist = geometryFor(state).distance({ x: x0, width: x1 - x0 + 1 }, source)
+    const dist = geometryFor(state).distance({ x: x0, endX: x1 }, source)
     if (dist >= noise.radiusTiles) {
       continue
     }

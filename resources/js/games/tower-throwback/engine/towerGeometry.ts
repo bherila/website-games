@@ -18,6 +18,8 @@ export interface Segment {
 export interface HorizontalPosition {
   x: number
   width?: number
+  /** Preserve an already computed inclusive endpoint without reconstructing it. */
+  endX?: number
 }
 
 export interface Footprint extends HorizontalPosition {
@@ -151,11 +153,11 @@ function nearestShaftStopDistance(
 
 function distance(a: HorizontalPosition, b: HorizontalPosition): number {
   // Keep continuous point arithmetic exact: x + 1 - 1 may round differently.
-  if (a.width === undefined && b.width === undefined) {
+  if (a.width === undefined && a.endX === undefined && b.width === undefined && b.endX === undefined) {
     return Math.abs(a.x - b.x)
   }
-  const aHi = a.width === undefined ? a.x : a.x + a.width - 1
-  const bHi = b.width === undefined ? b.x : b.x + b.width - 1
+  const aHi = a.endX ?? (a.width === undefined ? a.x : a.x + a.width - 1)
+  const bHi = b.endX ?? (b.width === undefined ? b.x : b.x + b.width - 1)
   if (b.x > aHi) {
     return b.x - aHi
   }
@@ -225,8 +227,8 @@ export const oneDimensionalGeometry: TowerGeometry = {
       (edges.has(candidate.x + candidate.width - 1) || edges.has(candidate.x)))
   },
   *footprintCells(unit) {
-    for (let floor = unit.floor; floor < unit.floor + unit.storeys; floor++) {
-      for (let x = unit.x; x < unit.x + unit.width; x++) {
+    for (let floor = unit.floor; floor <= unit.floor + unit.storeys - 1; floor++) {
+      for (let x = unit.x; x <= unit.x + unit.width - 1; x++) {
         yield { floor, x }
       }
     }

@@ -107,6 +107,18 @@ describe('one-dimensional TowerGeometry', () => {
     }
   })
 
+  it('preserves fractional receiver-span endpoints without reconstructing their width', () => {
+    const rng = createRng(1123)
+    for (let i = 0; i < 300; i++) {
+      const a0 = rng.next() * GRID_WIDTH
+      const a1 = a0 + rng.next() * 12
+      const b0 = rng.next() * GRID_WIDTH
+      const b1 = b0 + rng.next() * 12
+      expect(geometry.distance({ x: a0, endX: a1 }, { x: b0, endX: b1 }))
+        .toBe(Math.max(0, a0 - b1, b0 - a1))
+    }
+  })
+
   it('keeps floor buckets live, query results memoized, and nearby sources in id order', () => {
     const state = seededState()
     const index = geometry.createUnitIndex()
