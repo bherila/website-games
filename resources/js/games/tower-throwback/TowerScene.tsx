@@ -491,6 +491,9 @@ export function TowerScene({
       // Presentation glides share the pause: interpolating toward positions the
       // sim is no longer producing would drift the render away from state.
       controller.render(state, stepDt)
+      // Diagnostic tests can sample the next actual render after a camera
+      // change without waiting for the separately throttled React readout.
+      if (publishRendererReady) window.__TOWER_DRAW_CALLS__ = controller.getRenderMetrics().drawCalls
       renderMetricsAccum += dt
       if (renderMetricsAccum >= RENDER_METRICS_INTERVAL_SEC) {
         renderMetricsAccum %= RENDER_METRICS_INTERVAL_SEC

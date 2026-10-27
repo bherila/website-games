@@ -77,12 +77,24 @@ test.describe('Tower Throwback draw-call budget', () => {
       await inventory.click()
       await expect(page.getByRole('dialog', { name: 'Tower inventory' })).toContainText(`${largeTower.units.length.toLocaleString()} units`)
       await page.getByRole('button', { name: 'Close tower inventory', exact: true }).click()
-      await page.getByTestId('zoom-fit').click()
       await page.waitForFunction(() => window.__TOWER_VISUAL_READY__ === true, undefined, { timeout: 30_000 })
-      // Discard the initial camera/atlas sample. The next real telemetry
-      // callback measures the fitted, fully loaded tower, not a partial view.
+      // Discard the initial sample before the action, then prove a post-fit
+      // render reported a viewport enclosing the complete occupied range.
       await page.evaluate(() => { delete window.__TOWER_DRAW_CALLS__ })
-      const drawCalls = await measureDrawCalls(page)
+      await page.getByTestId('zoom-fit').click()
+      let sample = { fits: false, calls: 0 }
+      await expect.poll(async () => {
+        sample = await page.evaluate(() => {
+          const camera = document.querySelector('[data-testid="camera-floor-range"]')?.getBoundingClientRect()
+          const occupied = document.querySelector('[data-testid="occupied-floor-range"]')?.getBoundingClientRect()
+          return {
+            fits: !!camera && !!occupied && camera.top <= occupied.top + 0.5 && camera.bottom >= occupied.bottom - 0.5,
+            calls: window.__TOWER_DRAW_CALLS__ ?? 0,
+          }
+        })
+        return sample.fits && sample.calls > 0
+      }).toBe(true)
+      const drawCalls = sample.calls
 
       console.log(`[draw-call budget] ${largeTower.units.length} units ${time}: ${drawCalls} calls (ceiling ${DRAW_CALL_CEILING})`)
       expect(drawCalls).toBeGreaterThan(0)
