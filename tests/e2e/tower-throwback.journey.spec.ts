@@ -11,6 +11,29 @@ test.describe('Tower Throwback real player journey', () => {
   // Functional input coverage uses the phone's CSS layout without high-DPI render cost.
   test.use({ deviceScaleFactor: 1 })
 
+  test('every speed control stays fully tappable on a 320px phone', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.goto('/tower-throwback')
+    await page.evaluate(() => window.localStorage.clear())
+    await page.reload()
+    await page.getByTestId('map-city-tower').tap()
+    await page.getByTestId('lobby-1').tap()
+    await page.getByTestId('start').tap()
+    await expect(page.locator('[data-map-id="city-tower"]')).toBeVisible()
+    for (const speed of [0, 1, 2, 4, 8, 16]) {
+      const control = page.getByTestId(`speed-${speed}`)
+      const box = (await control.boundingBox())!
+      expect(box.x, `speed ${speed} starts on screen`).toBeGreaterThanOrEqual(0)
+      expect(box.x + box.width, `speed ${speed} ends on screen`).toBeLessThanOrEqual(320)
+      expect(box.width, `speed ${speed} is not squeezed`).toBeGreaterThanOrEqual(44)
+      // Nothing clips or covers it: its centre hits the button itself.
+      const hit = await page.evaluate(({ x, y, id }) => document.elementFromPoint(x, y)?.closest(`[data-testid="${id}"]`) !== null, { x: box.x + box.width / 2, y: box.y + box.height / 2, id: `speed-${speed}` })
+      expect(hit, `speed ${speed} is not covered`).toBe(true)
+    }
+    await expect(page.getByTestId('fast-mode-toggle')).toBeInViewport({ ratio: 1 })
+  })
+
   test('starts, builds, saves locally, reloads, and resumes the same tower', async ({ page }, testInfo) => {
     test.setTimeout(360_000)
     const mobile = testInfo.project.name === 'chromium-mobile-375'
@@ -53,10 +76,20 @@ test.describe('Tower Throwback real player journey', () => {
     await activate(page.getByTestId('speed-0'))
     const canvas = page.locator('canvas').first()
     await expect(canvas).toBeVisible()
+    if (mobile) {
+      await assertCompactPhoneHud(page, activate)
+      await activate(page.getByRole('button', { name: /Getting started/ }))
+    } else {
+      await expect(page.getByTestId('save-health-row')).toHaveCSS('min-height', '0px')
+      await expect(page.getByRole('button', { name: /^Financials/ })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'More', exact: true })).toHaveCount(0)
+    }
     await activate(page.getByRole('button', { name: 'Dismiss getting started' }))
     if (mobile) {
       await activate(page.getByTestId('zoom-out'))
     }
+    // Where Build sits before anything is saved; the first autosave must not move it.
+    const buildAt = (await page.getByRole('button', { name: 'Build' }).boundingBox())!.y
     await activate(page.getByRole('button', { name: 'Build' }))
 
     await activate(page.getByTestId('family-lobbies'))
@@ -65,6 +98,8 @@ test.describe('Tower Throwback real player journey', () => {
       // Keep gestures inside the phone's exposed playfield beside its build palette.
       await touchPlacement(touch, canvas, { floor: 0, x: 194 }, { floor: 0, x: 201 })
       await expect(page.getByTestId('funds')).toHaveText('$1,997,600')
+      await expect(page.getByTestId('save-health')).toBeVisible({ timeout: 20_000 })
+      expect((await page.getByRole('button', { name: 'Done' }).boundingBox())!.y, 'the save readout must not push the controls down').toBe(buildAt)
       await activate(page.getByRole('button', { name: 'Done' }))
       await activate(page.getByTestId('zoom-in'))
       await activate(page.getByTestId('zoom-in'))
@@ -110,7 +145,7 @@ test.describe('Tower Throwback real player journey', () => {
       await activate(page.getByRole('button', { name: 'Done' }))
     }
 
-    await activate(page.getByRole('button', { name: 'Saves' }))
+    await openTowerAction(page, 'Saves', activate)
     await activate(page.getByTestId('save-slot-a'))
     await expect(page.getByTestId('save-message')).toContainText('Saved to Slot A.')
     await expect(page.getByTestId('slot-summary-slot-a')).not.toHaveText('Empty')
@@ -127,8 +162,79 @@ test.describe('Tower Throwback real player journey', () => {
   })
 })
 
+async function openTowerAction(page: Page, name: string, activate: (locator: Locator) => Promise<void>): Promise<void> {
+  const action = page.getByRole('button', { name, exact: true })
+  if (!(await action.isVisible())) await activate(page.getByRole('button', { name: 'More', exact: true }))
+  await activate(action)
+}
+
+async function expectTouchTargets(controls: Locator): Promise<void> {
+  for (const control of await controls.all()) {
+    const bounds = await control.boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds!.width, await control.getAttribute('aria-label') ?? await control.textContent() ?? 'touch target width').toBeGreaterThanOrEqual(44)
+    expect(bounds!.height, 'touch target height').toBeGreaterThanOrEqual(44)
+  }
+}
+
+async function assertCompactPhoneHud(page: Page, activate: (locator: Locator) => Promise<void>): Promise<void> {
+  expect(page.viewportSize()).toEqual({ width: 375, height: 812 })
+  await expect(page.getByTestId('save-health-row')).toHaveCSS('min-height', '26px')
+  const guide = page.getByRole('button', { name: /Getting started/ })
+  await expect(guide).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('button', { name: /^Financials/ })).toHaveCount(0)
+  const exposed = await page.locator('canvas').first().evaluate((canvas) => {
+    let clear = 0
+    let total = 0
+    for (let y = 5; y < window.innerHeight; y += 10) {
+      for (let x = 5; x < window.innerWidth; x += 10) {
+        total += 1
+        if (document.elementFromPoint(x, y) === canvas) clear += 1
+      }
+    }
+    return clear / total
+  })
+  test.info().annotations.push({ type: 'phone-exposed-canvas', description: `${(exposed * 100).toFixed(1)}%` })
+  await page.screenshot({ path: test.info().outputPath('phone-startup.png') })
+  expect(exposed, 'most of the phone viewport must remain exposed canvas').toBeGreaterThan(0.6)
+  await expectTouchTargets(page.getByRole('group', { name: 'Game speed', exact: true }).getByRole('button'))
+  await expectTouchTargets(page.getByRole('group', { name: /Heatmap overlay/ }).getByRole('button'))
+  await expectTouchTargets(page.getByRole('button', { name: /^(Build|More|Getting started.*)$/ }))
+  await expectTouchTargets(page.getByRole('switch', { name: 'Fast mode', exact: true }))
+  for (const speed of [2, 4, 0]) {
+    await activate(page.getByTestId(`speed-${speed}`))
+    await expect(page.getByTestId(`speed-${speed}`)).toHaveAttribute('aria-pressed', 'true')
+  }
+  await activate(page.getByRole('button', { name: 'More', exact: true }))
+  const more = page.getByRole('dialog', { name: 'More', exact: true })
+  await expect(more).toBeVisible()
+  await expect(page.getByTestId('paused-indicator')).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('phone-more.png') })
+  await expectTouchTargets(more.getByRole('button'))
+  await expect(more.getByRole('button', { name: /^(Mute|Unmute) sound$/ })).toBeVisible()
+  const display = more.getByRole('button', { name: 'Display and accessibility settings', exact: true })
+  await expect(display).toHaveText('Display')
+  await activate(display)
+  const settings = more.getByTestId('display-settings-panel')
+  await expect(settings).toBeVisible()
+  await expectTouchTargets(settings.getByRole('button'))
+  await activate(settings.getByTestId('palette-mode-colorSafe'))
+  await expect(settings.getByTestId('palette-mode-colorSafe')).toHaveAttribute('aria-pressed', 'true')
+  await activate(settings.getByTestId('palette-mode-classic'))
+  await activate(display)
+  await expect(more.getByRole('button', { name: 'Keyboard shortcuts', exact: true })).toBeVisible()
+  await activate(more.getByRole('button', { name: 'Close More', exact: true }))
+  await expect(more).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'More', exact: true })).toBeFocused()
+  await page.locator('canvas').first().focus()
+  await page.keyboard.press('f')
+  await expect(more).toBeVisible()
+  await expect(more.getByTestId('table-span-7')).toBeVisible()
+  await activate(more.getByRole('button', { name: 'Close More', exact: true }))
+}
+
 async function assertBuiltStructure(page: Page, activate: (locator: Locator) => Promise<void>): Promise<void> {
-  await activate(page.getByRole('button', { name: 'Inventory' }))
+  await openTowerAction(page, 'Inventory', activate)
   const floorOne = page.getByRole('list', { name: 'Items on 1' })
   await expect(floorOne.getByText('Floor', { exact: true })).toBeVisible()
   await expect(floorOne.getByText('Office (S)', { exact: true })).toBeVisible()
@@ -239,9 +345,72 @@ async function touchPanLeft(touch: CDPSession, canvas: Locator): Promise<void> {
   for (const point of [start, end]) {
     expect(await canvas.evaluate((element, position) => document.elementFromPoint(position.x, position.y) === element, point), 'Pan contacts must reach exposed canvas').toBe(true)
   }
-  await touchAt(touch, start, 'touchStart')
-  await touchAt(touch, end, 'touchMove')
-  await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  // CDP acknowledges a touch command before the compositor necessarily paints
+  // it. Observe the actual native contact and capture lifecycle, then cross a
+  // rendered boundary before another HUD tap can start.
+  const contact = await canvas.evaluateHandle((element) => {
+    const state = { element, pointerId: -1, ended: false, released: false, moved: false }
+    const down = (event: PointerEvent): void => {
+      if (event.pointerType !== 'touch') return
+      state.pointerId = event.pointerId
+      state.ended = false
+      state.released = false
+      state.moved = false
+    }
+    const move = (event: PointerEvent): void => {
+      if (event.pointerId === state.pointerId) state.moved = true
+    }
+    const end = (event: PointerEvent): void => {
+      if (event.pointerId === state.pointerId) state.ended = true
+    }
+    const lost = (event: PointerEvent): void => {
+      if (event.pointerId === state.pointerId) state.released = true
+    }
+    element.addEventListener('pointerdown', down as EventListener)
+    element.addEventListener('pointermove', move as EventListener)
+    element.addEventListener('pointerup', end as EventListener)
+    element.addEventListener('pointercancel', end as EventListener)
+    element.addEventListener('lostpointercapture', lost as EventListener)
+    return {
+      state,
+      cleanup: () => {
+        element.removeEventListener('pointerdown', down as EventListener)
+        element.removeEventListener('pointermove', move as EventListener)
+        element.removeEventListener('pointerup', end as EventListener)
+        element.removeEventListener('pointercancel', end as EventListener)
+        element.removeEventListener('lostpointercapture', lost as EventListener)
+      },
+    }
+  })
+  const renderedBoundary = async (): Promise<void> => {
+    await canvas.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+  }
+  const released = async (): Promise<void> => {
+    await expect.poll(() => contact.evaluate(({ state }) => state.ended && state.released && !state.element.hasPointerCapture(state.pointerId)), {
+      message: 'the native contact ends and releases the canvas pointer capture',
+    }).toBe(true)
+    await renderedBoundary()
+  }
+  try {
+    await touchAt(touch, start, 'touchStart')
+    const before = await readTarget(canvas)
+    await touchAt(touch, end, 'touchMove')
+    await renderedBoundary()
+    expect(await contact.evaluate(({ state }) => state.moved), 'the native pan delivered movement').toBe(true)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await released()
+
+    // A cancelled native probe cannot inspect/build. At the same screen point,
+    // the public ray target must now show the camera's horizontal movement.
+    await touchAt(touch, start, 'touchStart')
+    const after = await readTarget(canvas)
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] })
+    await released()
+    expect(after.x, 'the camera panned horizontally beneath the original contact').not.toBe(before.x)
+  } finally {
+    await contact.evaluate(({ cleanup }) => cleanup())
+    await contact.dispose()
+  }
 }
 
 async function touchTilePoint(touch: CDPSession, canvas: Locator, target: TowerTile): Promise<ScreenPoint> {

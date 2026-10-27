@@ -10,6 +10,7 @@ import { type ReactElement, useState } from 'react'
 
 import { dismissGettingStarted, isGettingStartedDismissed } from '../gameProgress'
 import type { HudSnapshot } from '../gameTypes'
+import { useNarrowHud } from './MoreSheet'
 
 interface GettingStartedProps {
   snapshot: HudSnapshot | null
@@ -55,6 +56,8 @@ export function shouldShowGettingStarted(snapshot: HudSnapshot | null): boolean 
 }
 
 export function GettingStarted({ snapshot }: GettingStartedProps): ReactElement | null {
+  const narrow = useNarrowHud()
+  const [expanded, setExpanded] = useState(false)
   const [dismissed, setDismissed] = useState<boolean>(() => isGettingStartedDismissed())
 
   if (dismissed || !shouldShowGettingStarted(snapshot) || snapshot === null) {
@@ -72,35 +75,53 @@ export function GettingStarted({ snapshot }: GettingStartedProps): ReactElement 
   return (
     <div
       data-testid="getting-started"
-      className="mt-2 w-64 max-w-full rounded-xl bg-slate-950/70 px-3 py-2 text-sm shadow-lg backdrop-blur-sm"
+      className={narrow ? 'relative' : 'mt-2 w-64 max-w-full rounded-xl bg-slate-950/70 px-3 py-2 text-sm shadow-lg backdrop-blur-sm'}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold text-amber-200">Getting started</span>
-          <span className="text-[10px] tabular-nums text-white/50" data-testid="getting-started-count">
-            {completed}/{steps.length}
-          </span>
-        </div>
+      {narrow && (
         <button
           type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss getting started"
-          title="Dismiss"
-          className="rounded p-0.5 text-white/60 hover:bg-white/10 hover:text-white"
+          aria-expanded={expanded}
+          aria-controls="getting-started-steps"
+          onClick={() => setExpanded((visible) => !visible)}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-slate-950/75 px-2 text-xs font-semibold text-amber-200 shadow-lg backdrop-blur-sm"
         >
-          ✕
+          Getting started <span data-testid="getting-started-count">{completed}/{steps.length}</span>
+          <span aria-hidden="true">{expanded ? '▴' : '▾'}</span>
         </button>
-      </div>
-      <ul className="mt-1.5 flex flex-col gap-1">
-        {steps.map((step) => (
-          <li key={step.id} className="flex items-start gap-2" data-testid={`getting-started-step-${step.id}`}>
-            <span aria-hidden="true" className={step.done ? 'text-emerald-400' : 'text-white/30'}>
-              {step.done ? '☑' : '☐'}
-            </span>
-            <span className={step.done ? 'text-white/50 line-through' : 'text-white/85'}>{step.label}</span>
-          </li>
-        ))}
-      </ul>
+      )}
+      {(!narrow || expanded) && (
+        <div id="getting-started-steps" className={narrow ? 'absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-1rem)] rounded-xl bg-slate-950/95 p-3 text-sm shadow-xl' : ''}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-amber-200">Getting started</span>
+              {!narrow && (
+                <span className="text-[10px] tabular-nums text-white/50" data-testid="getting-started-count">
+                  {completed}/{steps.length}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Dismiss getting started"
+              title="Dismiss"
+              className="min-h-11 min-w-11 rounded p-0.5 text-white/60 sm:min-h-0 sm:min-w-0 hover:bg-white/10 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {steps.map((step) => (
+              <li key={step.id} className="flex items-start gap-2" data-testid={`getting-started-step-${step.id}`}>
+                <span aria-hidden="true" className={step.done ? 'text-emerald-400' : 'text-white/30'}>
+                  {step.done ? '☑' : '☐'}
+                </span>
+                <span className={step.done ? 'text-white/50 line-through' : 'text-white/85'}>{step.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

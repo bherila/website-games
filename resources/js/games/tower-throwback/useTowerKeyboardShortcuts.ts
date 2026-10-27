@@ -36,7 +36,7 @@ export interface TowerShortcutBinding {
  */
 export const TOWER_SHORTCUT_BINDINGS: readonly TowerShortcutBinding[] = [
   { keys: 'Space', label: 'Pause / resume', description: 'Toggle between paused and the last running speed' },
-  { keys: '1 / 8 / 6', label: 'Game speed', description: 'Set speed to 1×, 8×, or 16×' },
+  { keys: '1 / 2 / 4 / 8 / 6', label: 'Game speed', description: 'Set speed to 1×, 2×, 4×, 8×, or 16×' },
   { keys: 'B', label: 'Build mode', description: 'Toggle the build palette' },
   { keys: 'F', label: 'Financials', description: 'Open or close the financials panel' },
   { keys: 'O', label: 'Cycle overlay', description: 'Step through noise, congestion, and eval overlays' },
@@ -57,6 +57,10 @@ export function shortcutSpeedForKey(key: string): GameSpeed | null {
   switch (key) {
     case '1':
       return 1
+    case '2':
+      return 2
+    case '4':
+      return 4
     case '8':
       return 8
     case '6':

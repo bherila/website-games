@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { SpeedControls } from '../SpeedControls'
 
 describe('SpeedControls', () => {
-  it('offers only 1×/8×/16× (plus pause) and fires onSetSpeed', () => {
+  it('offers 1×/2×/4×/8×/16× (plus pause) and fires onSetSpeed', () => {
     const onSetSpeed = jest.fn()
     render(
       <SpeedControls speed={8} fastMode={false} fastModeActive={false} onSetSpeed={onSetSpeed} onSetFastMode={jest.fn()} />,
@@ -11,9 +11,10 @@ describe('SpeedControls', () => {
 
     expect(screen.getByTestId('speed-8')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('speed-1')).toHaveAttribute('aria-pressed', 'false')
-    // 2× and 4× were removed from the UI.
-    expect(screen.queryByTestId('speed-2')).toBeNull()
-    expect(screen.queryByTestId('speed-4')).toBeNull()
+    for (const speed of [2, 4]) {
+      fireEvent.click(screen.getByTestId(`speed-${speed}`))
+      expect(onSetSpeed).toHaveBeenLastCalledWith(speed)
+    }
 
     fireEvent.click(screen.getByTestId('speed-0'))
     expect(onSetSpeed).toHaveBeenCalledWith(0)

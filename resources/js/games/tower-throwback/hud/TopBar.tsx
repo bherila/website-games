@@ -38,7 +38,7 @@ export function TopBar({ snapshot }: TopBarProps): ReactElement {
   const starProgress = snapshot.starProgress
   const vipGoal = snapshot.vipGoal
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-xl bg-slate-950/70 px-4 py-2 text-sm shadow-lg backdrop-blur-sm">
+    <div className="grid grid-cols-3 items-center gap-x-2 gap-y-1 rounded-xl bg-slate-950/70 px-3 py-2 text-xs sm:flex sm:flex-wrap sm:gap-4 sm:px-4 sm:text-sm shadow-lg backdrop-blur-sm">
       <div className="flex flex-col">
         <span className="font-bold tabular-nums text-emerald-300" data-testid="funds">
           {currency(snapshot.funds, { precision: 0 }).format()}
@@ -65,7 +65,7 @@ export function TopBar({ snapshot }: TopBarProps): ReactElement {
       </div>
 
       {starProgress && (
-        <div className="flex min-w-40 flex-col gap-1" data-testid="star-progress">
+        <div className="flex min-w-0 flex-col gap-1 sm:min-w-40" data-testid="star-progress">
           <div className="flex items-center justify-between gap-3 text-[11px]">
             <span className="font-bold text-amber-200">Next ★{starProgress.nextStar}</span>
             <span className="tabular-nums text-white/60">

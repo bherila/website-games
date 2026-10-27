@@ -14,7 +14,7 @@ interface CameraControlsProps {
 }
 
 const BUTTON_CLASS =
-  'inline-flex h-8 w-8 items-center justify-center text-sm font-bold text-white/85 transition-colors hover:bg-white/15'
+  'inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center text-sm font-bold text-white/85 transition-colors hover:bg-white/15'
 
 export function CameraControls({ onZoomIn, onZoomOut, onFitTower }: CameraControlsProps): ReactElement {
   return (

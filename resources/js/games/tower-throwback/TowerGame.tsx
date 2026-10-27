@@ -4,7 +4,7 @@
  * path into the engine. The scene steps the sim; components stay
  * presentational and enqueue commands through the callbacks here.
  */
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type MouseEvent, type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { SoundToggle } from '../_shared/audio/SoundToggle'
 import { FullscreenIconButton } from '../_shared/FullscreenButton'
@@ -54,6 +54,7 @@ import { HUD_TOOLBAR_BUTTON, HUD_TOOLBAR_SAVE_BUTTON } from './hud/hudButtonStyl
 import { FireBanner, IncidentBanner } from './hud/IncidentBanner'
 import { InspectPanel, type InspectSelection } from './hud/InspectPanel'
 import { LoanDialog } from './hud/LoanDialog'
+import { MoreSheet, useNarrowHud } from './hud/MoreSheet'
 import { ObservationDeckHint } from './hud/ObservationDeckHint'
 import { type OverlayChoice, OverlayToggles } from './hud/OverlayToggles'
 import { RenderPoolReadout } from './hud/RenderPoolReadout'
@@ -170,6 +171,9 @@ export function saveAndExit(
 }
 
 export function TowerGame(): ReactElement {
+  const narrowHud = useNarrowHud()
+  const [showMore, setShowMore] = useState(false)
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null)
   const visualTestConfig = getVisualTestConfig()
   const visualTestMode = visualTestConfig !== null
   const [engineState, setEngineState] = useState<EngineState | null>(() => {
@@ -629,7 +633,10 @@ export function TowerGame(): ReactElement {
   const setSpeed = useCallback((speed: GameSpeed) => enqueue({ type: 'setSpeed', speed }), [enqueue])
   const setFastMode = useCallback((enabled: boolean) => enqueue({ type: 'setFastMode', enabled }), [enqueue])
   const setDisastersEnabled = useCallback((enabled: boolean) => enqueue({ type: 'setDisastersEnabled', enabled }), [enqueue])
-  const toggleFinancials = useCallback(() => setShowFinancials((v) => !v), [])
+  const toggleFinancials = useCallback(() => {
+    if (narrowHud) setShowMore(true)
+    setShowFinancials((visible) => !visible)
+  }, [narrowHud])
   const toggleToastHistory = useCallback(() => setShowToastHistory((visible) => !visible), [])
   const toggleShortcutHelp = useCallback(() => setShowShortcutHelp((visible) => !visible), [])
   const changeOverlay = useCallback((nextOverlay: OverlayChoice) => {
@@ -651,10 +658,10 @@ export function TowerGame(): ReactElement {
   const zoomOut = useCallback(() => sceneControllerRef.current?.zoomBy(ZOOM_STEP), [])
   const fitTower = useCallback(() => sceneControllerRef.current?.fitTower(), [])
   const restoreSaveLoadFocus = useCallback(() => {
-    const target = saveLoadReturnFocusRef.current ?? saveLoadButtonRef.current
+    const target = saveLoadReturnFocusRef.current ?? (narrowHud ? moreButtonRef.current : saveLoadButtonRef.current)
     saveLoadReturnFocusRef.current = null
     target?.focus()
-  }, [])
+  }, [narrowHud])
   const saveCurrentTowerAndExit = useCallback(() => {
     const state = engineStateRef.current
     if (!state) {
@@ -676,7 +683,14 @@ export function TowerGame(): ReactElement {
     }
   }, [refreshSlots])
 
-  const blockingModalOpen = isBlockingModalOpen({
+  const openSaves = useCallback((event: MouseEvent<HTMLButtonElement>, close: () => void): void => {
+    saveLoadReturnFocusRef.current = narrowHud ? moreButtonRef.current : event.currentTarget
+    close()
+    refreshSlots()
+    setShowSaveLoad(true)
+  }, [narrowHud, refreshSlots])
+
+  const blockingModalOpen = (narrowHud && showMore) || isBlockingModalOpen({
     inventoryOpen: showInventory,
     saveLoadOpen: showSaveLoad,
     shortcutHelpOpen: showShortcutHelp,
@@ -730,6 +744,88 @@ export function TowerGame(): ReactElement {
     ...(engineState.activeFire ? [{ floor: engineState.activeFire.floor, kind: 'fire' as const }] : []),
   ]
 
+  const secondaryActions = (close: () => void): ReactElement => (
+    <>
+      <button
+        type="button"
+        onClick={toggleFinancials}
+        title="Shortcut: F"
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
+      >
+        <span>Financials</span>
+        <kbd className="rounded bg-black/25 px-1 text-[10px]">F</kbd>
+      </button>
+      <button
+        ref={inventoryButtonRef}
+        type="button"
+        onClick={() => { close(); setShowInventory(true) }}
+        className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
+      >
+        Inventory
+      </button>
+      <button
+        ref={saveLoadButtonRef}
+        type="button"
+        onClick={(event) => openSaves(event, close)}
+        className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
+      >
+        Saves
+      </button>
+      <button
+        type="button"
+        onClick={() => { close(); saveCurrentTowerAndExit() }}
+        className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_SAVE_BUTTON}`}
+      >
+        Save &amp; Exit
+      </button>
+      <ToastHistoryButton count={toastHistory.length} open={showToastHistory} onToggle={() => { close(); toggleToastHistory() }} />
+    </>
+  )
+  const displayControl = (
+    <DisplaySettings
+      inline={narrowHud}
+      paletteMode={presentation.diagnosticPalette}
+      motion={presentation.motion}
+      motionReduced={presentation.motionReduced}
+      onSetPaletteMode={presentation.setDiagnosticPalette}
+      onSetMotion={presentation.setMotion}
+    />
+  )
+  const soundAndHelp = (close: () => void): ReactElement => (
+    <>
+      <div className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 shadow ${HUD_TOOLBAR_BUTTON}`}>
+        <SoundToggle muted={muted} onMutedChange={toggleMute} title="Shortcut: M" className="inline-flex h-auto w-auto items-center gap-1.5 rounded-none text-sm hover:opacity-80">
+          <span>{narrowHud ? muted ? 'Unmute' : 'Mute' : muted ? '🔇' : '🔊'}</span>
+          <kbd className="hidden rounded bg-black/25 px-1 text-[10px] sm:inline">M</kbd>
+        </SoundToggle>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={level}
+          onChange={(e) => setLevel(Number.parseFloat(e.target.value))}
+          aria-label="Master volume"
+          title="Master volume"
+          className="h-11 w-16 cursor-pointer sm:h-1 accent-sky-400"
+        />
+      </div>
+      <button
+        type="button"
+        onClick={() => { close(); toggleShortcutHelp() }}
+        aria-label="Keyboard shortcuts"
+        title="Keyboard shortcuts (?)"
+        className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
+      >
+        {narrowHud ? <span>Help</span> : <kbd className="rounded bg-black/25 px-1 text-[10px]">?</kbd>}
+      </button>
+    </>
+  )
+  const closeMore = (): void => {
+    setShowMore(false)
+    setShowFinancials(false)
+  }
+
   return (
     <div className="fixed inset-0 touch-none overflow-hidden bg-slate-950 text-white" data-map-id={engineState.mapId}>
       <div className="absolute inset-0">
@@ -768,11 +864,12 @@ export function TowerGame(): ReactElement {
               <RenderPoolReadout utilization={renderPoolUtilization} metrics={renderMetrics} />
             </div>
             {!visualTestMode && (
-              <div className="mt-2">
+              // On phones, reserve this row before the first save so controls never jump under a finger.
+              <div data-testid="save-health-row" className="mt-2 min-h-[26px] sm:min-h-0">
                 <SaveHealthReadout health={autosave.health} now={saveHealthNow} />
               </div>
             )}
-            {!visualTestMode && <GettingStarted snapshot={snapshot} />}
+            {!visualTestMode && !narrowHud && <GettingStarted snapshot={snapshot} />}
             {!visualTestMode && <ObservationDeckHint snapshot={snapshot} />}
           </div>
           <div className="pointer-events-none flex w-full max-w-full flex-wrap items-start justify-start gap-2 sm:w-auto sm:justify-end [&>*]:pointer-events-auto">
@@ -787,85 +884,30 @@ export function TowerGame(): ReactElement {
               type="button"
               onClick={toggleMode}
               title="Shortcut: B"
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold shadow ${
+              className={`inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold shadow sm:min-h-0 ${
                 mode === 'build' ? 'bg-amber-500 text-black' : HUD_TOOLBAR_BUTTON
               }`}
             >
               <span>{mode === 'build' ? 'Done' : 'Build'}</span>
-              <kbd className="rounded bg-black/25 px-1 text-[10px]">B</kbd>
+              <kbd className="hidden rounded bg-black/25 px-1 text-[10px] sm:inline">B</kbd>
             </button>
-            <button
-              type="button"
-              onClick={toggleFinancials}
-              title="Shortcut: F"
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
-            >
-              <span>Financials</span>
-              <kbd className="rounded bg-black/25 px-1 text-[10px]">F</kbd>
-            </button>
-            <button
-              ref={inventoryButtonRef}
-              type="button"
-              onClick={() => setShowInventory(true)}
-              className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
-            >
-              Inventory
-            </button>
-            <button
-              ref={saveLoadButtonRef}
-              type="button"
-              onClick={(event) => {
-                saveLoadReturnFocusRef.current = event.currentTarget
-                refreshSlots()
-                setShowSaveLoad(true)
-              }}
-              className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
-            >
-              Saves
-            </button>
-            <button
-              type="button"
-              onClick={saveCurrentTowerAndExit}
-              className={`rounded-md px-3 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_SAVE_BUTTON}`}
-            >
-              Save &amp; Exit
-            </button>
-            <ToastHistoryButton count={toastHistory.length} open={showToastHistory} onToggle={toggleToastHistory} />
+            {narrowHud && !visualTestMode && <GettingStarted snapshot={snapshot} />}
+            {narrowHud ? (
+              <button
+                ref={moreButtonRef}
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={showMore}
+                onClick={() => setShowMore(true)}
+                className={`min-h-11 min-w-11 rounded-md px-3 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
+              >
+                More
+              </button>
+            ) : secondaryActions(() => {})}
             <OverlayToggles overlay={overlay} onSetOverlay={changeOverlay} paletteMode={presentation.diagnosticPalette} />
-            <DisplaySettings
-              paletteMode={presentation.diagnosticPalette}
-              motion={presentation.motion}
-              motionReduced={presentation.motionReduced}
-              onSetPaletteMode={presentation.setDiagnosticPalette}
-              onSetMotion={presentation.setMotion}
-            />
+            {!narrowHud && displayControl}
             <FullscreenIconButton className={`rounded-md shadow ${HUD_TOOLBAR_BUTTON}`} iconClassName="size-4" />
-            <div className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 shadow ${HUD_TOOLBAR_BUTTON}`}>
-              <SoundToggle muted={muted} onMutedChange={toggleMute} title="Shortcut: M" className="inline-flex h-auto w-auto items-center gap-1.5 rounded-none text-sm hover:opacity-80">
-                <span>{muted ? '🔇' : '🔊'}</span>
-                <kbd className="rounded bg-black/25 px-1 text-[10px]">M</kbd>
-              </SoundToggle>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={level}
-                onChange={(e) => setLevel(Number.parseFloat(e.target.value))}
-                aria-label="Master volume"
-                title="Master volume"
-                className="h-1 w-16 cursor-pointer accent-sky-400"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={toggleShortcutHelp}
-              aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold shadow ${HUD_TOOLBAR_BUTTON}`}
-            >
-              <kbd className="rounded bg-black/25 px-1 text-[10px]">?</kbd>
-            </button>
+            {!narrowHud && soundAndHelp(() => {})}
           </div>
         </div>
       )}
@@ -883,7 +925,10 @@ export function TowerGame(): ReactElement {
       )}
 
       {mode === 'build' && snapshot && (
-        <div className="absolute left-2 top-16 z-10">
+        <div
+          className="absolute left-2 top-16 z-10 overflow-y-auto sm:overflow-visible"
+          style={narrowHud ? { top: incidentStackTop, maxHeight: `calc(100dvh - ${incidentStackTop + 8}px)` } : undefined}
+        >
           <BuildPalette
             maxStarReached={snapshot.maxStarReached}
             mapId={engineState.mapId}
@@ -990,7 +1035,24 @@ export function TowerGame(): ReactElement {
         </div>
       )}
 
-      {showFinancials && (
+      {narrowHud && showMore && (
+        <MoreSheet onClose={closeMore} onRestoreFocus={() => moreButtonRef.current?.focus()}>
+          {(close) => (
+            <>
+              {secondaryActions(close)}
+              {displayControl}
+              {soundAndHelp(close)}
+              {showFinancials && (
+                <div className="w-full">
+                  <FinancialsPanel ledgerHistory={engineState.ledgerHistory} ledgerToday={engineState.ledgerToday} loans={engineState.loans} />
+                </div>
+              )}
+            </>
+          )}
+        </MoreSheet>
+      )}
+
+      {showFinancials && !narrowHud && (
         <div className="absolute inset-x-4 top-16 z-20 mx-auto max-h-[70vh] max-w-3xl overflow-y-auto">
           <FinancialsPanel
             ledgerHistory={engineState.ledgerHistory}
@@ -1023,7 +1085,7 @@ export function TowerGame(): ReactElement {
           }}
           onViewFloor={goToFloor}
           onFocusInspector={() => requestAnimationFrame(() => inspectorPanelRef.current?.focus())}
-          onRestoreFocus={() => inventoryButtonRef.current?.focus()}
+          onRestoreFocus={() => (narrowHud ? moreButtonRef.current : inventoryButtonRef.current)?.focus()}
         />
       )}
 
