@@ -55,6 +55,8 @@ export interface Plate {
   finish: 'front' | 'back' | 'side' | 'roof' | 'brace' | 'sail' | 'glass' | 'glass-wall' | 'glass-roof' | 'awning' | 'sign'
     | 'wheel' | 'plank' | 'beam' | 'guard' | 'rack' | 'hull' | 'stone' | 'dial' | 'loco' | 'lacquer' | 'weight'
     | 'case' | 'clock' | 'turntable' | 'tin' | 'head' | 'gatehouse'
+    | 'canopy' | 'rounding' | 'horse' | 'mirror' | 'rack-door' | 'wicker' | 'sandbag' | 'banner'
+    | 'proscenium' | 'curtain' | 'backdrop' | 'tent' | 'arch' | 'girder' | 'ferris' | 'gondola'
   color: string
 }
 

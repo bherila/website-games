@@ -6,6 +6,7 @@ import type { Point3 } from './level'
  */
 export type StageId = 'garden' | 'jetty' | 'pier' | 'workbench' | 'quay' | 'sea' | 'toy-track' | 'parlour' | 'platform' | 'lineside' | 'railway'
   | 'dresser' | 'lobby' | 'moat' | 'music-room' | 'toyshop'
+  | 'fairground' | 'balloon-field' | 'showground' | 'parade' | 'midway'
 
 interface Surface {
   kind: 'ground' | 'water'
@@ -151,6 +152,49 @@ export const STAGES: Record<StageId, Stage> = {
     surfaces: [
       { kind: 'ground', top: -1.55, rect: [0, 0, 1.7, 1.3] },
       { kind: 'ground', top: -2.8, circle: [0, 0, 4.2] },
+    ],
+  },
+  // A carousel's eight-sided deck on a fairground lawn.
+  fairground: {
+    target: [0, 0.25, 0],
+    surfaces: [
+      { kind: 'ground', top: -1.4, circle: [0, 0, 1.75] },
+      { kind: 'ground', top: -1.8, circle: [0, 0, 3.0] },
+    ],
+  },
+  // A balloon basket on its floor in a launch field, the envelope high overhead.
+  'balloon-field': {
+    target: [0, 0.55, 0],
+    distance: 1.15,
+    surfaces: [
+      { kind: 'ground', top: -1.5, rect: [0, 0, 1.3, 0.9] },
+      { kind: 'ground', top: -1.6, circle: [0, 0, 3.2] },
+    ],
+  },
+  // A puppet theater on its apron in a showground.
+  showground: {
+    target: [0, 0.3, 0],
+    distance: 1.1,
+    surfaces: [
+      { kind: 'ground', top: -1.5, rect: [0, 0.35, 2.35, 0.95] },
+      { kind: 'ground', top: -1.7, circle: [0, 0, 3.0] },
+    ],
+  },
+  // A Ferris wheel at night on a lawn, its frames on a stone plinth.
+  midway: {
+    target: [0, 0.6, 0],
+    distance: 1.1,
+    surfaces: [
+      { kind: 'ground', top: -1.48, rect: [0, 0, 1.9, 0.6] },
+      { kind: 'ground', top: -1.6, circle: [0, 0, 3.0] },
+    ],
+  },
+  // A float on a parade street: its deck under the arches, the road all round.
+  parade: {
+    target: [0, 0.3, 0],
+    surfaces: [
+      { kind: 'ground', top: -0.9, rect: [0, 0, 1.28, 1.2] },
+      { kind: 'ground', top: -1.6, circle: [0, 0, 3.0] },
     ],
   },
   // A stone pier head with the sea below it on every side.

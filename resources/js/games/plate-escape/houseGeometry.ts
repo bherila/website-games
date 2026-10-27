@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { dialSlotPosition } from './dial'
+import { createBalloonField, createFairground, createMidway, createParade, createShowground, decorateFairPlate } from './fairScenery'
 import { decorateHarborPlate } from './harborDecals'
 import { heldPlates, type Plate, type PuzzleLevel, type Screw } from './level'
 import { createLineside, createParlour, createPlatform, createRailway, createToyTrack, decorateLined } from './railwayScenery'
@@ -369,6 +370,7 @@ function decorateHead(details: THREE.Group, plate: Plate): void {
 export function decoratePlate(plate: Plate, standoff = 0, screws: readonly Screw[] = [], levelId?: number): THREE.Group {
   const details = new THREE.Group()
   decorateHarborPlate(details, plate, levelId)
+  if (decorateFairPlate(details, plate, screws, levelId)) return details
   const [width, height] = plate.size
   const cream = '#fff2d7'
   if (plate.finish === 'wheel') {
@@ -871,6 +873,11 @@ const SCENERY: Record<StageId, (theme?: PuzzleLevel['theme']) => THREE.Group> = 
   moat: createMoat,
   'music-room': createMusicRoom,
   toyshop: createToyshop,
+  fairground: createFairground,
+  'balloon-field': createBalloonField,
+  showground: createShowground,
+  parade: createParade,
+  midway: createMidway,
 }
 
 const plateById = (plates: readonly Plate[], id: string): Plate => plates.find((plate) => plate.id === id)!
