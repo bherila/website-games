@@ -32,7 +32,7 @@ import {
   wheelPanDelta,
   wheelZoomFactor,
 } from './scene/touchGestures'
-import { getVisualTestConfig, markVisualReady } from './visualTestMode'
+import { getVisualTestConfig, markVisualReady, shouldShowRenderCost } from './visualTestMode'
 
 export type OverlayKind = 'noise' | 'congestion' | 'eval' | null
 
@@ -406,6 +406,7 @@ export function TowerScene({
     let visualResizeShown = false
     let lastViewport: CameraViewport | null = null
     const visualTestConfig = getVisualTestConfig()
+    const publishRendererReady = shouldShowRenderCost()
 
     const resize = (): void => {
       const rect = canvas.getBoundingClientRect()
@@ -505,7 +506,7 @@ export function TowerScene({
         lastViewport = viewport
         onViewportChangeRef.current?.(viewport)
       }
-      if (!visualReadyMarked && visualTestConfig !== null) {
+      if (!visualReadyMarked && publishRendererReady) {
         visualReadyFrames = controller.isReady() ? visualReadyFrames + 1 : 0
         if (visualReadyFrames >= 8) {
           visualReadyMarked = true

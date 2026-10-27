@@ -41,7 +41,7 @@ import type {
 } from '../gameTypes'
 import { defaultShaftProgram, GRID_WIDTH, type MapDefinition, TUNING } from '../gameTypes'
 import { EXCAVATION_COST, isItemAvailable, isShaftAvailable, itemDef, shaftDef } from './catalog'
-import { isSlabFamily, nearestShaftStopDistance, rebuildGrid, shaftIdAt, slabAt, slabOwnerAt, unitIdAt } from './grid'
+import { createGridLayers, getSegments, isSlabFamily, nearestShaftStopDistance, rebuildGrid, shaftIdAt, slabAt, slabOwnerAt, unitIdAt } from './grid'
 import {
   cantileverFacing,
   endgamePlacementFloors,
@@ -342,6 +342,11 @@ function validateItemPlacement(state: EngineState, cmd: PlaceCommand): Placement
     return err(overlapReason)
   }
 
+  const landingReason = validateAddedFloorLandings(state, cmd, fp)
+  if (landingReason) {
+    return err(landingReason)
+  }
+
   if (cmd.kind === 'hotelReception' || cmd.kind === map.endgameItem) {
     let nearest = Infinity
     for (let x = fp.xLo; x <= fp.xHi; x++) {
@@ -373,29 +378,23 @@ function itemCost(state: EngineState, cmd: PlaceCommand, fp: Footprint): number 
 
 // ── Shaft placement ───────────────────────────────────────────────────────────
 
-function shaftColumnsSlabbed(state: EngineState, x: number, width: number, floor: number): boolean {
-  for (let c = x; c < x + width; c++) {
-    if (!slabAt(state, floor, c)) {
+function landingIsSupported(shaft: Pick<Shaft, 'kind' | 'x'>, floor: number, covered: (floor: number, x: number) => boolean): boolean {
+  const width = shaftDef(shaft.kind).width
+  if (shaft.kind === 'glass') {
+    return covered(floor, shaft.x - 1) || covered(floor, shaft.x + width)
+  }
+  for (let x = shaft.x; x < shaft.x + width; x++) {
+    if (!covered(floor, x)) {
       return false
     }
   }
   return true
 }
 
-function glassFloorReachable(state: EngineState, x: number, width: number, floor: number): boolean {
-  return slabAt(state, floor, x - 1) || slabAt(state, floor, x + width)
-}
-
 function computeShaftStops(state: EngineState, cmd: PlaceShaftCommand): number[] {
-  const width = shaftDef(cmd.kind).width
-  const landing = (floor: number): boolean =>
-    cmd.kind === 'glass'
-      ? glassFloorReachable(state, cmd.x, width, floor)
-      : shaftColumnsSlabbed(state, cmd.x, width, floor)
-
   const slabbed: number[] = []
   for (let floor = cmd.bottomFloor; floor <= cmd.topFloor; floor++) {
-    if (landing(floor)) {
+    if (landingIsSupported(cmd, floor, (level, x) => slabAt(state, level, x))) {
       slabbed.push(floor)
     }
   }
@@ -404,14 +403,38 @@ function computeShaftStops(state: EngineState, cmd: PlaceShaftCommand): number[]
     return slabbed
   }
 
+  const segments = getSegments(state)
   const skylobbyFloors = state.units
-    .filter((u) => u.kind === 'skylobby' && u.floor >= cmd.bottomFloor && u.floor <= cmd.topFloor)
+    .filter((u) => {
+      if (u.kind !== 'skylobby' || u.floor < cmd.bottomFloor || u.floor > cmd.topFloor) return false
+      const segment = segments.get(u.floor)?.find((run) => cmd.x >= run.x0 && cmd.x <= run.x1)
+      return segment !== undefined && u.x >= segment.x0 && u.x <= segment.x1
+    })
     .map((u) => u.floor)
   const candidates = new Set<number>([cmd.bottomFloor, cmd.topFloor, ...skylobbyFloors])
   const slabbedSet = new Set(slabbed)
-  const stops = [...candidates].filter((f) => slabbedSet.has(f)).sort((a, b) => a - b)
-  const maxStops = shaftDef('express').maxStops ?? stops.length
-  return stops.slice(0, maxStops)
+  return [...candidates].filter((f) => slabbedSet.has(f)).sort((a, b) => a - b)
+}
+
+/** A later floor, skylobby or bridge must not silently overflow an existing express shaft. */
+function validateAddedFloorLandings(state: EngineState, cmd: PlaceCommand, fp: Footprint): string | null {
+  if (!isSlabFamily(cmd.kind)) return null
+  const affected = state.shafts.filter((shaft) => shaft.kind === 'express' && cmd.floor >= shaft.bottomFloor && cmd.floor <= shaft.topFloor)
+  if (affected.length === 0) return null
+
+  // Rebuild a private grid so the prediction uses the same maximal floor runs
+  // as routing and actual stop refresh, including a bridge joining two runs.
+  const projected: EngineState = { ...state, units: [...state.units, newUnit(state.nextId, cmd, fp, getMap(state.mapId))], grid: createGridLayers() }
+  rebuildGrid(projected)
+  for (const shaft of affected) {
+    const def = shaftDef(shaft.kind)
+    const required = computeShaftStops(projected, { type: 'placeShaft', kind: shaft.kind, x: shaft.x, bottomFloor: shaft.bottomFloor, topFloor: shaft.topFloor })
+    // Refresh preserves existing physical stops, including those in an older
+    // save; validate the same union it will apply rather than just new stops.
+    const stops = new Set([...shaft.stops, ...required])
+    if (def.maxStops !== undefined && stops.size > def.maxStops) return `${def.name} can serve at most ${def.maxStops} stops`
+  }
+  return null
 }
 
 function validateShaftPlacement(state: EngineState, cmd: PlaceShaftCommand, ignoreShaftId?: number): PlacementResult {
@@ -657,15 +680,11 @@ function addLandingsGainedBySlab(state: EngineState, lowFloor: number, highFloor
       bottomFloor: shaft.bottomFloor,
       topFloor: shaft.topFloor,
     })
-    const maxStops = shaftDef(shaft.kind).maxStops
     const stops = new Set(shaft.stops)
     const enabled = new Set(shaft.enabledStops)
     for (const floor of derived) {
       if (stops.has(floor)) {
         continue
-      }
-      if (maxStops !== undefined && stops.size >= maxStops) {
-        break
       }
       stops.add(floor)
       enabled.add(floor)
@@ -720,6 +739,14 @@ function slabHasDependents(state: EngineState, unit: Unit): boolean {
   return false
 }
 
+function slabSupportsLanding(state: EngineState, unit: Unit): boolean {
+  const afterRemoval = (floor: number, x: number): boolean =>
+    slabAt(state, floor, x) && !(floor === unit.floor && x >= unit.x && x < unit.x + unit.width)
+  return state.shafts.some((shaft) => shaft.stops.includes(unit.floor)
+    && landingIsSupported(shaft, unit.floor, (floor, x) => slabAt(state, floor, x))
+    && !landingIsSupported(shaft, unit.floor, afterRemoval))
+}
+
 export function validateDemolish(state: EngineState, cmd: DemolishCommand): PlacementResult {
   if (cmd.type === 'demolishUnit') {
     const unit = state.units.find((u) => u.id === cmd.unitId)
@@ -731,6 +758,9 @@ export function validateDemolish(state: EngineState, cmd: DemolishCommand): Plac
     }
     if (isSlabFamily(unit.kind) && slabHasDependents(state, unit)) {
       return err('Cannot demolish a floor that supports another')
+    }
+    if (isSlabFamily(unit.kind) && slabSupportsLanding(state, unit)) {
+      return err('Shorten the elevator first')
     }
     return ok(refundOf(unitBuildCost(state, unit.kind, unit.floor, unit.width)))
   }

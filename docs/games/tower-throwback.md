@@ -283,6 +283,10 @@ low rent ×1.5 · avg ×1.0 · high ×0.7.
 - **Stop controls**: enabled landings show their shared floor number on the shaft. A plain shaft
   click toggles that landing and still selects the shaft; disabled candidate landings keep a dim
   plate without a number.
+- **Express landings**: serve the supported bottom and top floors plus skylobbies on the shaft's
+  own floor segment. A skylobby across an unbridged gap does not count. All required landings are
+  retained; placing or resizing a shaft, or adding a floor/skylobby/bridge, is rejected when it
+  would require more than five stops rather than silently losing the top landing.
 - **Queue presentation**: up to 20 waiting people line up from the shaft door toward the side with
   more floor space, above room and occupancy-bar art; longer queues add an overflow badge. Slot
   gliding is presentation-only and never changes engine order or timing.
@@ -298,6 +302,10 @@ low rent ×1.5 · avg ×1.0 · high ×0.7.
   floor (or skylobby) laid through a shaft's span — or beside a glass elevator — adds that landing,
   enabled, as if the shaft had been placed over the finished floor; an express shaft keeps its
   5-stop cap and existing disabled landings stay disabled.
+- **Landing support**: a floor supporting an elevator landing cannot be demolished, even if that
+  stop is disabled; shorten the elevator first. A glass landing keeps working while either
+  neighboring side still supplies floor support. An express crossing with no landing does not
+  create a support dependency.
 - **Determinism**: shafts iterate by ascending id, cars by index, queues FIFO; elevator logic
   consumes NO rng. Defaults are sensible so casual players can ignore programming entirely.
 
@@ -496,6 +504,11 @@ Regression` repeats this coverage weekly. The manually dispatched
 `pnpm run test:e2e:tower-throwback` and uploads only short-lived test artifacts.
 Slow Jest soak tests run separately through `pnpm run test:slow` when
 `JEST_INCLUDE_SLOW_TESTS=1`.
+
+The draw-call gate retains the small endgame scene and also resumes the committed 1,417-unit
+morning-rush save at day and night. It verifies the restored unit count through Inventory and
+waits for real renderer telemetry before enforcing the same 128-call ceiling, so a failed load
+cannot pass as a small tower. The compressed save stays in test fixtures, outside the game bundle.
 
 ## As-built deviations
 

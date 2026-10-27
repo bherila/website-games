@@ -213,10 +213,10 @@ export function TowerGame(): ReactElement {
     }
     // Expose the GPU draw-call count so the Playwright draw-call budget spec can
     // assert against the real renderer, not scraped HUD text.
-    if (visualTestMode && typeof window !== 'undefined') {
+    if (showRenderCost && typeof window !== 'undefined') {
       window.__TOWER_DRAW_CALLS__ = metrics.drawCalls
     }
-  }, [showRenderCost, visualTestMode])
+  }, [showRenderCost])
   const [showFinancials, setShowFinancials] = useState(false)
   const [showInventory, setShowInventory] = useState(false)
   const [showSaveLoad, setShowSaveLoad] = useState(visualTestConfig?.surface === 'disasters')

@@ -43,7 +43,7 @@ describe('shaft vs unit layer', () => {
 })
 
 describe('express default stops', () => {
-  it('caps seeded stops at 5 (bottom + top + skylobbies)', () => {
+  it('rejects more than 5 stops rather than losing an endpoint', () => {
     const state = makeTestState()
     for (let f = 0; f <= 4; f++) {
       placeSlabRow(state, f, 40, 60)
@@ -54,11 +54,8 @@ describe('express default stops', () => {
     place(state, 'skylobby', 8, 40, 12)
     placeSlabRow(state, 9, 40, 51)
 
-    const id = placeShaft(state, 'express', 42, 0, 9)
-    const shaft = state.shafts.find((s) => s.id === id)!
-    // Candidates {0,9,5,6,7,8} → 6 distinct, capped to 5.
-    expect(shaft.stops).toHaveLength(5)
-    expect(shaft.enabledStops.length).toBeLessThanOrEqual(5)
+    // Both endpoints and all four same-segment skylobbies need six stops.
+    expect(reason(state, { type: 'placeShaft', kind: 'express', x: 42, bottomFloor: 0, topFloor: 9 })).toBe('Express Elevator can serve at most 5 stops')
   })
 })
 

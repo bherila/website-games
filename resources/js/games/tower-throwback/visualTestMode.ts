@@ -12,7 +12,7 @@ import type { ToastHistoryItem } from './hud/ToastHistoryDrawer'
 declare global {
   interface Window {
     __TOWER_VISUAL_READY__?: boolean
-    /** Latest GPU draw-call count (renderer.info.render.calls), published in visual-test mode. */
+    /** Latest GPU draw-call count, published only for visual tests or explicit renderStats. */
     __TOWER_DRAW_CALLS__?: number
   }
 }

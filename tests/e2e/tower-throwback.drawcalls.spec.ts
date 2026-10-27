@@ -1,4 +1,9 @@
+import { readFileSync } from 'node:fs'
+import { gunzipSync } from 'node:zlib'
+
 import { expect, type Page, test } from '@playwright/test'
+
+import { SANDBOX_STORAGE_KEY } from '../../resources/js/games/tower-throwback/gameTypes'
 
 declare global {
   interface Window {
@@ -8,7 +13,7 @@ declare global {
 }
 
 /**
- * GPU draw-call budget for Tower Throwback's endgame scene (#1620 item 9).
+ * GPU draw-call budget for small endgame and large saved towers.
  *
  * Before atlas-quad batching the endgame drew ~1,053 calls (97% one-mesh-per-unit
  * atlas quads). Batching each z-layer into a single merged BufferGeometry collapses
@@ -17,6 +22,13 @@ declare global {
  */
 const DRAW_CALL_TARGET = 64
 const DRAW_CALL_CEILING = 128
+
+/** Reuse the reviewed 1,417-unit rush-hour tower without shipping test data to players. */
+const largeTower = JSON.parse(gunzipSync(readFileSync(new URL('../../resources/js/games/tower-throwback/__tests__/fixtures/big-bot-tower.v2.json.gz', import.meta.url))).toString('utf8')) as {
+  units: unknown[]
+  clock: { day: number; minute: number }
+  speed: number
+}
 
 async function measureDrawCalls(page: Page): Promise<number> {
   await page.waitForFunction(() => window.__TOWER_VISUAL_READY__ === true, undefined, { timeout: 30_000 })
@@ -38,8 +50,41 @@ test.describe('Tower Throwback draw-call budget', () => {
       await expect(page.locator('canvas').first()).toBeVisible()
 
       const drawCalls = await measureDrawCalls(page)
-      // eslint-disable-next-line no-console
+
       console.log(`[draw-call budget] endgame ${time}: ${drawCalls} calls (target ${DRAW_CALL_TARGET}, ceiling ${DRAW_CALL_CEILING})`)
+      expect(drawCalls).toBeGreaterThan(0)
+      expect(drawCalls).toBeLessThanOrEqual(DRAW_CALL_CEILING)
+    })
+
+    test(`a large saved tower stays within the draw-call budget at ${time}`, async ({ page }) => {
+      expect(largeTower.units.length).toBeGreaterThanOrEqual(1_400)
+      expect(largeTower.units.length).toBeLessThanOrEqual(1_500)
+      await page.addInitScript(({ key, saved }) => {
+        localStorage.setItem(key, saved)
+      }, {
+        key: SANDBOX_STORAGE_KEY,
+        saved: JSON.stringify({ ...largeTower, speed: 0, clock: { ...largeTower.clock, minute: time === 'day' ? 720 : 60 } }),
+      })
+      await page.goto('/tower-throwback?renderStats=1')
+      await page.getByTestId('resume-autosave').click()
+      await expect(page.locator('canvas').first()).toBeVisible()
+      await expect(page.getByTestId('speed-0')).toHaveAttribute('aria-pressed', 'true')
+
+      // Check the restored scene, not just the source JSON: a failed import or
+      // a fallback starter must never satisfy the large-tower budget check.
+      const inventory = page.getByRole('button', { name: 'Inventory', exact: true })
+      if (!await inventory.isVisible()) await page.getByRole('button', { name: 'More', exact: true }).click()
+      await inventory.click()
+      await expect(page.getByRole('dialog', { name: 'Tower inventory' })).toContainText(`${largeTower.units.length.toLocaleString()} units`)
+      await page.getByRole('button', { name: 'Close tower inventory', exact: true }).click()
+      await page.getByTestId('zoom-fit').click()
+      await page.waitForFunction(() => window.__TOWER_VISUAL_READY__ === true, undefined, { timeout: 30_000 })
+      // Discard the initial camera/atlas sample. The next real telemetry
+      // callback measures the fitted, fully loaded tower, not a partial view.
+      await page.evaluate(() => { delete window.__TOWER_DRAW_CALLS__ })
+      const drawCalls = await measureDrawCalls(page)
+
+      console.log(`[draw-call budget] ${largeTower.units.length} units ${time}: ${drawCalls} calls (ceiling ${DRAW_CALL_CEILING})`)
       expect(drawCalls).toBeGreaterThan(0)
       expect(drawCalls).toBeLessThanOrEqual(DRAW_CALL_CEILING)
     })
