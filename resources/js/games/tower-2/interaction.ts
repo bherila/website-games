@@ -147,3 +147,14 @@ export function toolAction(building: Building, tool: ToolId, floor: number, hove
 function roomPreview(use: UseKind, floor: number, x: number, y: number, facing: Facing, check: ReturnType<Building['checkRoom']>): Preview {
   return { kind: 'room', floor, x, y, width: check.width, depth: check.depth, use, facing, valid: check.ok, door: check.door?.tile ?? null, storefront: check.door?.storefront ?? false }
 }
+
+/**
+ * The floors the stepper offers, top first: every built floor, the street
+ * floor, the active floor, and one empty floor above and below them, within
+ * the site's limits. Stepping onto an empty edge floor is how a floor is added.
+ */
+export function stepperFloors(built: readonly number[], activeFloor: number, lowest: number, highest: number): number[] {
+  const low = Math.max(lowest, Math.min(built[0] ?? 0, activeFloor, 0) - 1)
+  const high = Math.min(highest, Math.max(built.at(-1) ?? 0, activeFloor, 0) + 1)
+  return Array.from({ length: high - low + 1 }, (_, i) => high - i)
+}

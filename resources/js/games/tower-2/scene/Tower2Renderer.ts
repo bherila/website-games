@@ -48,6 +48,15 @@ interface FloorLayer {
   glass: THREE.Mesh | null
 }
 
+/**
+ * The lot's look for the active floor. Below ground it fades so the basement
+ * shows, and stops writing depth so the grid, overlays and previews drawn
+ * after it still pass the depth test underneath.
+ */
+export function lotLook(activeFloor: number, exterior: boolean): { opacity: number, depthWrite: boolean } {
+  return !exterior && activeFloor < 0 ? { opacity: 0.07, depthWrite: false } : { opacity: 1, depthWrite: true }
+}
+
 export class Tower2Renderer {
   readonly renderer: THREE.WebGLRenderer
   readonly camera = new THREE.OrthographicCamera()
@@ -67,11 +76,12 @@ export class Tower2Renderer {
   private overlayKey = ''
   private previewKey = ''
   private guideKey = ''
-  private gridFloor = -1
+  private gridFloor: number | null = null
   private rotation: QuarterTurn = 0
   private readonly scratch = new THREE.Object3D()
   private readonly scratchColor = new THREE.Color()
   private readonly dusk = new THREE.Color(0x1b1446)
+  private readonly lotMaterials: THREE.MeshBasicMaterial[] = []
 
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
@@ -126,13 +136,18 @@ export class Tower2Renderer {
     const { width, depth } = this.site
     const group = new THREE.Group()
     const y = -SLAB_THICKNESS - 0.02
-    const lot = new THREE.Mesh(new THREE.PlaneGeometry(width + 4, depth + 4), new THREE.MeshBasicMaterial({ color: PALETTE.lot }))
+    const material = (color: number) => {
+      const made = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 })
+      this.lotMaterials.push(made)
+      return made
+    }
+    const lot = new THREE.Mesh(new THREE.PlaneGeometry(width + 4, depth + 4), material(PALETTE.lot))
     lot.rotation.x = -Math.PI / 2
     lot.position.set(width / 2, y, depth / 2)
-    const street = new THREE.Mesh(new THREE.PlaneGeometry(width + 24, 4), new THREE.MeshBasicMaterial({ color: 0x15112f }))
+    const street = new THREE.Mesh(new THREE.PlaneGeometry(width + 24, 4), material(0x15112f))
     street.rotation.x = -Math.PI / 2
     street.position.set(width / 2, y - 0.01, depth + 4)
-    const kerb = new THREE.Mesh(new THREE.PlaneGeometry(width + 24, 0.3), new THREE.MeshBasicMaterial({ color: 0xffd23f }))
+    const kerb = new THREE.Mesh(new THREE.PlaneGeometry(width + 24, 0.3), material(0xffd23f))
     kerb.rotation.x = -Math.PI / 2
     kerb.position.set(width / 2, y + 0.005, depth + 2.15)
     group.add(lot, street, kerb)
@@ -155,7 +170,7 @@ export class Tower2Renderer {
       layer.glass?.geometry.dispose()
     }
     this.floors = []
-    for (let floor = 0; floor < inputs.building.floorCount; floor++) {
+    for (const floor of inputs.building.builtFloors()) {
       const visibility = this.visibility(inputs, floor)
       if (visibility === 'hidden') continue
       const active = floor === inputs.activeFloor && !inputs.exterior
@@ -289,9 +304,16 @@ export class Tower2Renderer {
   }
 
   private syncGrid(inputs: SceneInputs): void {
-    const floor = inputs.exterior ? -1 : inputs.activeFloor
-    this.grid.visible = floor >= 0
-    if (floor < 0 || floor === this.gridFloor) return
+    const floor = inputs.exterior ? null : inputs.activeFloor
+    this.grid.visible = floor !== null
+    const look = lotLook(inputs.activeFloor, inputs.exterior)
+    if (this.lotMaterials[0]!.opacity !== look.opacity) {
+      for (const material of this.lotMaterials) {
+        material.opacity = look.opacity
+        material.depthWrite = look.depthWrite
+      }
+    }
+    if (floor === null || floor === this.gridFloor) return
     this.gridFloor = floor
     this.grid.geometry.dispose()
     this.grid.geometry = buildGridGeometry(this.site.width, this.site.depth, floor)

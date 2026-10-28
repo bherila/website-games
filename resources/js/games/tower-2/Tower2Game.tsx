@@ -11,9 +11,9 @@ import {
 import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { hexColor } from '../_shared/three/threeUtils'
-import { type Building as BuildingModel, type EditResult, type Facing, FLOOR_COUNT, nextFacing } from './engine/building'
+import { type Building as BuildingModel, type EditResult, type Facing, floorLabel, nextFacing } from './engine/building'
 import { USES } from './engine/uses'
-import { isUseTool, nextTurn, type ToolId, TOOLS } from './interaction'
+import { isUseTool, nextTurn, stepperFloors, type ToolId, TOOLS } from './interaction'
 import type { OverlayKind } from './scene/Tower2Renderer'
 import { type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
 import { TUTORIAL, tutorialProgress } from './tutorial'
@@ -62,7 +62,7 @@ const ICON_BUTTON = `${ICON_BUTTON_BASE} text-white/90 hover:bg-white/15`
 const ICON_BUTTON_ON = `${ICON_BUTTON_BASE} bg-white text-slate-950`
 
 function floorName(floor: number): string {
-  return floor === 0 ? 'Street floor' : `Floor ${floor}`
+  return floor === 0 ? 'Street floor' : floor < 0 ? `Basement B${-floor}` : `Floor ${floor}`
 }
 
 function Stars({ count }: { count: number }): ReactElement {
@@ -129,12 +129,7 @@ export function Tower2Game(): ReactElement {
     const ratings = building.allRooms().map((room) => ({ room, rating: analysis.rate(room) }))
     const unreachable = ratings.filter(({ rating }) => !rating.reachable).length
     const meanStars = ratings.length ? ratings.reduce((sum, { rating }) => sum + rating.stars, 0) / ratings.length : 0
-    const floors = Array.from({ length: FLOOR_COUNT }, (_, floor) => ({
-      area: building.plateArea(floor),
-      overhang: building.overhangCount(floor),
-      rooms: building.roomsOn(floor).length,
-    }))
-    return { ratings, unreachable, meanStars, floors, hasEntrance: building.entrance() !== null }
+    return { ratings, unreachable, meanStars, built: building.builtFloors(), hasEntrance: building.entrance() !== null }
   }, [world])
 
   const selected = useMemo(() => {
@@ -170,9 +165,13 @@ export function Tower2Game(): ReactElement {
     else setFacing((value) => nextFacing(value))
   }, [selected, turnSelected])
 
+  const { floors, topOffered, bottomOffered } = useMemo(() => {
+    const offered = stepperFloors(summary.built, activeFloor, world.building.lowestFloor, world.building.highestFloor)
+    return { floors: offered, topOffered: offered[0]!, bottomOffered: offered.at(-1)! }
+  }, [summary, activeFloor, world])
   const stepFloor = useCallback((delta: number) => {
-    setActiveFloor((floor) => Math.min(FLOOR_COUNT - 1, Math.max(0, floor + delta)))
-  }, [])
+    setActiveFloor((floor) => Math.min(topOffered, Math.max(bottomOffered, floor + delta)))
+  }, [topOffered, bottomOffered])
 
   const inherit = useCallback(() => {
     const result = apply((building) => building.inheritFloorBelow(activeFloor))
@@ -250,7 +249,12 @@ export function Tower2Game(): ReactElement {
     if (framings > 0) controlsRef.current?.frame()
   }, [framings])
 
-  const floorStats = summary.floors[activeFloor]!
+  const floorStats = {
+    area: world.building.plateArea(activeFloor),
+    overhang: world.building.overhangCount(activeFloor),
+    rooms: world.building.roomsOn(activeFloor).length,
+  }
+  const built = new Set(summary.built)
   const currentTool = TOOLS.find((candidate) => candidate.id === tool)!
 
   return (
@@ -366,24 +370,31 @@ export function Tower2Game(): ReactElement {
       </nav>
 
       {/* Floors */}
-      <nav aria-label="Floors" className={`${PANEL} absolute right-2 top-1/2 flex -translate-y-1/2 flex-col items-center gap-0.5 p-1 sm:right-3`}>
-        <button type="button" aria-label="Floor up (Page Up)" title="Floor up (Page Up)" className={ICON_BUTTON} disabled={activeFloor >= FLOOR_COUNT - 1} onClick={() => stepFloor(1)}><ChevronUp size={18} aria-hidden="true" /></button>
-        {Array.from({ length: FLOOR_COUNT }, (_, i) => FLOOR_COUNT - 1 - i).map((floor) => (
-          <button
-            key={floor}
-            type="button"
-            aria-pressed={floor === activeFloor}
-            aria-label={`${floorName(floor)}${summary.floors[floor]!.area > 0 ? '' : ', empty'}`}
-            onClick={() => setActiveFloor(floor)}
-            className={`relative grid h-9 w-10 place-items-center rounded-lg text-sm font-bold tabular-nums ${floor === activeFloor ? 'bg-white text-slate-950' : 'text-white/80 hover:bg-white/10'}`}
-          >
-            {floor === 0 ? 'G' : floor}
-            {summary.floors[floor]!.area > 0 && <span aria-hidden="true" className={`absolute right-1 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${floor === activeFloor ? 'bg-fuchsia-500' : 'bg-cyan-300/80'}`} />}
-          </button>
-        ))}
-        <button type="button" aria-label="Floor down (Page Down)" title="Floor down (Page Down)" className={ICON_BUTTON} disabled={activeFloor <= 0} onClick={() => stepFloor(-1)}><ChevronDown size={18} aria-hidden="true" /></button>
-        <div className="my-0.5 h-px w-8 bg-white/15" />
-        <button type="button" aria-label="Copy the floor below's outline (I)" title="Copy the floor below's outline (I)" className={ICON_BUTTON} disabled={activeFloor === 0} onClick={inherit}><Copy size={18} aria-hidden="true" /></button>
+      <nav aria-label="Floors" className={`${PANEL} absolute right-2 top-1/2 flex max-h-[calc(100vh-14rem)] -translate-y-1/2 flex-col items-center gap-0.5 p-1 sm:right-3`}>
+        <button type="button" aria-label="Floor up (Page Up)" title="Floor up (Page Up)" className={ICON_BUTTON} disabled={activeFloor >= topOffered} onClick={() => stepFloor(1)}><ChevronUp size={18} aria-hidden="true" /></button>
+        {/* Built floors, plus one empty floor above and below to build on; the list scrolls when tall. */}
+        <div className="flex min-h-0 flex-col items-center gap-0.5 overflow-y-auto">
+          {floors.map((floor) => {
+            const empty = !built.has(floor)
+            return (
+              <button
+                key={floor}
+                type="button"
+                aria-pressed={floor === activeFloor}
+                aria-label={`${floorName(floor)}${empty ? ', empty: paint or copy a floor here to add it' : ''}`}
+                title={empty ? `${floorName(floor)}: empty. Paint or copy a floor here to add it.` : floorName(floor)}
+                onClick={() => setActiveFloor(floor)}
+                className={`relative grid h-9 w-10 shrink-0 place-items-center rounded-lg text-sm font-bold tabular-nums ${floor === activeFloor ? 'bg-white text-slate-950' : empty ? 'text-white/45 outline-1 -outline-offset-4 outline-dashed outline-white/25 hover:bg-white/10' : 'text-white/80 hover:bg-white/10'}`}
+              >
+                {floorLabel(floor)}
+                {!empty && <span aria-hidden="true" className={`absolute right-1 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full ${floor === activeFloor ? 'bg-fuchsia-500' : 'bg-cyan-300/80'}`} />}
+              </button>
+            )
+          })}
+        </div>
+        <button type="button" aria-label="Floor down (Page Down)" title="Floor down (Page Down)" className={ICON_BUTTON} disabled={activeFloor <= bottomOffered} onClick={() => stepFloor(-1)}><ChevronDown size={18} aria-hidden="true" /></button>
+        <div className="my-0.5 h-px w-8 shrink-0 bg-white/15" />
+        <button type="button" aria-label="Copy the floor below's outline (I)" title="Copy the floor below's outline (I)" className={ICON_BUTTON} disabled={activeFloor <= world.building.lowestFloor || !built.has(activeFloor - 1)} onClick={inherit}><Copy size={18} aria-hidden="true" /></button>
       </nav>
 
       {/* Stats */}
@@ -453,7 +464,7 @@ export function Tower2Game(): ReactElement {
                     <span className="text-white/70">{end === 'top' ? 'Top floor' : 'Bottom floor'}</span>
                     <span className="flex items-center gap-1">
                       <button type="button" aria-label={`Lower the ${end}`} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/15" onClick={() => resize(-1)}><ChevronDown size={16} aria-hidden="true" /></button>
-                      <span className="w-6 text-center font-bold tabular-nums">{value === 0 ? 'G' : value}</span>
+                      <span className="w-6 text-center font-bold tabular-nums">{floorLabel(value)}</span>
                       <button type="button" aria-label={`Raise the ${end}`} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/15" onClick={() => resize(1)}><ChevronUp size={16} aria-hidden="true" /></button>
                     </span>
                   </div>

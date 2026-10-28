@@ -187,4 +187,19 @@ test.describe('Tower 2 prototype', () => {
     await expect(page.getByTestId('tower2-room-count')).toHaveText('0')
     await expect(page.getByRole('region', { name: 'Tutorial' })).toHaveCount(0)
   })
+
+  test('adds a floor on top and a basement below from the floor stepper', async ({ page }) => {
+    await open(page)
+    // The example block has floors G and 1; the stepper offers an empty 2 above and B1 below.
+    await expect(page.getByRole('button', { name: /^Floor 2, empty/ })).toBeVisible()
+    await press(page, /^Floor 2, empty/)
+    await press(page, /Copy the floor below/)
+    await expect(page.getByTestId('tower2-floor-area')).toHaveText('1,728 m²')
+    await expect(page.getByRole('button', { name: /^Floor 3, empty/ })).toBeVisible()
+    await press(page, /^Basement B1, empty/)
+    await press(page, /^Floor \(2\)/)
+    await drag(page, -1, [12, 28], [27, 39])
+    await expect(page.getByTestId('tower2-floor-area')).toHaveText('1,728 m²')
+    await expect(page.getByRole('button', { name: /^Basement B2, empty/ })).toBeVisible()
+  })
 })
