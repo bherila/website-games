@@ -12,6 +12,7 @@ import type { Building, EditResult } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
 import { Crowd } from './engine/people'
 import { isRectTool, toolAction,type ToolId } from './interaction'
+import { type FrameClock, pixelRatioFor, shouldRender } from './scene/framePacing'
 import { followFloor, frameRect, type IsoView, panView, projectionFor, rotateView, type Viewport, zoomViewAt } from './scene/isoCamera'
 import { type OverlayKind, type Preview, Tower2Renderer } from './scene/Tower2Renderer'
 
@@ -59,6 +60,8 @@ declare global {
       tileToClient(floor: number, x: number, y: number): { x: number, y: number }
       drawCalls(): number
       visitors(): number
+      /** Frames rendered since the scene mounted. */
+      frames(): number
     }
   }
 }
@@ -95,16 +98,22 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
   const viewRef = useRef<IsoView | null>(null)
   const viewportRef = useRef<Viewport>({ width: 1, height: 1 })
   const floorRef = useRef(props.activeFloor)
+  // Shared with the imperative controls so a button press renders at full rate too.
+  const clockRef = useRef<FrameClock>({ lastRenderAt: 0, lastInputAt: 0 })
+  const markInput = () => { clockRef.current.lastInputAt = performance.now() }
 
   useImperativeHandle(props.controlsRef, () => ({
     rotate(turns) {
+      markInput()
       if (viewRef.current) viewRef.current = rotateView(viewRef.current, turns, viewportRef.current, propsRef.current.activeFloor)
     },
     zoom(factor) {
+      markInput()
       const viewport = viewportRef.current
       if (viewRef.current) viewRef.current = zoomViewAt(viewRef.current, factor, { x: viewport.width / 2, y: viewport.height / 2 }, propsRef.current.activeFloor)
     },
     frame() {
+      markInput()
       viewRef.current = frameRect(viewportRef.current, plateBounds(propsRef.current.world.building), 0, viewRef.current?.rotation ?? 0)
     },
   }), [])
@@ -140,7 +149,8 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       const rect = host.getBoundingClientRect()
       const viewport = { width: Math.max(1, Math.floor(rect.width)), height: Math.max(1, Math.floor(rect.height)) }
       viewportRef.current = viewport
-      renderer.setSize(viewport, window.devicePixelRatio || 1)
+      renderer.setSize(viewport, pixelRatioFor(window.devicePixelRatio))
+      markInput()
       if (!viewRef.current) viewRef.current = followFloor(frameRect(viewport, plateBounds(propsRef.current.world.building), 0), 0, propsRef.current.activeFloor, viewport)
     }
     resize()
@@ -170,6 +180,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     const drawsWith = (event: PointerEvent) => event.pointerType !== 'touch' || propsRef.current.touchMode === 'draw'
 
     const onPointerDown = (event: PointerEvent) => {
+      markInput()
       canvas.setPointerCapture(event.pointerId)
       if (event.pointerType === 'touch') {
         touches.set(event.pointerId, local(event))
@@ -193,6 +204,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     }
 
     const onPointerMove = (event: PointerEvent) => {
+      markInput()
       if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
         touches.set(event.pointerId, local(event))
         if (pinch && touches.size === 2 && viewRef.current) {
@@ -251,6 +263,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
 
     const onWheel = (event: WheelEvent) => {
       event.preventDefault()
+      markInput()
       if (!viewRef.current) return
       const deltaX = normalizeWheelPx(event.deltaX, event.deltaMode, viewportRef.current.width)
       const deltaY = normalizeWheelPx(event.deltaY, event.deltaMode, viewportRef.current.height)
@@ -288,10 +301,16 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       },
       drawCalls: () => renderer.drawCalls,
       visitors: () => crowd.visitors.length,
+      frames: () => renderer.renderer.info.render.frame,
     }
 
     const frame = (now: number) => {
       if (!running) return
+      if (!shouldRender(clockRef.current, now, drag !== null || pan !== null || pinch !== null)) {
+        rafId = requestAnimationFrame(frame)
+        return
+      }
+      clockRef.current.lastRenderAt = now
       const seconds = Math.min(0.1, (now - lastTime) / 1000)
       lastTime = now
       const current = propsRef.current
