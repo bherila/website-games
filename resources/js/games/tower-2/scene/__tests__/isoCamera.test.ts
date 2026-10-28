@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { applyCamera, clampZoom, FLOOR_HEIGHT, followFloor, frameRect, type IsoView, MAX_ZOOM, panView, projectionFor, rotateView, zoomViewAt } from '../isoCamera'
+import { applyCamera, cameraPose, cameraSides, clampZoom, FLOOR_HEIGHT, followFloor, frameRect, type IsoView, MAX_ZOOM, panView, projectionFor, rotateView, zoomViewAt } from '../isoCamera'
 import type { QuarterTurn } from '../isoProjection'
 
 const viewport = { width: 800, height: 600 }
@@ -73,5 +73,19 @@ describe('view changes', () => {
     const bounds = projectionFor(framed).floorBounds({ x: 10, y: 10, width: 20, depth: 12, floor: 0 })
     expect(bounds.width).toBeLessThanOrEqual(viewport.width)
     expect(bounds.height).toBeLessThanOrEqual(viewport.height)
+  })
+})
+
+describe('cutaway sides', () => {
+  test.each([0, 1, 2, 3] as QuarterTurn[])('at rotation %i, are the two walls whose outside faces the camera', (rotation) => {
+    const pose = cameraPose({ zoom: 20, rotation, origin: { x: 0, y: 0 } }, viewport)
+    const dx = pose.position.x - pose.target.x
+    const dz = pose.position.z - pose.target.z
+    expect(cameraSides(rotation)).toEqual([dz > 0 ? 'south' : 'north', dx > 0 ? 'east' : 'west'])
+  })
+
+  test('start with the street and east walls in the default view', () => {
+    expect(cameraSides(0)).toEqual(['south', 'east'])
+    expect(new Set([0, 1, 2, 3].flatMap((rotation) => cameraSides(rotation as QuarterTurn))).size).toBe(4)
   })
 })

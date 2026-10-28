@@ -127,7 +127,31 @@ test.describe('Tower 2 prototype', () => {
     await open(page)
     await press(page, /^Shop/)
     await click(page, 0, 14, 29)
-    await expect(page.getByText('A room needs a corridor or core along one side').first()).toBeVisible()
+    await expect(page.getByText(/door wall \(south\) needs a corridor, a core or the outside/).first()).toBeVisible()
     await expect(page.getByTestId('tower2-room-count')).toHaveText('4')
+  })
+
+  test('opens a shop straight onto the street, then drags the café to a new spot', async ({ page }) => {
+    await open(page)
+    await press(page, /^Shop/)
+    // On the street edge of the starter block, facing south, the door opens onto the street.
+    const edge = await tile(page, 0, 15, 38)
+    await page.mouse.move(edge.x, edge.y)
+    await expect(page.getByTestId('tower2-hint')).toHaveText('Storefront: its door opens onto the street')
+    await page.mouse.click(edge.x, edge.y)
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('5')
+    await press(page, /^Select/)
+    await click(page, 0, 15, 38)
+    await expect(page.getByRole('region', { name: 'Selection' })).toContainText('storefront onto the street')
+
+    // The starter café spans rows 34–37; drag it one row toward the street.
+    await click(page, 0, 18, 38)
+    await expect(page.getByRole('region', { name: 'Selection' })).toHaveCount(0)
+    await drag(page, 0, [18, 35], [18, 36])
+    await expect(page.getByRole('region', { name: 'Selection' })).toContainText('Café')
+    await click(page, 0, 0, 0)
+    await click(page, 0, 18, 38)
+    await expect(page.getByRole('region', { name: 'Selection' })).toContainText('Café')
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('5')
   })
 })

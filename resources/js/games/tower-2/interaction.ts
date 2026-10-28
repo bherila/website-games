@@ -3,7 +3,7 @@
  * translates pointers into tiles. Drag tools act on the rectangle between the
  * press and the pointer; room and core tools act on a click.
  */
-import type { Building, EditResult } from './engine/building'
+import { type Building, type EditResult, type Facing, nextFacing, type Room, roomFootprint } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
 import { CORE_SIZE, USE_KINDS, type UseKind, USES } from './engine/uses'
 import type { Preview } from './scene/Tower2Renderer'
@@ -19,13 +19,13 @@ export interface ToolDef {
 }
 
 export const TOOLS: readonly ToolDef[] = [
-  { id: 'select', label: 'Select', key: '1', hint: 'Tap a room or core to inspect it' },
+  { id: 'select', label: 'Select', key: '1', hint: 'Tap a room or core to inspect it; drag a room to move it' },
   { id: 'plate', label: 'Floor', key: '2', hint: 'Drag to paint floor plate' },
   { id: 'erase', label: 'Clear', key: '3', hint: 'Drag to clear plate, corridors and rooms' },
   { id: 'atrium', label: 'Atrium', key: '4', hint: 'Drag to cut a void from this floor up' },
   { id: 'corridor', label: 'Corridor', key: '5', hint: 'Drag to draw corridors on open plate' },
   { id: 'core', label: 'Core', key: '6', hint: 'Tap to place a 2×2 core; it stretches over free floors' },
-  ...USE_KINDS.map((use, i): ToolDef => ({ id: use, label: USES[use].label, key: String((7 + i) % 10), hint: `Tap beside a corridor to place a ${USES[use].label.toLowerCase()} (${USES[use].width}×${USES[use].depth}). Turn or R rotates it.` })),
+  ...USE_KINDS.map((use, i): ToolDef => ({ id: use, label: USES[use].label, key: String((7 + i) % 10), hint: `Place a ${USES[use].label.toLowerCase()} with its door (the arrow) on a corridor${use === 'shop' || use === 'cafe' ? ', or facing out on the street floor' : ''}. Turn or R rotates it.` })),
 ]
 
 const RECT_TOOLS: ReadonlySet<ToolId> = new Set(['plate', 'erase', 'atrium', 'corridor'])
@@ -55,14 +55,53 @@ export function rectTiles(a: PlateTile, b: PlateTile): { x: number, y: number, w
   return { x, y, width, depth, tiles }
 }
 
+/**
+ * Where a turned room sits so it pivots about its centre. When that spot is
+ * blocked the caller can fall back to the room's own corner.
+ */
+export function turnedInPlace(room: Room, facing: Facing): PlateTile[] {
+  const { width, depth } = roomFootprint(room.use, facing)
+  // A half-tile offset truncates toward zero both ways, so four turns land back on the starting footprint.
+  const centred = { x: room.x + Math.trunc((room.width - width) / 2), y: room.y + Math.trunc((room.depth - depth) / 2) }
+  return centred.x === room.x && centred.y === room.y ? [centred] : [centred, { x: room.x, y: room.y }]
+}
+
+/**
+ * The next facing, clockwise, that a placed room can turn to in place, skipping
+ * quarter-turns that do not fit so every valid facing stays reachable. Null
+ * when no other facing fits.
+ */
+export function nextTurn(building: Building, room: Room): { x: number, y: number, facing: Facing } | null {
+  for (let turns = 1; turns < 4; turns++) {
+    const facing = nextFacing(room.facing, turns)
+    const spot = turnedInPlace(room, facing).find(({ x, y }) => building.checkRoom(room.use, room.floor, x, y, facing, room.id).ok)
+    if (spot) return { ...spot, facing }
+  }
+  return null
+}
+
 /** The footprint origin that centres a room or core on the hovered tile. */
 export function centredOrigin(hover: PlateTile, width: number, depth: number): PlateTile {
   return { x: hover.x - Math.floor((width - 1) / 2), y: hover.y - Math.floor((depth - 1) / 2) }
 }
 
-export function toolAction(building: Building, tool: ToolId, floor: number, hover: PlateTile | null, anchor: PlateTile | null, rotated: boolean): ToolAction {
+export function toolAction(building: Building, tool: ToolId, floor: number, hover: PlateTile | null, anchor: PlateTile | null, facing: Facing): ToolAction {
   const none: ToolAction = { preview: null, hint: null, commit: null }
-  if (!hover || tool === 'select') return none
+  if (!hover) return none
+
+  if (tool === 'select') {
+    // Dragging a room moves it, keeping the grab point under the pointer.
+    const room = anchor ? building.roomAt(floor, anchor.x, anchor.y) : undefined
+    if (!room || !anchor || (hover.x === anchor.x && hover.y === anchor.y)) return none
+    const x = room.x + hover.x - anchor.x
+    const y = room.y + hover.y - anchor.y
+    const check = building.checkRoom(room.use, floor, x, y, room.facing, room.id)
+    return {
+      preview: roomPreview(room.use, floor, x, y, room.facing, check),
+      hint: check.ok ? null : check.reason ?? null,
+      commit: (target) => target.moveRoom(room.id, x, y, room.facing),
+    }
+  }
 
   if (isRectTool(tool)) {
     const rect = rectTiles(anchor ?? hover, hover)
@@ -95,12 +134,16 @@ export function toolAction(building: Building, tool: ToolId, floor: number, hove
 
   if (!isUseTool(tool)) return none
   const use = tool
-  const def = USES[use]
-  const origin = centredOrigin(hover, rotated ? def.depth : def.width, rotated ? def.width : def.depth)
-  const check = building.checkRoom(use, floor, origin.x, origin.y, rotated)
+  const footprint = roomFootprint(use, facing)
+  const origin = centredOrigin(hover, footprint.width, footprint.depth)
+  const check = building.checkRoom(use, floor, origin.x, origin.y, facing)
   return {
-    preview: { kind: 'room', floor, x: origin.x, y: origin.y, width: check.width, depth: check.depth, use, valid: check.ok, door: check.door?.tile ?? null },
-    hint: check.ok ? null : check.reason ?? null,
-    commit: (target) => target.placeRoom(use, floor, origin.x, origin.y, rotated),
+    preview: roomPreview(use, floor, origin.x, origin.y, facing, check),
+    hint: check.ok ? (check.door?.storefront ? 'Storefront: its door opens onto the street' : null) : check.reason ?? null,
+    commit: (target) => target.placeRoom(use, floor, origin.x, origin.y, facing),
   }
+}
+
+function roomPreview(use: UseKind, floor: number, x: number, y: number, facing: Facing, check: ReturnType<Building['checkRoom']>): Preview {
+  return { kind: 'room', floor, x, y, width: check.width, depth: check.depth, use, facing, valid: check.ok, door: check.door?.tile ?? null, storefront: check.door?.storefront ?? false }
 }

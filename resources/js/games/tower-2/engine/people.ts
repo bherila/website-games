@@ -53,8 +53,27 @@ function walkToCore(analysis: BuildingAnalysis, floor: number, from: PlateTile, 
   return best
 }
 
+/** Out and back again: the return trip retraces the outbound legs. */
+function roundTrip(outbound: Leg[], room: Room, inside: Point, dwellSeconds: number): Leg[] {
+  const back = [...outbound].reverse().map((leg): Leg => {
+    if (leg.kind === 'walk') return { ...leg, points: [...leg.points].reverse() }
+    if (leg.kind === 'ride') return { ...leg, from: leg.to, to: leg.from }
+    return leg
+  })
+  return [...outbound, { kind: 'dwell', floor: room.floor, x: inside.x, y: inside.y, seconds: dwellSeconds }, ...back]
+}
+
 /** Street → room → street, or null when the room has no route. Deterministic for a given building. */
 export function planVisit(analysis: BuildingAnalysis, room: Room, dwellSeconds: number): Leg[] | null {
+  const inside: Point = { x: room.x + room.width / 2, y: room.y + room.depth / 2 }
+  if (room.storefront) {
+    // Straight in off the pavement, across the open lot.
+    const approach = analysis.storefrontApproach(room)
+    if (!approach) return null
+    const first = approach[0] ?? room.door
+    const pavement: Point = { x: first.x + 0.5, y: analysis.building.depth + 1.5 }
+    return roundTrip([{ kind: 'walk', floor: 0, points: [pavement, ...centres(approach), ...centres([room.door]), inside] }], room, inside, dwellSeconds)
+  }
   const entrance = analysis.building.entrance()
   if (!entrance) return null
   const hops = analysis.route(room.floor, room.door)
@@ -75,14 +94,8 @@ export function planVisit(analysis: BuildingAnalysis, room: Room, dwellSeconds: 
   }
   const toDoor = analysis.paths(floor).findPath(at, room.door)
   if (!toDoor) return null
-  const inside: Point = { x: room.x + room.width / 2, y: room.y + room.depth / 2 }
   outbound.push({ kind: 'walk', floor, points: [...first, ...centres(toDoor), inside] })
-  const back = [...outbound].reverse().map((leg): Leg => {
-    if (leg.kind === 'walk') return { ...leg, points: [...leg.points].reverse() }
-    if (leg.kind === 'ride') return { ...leg, from: leg.to, to: leg.from }
-    return leg
-  })
-  return [...outbound, { kind: 'dwell', floor: room.floor, x: inside.x, y: inside.y, seconds: dwellSeconds }, ...back]
+  return roundTrip(outbound, room, inside, dwellSeconds)
 }
 
 function legSeconds(leg: Leg): number {

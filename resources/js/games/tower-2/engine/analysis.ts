@@ -3,7 +3,7 @@
  * walkable areas the street reaches through cores, and each room's rating.
  * Results are cached per building revision, so callers can ask freely.
  */
-import type { Building, Core, Room } from './building'
+import { type Building, type Core, DOOR_STEP, type Room } from './building'
 import { FloorPaths, FloorTile } from './floorPaths'
 import type { PlateTile } from './floorPlate'
 import type { UseKind } from './uses'
@@ -40,6 +40,14 @@ interface FloorCache {
   daylight: Uint8Array
   /** Walkable region per tile, -1 where blocked. */
   regions: Int32Array
+}
+
+/** Walking over the open ground-floor lot, from the street at the site's +y edge. */
+interface StreetField {
+  /** Steps from the street to each open lot tile; -1 where the lot is built on or walled in. */
+  steps: Int16Array
+  /** The next tile toward the street, -1 on the street row itself. */
+  toward: Int32Array
 }
 
 interface GraphNode {
@@ -114,6 +122,7 @@ export class BuildingAnalysis {
   private served: Map<number, Set<number>> | null = null
   private graph: Map<string, GraphNode> | null = null
   private hops: Map<string, CoreHop[] | null> = new Map()
+  private street: StreetField | null = null
 
   constructor(readonly building: Building) {}
 
@@ -157,6 +166,26 @@ export class BuildingAnalysis {
     return this.hops.get(key) ?? null
   }
 
+  /**
+   * A storefront's approach: open-lot tiles from the street row to the tile
+   * outside its door, street end first. Empty when the door opens straight
+   * onto the street; null when the lot around the door is walled in.
+   */
+  storefrontApproach(room: Room): PlateTile[] | null {
+    const step = DOOR_STEP[room.facing]
+    const outside = { x: room.door.x + step.x, y: room.door.y + step.y }
+    if (!this.building.inBounds(outside.x, outside.y)) return outside.y === this.building.depth ? [] : null
+    const { steps, toward } = this.streetField()
+    let index = outside.y * this.building.width + outside.x
+    if (steps[index]! < 0) return null
+    const path: PlateTile[] = []
+    while (index >= 0) {
+      path.push({ x: index % this.building.width, y: (index / this.building.width) | 0 })
+      index = toward[index]!
+    }
+    return path.reverse()
+  }
+
   rate(room: Room): RoomRating {
     const daylight = this.daylight(room.floor)
     let light = 0
@@ -166,12 +195,14 @@ export class BuildingAnalysis {
     light /= room.width * room.depth
     const paths = this.paths(room.floor)
     const walk = paths.distanceToNearestCore(room)
-    const reachable = this.isServed(room.floor, room.door)
+    const approach = room.storefront ? this.storefrontApproach(room) : null
+    const reachable = room.storefront ? approach !== null : this.isServed(room.floor, room.door)
     const noisy = room.use === 'studio' && this.hasNoisyNeighbour(room)
     const entrance = this.building.entrance()
-    const footfall = room.floor === 0 && entrance && reachable
-      ? clamp01(1 - paths.distance(entrance, room.door) / FOOTFALL_SPAN)
-      : 0
+    // A storefront trades with passers-by: footfall falls with the walk in from the street.
+    const footfall = approach ? clamp01(1 - approach.length / FOOTFALL_SPAN)
+      : room.floor === 0 && entrance && reachable ? clamp01(1 - paths.distance(entrance, room.door) / FOOTFALL_SPAN)
+        : 0
     const walkScore = Number.isFinite(walk) ? clamp01(1 - (walk - 1) / WALK_SPAN) : 0
     const raw = {
       studio: 0.6 * light + 0.4 * (noisy ? 0 : 1),
@@ -208,6 +239,36 @@ export class BuildingAnalysis {
     this.served = null
     this.graph = null
     this.hops = new Map()
+    this.street = null
+  }
+
+  private streetField(): StreetField {
+    this.sync()
+    if (this.street) return this.street
+    const { width, depth } = this.building
+    const plate = this.building.plateMask(0)
+    const steps = new Int16Array(width * depth).fill(-1)
+    const toward = new Int32Array(width * depth).fill(-1)
+    const queue = new Int32Array(width * depth)
+    let tail = 0
+    for (let x = 0; x < width; x++) {
+      const index = (depth - 1) * width + x
+      if (plate[index] === 1) continue
+      steps[index] = 1
+      queue[tail++] = index
+    }
+    for (let head = 0; head < tail; head++) {
+      const current = queue[head]!
+      const x = current % width
+      for (const next of [current - width, x + 1 < width ? current + 1 : -1, current + width, x > 0 ? current - 1 : -1]) {
+        if (next < 0 || next >= steps.length || plate[next] === 1 || steps[next]! >= 0) continue
+        steps[next] = steps[current]! + 1
+        toward[next] = current
+        queue[tail++] = next
+      }
+    }
+    this.street = { steps, toward }
+    return this.street
   }
 
   private regionAt(floor: number, tile: PlateTile): number {

@@ -19,21 +19,39 @@ export interface Room {
   y: number
   width: number
   depth: number
-  rotated: boolean
-  /** A perimeter tile of the room that opens onto a corridor or core. */
+  /** The wall the door is in, chosen by the player; it also sets the footprint's orientation. */
+  facing: Facing
+  /** A tile on the facing wall that opens onto a corridor, a core or, for a storefront, the outside. */
   door: PlateTile
-  /** The wall the door is in: the outward step from the door tile. */
-  doorSide: DoorSide
+  /** A ground-floor shop or café whose door opens straight onto the street side of the lot. */
+  storefront: boolean
 }
 
-export type DoorSide = 'south' | 'east' | 'north' | 'west'
+export type Facing = 'south' | 'east' | 'north' | 'west'
 
-export const DOOR_STEP: Readonly<Record<DoorSide, PlateTile>> = {
+/** The outward step from a door in each wall. +y is the street. */
+export const DOOR_STEP: Readonly<Record<Facing, PlateTile>> = {
   south: { x: 0, y: 1 },
   east: { x: 1, y: 0 },
   north: { x: 0, y: -1 },
   west: { x: -1, y: 0 },
 }
+
+/** Quarter turns clockwise as seen from above, starting with the door toward the street. */
+export const FACINGS: readonly Facing[] = ['south', 'west', 'north', 'east']
+
+export function nextFacing(facing: Facing, turns = 1): Facing {
+  return FACINGS[(((FACINGS.indexOf(facing) + turns) % 4) + 4) % 4]!
+}
+
+/** A room's footprint: its use's width runs along the door wall. */
+export function roomFootprint(use: UseKind, facing: Facing): { width: number, depth: number } {
+  const def = USES[use]
+  return facing === 'south' || facing === 'north' ? { width: def.width, depth: def.depth } : { width: def.depth, depth: def.width }
+}
+
+/** Uses that can trade straight onto the street from the ground floor. */
+export const STOREFRONT_USES: ReadonlySet<UseKind> = new Set(['shop', 'cafe'])
 
 export type Core = VerticalFootprint
 
@@ -44,9 +62,36 @@ export type TileUse = 'empty' | 'plate' | 'corridor' | 'room' | 'core'
 export interface RoomCheck {
   ok: boolean
   reason?: string | undefined
-  door?: { tile: PlateTile, side: DoorSide } | undefined
+  door?: { tile: PlateTile, storefront: boolean } | undefined
   width: number
   depth: number
+}
+
+/**
+ * What a saved room records. The door is kept as placed: later edits can
+ * block it (paving over a storefront's doorway, erasing the corridor it opened
+ * onto), which leaves the room unreachable but must not invalidate the save.
+ */
+export interface SavedRoom {
+  id: number
+  use: UseKind
+  floor: number
+  x: number
+  y: number
+  facing: Facing
+  door: PlateTile
+  storefront: boolean
+}
+
+/** Version 1 rooms stored a rotation flag and the door side the game picked. */
+interface LegacyRoom {
+  id: number
+  use: UseKind
+  floor: number
+  x: number
+  y: number
+  rotated: boolean
+  doorSide: Facing
 }
 
 export interface CoreCheck {
@@ -57,10 +102,10 @@ export interface CoreCheck {
 }
 
 export interface BuildingSnapshot {
-  version: 1
+  version: 2
   plates: FloorPlateSnapshot
   corridors: { floor: number, tiles: number[] }[]
-  rooms: Room[]
+  rooms: SavedRoom[]
   nextRoomId: number
   nextCoreId: number
 }
@@ -231,27 +276,40 @@ export class Building {
 
   // ── Rooms ─────────────────────────────────────────────────────────────────
 
-  checkRoom(use: UseKind, floor: number, x: number, y: number, rotated: boolean): RoomCheck {
-    const def = USES[use]
-    const width = rotated ? def.depth : def.width
-    const depth = rotated ? def.width : def.depth
+  /**
+   * Whether a room fits with its door in the `facing` wall. The door is the
+   * tile nearest the middle of that wall that opens onto a corridor or core,
+   * or onto the open lot for a street-floor shop or café. `ignoreId` lets a
+   * room being moved overlap its own old footprint.
+   */
+  checkRoom(use: UseKind, floor: number, x: number, y: number, facing: Facing, ignoreId: number | null = null): RoomCheck {
+    const { width, depth } = roomFootprint(use, facing)
     const result = (reason?: string, door?: RoomCheck['door']): RoomCheck => ({ ok: !reason, reason, door, width, depth })
-    if (!this.isFloor(floor)) return result('That floor is outside the site')
-    for (let ty = y; ty < y + depth; ty++) {
-      for (let tx = x; tx < x + width; tx++) {
-        const use = this.inBounds(tx, ty) ? this.tileUse(floor, tx, ty) : 'empty'
-        if (use === 'empty') return result('Rooms need floor plate under every tile')
-        if (use !== 'plate') return result(`Overlaps a ${use}`)
-      }
-    }
-    const door = this.doorFor(floor, x, y, width, depth)
-    return door ? result(undefined, door) : result('A room needs a corridor or core along one side')
+    const problem = this.footprintProblem(floor, x, y, width, depth, ignoreId)
+    if (problem) return result(problem)
+    const storefronts = floor === 0 && STOREFRONT_USES.has(use)
+    const door = this.doorFor(floor, x, y, width, depth, facing, storefronts)
+    if (door) return result(undefined, door)
+    const onto = storefronts ? 'a corridor, a core or the outside' : 'a corridor or core'
+    return result(`Its door wall (${facing}) needs ${onto} beyond it. Turn the room.`)
   }
 
-  placeRoom(use: UseKind, floor: number, x: number, y: number, rotated = false): EditResult {
-    const check = this.checkRoom(use, floor, x, y, rotated)
+  placeRoom(use: UseKind, floor: number, x: number, y: number, facing: Facing = 'south'): EditResult {
+    const check = this.checkRoom(use, floor, x, y, facing)
     if (!check.ok || !check.door) return refuse(check.reason ?? 'Cannot place that room')
-    this.rooms.push({ id: this.nextRoomId++, use, floor, x, y, width: check.width, depth: check.depth, rotated, door: check.door.tile, doorSide: check.door.side })
+    this.rooms.push({ id: this.nextRoomId++, use, floor, x, y, width: check.width, depth: check.depth, facing, door: check.door.tile, storefront: check.door.storefront })
+    return this.changed()
+  }
+
+  /** Move and/or turn a placed room on its floor, keeping its identity. */
+  moveRoom(id: number, x: number, y: number, facing: Facing): EditResult {
+    const index = this.rooms.findIndex((room) => room.id === id)
+    if (index < 0) return refuse('That room is already gone')
+    const room = this.rooms[index]!
+    const check = this.checkRoom(room.use, room.floor, x, y, facing, id)
+    if (!check.ok || !check.door) return refuse(check.reason ?? 'Cannot move that room there')
+    if (room.x === x && room.y === y && room.facing === facing) return refuse('The room is already there')
+    this.rooms[index] = { ...room, x, y, width: check.width, depth: check.depth, facing, door: check.door.tile, storefront: check.door.storefront }
     return this.changed()
   }
 
@@ -315,18 +373,22 @@ export class Building {
       return { floor, tiles }
     }).filter(({ tiles }) => tiles.length > 0)
     return {
-      version: 1,
+      version: 2,
       plates: this.plates.snapshot(),
       corridors,
-      rooms: this.rooms.map((room) => ({ ...room, door: { ...room.door } })),
+      rooms: this.rooms.map(({ id, use, floor, x, y, facing, door, storefront }) => ({ id, use, floor, x, y, facing, door: { ...door }, storefront })),
       nextRoomId: this.nextRoomId,
       nextCoreId: this.nextCoreId,
     }
   }
 
-  /** Replays a snapshot through the edit rules; throws when any part no longer validates. */
-  static fromSnapshot(snapshot: BuildingSnapshot): Building {
-    if (snapshot?.version !== 1) throw new RangeError('Unknown building save version')
+  /**
+   * Replays a snapshot through the edit rules; throws when any part no longer
+   * validates. Version 1 saves keep each room's footprint and turn it to a
+   * facing whose wall still has a door, dropping rooms with none.
+   */
+  static fromSnapshot(snapshot: BuildingSnapshot | { version: 1, rooms: LegacyRoom[] } & Omit<BuildingSnapshot, 'version' | 'rooms'>): Building {
+    if (snapshot?.version !== 1 && snapshot?.version !== 2) throw new RangeError('Unknown building save version')
     const building = new Building()
     const plates = FloorPlateModel.fromSnapshot(snapshot.plates)
     if (plates.width !== building.width || plates.depth !== building.depth) throw new RangeError('Saved site has a different size')
@@ -335,10 +397,20 @@ export class Building {
       const result = building.paintCorridor(floor, tiles.map((index) => ({ x: index % building.width, y: Math.floor(index / building.width) })))
       if (!result.ok) throw new RangeError(result.reason)
     }
-    for (const room of snapshot.rooms) {
-      building.nextRoomId = room.id
-      const result = building.placeRoom(room.use, room.floor, room.x, room.y, room.rotated)
-      if (!result.ok) throw new RangeError(result.reason)
+    if (snapshot.version === 1) {
+      for (const room of snapshot.rooms) {
+        // Keep the footprint: the old door side first, then any facing with the same width and depth.
+        const def = USES[room.use]
+        const width = room.rotated ? def.depth : def.width
+        const facings = [room.doorSide, ...FACINGS.filter((facing) => facing !== room.doorSide)]
+          .filter((facing) => roomFootprint(room.use, facing).width === width)
+        for (const facing of facings) {
+          building.nextRoomId = room.id
+          if (building.placeRoom(room.use, room.floor, room.x, room.y, facing).ok) break
+        }
+      }
+    } else {
+      for (const room of snapshot.rooms) building.restoreRoom(room)
     }
     building.nextRoomId = Math.max(snapshot.nextRoomId, ...building.rooms.map((room) => room.id + 1), 1)
     building.nextCoreId = Math.max(snapshot.nextCoreId, 1)
@@ -347,6 +419,36 @@ export class Building {
   }
 
   // ── Internals ─────────────────────────────────────────────────────────────
+
+  private footprintProblem(floor: number, x: number, y: number, width: number, depth: number, ignoreId: number | null): string | null {
+    if (!this.isFloor(floor)) return 'That floor is outside the site'
+    for (let ty = y; ty < y + depth; ty++) {
+      for (let tx = x; tx < x + width; tx++) {
+        const use = this.inBounds(tx, ty) ? this.tileUse(floor, tx, ty) : 'empty'
+        if (use === 'empty') return 'Rooms need floor plate under every tile'
+        if (use === 'room' && this.roomAt(floor, tx, ty)?.id === ignoreId) continue
+        if (use !== 'plate') return `Overlaps a ${use}`
+      }
+    }
+    return null
+  }
+
+  /** Put a saved room back as it was placed; only its footprint and door position must still hold. */
+  private restoreRoom(saved: SavedRoom): void {
+    if (!Number.isSafeInteger(saved.id) || saved.id < 1 || this.room(saved.id)) throw new RangeError('A saved room has a bad or repeated id')
+    if (!(saved.use in USES) || !FACINGS.includes(saved.facing)) throw new RangeError('A saved room has an unknown use or facing')
+    const { width, depth } = roomFootprint(saved.use, saved.facing)
+    const problem = this.footprintProblem(saved.floor, saved.x, saved.y, width, depth, null)
+    if (problem) throw new RangeError(problem)
+    const { door } = saved
+    const onWall = saved.facing === 'south' ? door.y === saved.y + depth - 1 && door.x >= saved.x && door.x < saved.x + width
+      : saved.facing === 'north' ? door.y === saved.y && door.x >= saved.x && door.x < saved.x + width
+        : saved.facing === 'east' ? door.x === saved.x + width - 1 && door.y >= saved.y && door.y < saved.y + depth
+          : door.x === saved.x && door.y >= saved.y && door.y < saved.y + depth
+    if (!onWall) throw new RangeError('A saved door is not on its room\'s door wall')
+    this.rooms.push({ id: saved.id, use: saved.use, floor: saved.floor, x: saved.x, y: saved.y, width, depth, facing: saved.facing, door: { x: door.x, y: door.y }, storefront: saved.storefront === true })
+    this.roomGridRevision = -1
+  }
 
   private changed(): EditResult {
     this.revision++
@@ -398,29 +500,28 @@ export class Building {
   }
 
   /**
-   * The perimeter tile nearest the middle of a side whose outside neighbour is
-   * a corridor or core. Sides are tried street-first (+y), then east, north and
-   * west, so the choice is deterministic.
+   * The tile nearest the middle of the facing wall whose outside neighbour is
+   * a corridor or core, or, when storefronts are allowed, open lot or the
+   * street beyond the site's +y edge.
    */
-  private doorFor(floor: number, x: number, y: number, width: number, depth: number): { tile: PlateTile, side: DoorSide } | null {
-    const opensOnto = (tx: number, ty: number) => {
-      const use = this.inBounds(tx, ty) ? this.tileUse(floor, tx, ty) : 'empty'
-      return use === 'corridor' || use === 'core'
-    }
-    const sides: { side: DoorSide, tiles: PlateTile[] }[] = [
-      { side: 'south', tiles: Array.from({ length: width }, (_, i) => ({ x: x + i, y: y + depth - 1 })) },
-      { side: 'east', tiles: Array.from({ length: depth }, (_, i) => ({ x: x + width - 1, y: y + i })) },
-      { side: 'north', tiles: Array.from({ length: width }, (_, i) => ({ x: x + i, y })) },
-      { side: 'west', tiles: Array.from({ length: depth }, (_, i) => ({ x, y: y + i })) },
-    ]
-    for (const { side, tiles } of sides) {
-      const outward = DOOR_STEP[side]
-      const middle = (tiles.length - 1) / 2
-      const ranked = tiles
-        .map((tile, index) => ({ tile, rank: Math.abs(index - middle), index }))
-        .sort((a, b) => a.rank - b.rank || a.index - b.index)
-      const found = ranked.find(({ tile }) => opensOnto(tile.x + outward.x, tile.y + outward.y))
-      if (found) return { tile: found.tile, side }
+  private doorFor(floor: number, x: number, y: number, width: number, depth: number, facing: Facing, storefronts: boolean): { tile: PlateTile, storefront: boolean } | null {
+    const wall = facing === 'south' ? Array.from({ length: width }, (_, i) => ({ x: x + i, y: y + depth - 1 }))
+      : facing === 'north' ? Array.from({ length: width }, (_, i) => ({ x: x + i, y }))
+        : facing === 'east' ? Array.from({ length: depth }, (_, i) => ({ x: x + width - 1, y: y + i }))
+          : Array.from({ length: depth }, (_, i) => ({ x, y: y + i }))
+    const outward = DOOR_STEP[facing]
+    const middle = (wall.length - 1) / 2
+    const ranked = wall
+      .map((tile, index) => ({ tile, rank: Math.abs(index - middle), index }))
+      .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    for (const { tile } of ranked) {
+      const ox = tile.x + outward.x
+      const oy = tile.y + outward.y
+      const use = this.inBounds(ox, oy) ? this.tileUse(floor, ox, oy) : 'empty'
+      if (use === 'corridor' || use === 'core') return { tile, storefront: false }
+      // Off the site, only the street side is public; the other edges are neighbours' lots.
+      const outside = this.inBounds(ox, oy) ? use === 'empty' : oy === this.depth
+      if (storefronts && outside) return { tile, storefront: true }
     }
     return null
   }
@@ -442,10 +543,10 @@ export function starterBuilding(): Building {
   must(building.inheritFloorBelow(1))
   must(building.paintCorridor(1, rect(13, 5, 14, 1)))
   must(building.placeCore(0, 19, top + 3))
-  must(building.placeRoom('shop', 0, 22, top + 8))
-  must(building.placeRoom('cafe', 0, 17, top + 6))
-  must(building.placeRoom('office', 1, 13, top + 6, true))
-  must(building.placeRoom('studio', 1, 22, top + 1))
+  must(building.placeRoom('shop', 0, 22, top + 8, 'west'))
+  must(building.placeRoom('cafe', 0, 17, top + 6, 'east'))
+  must(building.placeRoom('office', 1, 13, top + 6, 'north'))
+  must(building.placeRoom('studio', 1, 22, top + 1, 'south'))
   building.revision = 0
   return building
 }
