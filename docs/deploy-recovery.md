@@ -38,16 +38,22 @@ use the PHP binary and memory limit from the deploy log:
 
 1. Re-run whichever `artisan-commands` lines from `ci.yml` did not complete,
    in order. The site stays in maintenance while they run.
-2. If the deploy log reports preserved cron at
+2. If the deploy failed before *Run the atomic post-activation script*, run
+   `php -d memory_limit=1G artisan mandarin:course:import --activate --no-ansi`,
+   which is what `scripts/deploy/activate-mandarin-course.sh` runs. Do it while
+   the site is still in maintenance. Nothing else publishes the staged course.
+3. If the deploy log reports preserved cron at
    `~/.deployments/<deploy-dir>/recovery/<release>.cron`, restore those lines.
-   Games installs no cron, so that file is normally empty.
-3. Run `php artisan up`.
-4. Check that `/` and `/up` both return 200.
-5. Run `scripts/deploy/verify-production.sh` from a checkout of the live
+   It normally holds the `# JOB:games-laravel-scheduler` line. Save `crontab -l` to a
+   backup file, edit a copy, install the copy with `crontab <file>`, and diff the
+   result against the backup. Never pipe `crontab -l` into `crontab -`.
+4. Run `php artisan up`.
+5. Check that `/` and `/up` both return 200.
+6. Run `scripts/deploy/verify-production.sh` from a checkout of the live
    commit. Set `DEPLOYMENT_MODE=atomic`, `DEPLOY_SITE_URL`, and set
    `DEPLOY_RELEASE_ID`, `DEPLOY_LIVE_RELEASE`, `DEPLOY_SOURCE_COMMIT` and
    `DEPLOY_LIVE_COMMIT` from the log, with `DEPLOY_LIVE_STATE=serving`.
-6. Re-run the newest CI run on `main`, or push again, so the newest commit
+7. Re-run the newest CI run on `main`, or push again, so the newest commit
    deploys normally.
 
 If the failure was a migration, do not bring the old code up against the
@@ -76,3 +82,16 @@ new schema. Fix forward, or restore the schema deliberately first.
   content check (identity, manifest type, Mandarin bootstrap) for about a minute
   before failing, sends `Cache-Control: no-cache`, and on failure prints the last
   response's content type and first bytes.
+
+## 2026-10-27 incident
+
+- **What happened:** about a minute into the executed audio import, a hangup
+  signal on the host killed PHP (`Hangup`, exit 129). The SSH session was still
+  alive, so this was not the idle disconnect fixed in v2.2.1. The failure came
+  after the risk boundary, so the site stayed in maintenance. The course
+  activation in the post-activation script never ran, and the paused scheduler
+  cron line had to be restored by hand.
+- **The fix:**
+  - action v2.5.0, which starts every remote step under `nohup`, so neither
+    Artisan nor the hooks can be killed by SIGHUP;
+  - recovery step 2 above, for failures that come before course activation.
