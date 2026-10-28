@@ -434,7 +434,10 @@ has no economy, stars, tenants or schedules.
   (`scene/cityLayout.ts`, `scene/cityGeometry.ts`). All shapes are original procedural geometry.
 - **Façade:** floor-to-ceiling glass with mullions on every plate edge open to the air. On the active floor
   the two sides facing the camera drop to a sill so the plan shows; the cutaway follows the view rotation.
-  Storefronts open a bay under a sign band in the use's colour, and the lobby entrance opens under a canopy.
+  Storefronts open a bay under an original generated shop or café sign, chosen deterministically from
+  the room id, and a striped procedural awning. The lobby canopy carries an address number. Lettering
+  shares one small padded atlas and one mesh per visible floor; signs and storefront awnings disappear
+  on cutaway sides. A coloured band remains if sign art fails to load (`scene/storefronts.ts`).
 - **View and controls:** isometric cutaway (floors above hidden, below ghosted), quarter-turn rotation,
   an exterior view, and light and walk overlays. Desktop: drag to draw, right-drag or scroll to pan,
   Ctrl+scroll to zoom, Q/E rotate, Page Up/Down change floor, 1–0 pick tools, R turns a room, O cycles

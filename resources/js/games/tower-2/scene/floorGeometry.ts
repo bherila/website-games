@@ -11,6 +11,7 @@ import { FINISH_REPEAT, finishSpans, finishUV, type FloorFinish } from './floorA
 import { furniture, placePiece } from './furniture'
 import { FLOOR_HEIGHT } from './isoCamera'
 import { PALETTE } from './palette'
+import { LOBBY_SIGN, signChoice, signUV, wallFace, wallNormal, wallPoint } from './storefronts'
 
 export const SLAB_THICKNESS = 0.16
 const ROOM_WALL = 0.12
@@ -117,6 +118,7 @@ function roomWalls(out: GeometryBuilder, room: Room, base: number, hex: number):
 export interface FloorGeometry {
   solid: THREE.BufferGeometry | null
   glass: THREE.BufferGeometry | null
+  signs: THREE.BufferGeometry | null
 }
 
 export function buildFloorGeometry(building: Building, floor: number, options: FloorGeometryOptions): FloorGeometry {
@@ -127,6 +129,7 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
   const corridor = building.corridorMask(floor)
   const solid = new GeometryBuilder()
   const glass = new GeometryBuilder()
+  const signs = new GeometryBuilder()
 
   // Slab: merge each row into runs of one colour.
   const tileColor = (index: number): number | null => {
@@ -193,12 +196,12 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
   const cutaway = new Set(options.cutaway ?? [])
   // Underground, the open edges are retaining walls against the earth, not glass.
   const underground = floor < 0
-  const doorways = new Map<string, { kind: 'store' | 'lobby', hex: number }>()
+  const doorways = new Map<string, { kind: 'store' | 'lobby', hex: number, sign: number | null }>()
   for (const room of building.roomsOn(floor)) {
-    if (room.storefront) doorways.set(`${room.door.x},${room.door.y},${room.facing}`, { kind: 'store', hex: USES[room.use].color })
+    if (room.storefront) doorways.set(`${room.door.x},${room.door.y},${room.facing}`, { kind: 'store', hex: USES[room.use].color, sign: signChoice(room.use, room.id) })
   }
   const entrance = floor === 0 ? building.entrance() : null
-  if (entrance && edge(entrance.x, entrance.y, 'south')) doorways.set(`${entrance.x},${entrance.y},south`, { kind: 'lobby', hex: PALETTE.canopy })
+  if (entrance && edge(entrance.x, entrance.y, 'south')) doorways.set(`${entrance.x},${entrance.y},south`, { kind: 'lobby', hex: PALETTE.canopy, sign: LOBBY_SIGN })
   for (let y = 0; y < depth; y++) {
     for (let x = 0; x < width; x++) {
       for (const side of FACINGS) {
@@ -221,13 +224,32 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
         }
         // An open bay: a threshold in the doorway, a sign band over a storefront, a canopy over the lobby.
         panel(0.1, 0.9, base, base + 0.04, -0.45, 0.2, lighten(doorway.hex, 0.35))
-        if (doorway.kind === 'store' && !cut) panel(MULLION / 2, 1 - MULLION / 2, base + GLASS_HEIGHT - 0.24, base + GLASS_HEIGHT - 0.04, -GLASS_THICKNESS, 0.08, doorway.hex)
+        if (doorway.kind === 'store' && !cut) {
+          panel(MULLION / 2, 1 - MULLION / 2, base + GLASS_HEIGHT - 0.32, base + GLASS_HEIGHT - 0.04, -GLASS_THICKNESS, 0.08, doorway.hex)
+          if (doorway.sign !== null) signs.quad(wallFace(x, y, side, 0.04, 0.96, base + GLASS_HEIGHT - 0.3, base + GLASS_HEIGHT - 0.06, 0.085), wallNormal(side), 0xffffff,
+            [[0, 1], [1, 1], [1, 0], [0, 0]].map(([u, v]) => signUV(doorway.sign!, u!, v!)))
+          // Four fabric stripes form a canopy and valance, merged into the floor.
+          // Its high edge stays below the sign; its low edge clears visitor heads.
+          for (let stripe = 0; stripe < 4; stripe++) {
+            const a = 0.03 + stripe * 0.94 / 4
+            const b = a + 0.94 / 4
+            const hue = stripe % 2 ? PALETTE.door : doorway.hex
+            solid.quad([wallPoint(x, y, side, a, base + 0.76, 0.04), wallPoint(x, y, side, a, base + 0.7, 0.55), wallPoint(x, y, side, b, base + 0.7, 0.55), wallPoint(x, y, side, b, base + 0.76, 0.04)], [0, 1, 0], hue)
+            solid.quad(wallFace(x, y, side, a, b, base + 0.64, base + 0.7, 0.55), wallNormal(side), hue)
+          }
+        }
         if (doorway.kind === 'lobby') panel(-0.25, 1.25, base + 0.84, base + 0.92, 0, 0.75, doorway.hex)
+        if (doorway.kind === 'lobby' && !cut) {
+          // Hang the address below the existing canopy, attached to its fascia.
+          panel(0.18, 0.82, base + 0.61, base + 0.84, 0.7, 0.76, PALETTE.mullion)
+          signs.quad(wallFace(x, y, side, 0.2, 0.8, base + 0.63, base + 0.82, 0.765), wallNormal(side), 0xffffff,
+            [[0, 1], [1, 1], [1, 0], [0, 0]].map(([u, v]) => signUV(LOBBY_SIGN, u!, v!)))
+        }
       }
     }
   }
 
-  return { solid: solid.empty ? null : solid.build(), glass: glass.empty ? null : glass.build() }
+  return { solid: solid.empty ? null : solid.build(), glass: glass.empty ? null : glass.build(), signs: signs.empty ? null : signs.build() }
 }
 
 /**
