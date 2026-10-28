@@ -422,6 +422,11 @@ has no economy, stars, tenants or schedules.
 - **Furniture:** each use has a low-poly layout drawn in room-local terms (across and in from the door
   wall), so it turns with the room: a studio's bed, sofa and kitchenette; an office's desk rows and
   screens; a shop's shelves, display table and till; a café's counter and tables (`scene/furniture.ts`).
+- **Floor finishes:** original generated wood, carpet, terrazzo and checker tile identify the four uses;
+  concrete and rubber give plate, corridor and core floors material. One padded WebP atlas multiplies
+  the existing use colours and baked shading, without adding floor draw calls. Tops repeat the finish
+  every two site tiles; walls and furniture sample a neutral white cell. Plain vertex colours remain
+  visible while loading or if the image fails (`scene/floorAtlas.ts`, `scene/floorMaterials.ts`).
 - **City context:** a paved lot meets a raised sidewalk with kerb ramps, a two-lane street and a
   crosswalk. Instanced trees, lamps and parked cars join a bench and bus shelter; their layout leaves
   lobby and storefront approaches clear after edits. Low, desaturated neighbouring blocks frame the
