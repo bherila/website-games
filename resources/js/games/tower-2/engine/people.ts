@@ -1,14 +1,22 @@
 /**
  * A handful of visitors walking from the street to rooms and back, riding
- * cores between floors. Presentation-grade: no schedules, queues or money yet.
- * Trips are planned once against the building as it stood when they began.
+ * elevator cars between floors. Cars queue riders, travel at a fixed speed and
+ * hold their doors; there are no schedules or money yet. Trips are planned once
+ * against the building as it stood when they began.
  */
 import type { BuildingAnalysis } from './analysis'
-import type { Room } from './building'
+import type { Building, Core, Room } from './building'
 import type { PlateTile } from './floorPlate'
+import { carsIn } from './uses'
 
 export const WALK_TILES_PER_SECOND = 3.2
 export const RIDE_FLOORS_PER_SECOND = 1.6
+/** Riders a car carries at once. */
+export const CAR_CAPACITY = 6
+/** How long a car's doors stay open at a stop. */
+export const DOOR_SECONDS = 1.2
+/** How many recent boardings the average wait covers. */
+const WAIT_SAMPLES = 24
 const DWELL_SECONDS = [3, 7] as const
 const SPAWN_SECONDS = 0.7
 
@@ -19,7 +27,8 @@ export interface Point {
 
 export type Leg =
   | { kind: 'walk', floor: number, points: Point[] }
-  | { kind: 'ride', x: number, y: number, from: number, to: number }
+  /** Wait in the hall at (x, y) for a car of `coreId`, ride it from `from` to `to`, and step out at (x, y). */
+  | { kind: 'ride', coreId: string, car: number, x: number, y: number, from: number, to: number }
   | { kind: 'dwell', floor: number, x: number, y: number, seconds: number }
 
 export interface Visitor {
@@ -33,6 +42,26 @@ export interface Visitor {
   y: number
   /** Continuous, so riders sit between floors. */
   floor: number
+  /** On a ride leg: waiting in the hall since `since`, or riding a car. */
+  ride?: { state: 'waiting', since: number } | { state: 'riding' }
+}
+
+/** One elevator car; its shaft is the core's back-row tile in column `index`. */
+export interface Car {
+  coreId: string
+  index: number
+  x: number
+  y: number
+  /** Continuous floor position. */
+  floor: number
+  /** Seconds the doors stay open; the car waits while it is above zero. */
+  doors: number
+  riders: Visitor[]
+}
+
+/** A core's hall tile in front of car `index`, where riders wait and step out. */
+export function hallTile(core: Pick<Core, 'x' | 'y'>, index: number): PlateTile {
+  return { x: core.x + index, y: core.y + 1 }
 }
 
 /** Tile centres along a path; a single-tile path stays put. */
@@ -40,15 +69,14 @@ function centres(path: readonly PlateTile[]): Point[] {
   return path.map(({ x, y }) => ({ x: x + 0.5, y: y + 0.5 }))
 }
 
-/** The core tile nearest `from` by walking, with its path; null when none is reachable. */
-function walkToCore(analysis: BuildingAnalysis, floor: number, from: PlateTile, core: { x: number, y: number, width: number, depth: number }) {
+/** The hall tile nearest `from` by walking, its car and path; null when none is reachable. */
+function walkToCore(analysis: BuildingAnalysis, floor: number, from: PlateTile, core: Core) {
   const paths = analysis.paths(floor)
-  let best: { tile: PlateTile, path: PlateTile[] } | null = null
-  for (let y = core.y; y < core.y + core.depth; y++) {
-    for (let x = core.x; x < core.x + core.width; x++) {
-      const path = paths.findPath(from, { x, y })
-      if (path && (!best || path.length < best.path.length)) best = { tile: { x, y }, path }
-    }
+  let best: { tile: PlateTile, car: number, path: PlateTile[] } | null = null
+  for (let car = 0; car < carsIn(core); car++) {
+    const tile = hallTile(core, car)
+    const path = paths.findPath(from, tile)
+    if (path && (!best || path.length < best.path.length)) best = { tile, car, path }
   }
   return best
 }
@@ -87,7 +115,7 @@ export function planVisit(analysis: BuildingAnalysis, room: Room, dwellSeconds: 
     const reach = walkToCore(analysis, floor, at, hop.core)
     if (!reach) return null
     outbound.push({ kind: 'walk', floor, points: [...first, ...centres(reach.path)] })
-    outbound.push({ kind: 'ride', x: reach.tile.x + 0.5, y: reach.tile.y + 0.5, from: floor, to: hop.toFloor })
+    outbound.push({ kind: 'ride', coreId: hop.core.id, car: reach.car, x: reach.tile.x + 0.5, y: reach.tile.y + 0.5, from: floor, to: hop.toFloor })
     first = []
     at = reach.tile
     floor = hop.toFloor
@@ -143,8 +171,11 @@ function mulberry32(seed: number): () => number {
 
 export class Crowd {
   readonly visitors: Visitor[] = []
+  private readonly carsByCore = new Map<string, Car[]>()
+  private readonly waits = new Map<string, number[]>()
   private nextId = 1
   private spawnTimer = 0
+  private clock = 0
   private readonly random: () => number
 
   constructor(seed = 1) {
@@ -156,9 +187,28 @@ export class Crowd {
     return Math.min(60, roomCount * 2)
   }
 
+  /** Every car, for drawing. */
+  cars(): Car[] {
+    return [...this.carsByCore.values()].flat()
+  }
+
+  /** A core's mean wait from reaching the hall to boarding, over its recent riders; null before anyone has boarded. */
+  averageWait(coreId: string): number | null {
+    const samples = this.waits.get(coreId)
+    return samples && samples.length > 0 ? samples.reduce((sum, wait) => sum + wait, 0) / samples.length : null
+  }
+
+  /** Visitors waiting in a core's halls right now. */
+  waiting(coreId: string): number {
+    return this.visitors.filter((visitor) => visitor.ride?.state === 'waiting' && this.rideLeg(visitor)?.coreId === coreId).length
+  }
+
   step(analysis: BuildingAnalysis, seconds: number): void {
     const dt = Math.min(seconds, 0.25)
+    this.clock += dt
+    this.syncCars(analysis.building)
     for (const visitor of this.visitors) this.advance(visitor, dt)
+    this.stepCars(dt)
     for (let i = this.visitors.length - 1; i >= 0; i--) {
       if (this.visitors[i]!.leg >= this.visitors[i]!.legs.length) this.visitors.splice(i, 1)
     }
@@ -178,12 +228,47 @@ export class Crowd {
 
   clear(): void {
     this.visitors.length = 0
+    this.carsByCore.clear()
+    this.waits.clear()
+  }
+
+  private rideLeg(visitor: Visitor): Extract<Leg, { kind: 'ride' }> | null {
+    const leg = visitor.legs[visitor.leg]
+    return leg?.kind === 'ride' ? leg : null
+  }
+
+  /**
+   * Keep one car per shaft for every core. A core that is gone or reshaped
+   * drops its cars, and the visitors waiting for or riding them leave.
+   */
+  private syncCars(building: Building): void {
+    const cores = new Map(building.cores().map((core) => [core.id, core]))
+    for (const [id, cars] of this.carsByCore) {
+      const core = cores.get(id)
+      if (core && carsIn(core) === cars.length && core.x === cars[0]!.x - 0.5 && core.y === cars[0]!.y - 0.5) continue
+      this.carsByCore.delete(id)
+      for (const visitor of this.visitors) if (this.rideLeg(visitor)?.coreId === id) visitor.leg = visitor.legs.length
+    }
+    for (const core of cores.values()) {
+      if (this.carsByCore.has(core.id)) continue
+      this.carsByCore.set(core.id, Array.from({ length: carsIn(core) }, (_, index) => ({
+        coreId: core.id, index, x: core.x + index + 0.5, y: core.y + 0.5, floor: core.bottomFloor, doors: 0, riders: [],
+      })))
+    }
   }
 
   private advance(visitor: Visitor, dt: number): void {
     let time = dt
     while (visitor.leg < visitor.legs.length) {
       const leg = visitor.legs[visitor.leg]!
+      if (leg.kind === 'ride') {
+        // Cars move riders; a visitor reaching a ride leg waits in the hall for one.
+        if (!visitor.ride) {
+          visitor.ride = { state: 'waiting', since: this.clock }
+          Object.assign(visitor, { x: leg.x, y: leg.y, floor: leg.from })
+        }
+        return
+      }
       const total = legSeconds(leg)
       if (visitor.elapsed + time < total) {
         visitor.elapsed += time
@@ -195,5 +280,71 @@ export class Crowd {
       visitor.leg++
       visitor.elapsed = 0
     }
+  }
+
+  /**
+   * Collective control, simplified: each floor with waiting riders goes to the
+   * nearest car with room, and a car heads for its nearest stop, carrying on in
+   * its direction while it has stops ahead. At a stop the doors open, riders for
+   * that floor step out and waiting riders step in.
+   */
+  private stepCars(dt: number): void {
+    for (const [coreId, cars] of this.carsByCore) {
+      const waiting = this.visitors.filter((visitor) => visitor.ride?.state === 'waiting' && this.rideLeg(visitor)?.coreId === coreId)
+      const calls = new Map<number, Car>()
+      for (const floor of [...new Set(waiting.map((visitor) => this.rideLeg(visitor)!.from))].sort((a, b) => a - b)) {
+        let best: Car | null = null
+        for (const car of cars) {
+          if (car.riders.length >= CAR_CAPACITY) continue
+          if (!best || Math.abs(car.floor - floor) < Math.abs(best.floor - floor)) best = car
+        }
+        if (best) calls.set(floor, best)
+      }
+      for (const car of cars) {
+        if (car.doors > 0) {
+          car.doors = Math.max(0, car.doors - dt)
+          continue
+        }
+        const stops = [...new Set([
+          ...car.riders.map((rider) => this.rideLeg(rider)!.to),
+          ...[...calls].filter(([, assigned]) => assigned === car).map(([floor]) => floor),
+        ])]
+        if (stops.length === 0) continue
+        const target = stops.reduce((nearest, stop) => (Math.abs(stop - car.floor) < Math.abs(nearest - car.floor) ? stop : nearest))
+        const step = RIDE_FLOORS_PER_SECOND * dt
+        if (Math.abs(target - car.floor) > step) {
+          car.floor += Math.sign(target - car.floor) * step
+        } else {
+          car.floor = target
+          this.stop(car, waiting)
+        }
+        for (const rider of car.riders) rider.floor = car.floor
+      }
+    }
+  }
+
+  private stop(car: Car, waiting: Visitor[]): void {
+    const floor = car.floor
+    for (const rider of [...car.riders]) {
+      const leg = this.rideLeg(rider)!
+      if (leg.to !== floor) continue
+      car.riders.splice(car.riders.indexOf(rider), 1)
+      Object.assign(rider, { x: leg.x, y: leg.y, floor })
+      delete rider.ride
+      rider.leg++
+      rider.elapsed = 0
+    }
+    for (const visitor of waiting) {
+      if (car.riders.length >= CAR_CAPACITY) break
+      if (visitor.ride?.state !== 'waiting' || this.rideLeg(visitor)!.from !== floor) continue
+      const samples = this.waits.get(car.coreId) ?? []
+      samples.push(this.clock - visitor.ride.since)
+      if (samples.length > WAIT_SAMPLES) samples.shift()
+      this.waits.set(car.coreId, samples)
+      visitor.ride = { state: 'riding' }
+      Object.assign(visitor, { x: car.x, y: car.y })
+      car.riders.push(visitor)
+    }
+    car.doors = DOOR_SECONDS
   }
 }

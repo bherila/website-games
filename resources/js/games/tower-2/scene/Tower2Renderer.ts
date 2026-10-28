@@ -8,7 +8,7 @@ import * as THREE from 'three'
 import { clearGroup, disposeObject } from '../../_shared/three/threeUtils'
 import { type BuildingAnalysis, lightLevel } from '../engine/analysis'
 import { type Building, DOOR_STEP, type Facing } from '../engine/building'
-import type { Visitor } from '../engine/people'
+import type { Car, Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
 import { buildFloorGeometry, buildGridGeometry, SLAB_THICKNESS } from './floorGeometry'
 import { applyCamera, cameraSides, FLOOR_HEIGHT, type IsoView, type Viewport } from './isoCamera'
@@ -20,7 +20,7 @@ export type OverlayKind = 'none' | 'light' | 'walk'
 export type Preview =
   | { kind: 'rect', floor: number, x: number, y: number, width: number, depth: number, valid: boolean, tone: 'paint' | 'erase' }
   | { kind: 'room', floor: number, x: number, y: number, width: number, depth: number, use: UseKind, facing: Facing, valid: boolean, door: { x: number, y: number } | null, storefront: boolean }
-  | { kind: 'core', floor: number, x: number, y: number, size: number, bottomFloor: number, topFloor: number, valid: boolean }
+  | { kind: 'core', floor: number, x: number, y: number, width: number, depth: number, cars: number, bottomFloor: number, topFloor: number, valid: boolean }
 
 export interface SceneInputs {
   building: Building
@@ -36,9 +36,11 @@ export interface SceneInputs {
   /** A dashed outline suggesting where the tutorial's current step goes. */
   guide: { floor: number, x: number, y: number, width: number, depth: number } | null
   visitors: readonly Visitor[]
+  cars: readonly Car[]
 }
 
 const MAX_VISITORS = 64
+const MAX_CARS_DRAWN = 64
 const GHOST_OPACITY = 0.22
 const WALK_OVERLAY_SPAN = 24
 
@@ -67,6 +69,7 @@ export class Tower2Renderer {
   private readonly guideGroup = new THREE.Group()
   private readonly grid: THREE.LineSegments
   private readonly visitors: THREE.InstancedMesh
+  private readonly cars: THREE.InstancedMesh
   private readonly solidMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
   private readonly ghostMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: GHOST_OPACITY, depthWrite: false })
   private readonly glassMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false })
@@ -96,6 +99,12 @@ export class Tower2Renderer {
     this.visitors.count = 0
     this.visitors.frustumCulled = false
     this.scene.add(this.visitors)
+    const car = new THREE.BoxGeometry(0.72, 0.9, 0.72)
+    car.translate(0, 0.47, 0)
+    this.cars = new THREE.InstancedMesh(car, new THREE.MeshBasicMaterial({ color: PALETTE.car }), MAX_CARS_DRAWN)
+    this.cars.count = 0
+    this.cars.frustumCulled = false
+    this.scene.add(this.cars)
   }
 
   setSize(viewport: Viewport, pixelRatio: number): void {
@@ -115,6 +124,7 @@ export class Tower2Renderer {
     this.syncGuide(inputs)
     this.syncGrid(inputs)
     this.syncVisitors(inputs)
+    this.syncCars(inputs)
   }
 
   render(): void {
@@ -277,7 +287,7 @@ export class Tower2Renderer {
     } else {
       const bottom = preview.bottomFloor * FLOOR_HEIGHT
       const top = (preview.topFloor + 1) * FLOOR_HEIGHT - SLAB_THICKNESS
-      box(preview.x + 0.06, bottom, preview.y + 0.06, preview.x + preview.size - 0.06, top, preview.y + preview.size - 0.06, color, 0.45)
+      box(preview.x + 0.06, bottom, preview.y + 0.06, preview.x + preview.width - 0.06, top, preview.y + preview.depth - 0.06, color, 0.45)
     }
   }
 
@@ -319,11 +329,26 @@ export class Tower2Renderer {
     this.grid.geometry = buildGridGeometry(this.site.width, this.site.depth, floor)
   }
 
+  /** Cars on or near the active floor (every car in the exterior view), moving with their riders. */
+  private syncCars(inputs: SceneInputs): void {
+    let count = 0
+    for (const car of inputs.cars) {
+      if (count >= MAX_CARS_DRAWN) break
+      if (!inputs.exterior && (car.floor > inputs.activeFloor + 0.05 || car.floor < inputs.activeFloor - 0.95)) continue
+      this.scratch.position.set(car.x, car.floor * FLOOR_HEIGHT, car.y)
+      this.scratch.updateMatrix()
+      this.cars.setMatrixAt(count++, this.scratch.matrix)
+    }
+    this.cars.count = count
+    this.cars.instanceMatrix.needsUpdate = true
+  }
+
   private syncVisitors(inputs: SceneInputs): void {
     let count = 0
     for (const visitor of inputs.visitors) {
       if (count >= MAX_VISITORS) break
-      const shown = inputs.exterior || (visitor.floor <= inputs.activeFloor + 0.05 && visitor.floor >= inputs.activeFloor - 0.95)
+      // Riders are inside their car, which is drawn instead.
+      const shown = visitor.ride?.state !== 'riding' && (inputs.exterior || (visitor.floor <= inputs.activeFloor + 0.05 && visitor.floor >= inputs.activeFloor - 0.95))
       if (!shown) continue
       const room = inputs.building.room(visitor.roomId)
       this.scratch.position.set(visitor.x, visitor.floor * FLOOR_HEIGHT, visitor.y)

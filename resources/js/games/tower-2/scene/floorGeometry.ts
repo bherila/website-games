@@ -6,7 +6,7 @@
 import * as THREE from 'three'
 
 import { type Building, DOOR_STEP, type Facing, FACINGS, type Room } from '../engine/building'
-import { USES } from '../engine/uses'
+import { carsIn, USES } from '../engine/uses'
 import { FLOOR_HEIGHT } from './isoCamera'
 import { PALETTE } from './palette'
 
@@ -141,11 +141,24 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
     solid.box(sill.x - 0.3, base, sill.z - 0.3, sill.x + 0.3, base + 0.05, sill.z + 0.3, PALETTE.door)
   }
 
+  // A core: a hall row in front, a glass shaft per car behind it, and a solid stair-and-riser column.
   for (const core of building.coresOn(floor)) {
     const top = base + FLOOR_HEIGHT - SLAB_THICKNESS
     const band = options.selectedCoreId === core.id ? PALETTE.select : PALETTE.coreBand
-    solid.box(core.x + 0.06, base, core.y + 0.06, core.x + core.width - 0.06, top - 0.14, core.y + core.depth - 0.06, PALETTE.core)
-    solid.box(core.x + 0.06, top - 0.14, core.y + 0.06, core.x + core.width - 0.06, top, core.y + core.depth - 0.06, band)
+    const cars = carsIn(core)
+    solid.box(core.x + 0.04, base, core.y + 1.04, core.x + cars - 0.04, base + 0.03, core.y + 1.96, PALETTE.hall)
+    for (let car = 0; car < cars; car++) {
+      const x = core.x + car
+      // Corner posts and a lintel frame the shaft; its walls are glass so the car shows through.
+      for (const [px, pz] of [[x + 0.06, core.y + 0.06], [x + 0.86, core.y + 0.06], [x + 0.06, core.y + 0.86], [x + 0.86, core.y + 0.86]] as const) {
+        solid.box(px, base, pz, px + 0.08, top, pz + 0.08, PALETTE.core)
+      }
+      solid.box(x + 0.06, top - 0.1, core.y + 0.06, x + 0.94, top, core.y + 0.94, band)
+      glass.box(x + 0.08, base, core.y + 0.08, x + 0.92, top - 0.1, core.y + 0.92, PALETTE.glass)
+    }
+    const stair = core.x + cars
+    solid.box(stair + 0.06, base, core.y + 0.06, stair + 0.94, top - 0.14, core.y + core.depth - 0.06, PALETTE.core)
+    solid.box(stair + 0.06, top - 0.14, core.y + 0.06, stair + 0.94, top, core.y + core.depth - 0.06, band)
   }
 
   // Floor-to-ceiling glass on every plate edge that faces open air (the site edge, a setback or an

@@ -402,8 +402,7 @@ has no economy, stars, tenants or schedules.
   The card can skip the tutorial or load the example block (two floors, a core and four rooms). Start
   over returns to an empty site with the tutorial.
 - **Tools:** Floor (drag to paint plate), Clear (plate, corridors and touched rooms; never a core), Atrium
-  (cuts from this floor up), Corridor, Core (2×2, stretches over the contiguous free floors around the one
-  you place it on; Select it to raise or lower either end), and the four uses as fixed modules: studio 3×4,
+  (cuts from this floor up), Corridor, Core, and the four uses as fixed modules: studio 3×4,
   startup office 4×5, shop 3×3 and café 4×4. Each room has a **facing**, the wall its door is in, which
   the player chooses (R or Turn cycles it; the ghost shows an arrow), and the use's width runs along that
   wall. The door is the tile nearest the middle of that wall with a corridor or core beyond it. On the street
@@ -414,6 +413,12 @@ has no economy, stars, tenants or schedules.
   street; a room is served when a route of corridors and cores (including transfers between cores) reaches
   it from there. Ratings mix daylight (steps to glass, capped at 6), the door's walk to a core, street
   footfall for shops and cafés, and noise from shops and cafés beside or below studios.
+- **Cores and elevators:** a core is two tiles deep (a hall row in front of a glass shaft per car) and one
+  tile wider than its cars, the extra column holding the stair and riser. C or the Cars button picks 1 to 4
+  cars before placing; a core with several is an elevator bank. A new core stretches over the contiguous
+  free floors around the one it is placed on; Select it to raise or lower either end or add and remove
+  cars. Visitors wait in the hall, the nearest car with room collects them (cars carry six and hold their
+  doors 1.2 s), and the inspect panel shows the recent average wait and the queue.
 - **Façade:** floor-to-ceiling glass with mullions on every plate edge open to the air. On the active floor
   the two sides facing the camera drop to a sill so the plan shows; the cutaway follows the view rotation.
   Storefronts open a bay under a sign band in the use's colour, and the lobby entrance opens under a canopy.
