@@ -7,6 +7,7 @@ import * as THREE from 'three'
 
 import { type Building, DOOR_STEP, type Facing, FACINGS, type Room } from '../engine/building'
 import { carsIn, USES } from '../engine/uses'
+import { FINISH_REPEAT, finishSpans, finishUV, type FloorFinish } from './floorAtlas'
 import { furniture, placePiece } from './furniture'
 import { FLOOR_HEIGHT } from './isoCamera'
 import { PALETTE } from './palette'
@@ -23,6 +24,7 @@ const MULLION = 0.07
 
 /** Horizontal sun direction for side shading; tops are always fully lit. */
 const SUN = new THREE.Vector3(0.45, 0, 0.75).normalize()
+const UNTEXTURED_UV = finishUV('neutral', 0.5, 0.5)
 
 export interface FloorGeometryOptions {
   /** Façade sides that drop to a sill so the plan reads through them; none for a closed façade. */
@@ -36,25 +38,36 @@ export class GeometryBuilder {
   private readonly positions: number[] = []
   private readonly colors: number[] = []
   private readonly indices: number[] = []
+  private readonly uvs: number[] = []
   private readonly color = new THREE.Color()
 
   /** A flat-shaded face, also used for the city's sloping kerb ramps. */
-  quad(corners: readonly (readonly number[])[], normal: readonly [number, number, number], hex: number): void {
+  quad(corners: readonly (readonly number[])[], normal: readonly [number, number, number], hex: number, uvs?: readonly (readonly [number, number])[]): void {
     this.color.setHex(hex)
     const { r, g, b } = this.color
     const shade = normal[1] > 0 ? 1 : 0.58 + 0.42 * Math.max(0, normal[0] * SUN.x + normal[2] * SUN.z)
     const base = this.positions.length / 3
-    for (const corner of corners) {
+    for (const [index, corner] of corners.entries()) {
       this.positions.push(corner[0]!, corner[1]!, corner[2]!)
       this.colors.push(r * shade, g * shade, b * shade)
+      this.uvs.push(...(uvs?.[index] ?? UNTEXTURED_UV))
     }
     this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
   }
 
   /** An axis-aligned box in scene units; bottoms are never visible from above, so they are skipped. */
-  box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, hex: number): void {
+  box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, hex: number, finish?: FloorFinish): void {
     const quad = (corners: number[][], normal: [number, number, number]) => this.quad(corners, normal, hex)
-    quad([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], [0, 1, 0])
+    if (finish) {
+      for (const [a, b] of finishSpans(x0, x1)) {
+        for (const [c, d] of finishSpans(z0, z1)) {
+          const originX = Math.floor((a + b) / 2 / FINISH_REPEAT) * FINISH_REPEAT
+          const originZ = Math.floor((c + d) / 2 / FINISH_REPEAT) * FINISH_REPEAT
+          const corners = [[a, y1, c], [a, y1, d], [b, y1, d], [b, y1, c]]
+          this.quad(corners, [0, 1, 0], hex, corners.map(([x, , z]) => finishUV(finish, (x! - originX) / FINISH_REPEAT, (z! - originZ) / FINISH_REPEAT)))
+        }
+      }
+    } else quad([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], [0, 1, 0])
     quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1])
     quad([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [0, 0, -1])
     quad([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], [1, 0, 0])
@@ -69,6 +82,7 @@ export class GeometryBuilder {
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3))
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3))
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(this.uvs, 2))
     geometry.setIndex(this.indices)
     geometry.computeBoundingSphere()
     return geometry
@@ -131,14 +145,14 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
       }
       let end = x + 1
       while (end < width && tileColor(y * width + end) === hex) end++
-      solid.box(x, base - SLAB_THICKNESS, y, end, base, y + 1, hex)
+      solid.box(x, base - SLAB_THICKNESS, y, end, base, y + 1, hex, corridor[y * width + x] === 1 ? 'corridor' : 'plate')
       x = end
     }
   }
 
   for (const room of building.roomsOn(floor)) {
     const hue = USES[room.use].color
-    solid.box(room.x + 0.04, base, room.y + 0.04, room.x + room.width - 0.04, base + 0.03, room.y + room.depth - 0.04, lighten(hue, 0.55))
+    solid.box(room.x + 0.04, base, room.y + 0.04, room.x + room.width - 0.04, base + 0.03, room.y + room.depth - 0.04, lighten(hue, 0.55), room.use)
     roomWalls(solid, room, base, options.selectedRoomId === room.id ? PALETTE.select : hue)
     for (const item of furniture(room.use, hue)) {
       const at = placePiece(room, item)
@@ -154,7 +168,7 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
     const top = base + FLOOR_HEIGHT - SLAB_THICKNESS
     const band = options.selectedCoreId === core.id ? PALETTE.select : PALETTE.coreBand
     const cars = carsIn(core)
-    solid.box(core.x + 0.04, base, core.y + 1.04, core.x + cars - 0.04, base + 0.03, core.y + 1.96, PALETTE.hall)
+    solid.box(core.x + 0.04, base, core.y + 1.04, core.x + cars - 0.04, base + 0.03, core.y + 1.96, PALETTE.hall, 'core')
     for (let car = 0; car < cars; car++) {
       const x = core.x + car
       // Corner posts and a lintel frame the shaft; its walls are glass so the car shows through.

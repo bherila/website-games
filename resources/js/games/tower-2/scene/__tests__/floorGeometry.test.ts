@@ -39,9 +39,9 @@ describe('floor geometry', () => {
     building.paintPlate(1, Array.from({ length: 6 }, (_, x) => ({ x, y: 0 })))
     const { solid } = buildFloorGeometry(building, 1, {})
     expect(hasColor(solid!, PALETTE.overhang)).toBe(true)
-    // Two slab runs (plate, overhang) plus 18 mullions round the 6×1 strip (7 north, 7 south,
-    // 2 west, 2 east), each a box of five visible faces of four vertices.
-    expect(solid!.getAttribute('position').count).toBe((2 + 18) * 5 * 4)
+    // Two slab runs have three texture-repeat tops and four side faces each;
+    // 18 mullions round the 6×1 strip still have five visible faces each.
+    expect(solid!.getAttribute('position').count).toBe((3 + 2 * 4 + 18 * 5) * 4)
   })
 
   test('the drawing grid covers the whole lot at the floor height', () => {

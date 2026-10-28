@@ -12,6 +12,7 @@ import type { Car, Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
 import { buildCityContext } from './cityGeometry'
 import { buildFloorGeometry, buildGridGeometry, SLAB_THICKNESS } from './floorGeometry'
+import { loadFloorAtlas } from './floorMaterials'
 import { applyCamera, cameraSides, FLOOR_HEIGHT, type IsoView, type Viewport } from './isoCamera'
 import { type FloorVisibility, floorVisibility, type QuarterTurn } from './isoProjection'
 import { LIGHT_RAMP, PALETTE, rampColor, WALK_NONE, WALK_RAMP } from './palette'
@@ -88,10 +89,12 @@ export class Tower2Renderer {
   private readonly scratchColor = new THREE.Color()
   private readonly dusk = new THREE.Color(0x1b1446)
   private readonly lotMaterials: THREE.MeshBasicMaterial[] = []
+  private readonly releaseFloorAtlas: () => void
 
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setClearColor(0x000000, 0)
+    this.releaseFloorAtlas = loadFloorAtlas([this.solidMaterial, this.ghostMaterial])
     this.scene.add(this.cityGroup, this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
     this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: PALETTE.lotGrid, transparent: true, opacity: 0.22, depthWrite: false }))
     this.grid.renderOrder = 2
@@ -141,6 +144,7 @@ export class Tower2Renderer {
   }
 
   dispose(): void {
+    this.releaseFloorAtlas()
     disposeObject(this.scene)
     for (const material of [this.solidMaterial, this.ghostMaterial, this.glassMaterial, this.ghostGlassMaterial]) material.dispose()
     this.renderer.dispose()
