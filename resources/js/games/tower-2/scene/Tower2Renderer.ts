@@ -48,6 +48,15 @@ interface FloorLayer {
   glass: THREE.Mesh | null
 }
 
+/**
+ * The lot's look for the active floor. Below ground it fades so the basement
+ * shows, and stops writing depth so the grid, overlays and previews drawn
+ * after it still pass the depth test underneath.
+ */
+export function lotLook(activeFloor: number, exterior: boolean): { opacity: number, depthWrite: boolean } {
+  return !exterior && activeFloor < 0 ? { opacity: 0.07, depthWrite: false } : { opacity: 1, depthWrite: true }
+}
+
 export class Tower2Renderer {
   readonly renderer: THREE.WebGLRenderer
   readonly camera = new THREE.OrthographicCamera()
@@ -297,10 +306,12 @@ export class Tower2Renderer {
   private syncGrid(inputs: SceneInputs): void {
     const floor = inputs.exterior ? null : inputs.activeFloor
     this.grid.visible = floor !== null
-    // Below ground the lot turns see-through so the basement shows.
-    const lotOpacity = floor !== null && floor < 0 ? 0.07 : 1
-    if (this.lotMaterials[0]!.opacity !== lotOpacity) {
-      for (const material of this.lotMaterials) material.opacity = lotOpacity
+    const look = lotLook(inputs.activeFloor, inputs.exterior)
+    if (this.lotMaterials[0]!.opacity !== look.opacity) {
+      for (const material of this.lotMaterials) {
+        material.opacity = look.opacity
+        material.depthWrite = look.depthWrite
+      }
     }
     if (floor === null || floor === this.gridFloor) return
     this.gridFloor = floor
