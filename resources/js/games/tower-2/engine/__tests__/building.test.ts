@@ -144,6 +144,26 @@ describe('cores', () => {
   })
 })
 
+describe('core cars', () => {
+  test('set the core\'s width, widen only onto free plate on every floor, and survive a save', () => {
+    const building = slab()
+    const core = building.cores()[0]!
+    expect([core.width, core.depth]).toEqual([2, 2])
+    expect(building.checkCore(1, 4, 0, 5).ok).toBe(false)
+    expect(building.setCoreCars(core.id, 1).ok).toBe(false)
+    // The corridor at y=4 from x=2 blocks widening on the street floor.
+    expect(building.setCoreCars(core.id, 2)).toEqual({ ok: false, reason: 'The street floor: overlaps a corridor' })
+    building.erase(0, rect(2, 4, 1, 1))
+    building.paintPlate(0, rect(2, 4, 1, 1))
+    expect(building.setCoreCars(core.id, 2)).toEqual({ ok: true })
+    expect(building.core(core.id)).toMatchObject({ width: 3, depth: 2, bottomFloor: 0, topFloor: 2 })
+    expect(building.placeCore(1, 6, 0, 3)).toEqual({ ok: true })
+    expect(building.cores()[1]).toMatchObject({ width: 4 })
+    const copy = Building.fromSnapshot(JSON.parse(JSON.stringify(building.snapshot())))
+    expect(copy.snapshot()).toEqual(building.snapshot())
+  })
+})
+
 describe('snapshots', () => {
   test('round-trip through JSON and replay the edit rules', () => {
     const building = starterBuilding()

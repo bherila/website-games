@@ -202,4 +202,17 @@ test.describe('Tower 2 prototype', () => {
     await expect(page.getByTestId('tower2-floor-area')).toHaveText('1,728 m²')
     await expect(page.getByRole('button', { name: /^Basement B2, empty/ })).toBeVisible()
   })
+
+  test('turns the example core into a two-car bank whose cars carry visitors upstairs', async ({ page }) => {
+    await open(page)
+    await press(page, /^Select/)
+    await click(page, 0, 19, 31)
+    const panel = page.getByRole('region', { name: 'Selection' })
+    await expect(panel).toContainText('Core')
+    await press(page, 'Add a car')
+    await expect(page.getByTestId('tower2-core-cars')).toHaveText('2')
+    await expect(panel).toContainText('Elevator bank of 2')
+    // Someone rides up to the office or studio and the bank reports a wait.
+    await expect(page.getByTestId('tower2-core-wait')).toHaveText(/^\d+ s$/, { timeout: 20_000 })
+  })
 })

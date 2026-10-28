@@ -26,6 +26,11 @@ export interface World {
 
 export type Selection = { kind: 'room', id: number } | { kind: 'core', id: string } | null
 
+export interface CoreStats {
+  wait: number | null
+  waiting: number
+}
+
 export interface SceneControls {
   rotate(turns: number): void
   zoom(factor: number): void
@@ -49,6 +54,10 @@ export interface Tower2SceneProps {
   onSelect: (selection: Selection) => void
   onHint: (hint: string | null) => void
   onVisitors?: (count: number) => void
+  /** Cars the core tool places. */
+  cars?: number
+  /** Each core's recent average wait (seconds, null before anyone boards) and current queue, about twice a second. */
+  onCoreStats?: (stats: ReadonlyMap<string, CoreStats>) => void
   controlsRef?: Ref<SceneControls>
 }
 
@@ -146,6 +155,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     let pinch: PinchSnapshot | null = null
     let lastHint: string | null = null
     let lastVisitors = -1
+    let lastStatsAt = 0
     let running = true
     let rafId = 0
     let lastTime = performance.now()
@@ -172,8 +182,8 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       return { x, y }
     }
     const action = () => {
-      const { world, tool, activeFloor, facing } = propsRef.current
-      return toolAction(world.building, tool, activeFloor, hover, drag?.anchor ?? null, facing)
+      const { world, tool, activeFloor, facing, cars } = propsRef.current
+      return toolAction(world.building, tool, activeFloor, hover, drag?.anchor ?? null, facing, cars)
     }
     const setHint = (hint: string | null) => {
       if (hint !== lastHint) {
@@ -338,6 +348,10 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         lastVisitors = crowd.visitors.length
         current.onVisitors?.(lastVisitors)
       }
+      if (current.onCoreStats && now - lastStatsAt > 500) {
+        lastStatsAt = now
+        current.onCoreStats(new Map(building.cores().map((core) => [core.id, { wait: crowd.averageWait(core.id), waiting: crowd.waiting(core.id) }])))
+      }
       const act = pan || pinch ? null : action()
       setHint(act?.hint ?? null)
       const preview: Preview | null = act?.preview ?? null
@@ -354,6 +368,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         preview,
         guide: current.guide && current.guide.floor === current.activeFloor && !current.exterior ? current.guide : null,
         visitors: crowd.visitors,
+        cars: crowd.cars(),
       })
       renderer.render()
       rafId = requestAnimationFrame(frame)

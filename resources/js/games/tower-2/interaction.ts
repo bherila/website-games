@@ -3,9 +3,9 @@
  * translates pointers into tiles. Drag tools act on the rectangle between the
  * press and the pointer; room and core tools act on a click.
  */
-import { type Building, type EditResult, type Facing, nextFacing, type Room, roomFootprint } from './engine/building'
+import { type Building, type EditResult, type Facing, floorLabel, nextFacing, type Room, roomFootprint } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
-import { CORE_SIZE, USE_KINDS, type UseKind, USES } from './engine/uses'
+import { CORE_DEPTH, coreWidth, USE_KINDS, type UseKind, USES } from './engine/uses'
 import type { Preview } from './scene/Tower2Renderer'
 
 export type ToolId = 'select' | 'plate' | 'erase' | 'atrium' | 'corridor' | 'core' | UseKind
@@ -24,7 +24,7 @@ export const TOOLS: readonly ToolDef[] = [
   { id: 'erase', label: 'Clear', key: '3', hint: 'Drag to clear plate, corridors and rooms' },
   { id: 'atrium', label: 'Atrium', key: '4', hint: 'Drag to cut a void from this floor up' },
   { id: 'corridor', label: 'Corridor', key: '5', hint: 'Drag to draw corridors on open plate' },
-  { id: 'core', label: 'Core', key: '6', hint: 'Tap to place a 2×2 core; it stretches over free floors' },
+  { id: 'core', label: 'Core', key: '6', hint: 'Tap to place a core of elevator cars and a stair; it stretches over free floors. C changes the cars.' },
   ...USE_KINDS.map((use, i): ToolDef => ({ id: use, label: USES[use].label, key: String((7 + i) % 10), hint: `Place a ${USES[use].label.toLowerCase()} with its door (the arrow) on a corridor${use === 'shop' || use === 'cafe' ? ', or facing out on the street floor' : ''}. Turn or R rotates it.` })),
 ]
 
@@ -85,7 +85,7 @@ export function centredOrigin(hover: PlateTile, width: number, depth: number): P
   return { x: hover.x - Math.floor((width - 1) / 2), y: hover.y - Math.floor((depth - 1) / 2) }
 }
 
-export function toolAction(building: Building, tool: ToolId, floor: number, hover: PlateTile | null, anchor: PlateTile | null, facing: Facing): ToolAction {
+export function toolAction(building: Building, tool: ToolId, floor: number, hover: PlateTile | null, anchor: PlateTile | null, facing: Facing, cars = 1): ToolAction {
   const none: ToolAction = { preview: null, hint: null, commit: null }
   if (!hover) return none
 
@@ -123,12 +123,13 @@ export function toolAction(building: Building, tool: ToolId, floor: number, hove
   }
 
   if (tool === 'core') {
-    const origin = centredOrigin(hover, CORE_SIZE, CORE_SIZE)
-    const check = building.checkCore(floor, origin.x, origin.y)
+    const width = coreWidth(cars)
+    const origin = centredOrigin(hover, width, CORE_DEPTH)
+    const check = building.checkCore(floor, origin.x, origin.y, cars)
     return {
-      preview: { kind: 'core', floor, x: origin.x, y: origin.y, size: CORE_SIZE, bottomFloor: check.bottomFloor, topFloor: check.topFloor, valid: check.ok },
-      hint: check.ok ? `Core over floors ${check.bottomFloor}–${check.topFloor}` : check.reason ?? null,
-      commit: (target) => target.placeCore(floor, origin.x, origin.y),
+      preview: { kind: 'core', floor, x: origin.x, y: origin.y, width, depth: CORE_DEPTH, cars, bottomFloor: check.bottomFloor, topFloor: check.topFloor, valid: check.ok },
+      hint: check.ok ? `${cars} ${cars === 1 ? 'car' : 'cars'} over floors ${floorLabel(check.bottomFloor)}–${floorLabel(check.topFloor)}` : check.reason ?? null,
+      commit: (target) => target.placeCore(floor, origin.x, origin.y, cars),
     }
   }
 

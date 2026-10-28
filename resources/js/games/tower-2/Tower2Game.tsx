@@ -5,17 +5,17 @@
  */
 import {
   ArrowLeft, ArrowUpDown, Bed, Briefcase, Building, ChevronDown, ChevronUp, CircleDashed, Coffee, Copy, Eraser, Footprints, Hand,
-  Layers, Maximize, MousePointer2, Pencil, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, ShoppingBag, Square, Star, Sun, Trash,
+  Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, ShoppingBag, Square, Star, Sun, Trash,
   TriangleAlert, Undo2, Users, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { hexColor } from '../_shared/three/threeUtils'
 import { type Building as BuildingModel, type EditResult, type Facing, floorLabel, nextFacing } from './engine/building'
-import { USES } from './engine/uses'
+import { carsIn, MAX_CARS, USES } from './engine/uses'
 import { isUseTool, nextTurn, stepperFloors, type ToolId, TOOLS } from './interaction'
 import type { OverlayKind } from './scene/Tower2Renderer'
-import { type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
+import { type CoreStats, type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
 import { TUTORIAL, tutorialProgress } from './tutorial'
 import { TutorialCard } from './TutorialCard'
 import { storage, useWorld } from './useWorld'
@@ -97,6 +97,8 @@ export function Tower2Game(): ReactElement {
   const { world } = history
   const [tool, setTool] = useState<ToolId>('plate')
   const [facing, setFacing] = useState<Facing>('south')
+  const [cars, setCars] = useState(1)
+  const [coreStats, setCoreStats] = useState<ReadonlyMap<string, CoreStats>>(() => new Map())
   const [activeFloor, setActiveFloor] = useState(0)
   const [overlay, setOverlay] = useState<OverlayKind>('none')
   const [exterior, setExterior] = useState(false)
@@ -206,6 +208,7 @@ export function Tower2Game(): ReactElement {
       else if (key === 'q') controlsRef.current?.rotate(-1)
       else if (key === 'e') controlsRef.current?.rotate(1)
       else if (key === 'r') turn()
+      else if (key === 'c') setCars((value) => (value % MAX_CARS) + 1)
       else if (key === 'o') setOverlay((value) => (value === 'none' ? 'light' : value === 'light' ? 'walk' : 'none'))
       else if (key === 'x') setExterior((value) => !value)
       else if (key === 'i') inherit()
@@ -273,6 +276,8 @@ export function Tower2Game(): ReactElement {
         onSelect={setSelection}
         onHint={setHint}
         onVisitors={setVisitors}
+        cars={cars}
+        onCoreStats={setCoreStats}
         controlsRef={controlsRef}
       />
 
@@ -356,6 +361,13 @@ export function Tower2Game(): ReactElement {
             </button>
           )
         })}
+        {tool === 'core' && (
+          <button type="button" onClick={() => setCars((value) => (value % MAX_CARS) + 1)} title="Cars in the core you place: a core with several is a bank (C)" className="flex min-w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/10 md:flex-row md:gap-2">
+            <ArrowUpDown size={18} aria-hidden="true" />
+            <span className="whitespace-nowrap">{cars} {cars === 1 ? 'car' : 'cars'}</span>
+            <kbd className="hidden rounded bg-black/20 px-1 text-[10px] font-medium md:inline">C</kbd>
+          </button>
+        )}
         {isUseTool(tool) && (
           <button type="button" onClick={turn} title="Turn the room so its door faces another way (R)" className="flex min-w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/10 md:flex-row md:gap-2">
             <RotateCw size={18} aria-hidden="true" />
@@ -451,8 +463,25 @@ export function Tower2Game(): ReactElement {
             </>
           ) : (
             <>
-              <h2 className="mb-1 text-sm font-bold">Core</h2>
-              <p className="mb-2 text-white/60">Elevators, a stair and a riser. It stops on every floor it spans.</p>
+              <h2 className="mb-1 text-sm font-bold">{carsIn(selected.core) === 1 ? 'Core' : `Elevator bank of ${carsIn(selected.core)}`}</h2>
+              <p className="mb-2 text-white/60">Cars, a stair and a riser. Its cars stop on every floor it spans: {floorLabel(selected.core.bottomFloor)}–{floorLabel(selected.core.topFloor)}.</p>
+              <dl className="mb-1 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
+                <dt className="text-white/70">Average wait</dt>
+                <dd data-testid="tower2-core-wait" className="text-right font-semibold tabular-nums">{(() => {
+                  const wait = coreStats.get(selected.core.id)?.wait
+                  return wait === null || wait === undefined ? 'No riders yet' : `${Math.round(wait)} s`
+                })()}</dd>
+                <dt className="text-white/70">Waiting now</dt>
+                <dd className="text-right font-semibold tabular-nums">{coreStats.get(selected.core.id)?.waiting ?? 0}</dd>
+              </dl>
+              <div className="flex items-center justify-between py-0.5">
+                <span className="text-white/70">Cars</span>
+                <span className="flex items-center gap-1">
+                  <button type="button" aria-label="Remove a car" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/15" onClick={() => apply((building) => building.setCoreCars(selected.core.id, carsIn(selected.core) - 1))}><Minus size={16} aria-hidden="true" /></button>
+                  <span data-testid="tower2-core-cars" className="w-6 text-center font-bold tabular-nums">{carsIn(selected.core)}</span>
+                  <button type="button" aria-label="Add a car" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-white/15" onClick={() => apply((building) => building.setCoreCars(selected.core.id, carsIn(selected.core) + 1))}><Plus size={16} aria-hidden="true" /></button>
+                </span>
+              </div>
               {(['top', 'bottom'] as const).map((end) => {
                 const core = selected.core
                 const value = end === 'top' ? core.topFloor : core.bottomFloor

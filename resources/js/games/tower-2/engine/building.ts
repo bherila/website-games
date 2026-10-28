@@ -4,7 +4,7 @@
  * changes anything and reports a player-facing reason when it refuses.
  */
 import { FloorPlateModel, type FloorPlateSnapshot, type PlateTile, type VerticalFootprint } from './floorPlate'
-import { CORE_SIZE, type UseKind, USES } from './uses'
+import { carsIn, CORE_DEPTH, coreWidth, MAX_CARS, type UseKind, USES } from './uses'
 
 export const SITE_WIDTH = 40
 export const SITE_DEPTH = 40
@@ -346,26 +346,45 @@ export class Building {
   // ── Cores ─────────────────────────────────────────────────────────────────
 
   /** A new core stretches over the contiguous floors around this one where its footprint is free. */
-  checkCore(floor: number, x: number, y: number): CoreCheck {
+  checkCore(floor: number, x: number, y: number, cars = 1): CoreCheck {
     const fail = (reason: string): CoreCheck => ({ ok: false, reason, bottomFloor: floor, topFloor: floor })
     if (!this.isFloor(floor)) return fail('That floor is outside the site')
-    if (!this.inBounds(x, y) || !this.inBounds(x + CORE_SIZE - 1, y + CORE_SIZE - 1)) return fail('Cores go inside the site')
-    const reason = this.coreFloorProblem(floor, x, y)
+    if (!Number.isSafeInteger(cars) || cars < 1 || cars > MAX_CARS) return fail(`A core holds 1 to ${MAX_CARS} cars`)
+    const width = coreWidth(cars)
+    if (!this.inBounds(x, y) || !this.inBounds(x + width - 1, y + CORE_DEPTH - 1)) return fail('Cores go inside the site')
+    const reason = this.coreFloorProblem(floor, x, y, width)
     if (reason) return fail(reason)
     let bottomFloor = floor
     let topFloor = floor
-    while (bottomFloor > this.lowestFloor && !this.coreFloorProblem(bottomFloor - 1, x, y)) bottomFloor--
-    while (topFloor < this.highestFloor && !this.coreFloorProblem(topFloor + 1, x, y)) topFloor++
+    while (bottomFloor > this.lowestFloor && !this.coreFloorProblem(bottomFloor - 1, x, y, width)) bottomFloor--
+    while (topFloor < this.highestFloor && !this.coreFloorProblem(topFloor + 1, x, y, width)) topFloor++
     return { ok: true, bottomFloor, topFloor }
   }
 
-  placeCore(floor: number, x: number, y: number): EditResult {
-    const check = this.checkCore(floor, x, y)
+  placeCore(floor: number, x: number, y: number, cars = 1): EditResult {
+    const check = this.checkCore(floor, x, y, cars)
     if (!check.ok) return refuse(check.reason ?? 'Cannot place a core here')
     this.plates.placeVerticalFootprint({
-      id: `core-${this.nextCoreId++}`, kind: 'core', x, y, width: CORE_SIZE, depth: CORE_SIZE,
+      id: `core-${this.nextCoreId++}`, kind: 'core', x, y, width: coreWidth(cars), depth: CORE_DEPTH,
       bottomFloor: check.bottomFloor, topFloor: check.topFloor,
     })
+    return this.changed()
+  }
+
+  /** Add or remove cars; the core widens or narrows to the east on every floor it spans. */
+  setCoreCars(id: string, cars: number): EditResult {
+    const core = this.core(id)
+    if (!core) return refuse('That core is already gone')
+    if (!Number.isSafeInteger(cars) || cars < 1 || cars > MAX_CARS) return refuse(`A core holds 1 to ${MAX_CARS} cars`)
+    if (cars === carsIn(core)) return refuse(`The core already has ${cars} ${cars === 1 ? 'car' : 'cars'}`)
+    const width = coreWidth(cars)
+    if (!this.inBounds(core.x + width - 1, core.y)) return refuse('A wider core would leave the site')
+    for (let floor = core.bottomFloor; floor <= core.topFloor; floor++) {
+      const reason = this.coreFloorProblem(floor, core.x, core.y, width, core.id)
+      if (reason) return refuse(`${capitalise(floorName(floor))}: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`)
+    }
+    this.plates.removeVerticalFootprint(core.id)
+    this.plates.placeVerticalFootprint({ ...core, width })
     return this.changed()
   }
 
@@ -376,7 +395,7 @@ export class Building {
     if (!this.isFloor(bottomFloor) || !this.isFloor(topFloor) || bottomFloor > topFloor) return refuse('A core spans at least one floor of the site')
     for (let floor = bottomFloor; floor <= topFloor; floor++) {
       if (floor >= core.bottomFloor && floor <= core.topFloor) continue
-      const reason = this.coreFloorProblem(floor, core.x, core.y)
+      const reason = this.coreFloorProblem(floor, core.x, core.y, core.width)
       if (reason) return refuse(`${capitalise(floorName(floor))}: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`)
     }
     this.plates.resizeVerticalFootprint(id, bottomFloor, topFloor)
@@ -512,9 +531,11 @@ export class Building {
     this.roomGridRevision = -1
   }
 
-  private coreFloorProblem(floor: number, x: number, y: number): string | null {
-    for (let ty = y; ty < y + CORE_SIZE; ty++) {
-      for (let tx = x; tx < x + CORE_SIZE; tx++) {
+  /** Why a core footprint cannot stand on this floor; `ignoreId` lets a core overlap itself. */
+  private coreFloorProblem(floor: number, x: number, y: number, width: number, ignoreId: string | null = null): string | null {
+    for (let ty = y; ty < y + CORE_DEPTH; ty++) {
+      for (let tx = x; tx < x + width; tx++) {
+        if (ignoreId !== null && this.coreAt(floor, tx, ty)?.id === ignoreId) continue
         const use = this.tileUse(floor, tx, ty)
         if (use === 'empty') return 'Cores need floor plate under every tile'
         if (use !== 'plate') return `Overlaps a ${use}`

@@ -22,5 +22,18 @@ export const USES: Readonly<Record<UseKind, UseDef>> = {
 
 export const USE_KINDS = Object.keys(USES) as UseKind[]
 
-/** A core bundles elevators, a stair and a riser on a fixed 2×2 footprint in the prototype. */
-export const CORE_SIZE = 2
+/**
+ * A core bundles elevator cars, a stair and a riser. It is two tiles deep (a
+ * shaft row behind a hall row) and one tile wider than its cars, the extra
+ * column holding the stair and riser. Several cars in one core make a bank.
+ */
+export const CORE_DEPTH = 2
+export const MAX_CARS = 4
+
+export function coreWidth(cars: number): number {
+  return cars + 1
+}
+
+export function carsIn(core: { width: number }): number {
+  return core.width - 1
+}

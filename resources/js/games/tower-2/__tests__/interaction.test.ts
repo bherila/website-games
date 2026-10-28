@@ -42,7 +42,7 @@ describe('tool actions', () => {
     const building = starterBuilding()
     const core = toolAction(building, 'core', 0, { x: 14, y: 29 }, null, 'south')
     expect(core.preview).toMatchObject({ kind: 'core', x: 14, y: 29, bottomFloor: 0, topFloor: 1, valid: true })
-    expect(core.hint).toBe('Core over floors 0–1')
+    expect(core.hint).toBe('1 car over floors G–1')
     const shop = toolAction(building, 'shop', 0, { x: 24, y: 31 }, null, 'south')
     expect(shop.preview).toMatchObject({ kind: 'room', x: 23, y: 30, width: 3, depth: 3, valid: true, door: { x: 24, y: 32 } })
     const turned = toolAction(building, 'office', 1, { x: 25, y: 36 }, null, 'east')

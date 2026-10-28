@@ -18,6 +18,9 @@ export const PALETTE = {
   door: 0xfff6d8,
   /** Basement retaining walls, where glass would be above ground. */
   retaining: 0x4a4370,
+  /** An elevator car, and the hall floor in front of the shafts. */
+  car: 0xffe14d,
+  hall: 0xbff3ea,
   /** The lobby entrance's canopy. */
   canopy: 0xffd23f,
   valid: 0x4ade80,
