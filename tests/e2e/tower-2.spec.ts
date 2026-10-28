@@ -166,6 +166,10 @@ test.describe('Tower 2 prototype', () => {
     // Each step picks its own tool, so the player only drags and taps.
     await drag(page, 0, [12, top], [27, 39])
     await expect(card).toContainText('Run a corridor in from the street')
+    // A reload after the first autosave resumes the tutorial where it was.
+    await page.waitForTimeout(800)
+    await page.reload()
+    await expect(page.getByRole('region', { name: 'Tutorial' })).toContainText('Run a corridor in from the street')
     await drag(page, 0, [20, top + 2], [20, 39])
     await expect(card).toContainText('Place a core beside the corridor')
     await click(page, 0, 21, top + 4)

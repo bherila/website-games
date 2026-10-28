@@ -232,10 +232,9 @@ export function Tower2Game(): ReactElement {
   }
   const tutorialGuide = TUTORIAL[tutorialStep]?.guide ?? null
 
-  const setTutorial = useCallback((on: boolean) => {
-    setTutorialOn(on)
-    writeTutorialFlag(on)
-  }, [])
+  const setTutorial = useCallback((on: boolean) => setTutorialOn(on), [])
+  // Store the flag whenever it is decided, including a first visit's default, so a reload resumes the tutorial.
+  useEffect(() => writeTutorialFlag(tutorialOn), [tutorialOn])
 
   const startOver = useCallback((start: 'empty' | 'example') => {
     history.reset(start)
