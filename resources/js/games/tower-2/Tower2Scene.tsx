@@ -11,10 +11,11 @@ import type { BuildingAnalysis } from './engine/analysis'
 import type { Building, EditResult, Facing } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
 import { Crowd } from './engine/people'
-import { isRectTool, toolAction,type ToolId } from './interaction'
+import { isRectTool, toolAction, type ToolId } from './interaction'
 import { type FrameClock, pixelRatioFor, shouldRender } from './scene/framePacing'
 import { followFloor, frameRect, type IsoView, panView, projectionFor, rotateView, type Viewport, zoomViewAt } from './scene/isoCamera'
 import { type OverlayKind, type Preview, Tower2Renderer } from './scene/Tower2Renderer'
+import type { Guide } from './tutorial'
 
 export interface World {
   building: Building
@@ -37,6 +38,8 @@ export interface Tower2SceneProps {
   tool: ToolId
   /** The wall new rooms put their door in. */
   facing: Facing
+  /** Where the tutorial's current step goes, outlined on the plan. */
+  guide?: Guide | null
   overlay: OverlayKind
   exterior: boolean
   selection: Selection
@@ -85,7 +88,8 @@ function plateBounds(building: Building): { x: number, y: number, width: number,
       maxY = Math.max(maxY, y)
     }
   }
-  if (!Number.isFinite(minX)) return { x: building.width / 2 - 8, y: building.depth / 2 - 8, width: 16, depth: 16 }
+  // An empty site frames its street edge, where the first block goes.
+  if (!Number.isFinite(minX)) return { x: 8, y: building.depth - 18, width: 24, depth: 20 }
   return { x: minX - 3, y: minY - 3, width: maxX - minX + 7, depth: maxY - minY + 7 }
 }
 
@@ -348,6 +352,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         selectedRoomId: current.selection?.kind === 'room' ? current.selection.id : null,
         selectedCoreId: current.selection?.kind === 'core' ? current.selection.id : null,
         preview,
+        guide: current.guide && current.guide.floor === current.activeFloor && !current.exterior ? current.guide : null,
         visitors: crowd.visitors,
       })
       renderer.render()

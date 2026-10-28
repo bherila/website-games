@@ -33,6 +33,8 @@ export interface SceneInputs {
   selectedRoomId: number | null
   selectedCoreId: string | null
   preview: Preview | null
+  /** A dashed outline suggesting where the tutorial's current step goes. */
+  guide: { floor: number, x: number, y: number, width: number, depth: number } | null
   visitors: readonly Visitor[]
 }
 
@@ -53,6 +55,7 @@ export class Tower2Renderer {
   private readonly floorsGroup = new THREE.Group()
   private readonly overlayGroup = new THREE.Group()
   private readonly previewGroup = new THREE.Group()
+  private readonly guideGroup = new THREE.Group()
   private readonly grid: THREE.LineSegments
   private readonly visitors: THREE.InstancedMesh
   private readonly solidMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
@@ -63,6 +66,7 @@ export class Tower2Renderer {
   private floorsKey = ''
   private overlayKey = ''
   private previewKey = ''
+  private guideKey = ''
   private gridFloor = -1
   private rotation: QuarterTurn = 0
   private readonly scratch = new THREE.Object3D()
@@ -72,7 +76,7 @@ export class Tower2Renderer {
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setClearColor(0x000000, 0)
-    this.scene.add(this.lot(), this.floorsGroup, this.overlayGroup, this.previewGroup)
+    this.scene.add(this.lot(), this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
     this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: PALETTE.lotGrid, transparent: true, opacity: 0.22, depthWrite: false }))
     this.grid.renderOrder = 2
     this.scene.add(this.grid)
@@ -98,6 +102,7 @@ export class Tower2Renderer {
     this.syncFloors(inputs)
     this.syncOverlay(inputs)
     this.syncPreview(inputs)
+    this.syncGuide(inputs)
     this.syncGrid(inputs)
     this.syncVisitors(inputs)
   }
@@ -259,6 +264,28 @@ export class Tower2Renderer {
       const top = (preview.topFloor + 1) * FLOOR_HEIGHT - SLAB_THICKNESS
       box(preview.x + 0.06, bottom, preview.y + 0.06, preview.x + preview.size - 0.06, top, preview.y + preview.size - 0.06, color, 0.45)
     }
+  }
+
+  private syncGuide(inputs: SceneInputs): void {
+    const key = JSON.stringify(inputs.guide)
+    if (key === this.guideKey) return
+    this.guideKey = key
+    clearGroup(this.guideGroup)
+    const guide = inputs.guide
+    if (!guide) return
+    const y = guide.floor * FLOOR_HEIGHT + 0.03
+    const { x, y: z, width, depth } = guide
+    const outline = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, y, z), new THREE.Vector3(x + width, y, z), new THREE.Vector3(x + width, y, z + depth), new THREE.Vector3(x, y, z + depth),
+    ])
+    const line = new THREE.LineLoop(outline, new THREE.LineDashedMaterial({ color: PALETTE.canopy, dashSize: 0.45, gapSize: 0.3, transparent: true, opacity: 0.95, depthWrite: false }))
+    line.computeLineDistances()
+    line.renderOrder = 5
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), new THREE.MeshBasicMaterial({ color: PALETTE.canopy, transparent: true, opacity: 0.12, depthWrite: false }))
+    fill.rotation.x = -Math.PI / 2
+    fill.position.set(x + width / 2, y, z + depth / 2)
+    fill.renderOrder = 5
+    this.guideGroup.add(fill, line)
   }
 
   private syncGrid(inputs: SceneInputs): void {

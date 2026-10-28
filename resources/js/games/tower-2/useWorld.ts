@@ -16,17 +16,18 @@ export const STORAGE_KEY = 'tower-2-prototype'
 const HISTORY_LIMIT = 60
 const SAVE_DELAY_MS = 400
 
-export function loadBuilding(storage: Pick<Storage, 'getItem'> | null): Building {
+/** The saved plan, or an empty site for a first visit (`fresh`), which starts the tutorial. */
+export function loadBuilding(storage: Pick<Storage, 'getItem'> | null): { building: Building, fresh: boolean } {
   try {
     const saved = storage?.getItem(STORAGE_KEY)
-    if (saved) return Building.fromSnapshot(JSON.parse(saved) as BuildingSnapshot)
+    if (saved) return { building: Building.fromSnapshot(JSON.parse(saved) as BuildingSnapshot), fresh: false }
   } catch {
-    // A save from an older prototype, or one that no longer validates, falls back to the starter lot.
+    // A save from an older prototype, or one that no longer validates, starts over on an empty site.
   }
-  return starterBuilding()
+  return { building: new Building(), fresh: true }
 }
 
-function storage(): Storage | null {
+export function storage(): Storage | null {
   try {
     return window.localStorage
   } catch {
@@ -39,7 +40,10 @@ export interface WorldHistory {
   apply: (commit: (building: Building) => EditResult) => EditResult
   undo: () => void
   redo: () => void
-  reset: () => void
+  /** Start over on an empty site or the example block; undo brings the old plan back. */
+  reset: (start: 'empty' | 'example') => void
+  /** True when this visit began without a saved plan. */
+  firstVisit: boolean
   canUndo: boolean
   canRedo: boolean
 }
@@ -55,7 +59,8 @@ function fresh(building: Building, stamp: number): World {
 }
 
 export function useWorld(): WorldHistory {
-  const [state, setState] = useState<HistoryState>(() => ({ world: fresh(loadBuilding(storage()), 0), undo: [], redo: [] }))
+  const [initial] = useState(() => loadBuilding(storage()))
+  const [state, setState] = useState<HistoryState>(() => ({ world: fresh(initial.building, 0), undo: [], redo: [] }))
   const saveTimerRef = useRef<number | undefined>(undefined)
 
   // Save shortly after the last change; the timer is cleared on unmount.
@@ -111,13 +116,13 @@ export function useWorld(): WorldHistory {
     })
   }, [])
 
-  const reset = useCallback(() => {
+  const reset = useCallback((start: 'empty' | 'example') => {
     setState((current) => ({
-      world: fresh(starterBuilding(), current.world.stamp + 1),
+      world: fresh(start === 'example' ? starterBuilding() : new Building(), current.world.stamp + 1),
       undo: [...current.undo.slice(1 - HISTORY_LIMIT), current.world.building.snapshot()],
       redo: [],
     }))
   }, [])
 
-  return { world: state.world, apply, undo, redo, reset, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
+  return { world: state.world, apply, undo, redo, reset, firstVisit: initial.fresh, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
 }
