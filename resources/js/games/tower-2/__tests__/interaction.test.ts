@@ -66,4 +66,22 @@ describe('turning a placed room', () => {
     building.erase(0, [0, 1, 2].map((x) => ({ x, y: 0 })))
     expect(nextTurn(building, studio)).toBeNull()
   })
+
+  test('four turns bring a rectangular room back to where it started', () => {
+    // A corridor ring round the 4×4 union of a studio's two orientations lets every facing fit.
+    const building = new Building()
+    building.paintPlate(0, Array.from({ length: 8 * 8 }, (_, i) => ({ x: 8 + (i % 8), y: 8 + Math.floor(i / 8) })))
+    const ring = [9, 14].flatMap((v) => [9, 10, 11, 12, 13, 14].flatMap((w) => [{ x: w, y: v }, { x: v, y: w }]))
+    building.paintCorridor(0, ring)
+    expect(building.placeRoom('studio', 0, 10, 10, 'south')).toEqual({ ok: true })
+    const seen: string[] = []
+    for (let i = 0; i < 4; i++) {
+      const studio = building.room(1)!
+      const turn = nextTurn(building, studio)!
+      expect(building.moveRoom(1, turn.x, turn.y, turn.facing)).toEqual({ ok: true })
+      seen.push(turn.facing)
+    }
+    expect(seen).toEqual(['west', 'north', 'east', 'south'])
+    expect(building.room(1)).toMatchObject({ x: 10, y: 10, facing: 'south' })
+  })
 })

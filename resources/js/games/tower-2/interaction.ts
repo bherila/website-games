@@ -61,7 +61,8 @@ export function rectTiles(a: PlateTile, b: PlateTile): { x: number, y: number, w
  */
 export function turnedInPlace(room: Room, facing: Facing): PlateTile[] {
   const { width, depth } = roomFootprint(room.use, facing)
-  const centred = { x: Math.round(room.x + room.width / 2 - width / 2), y: Math.round(room.y + room.depth / 2 - depth / 2) }
+  // A half-tile offset truncates toward zero both ways, so four turns land back on the starting footprint.
+  const centred = { x: room.x + Math.trunc((room.width - width) / 2), y: room.y + Math.trunc((room.depth - depth) / 2) }
   return centred.x === room.x && centred.y === room.y ? [centred] : [centred, { x: room.x, y: room.y }]
 }
 
