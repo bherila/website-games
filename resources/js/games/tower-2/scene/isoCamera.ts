@@ -7,6 +7,7 @@
  */
 import * as THREE from 'three'
 
+import type { Facing } from '../engine/building'
 import { createIsoProjection, type FloorPoint, type Point2, type QuarterTurn } from './isoProjection'
 
 /** Storey height in tile widths (a 3 m tile, a 3.75 m storey). */
@@ -79,13 +80,23 @@ export function followFloor(view: IsoView, fromFloor: number, toFloor: number, v
   return anchor(view, { ...world, floor: toFloor }, centre)
 }
 
+/** The camera's horizontal offset from its target in world (x, y) for each view rotation. */
+function cameraOffset(rotation: QuarterTurn): [number, number] {
+  return ([[1, 1], [-1, 1], [-1, -1], [1, -1]] as const)[(4 - rotation) % 4]! as [number, number]
+}
+
+/** The two façade sides that face the camera, which a cutaway lowers so the plan shows. */
+export function cameraSides(rotation: QuarterTurn): [Facing, Facing] {
+  const [x, y] = cameraOffset(rotation)
+  return [y > 0 ? 'south' : 'north', x > 0 ? 'east' : 'west']
+}
+
 /** Position, target and frustum for a THREE.OrthographicCamera matching `projectionFor(view)`. */
 export function cameraPose(view: IsoView, viewport: Viewport) {
   const projection = projectionFor(view)
   const target = projection.screenToFloor({ x: viewport.width / 2, y: viewport.height / 2 }, 0)
   // The camera looks along view (−1, −1, −1); undo the view rotation to find that in world axes.
-  const inverse = (4 - view.rotation) % 4
-  const turn = [[1, 1], [-1, 1], [-1, -1], [1, -1]][inverse]!
+  const turn = cameraOffset(view.rotation)
   const distance = 400
   const scale = distance / Math.sqrt(3)
   return {

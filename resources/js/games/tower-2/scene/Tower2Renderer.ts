@@ -7,19 +7,19 @@ import * as THREE from 'three'
 
 import { clearGroup, disposeObject } from '../../_shared/three/threeUtils'
 import { type BuildingAnalysis, lightLevel } from '../engine/analysis'
-import type { Building } from '../engine/building'
+import { type Building, DOOR_STEP, type Facing } from '../engine/building'
 import type { Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
-import { buildFloorGeometry, buildGridGeometry, SILL_HEIGHT, SLAB_THICKNESS } from './floorGeometry'
-import { applyCamera, FLOOR_HEIGHT, type IsoView, type Viewport } from './isoCamera'
-import { type FloorVisibility,floorVisibility } from './isoProjection'
+import { buildFloorGeometry, buildGridGeometry, SLAB_THICKNESS } from './floorGeometry'
+import { applyCamera, cameraSides, FLOOR_HEIGHT, type IsoView, type Viewport } from './isoCamera'
+import { type FloorVisibility, floorVisibility, type QuarterTurn } from './isoProjection'
 import { LIGHT_RAMP, PALETTE, rampColor, WALK_NONE, WALK_RAMP } from './palette'
 
 export type OverlayKind = 'none' | 'light' | 'walk'
 
 export type Preview =
   | { kind: 'rect', floor: number, x: number, y: number, width: number, depth: number, valid: boolean, tone: 'paint' | 'erase' }
-  | { kind: 'room', floor: number, x: number, y: number, width: number, depth: number, use: UseKind, valid: boolean, door: { x: number, y: number } | null }
+  | { kind: 'room', floor: number, x: number, y: number, width: number, depth: number, use: UseKind, facing: Facing, valid: boolean, door: { x: number, y: number } | null, storefront: boolean }
   | { kind: 'core', floor: number, x: number, y: number, size: number, bottomFloor: number, topFloor: number, valid: boolean }
 
 export interface SceneInputs {
@@ -64,6 +64,7 @@ export class Tower2Renderer {
   private overlayKey = ''
   private previewKey = ''
   private gridFloor = -1
+  private rotation: QuarterTurn = 0
   private readonly scratch = new THREE.Object3D()
   private readonly scratchColor = new THREE.Color()
   private readonly dusk = new THREE.Color(0x1b1446)
@@ -89,6 +90,7 @@ export class Tower2Renderer {
   }
 
   setView(view: IsoView, viewport: Viewport): void {
+    this.rotation = view.rotation
     applyCamera(this.camera, view, viewport)
   }
 
@@ -137,7 +139,8 @@ export class Tower2Renderer {
   }
 
   private syncFloors(inputs: SceneInputs): void {
-    const key = [inputs.stamp, inputs.activeFloor, inputs.exterior, inputs.selectedRoomId, inputs.selectedCoreId].join('|')
+    // The cutaway follows the camera, so turning the view rebuilds the active floor's façade.
+    const key = [inputs.stamp, inputs.activeFloor, inputs.exterior, inputs.selectedRoomId, inputs.selectedCoreId, this.rotation].join('|')
     if (key === this.floorsKey) return
     this.floorsKey = key
     // Materials are shared across floors, so only each layer's geometry is disposed.
@@ -152,7 +155,7 @@ export class Tower2Renderer {
       if (visibility === 'hidden') continue
       const active = floor === inputs.activeFloor && !inputs.exterior
       const geometry = buildFloorGeometry(inputs.building, floor, {
-        glassHeight: active ? SILL_HEIGHT : FLOOR_HEIGHT - SLAB_THICKNESS,
+        cutaway: active ? cameraSides(this.rotation) : [],
         selectedRoomId: inputs.selectedRoomId,
         selectedCoreId: inputs.selectedCoreId,
       })
@@ -237,7 +240,20 @@ export class Tower2Renderer {
     } else if (preview.kind === 'room') {
       const hex = preview.valid ? USES[preview.use].color : PALETTE.invalid
       box(preview.x + 0.04, base, preview.y + 0.04, preview.x + preview.width - 0.04, base + 0.62, preview.y + preview.depth - 0.04, hex, 0.5)
-      if (preview.door) box(preview.door.x + 0.2, base, preview.door.y + 0.2, preview.door.x + 0.8, base + 0.7, preview.door.y + 0.8, PALETTE.door, 0.85)
+      // The door arrow shows which way the room faces even where it cannot go.
+      const step = DOOR_STEP[preview.facing]
+      const door = preview.door ?? {
+        x: preview.facing === 'east' ? preview.x + preview.width - 1 : preview.facing === 'west' ? preview.x : preview.x + Math.floor((preview.width - 1) / 2),
+        y: preview.facing === 'south' ? preview.y + preview.depth - 1 : preview.facing === 'north' ? preview.y : preview.y + Math.floor((preview.depth - 1) / 2),
+      }
+      box(door.x + 0.2, base, door.y + 0.2, door.x + 0.8, base + 0.7, door.y + 0.8, PALETTE.door, 0.85)
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.1, 3), material(preview.storefront ? PALETTE.canopy : PALETTE.door, 0.95))
+      // Lay the cone flat and point it out through the door wall.
+      arrow.rotation.set(Math.PI / 2, 0, 0)
+      arrow.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), Math.atan2(step.x, step.y))
+      arrow.position.set(door.x + 0.5 + step.x * 1.25, base + 0.45, door.y + 0.5 + step.y * 1.25)
+      arrow.renderOrder = 4
+      this.previewGroup.add(arrow)
     } else {
       const bottom = preview.bottomFloor * FLOOR_HEIGHT
       const top = (preview.topFloor + 1) * FLOOR_HEIGHT - SLAB_THICKNESS

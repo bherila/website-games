@@ -1,5 +1,5 @@
 import { BuildingAnalysis } from '../analysis'
-import { starterBuilding } from '../building'
+import { Building, starterBuilding } from '../building'
 import { Crowd, planVisit, positionOnLeg } from '../people'
 
 describe('visits', () => {
@@ -49,5 +49,21 @@ describe('crowd', () => {
     expect(run()).toEqual(first)
     expect(first.peak).toBe(Crowd.capacityFor(4))
     expect(Math.min(...first.ids)).toBeGreaterThan(1)
+  })
+})
+
+describe('storefront visits', () => {
+  test('walk from the pavement across the lot straight in, with no lobby or core', () => {
+    const building = new Building()
+    building.paintPlate(0, Array.from({ length: 6 * 4 }, (_, i) => ({ x: 4 + (i % 6), y: 32 + Math.floor(i / 6) })))
+    expect(building.placeRoom('shop', 0, 5, 33, 'south')).toEqual({ ok: true })
+    const shop = building.room(1)!
+    const legs = planVisit(new BuildingAnalysis(building), shop, 4)!
+    expect(legs.map((leg) => leg.kind)).toEqual(['walk', 'dwell', 'walk'])
+    const outbound = legs[0]!.kind === 'walk' ? legs[0]!.points : []
+    expect(outbound[0]).toEqual({ x: 6.5, y: 41.5 })
+    expect(outbound.slice(-2)).toEqual([{ x: 6.5, y: 35.5 }, { x: 6.5, y: 34.5 }])
+    building.paintPlate(0, Array.from({ length: 40 }, (_, x) => ({ x, y: 37 })))
+    expect(planVisit(new BuildingAnalysis(building), shop, 4)).toBeNull()
   })
 })

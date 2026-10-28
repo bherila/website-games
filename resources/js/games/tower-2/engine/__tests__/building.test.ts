@@ -1,4 +1,4 @@
-import { Building, starterBuilding } from '../building'
+import { Building, FACINGS, nextFacing, starterBuilding } from '../building'
 import type { PlateTile } from '../floorPlate'
 
 function rect(x: number, y: number, width: number, depth: number): PlateTile[] {
@@ -20,29 +20,67 @@ describe('starter building', () => {
     expect(building.entrance()).toEqual({ x: 21, y: 39 })
     expect(building.cores().map(({ bottomFloor, topFloor }) => [bottomFloor, topFloor])).toEqual([[0, 1]])
     expect(building.allRooms().map((room) => [room.use, room.floor])).toEqual([['shop', 0], ['cafe', 0], ['office', 1], ['studio', 1]])
-    expect(building.allRooms().map((room) => room.doorSide)).toEqual(['west', 'east', 'north', 'south'])
+    expect(building.allRooms().map((room) => room.facing)).toEqual(['west', 'east', 'north', 'south'])
     expect(building.revision).toBe(0)
   })
 })
 
 describe('rooms', () => {
-  test('need plate under every tile, free tiles and a corridor or core along a side', () => {
+  test('need plate under every tile, free tiles and a corridor or core beyond the door wall', () => {
     const building = slab()
-    expect(building.checkRoom('shop', 0, 8, 0, false).reason).toMatch('floor plate')
-    expect(building.checkRoom('shop', 0, 3, 3, false).reason).toBe('Overlaps a corridor')
-    expect(building.checkRoom('shop', 1, 3, 0, false).reason).toMatch('corridor or core')
+    expect(building.checkRoom('shop', 0, 8, 0, 'south').reason).toMatch('floor plate')
+    expect(building.checkRoom('shop', 0, 3, 3, 'south').reason).toBe('Overlaps a corridor')
+    expect(building.checkRoom('shop', 1, 3, 0, 'south').reason).toMatch('corridor or core')
     expect(building.placeRoom('shop', 0, 3, 1)).toEqual({ ok: true })
-    expect(building.checkRoom('shop', 0, 4, 1, false).reason).toBe('Overlaps a room')
-    // Street side (+y) wins: the door is the middle of the south edge, over the corridor.
-    expect(building.room(1)).toMatchObject({ door: { x: 4, y: 3 }, doorSide: 'south' })
+    expect(building.checkRoom('shop', 0, 4, 1, 'south').reason).toBe('Overlaps a room')
+    // The door is the middle of the chosen wall, over the corridor.
+    expect(building.room(1)).toMatchObject({ door: { x: 4, y: 3 }, facing: 'south', storefront: false })
   })
 
-  test('rotation swaps the footprint, and a door may open onto a core', () => {
+  test('the facing picks the door wall and turns the footprint, and a door may open onto a core', () => {
     const building = slab()
-    const check = building.checkRoom('office', 0, 2, 0, true)
+    const check = building.checkRoom('office', 0, 2, 0, 'east')
     expect([check.width, check.depth]).toEqual([5, 4])
+    // Facing north, the same spot has no corridor beyond the door wall.
+    expect(building.checkRoom('shop', 0, 3, 1, 'north').reason).toMatch('Turn the room')
     expect(building.placeRoom('studio', 0, 0, 0)).toEqual({ ok: true })
-    expect(building.room(1)).toMatchObject({ door: { x: 1, y: 3 }, doorSide: 'south' })
+    expect(building.room(1)).toMatchObject({ door: { x: 1, y: 3 }, facing: 'south' })
+    expect(FACINGS.map((facing) => nextFacing(facing))).toEqual(['west', 'north', 'east', 'south'])
+    expect(nextFacing('south', -1)).toBe('east')
+  })
+
+  test('a street-floor shop or café facing open lot or the street is a storefront; other uses and floors are not', () => {
+    // A block set back from the lot edges, so open lot surrounds it.
+    const building = new Building()
+    building.paintPlate(0, rect(2, 2, 8, 6))
+    building.paintPlate(1, rect(2, 2, 8, 6))
+    expect(building.placeRoom('cafe', 0, 4, 2, 'north')).toEqual({ ok: true })
+    expect(building.room(1)).toMatchObject({ facing: 'north', storefront: true, door: { x: 5, y: 2 } })
+    expect(building.checkRoom('studio', 0, 2, 4, 'west').ok).toBe(false)
+    expect(building.checkRoom('shop', 1, 2, 2, 'north').ok).toBe(false)
+    // A wall on a neighbour's lot (the site's west edge) is not public.
+    expect(slab().checkRoom('shop', 0, 0, 0, 'west').ok).toBe(false)
+    // On the site's +y edge the door opens straight onto the street.
+    const street = new Building()
+    street.paintPlate(0, rect(0, 37, 6, 3))
+    expect(street.placeRoom('shop', 0, 1, 37, 'south')).toEqual({ ok: true })
+    expect(street.room(1)).toMatchObject({ storefront: true, door: { x: 2, y: 39 } })
+  })
+
+  test('move and turn a placed room, keeping its identity and refusing bad spots', () => {
+    const building = slab()
+    building.placeRoom('shop', 0, 3, 1)
+    const revision = building.revision
+    expect(building.moveRoom(1, 6, 1, 'south')).toEqual({ ok: true })
+    expect(building.room(1)).toMatchObject({ x: 6, y: 1, door: { x: 7, y: 3 } })
+    expect(building.revision).toBe(revision + 1)
+    // Overlapping its own old footprint is fine.
+    expect(building.moveRoom(1, 5, 1, 'south')).toEqual({ ok: true })
+    expect(building.moveRoom(1, 5, 1, 'south')).toEqual({ ok: false, reason: 'The room is already there' })
+    expect(building.moveRoom(1, 5, 1, 'north').ok).toBe(false)
+    expect(building.moveRoom(1, 3, 3, 'south')).toEqual({ ok: false, reason: 'Overlaps a corridor' })
+    expect(building.room(1)).toMatchObject({ x: 5, y: 1 })
+    expect(building.moveRoom(99, 0, 0, 'south').ok).toBe(false)
   })
 })
 
@@ -112,10 +150,28 @@ describe('snapshots', () => {
     const snapshot = JSON.parse(JSON.stringify(building.snapshot()))
     const copy = Building.fromSnapshot(snapshot)
     expect(copy.snapshot()).toEqual(building.snapshot())
-    expect(copy.placeRoom('studio', 1, 22, 34).ok).toBe(true)
+    expect(copy.placeRoom('studio', 1, 22, 34, 'north').ok).toBe(true)
     expect(copy.room(5)).toBeDefined()
     const tampered = { ...snapshot, rooms: [...snapshot.rooms, { ...snapshot.rooms[0], id: 9 }] }
     expect(() => Building.fromSnapshot(tampered)).toThrow('Overlaps a room')
-    expect(() => Building.fromSnapshot({ ...snapshot, version: 2 })).toThrow('version')
+    expect(() => Building.fromSnapshot({ ...snapshot, version: 3 })).toThrow('version')
+  })
+
+  test('version 1 saves keep each room in place and turn it to a facing that has a door', () => {
+    const snapshot = starterBuilding().snapshot()
+    const legacy = {
+      ...snapshot,
+      version: 1 as const,
+      rooms: [
+        // Saved with the game's own door pick on a matching wall: kept as it was.
+        { id: 1, use: 'shop' as const, floor: 0, x: 22, y: 36, rotated: false, doorSide: 'west' as const },
+        // An unrotated room keeps its footprint and gets whichever of south or north has a door.
+        { id: 2, use: 'studio' as const, floor: 1, x: 22, y: 29, rotated: false, doorSide: 'east' as const },
+        // A room that fits nowhere any more is dropped rather than failing the whole save.
+        { id: 3, use: 'office' as const, floor: 1, x: 30, y: 0, rotated: true, doorSide: 'north' as const },
+      ],
+    }
+    const building = Building.fromSnapshot(legacy)
+    expect(building.allRooms().map(({ id, x, y, facing }) => [id, x, y, facing])).toEqual([[1, 22, 36, 'west'], [2, 22, 29, 'south']])
   })
 })

@@ -13,7 +13,11 @@ export const PALETTE = {
   core: 0x2d2a4a,
   coreBand: 0xffd23f,
   glass: 0x7fe9ff,
+  /** Curtain-wall frames between glass panes. */
+  mullion: 0x241c5c,
   door: 0xfff6d8,
+  /** The lobby entrance's canopy. */
+  canopy: 0xffd23f,
   valid: 0x4ade80,
   invalid: 0xff4d6d,
   select: 0xffffff,

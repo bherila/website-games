@@ -8,7 +8,7 @@ import { type ReactElement, type Ref, useEffect, useImperativeHandle, useRef } f
 import { attachContextLossHandlers } from '../_shared/three/contextLoss'
 import { normalizeWheelPx, type PinchSnapshot, pinchSnapshot, pinchUpdate, wheelPanDelta, wheelZoomFactor } from '../_shared/three/touchGestures'
 import type { BuildingAnalysis } from './engine/analysis'
-import type { Building, EditResult } from './engine/building'
+import type { Building, EditResult, Facing } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
 import { Crowd } from './engine/people'
 import { isRectTool, toolAction,type ToolId } from './interaction'
@@ -35,7 +35,8 @@ export interface Tower2SceneProps {
   world: World
   activeFloor: number
   tool: ToolId
-  rotated: boolean
+  /** The wall new rooms put their door in. */
+  facing: Facing
   overlay: OverlayKind
   exterior: boolean
   selection: Selection
@@ -167,8 +168,8 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       return { x, y }
     }
     const action = () => {
-      const { world, tool, activeFloor, rotated } = propsRef.current
-      return toolAction(world.building, tool, activeFloor, hover, drag?.anchor ?? null, rotated)
+      const { world, tool, activeFloor, facing } = propsRef.current
+      return toolAction(world.building, tool, activeFloor, hover, drag?.anchor ?? null, facing)
     }
     const setHint = (hint: string | null) => {
       if (hint !== lastHint) {
@@ -237,11 +238,19 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       hover = tileAt(event)
       const { tool, world, activeFloor, onApply, onSelect } = propsRef.current
       if (tool === 'select') {
-        const tile = hover ?? drag.anchor
         const building = world.building
-        const room = building.roomAt(activeFloor, tile.x, tile.y)
-        const core = building.coreAt(activeFloor, tile.x, tile.y)
-        onSelect(room ? { kind: 'room', id: room.id } : core ? { kind: 'core', id: core.id } : null)
+        const moved = building.roomAt(activeFloor, drag.anchor.x, drag.anchor.y)
+        const { commit } = action()
+        if (moved && commit) {
+          // A drag that ends somewhere else moves the room; it stays selected either way.
+          onApply(commit)
+          onSelect({ kind: 'room', id: moved.id })
+        } else {
+          const tile = hover ?? drag.anchor
+          const room = building.roomAt(activeFloor, tile.x, tile.y)
+          const core = building.coreAt(activeFloor, tile.x, tile.y)
+          onSelect(room ? { kind: 'room', id: room.id } : core ? { kind: 'core', id: core.id } : null)
+        }
       } else {
         const { commit } = action()
         if (commit) onApply(commit)

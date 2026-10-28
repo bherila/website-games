@@ -396,12 +396,19 @@ has no economy, stars, tenants or schedules.
 - **Tools:** Floor (drag to paint plate), Clear (plate, corridors and touched rooms; never a core), Atrium
   (cuts from this floor up), Corridor, Core (2×2, stretches over the contiguous free floors around the one
   you place it on; Select it to raise or lower either end), and the four uses as fixed modules: studio 3×4,
-  startup office 4×5, shop 3×3 and café 4×4. A room needs a corridor or core along one side; its door goes
-  on the street-most such side. **Copy floor below** copies the outline only.
+  startup office 4×5, shop 3×3 and café 4×4. Each room has a **facing**, the wall its door is in, which
+  the player chooses (R or Turn cycles it; the ghost shows an arrow), and the use's width runs along that
+  wall. The door is the tile nearest the middle of that wall with a corridor or core beyond it. On the street
+  floor a shop or café may instead face open lot or the street: a **storefront**, whose visitors walk in
+  across the lot and whose footfall falls with that walk. Select a room to turn it in place, or drag it with
+  Select to move it. **Copy floor below** copies the outline only.
 - **Rules it shows:** people walk corridors only; the entrance is the street-floor corridor tile nearest the
   street; a room is served when a route of corridors and cores (including transfers between cores) reaches
   it from there. Ratings mix daylight (steps to glass, capped at 6), the door's walk to a core, street
   footfall for shops and cafés, and noise from shops and cafés beside or below studios.
+- **Façade:** floor-to-ceiling glass with mullions on every plate edge open to the air. On the active floor
+  the two sides facing the camera drop to a sill so the plan shows; the cutaway follows the view rotation.
+  Storefronts open a bay under a sign band in the use's colour, and the lobby entrance opens under a canopy.
 - **View and controls:** isometric cutaway (floors above hidden, below ghosted), quarter-turn rotation,
   an exterior view, and light and walk overlays. Desktop: drag to draw, right-drag or scroll to pan,
   Ctrl+scroll to zoom, Q/E rotate, Page Up/Down change floor, 1–0 pick tools, R turns a room, O cycles
@@ -413,8 +420,14 @@ has no economy, stars, tenants or schedules.
   merged per-floor geometry and the renderer. `interaction.ts` maps tools to previews and edits.
   `tests/e2e/tower-2.spec.ts` plays the core loop on desktop and phone.
 
-Next, after playtesting: overhang reach and cost, wet modules and risers, two exit stairs per floor, a
-stack strip for core ranges, and then the economy (step 5).
+Rendering is paced: full rate while the player drags, pans or pinches, 30 fps when idle, at most 1.5×
+pixel density.
+
+Playtest order agreed on 2026-10-28: (1) pacing and placement clarity; (2) chosen doors, storefronts,
+the glass façade, and moving and turning rooms; (3) a tutorial that starts on an empty site instead of
+the prebuilt block; (4) adding floors above and below; (5) visible elevators, with shafts per core and
+banks; (6) furniture inside rooms. After that: overhang reach and cost, wet modules and risers, two exit
+stairs per floor, a stack strip for core ranges, and then the economy (step 5).
 
 ## Open questions, with recommendations (not yet confirmed)
 

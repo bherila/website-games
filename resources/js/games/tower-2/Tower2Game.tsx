@@ -11,9 +11,9 @@ import {
 import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { hexColor } from '../_shared/three/threeUtils'
-import { type Building as BuildingModel, type EditResult, FLOOR_COUNT } from './engine/building'
+import { type Building as BuildingModel, type EditResult, type Facing, FLOOR_COUNT, nextFacing } from './engine/building'
 import { USES } from './engine/uses'
-import { isUseTool, type ToolId, TOOLS } from './interaction'
+import { isUseTool, type ToolId, TOOLS, turnedInPlace } from './interaction'
 import type { OverlayKind } from './scene/Tower2Renderer'
 import { type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
 import { useWorld } from './useWorld'
@@ -74,7 +74,7 @@ export function Tower2Game(): ReactElement {
   const history = useWorld()
   const { world } = history
   const [tool, setTool] = useState<ToolId>('plate')
-  const [rotated, setRotated] = useState(false)
+  const [facing, setFacing] = useState<Facing>('south')
   const [activeFloor, setActiveFloor] = useState(0)
   const [overlay, setOverlay] = useState<OverlayKind>('none')
   const [exterior, setExterior] = useState(false)
@@ -132,6 +132,21 @@ export function Tower2Game(): ReactElement {
     setSelection(null)
   }, [apply, selected])
 
+  /** Turn the selected room a quarter about its centre, or failing that about its corner. */
+  const turnSelected = useCallback(() => {
+    if (selected?.kind !== 'room') return
+    const { room } = selected
+    const facing = nextFacing(room.facing)
+    const spots = turnedInPlace(room, facing)
+    const fits = spots.find(({ x, y }) => world.building.checkRoom(room.use, room.floor, x, y, facing, room.id).ok)
+    apply((building) => building.moveRoom(room.id, (fits ?? spots[0]!).x, (fits ?? spots[0]!).y, facing))
+  }, [apply, selected, world])
+
+  const turn = useCallback(() => {
+    if (selected?.kind === 'room') turnSelected()
+    else setFacing((value) => nextFacing(value))
+  }, [selected, turnSelected])
+
   const stepFloor = useCallback((delta: number) => {
     setActiveFloor((floor) => Math.min(FLOOR_COUNT - 1, Math.max(0, floor + delta)))
   }, [])
@@ -168,7 +183,7 @@ export function Tower2Game(): ReactElement {
       else if (key === 'pagedown' || (key === 'arrowdown' && event.shiftKey)) stepFloor(-1)
       else if (key === 'q') controlsRef.current?.rotate(-1)
       else if (key === 'e') controlsRef.current?.rotate(1)
-      else if (key === 'r') setRotated((value) => !value)
+      else if (key === 'r') turn()
       else if (key === 'o') setOverlay((value) => (value === 'none' ? 'light' : value === 'light' ? 'walk' : 'none'))
       else if (key === 'x') setExterior((value) => !value)
       else if (key === 'i') inherit()
@@ -181,7 +196,7 @@ export function Tower2Game(): ReactElement {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [history, chooseTool, stepFloor, inherit, removeSelected, selection])
+  }, [history, chooseTool, stepFloor, inherit, removeSelected, selection, turn])
 
   const floorStats = summary.floors[activeFloor]!
   const currentTool = TOOLS.find((candidate) => candidate.id === tool)!
@@ -192,7 +207,7 @@ export function Tower2Game(): ReactElement {
         world={world}
         activeFloor={activeFloor}
         tool={tool}
-        rotated={rotated}
+        facing={facing}
         overlay={overlay}
         exterior={exterior}
         selection={selection}
@@ -276,7 +291,7 @@ export function Tower2Game(): ReactElement {
           )
         })}
         {isUseTool(tool) && (
-          <button type="button" onClick={() => setRotated((value) => !value)} aria-pressed={rotated} title="Turn the room (R)" className="flex min-w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/10 md:flex-row md:gap-2">
+          <button type="button" onClick={turn} title="Turn the room so its door faces another way (R)" className="flex min-w-14 shrink-0 flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/10 md:flex-row md:gap-2">
             <RotateCw size={18} aria-hidden="true" />
             <span className="whitespace-nowrap">Turn</span>
             <kbd className="hidden rounded bg-black/20 px-1 text-[10px] font-medium md:inline">R</kbd>
@@ -351,7 +366,7 @@ export function Tower2Game(): ReactElement {
                 <h2 className="text-sm font-bold">{USES[selected.room.use].label}</h2>
                 <span className="ml-auto"><Stars count={selected.rating.stars} /></span>
               </div>
-              <p className="mb-2 text-white/60">{floorName(selected.room.floor)} · {selected.room.width}×{selected.room.depth} tiles · wants {USES[selected.room.use].wants.toLowerCase()}</p>
+              <p className="mb-2 text-white/60">{floorName(selected.room.floor)} · {selected.room.width}×{selected.room.depth} tiles · {selected.room.storefront ? 'storefront onto the street' : `door faces ${selected.room.facing}`} · wants {USES[selected.room.use].wants.toLowerCase()}</p>
               <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
                 <dt className="text-white/70">Daylight</dt>
                 <dd className="text-right font-semibold tabular-nums">{Math.round(selected.rating.light * 100)}%</dd>
@@ -383,7 +398,13 @@ export function Tower2Game(): ReactElement {
               })}
             </>
           )}
-          <button type="button" onClick={removeSelected} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-500/90 py-2 font-semibold hover:bg-rose-500"><Trash size={14} aria-hidden="true" />Remove</button>
+          {selected.kind === 'room' && (
+            <>
+              <p className="mt-2 text-white/50">Drag the room to move it.</p>
+              <button type="button" onClick={turnSelected} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/15 py-2 font-semibold hover:bg-white/25"><RotateCw size={14} aria-hidden="true" />Turn (R)</button>
+            </>
+          )}
+          <button type="button" onClick={removeSelected} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-500/90 py-2 font-semibold hover:bg-rose-500"><Trash size={14} aria-hidden="true" />Remove</button>
         </section>
       )}
     </div>

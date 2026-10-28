@@ -64,10 +64,10 @@ describe('room ratings', () => {
     const analysis = new BuildingAnalysis(building)
     const studio = building.allRooms().find((room) => room.use === 'studio')!
     expect(analysis.rate(studio).noisy).toBe(false)
-    expect(building.placeRoom('cafe', 1, 23, 34).ok).toBe(true)
+    expect(building.placeRoom('cafe', 1, 23, 34, 'north').ok).toBe(true)
     expect(analysis.rate(studio).noisy).toBe(false)
     const shopBelow = building.allRooms().find((room) => room.use === 'shop')!
-    expect(building.placeRoom('studio', 1, shopBelow.x, shopBelow.y + 1, false).ok).toBe(false)
+    expect(building.placeRoom('studio', 1, shopBelow.x, shopBelow.y + 1, 'south').ok).toBe(false)
     const office = analysis.rate(building.allRooms().find((room) => room.use === 'office')!)
     expect(office.walk).toBeGreaterThan(0)
     expect(office.score).toBeGreaterThan(0)
@@ -77,10 +77,58 @@ describe('room ratings', () => {
 
   test('a shop upstairs is noted and rated below one on the street', () => {
     const building = starterBuilding()
-    building.placeRoom('shop', 1, 22, 34)
+    building.placeRoom('shop', 1, 22, 34, 'north')
     const analysis = new BuildingAnalysis(building)
     const [street, upstairs] = building.allRooms().filter((room) => room.use === 'shop').map((room) => analysis.rate(room))
     expect(upstairs!.notes).toContain('Wants the street floor')
     expect(upstairs!.score).toBeLessThan(street!.score)
+  })
+})
+
+describe('storefronts', () => {
+  /** A street-floor block set back four rows from the street, with a courtyard cut into it. */
+  function block(): Building {
+    const building = new Building()
+    building.paintPlate(0, rect(10, 26, 12, 10))
+    building.erase(0, rect(14, 28, 4, 4))
+    return building
+  }
+
+  test('walk in across the open lot, and trade better the nearer the street', () => {
+    const building = block()
+    expect(building.placeRoom('shop', 0, 12, 33, 'south')).toEqual({ ok: true })
+    const analysis = new BuildingAnalysis(building)
+    const shop = building.room(1)!
+    // From the street row up to the tile outside the door.
+    expect(analysis.storefrontApproach(shop)).toEqual([{ x: 13, y: 39 }, { x: 13, y: 38 }, { x: 13, y: 37 }, { x: 13, y: 36 }])
+    const rating = analysis.rate(shop)
+    expect(rating.reachable).toBe(true)
+    expect(rating.footfall).toBeCloseTo(1 - 4 / 30)
+    expect(rating.stars).toBe(3)
+    // The far side of the block is a longer walk round, so less footfall.
+    expect(building.placeRoom('shop', 0, 10, 26, 'north')).toEqual({ ok: true })
+    const back = analysis.rate(building.room(2)!)
+    expect(back.reachable).toBe(true)
+    expect(back.footfall).toBeLessThan(rating.footfall)
+  })
+
+  test('one facing a walled-in courtyard has no way in from the street', () => {
+    const building = block()
+    expect(building.placeRoom('cafe', 0, 14, 32, 'north')).toEqual({ ok: true })
+    const analysis = new BuildingAnalysis(building)
+    const cafe = building.room(1)!
+    expect(cafe.storefront).toBe(true)
+    expect(analysis.storefrontApproach(cafe)).toBeNull()
+    expect(analysis.rate(cafe)).toMatchObject({ reachable: false, stars: 0 })
+    expect(analysis.rate(cafe).notes).toContain('No route from the street')
+  })
+
+  test('a door on the site\'s street edge opens straight onto the street', () => {
+    const building = new Building()
+    building.paintPlate(0, rect(0, 37, 6, 3))
+    building.placeRoom('shop', 0, 1, 37, 'south')
+    const analysis = new BuildingAnalysis(building)
+    expect(analysis.storefrontApproach(building.room(1)!)).toEqual([])
+    expect(analysis.rate(building.room(1)!).footfall).toBe(1)
   })
 })
