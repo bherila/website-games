@@ -25,7 +25,7 @@ export const TOOLS: readonly ToolDef[] = [
   { id: 'atrium', label: 'Atrium', key: '4', hint: 'Drag to cut a void from this floor up' },
   { id: 'corridor', label: 'Corridor', key: '5', hint: 'Drag to draw corridors on open plate' },
   { id: 'core', label: 'Core', key: '6', hint: 'Tap to place a 2×2 core; it stretches over free floors' },
-  ...USE_KINDS.map((use, i): ToolDef => ({ id: use, label: USES[use].label, key: String((7 + i) % 10), hint: `Tap beside a corridor to place a ${USES[use].label.toLowerCase()} (${USES[use].width}×${USES[use].depth})` })),
+  ...USE_KINDS.map((use, i): ToolDef => ({ id: use, label: USES[use].label, key: String((7 + i) % 10), hint: `Tap beside a corridor to place a ${USES[use].label.toLowerCase()} (${USES[use].width}×${USES[use].depth}). Turn or R rotates it.` })),
 ]
 
 const RECT_TOOLS: ReadonlySet<ToolId> = new Set(['plate', 'erase', 'atrium', 'corridor'])

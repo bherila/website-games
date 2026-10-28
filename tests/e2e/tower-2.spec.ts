@@ -7,6 +7,7 @@ declare global {
       tileToClient(floor: number, x: number, y: number): { x: number, y: number }
       drawCalls(): number
       visitors(): number
+      frames(): number
     }
   }
 }
@@ -58,6 +59,33 @@ test.describe('Tower 2 prototype', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect(overflow).toBeLessThanOrEqual(1)
     expect(errors).toEqual([])
+  })
+
+  test('idles at about 30 frames a second instead of every display frame', async ({ page }) => {
+    await open(page)
+    await expect.poll(() => page.evaluate(() => window.__tower2!.visitors()), { timeout: 10_000 }).toBeGreaterThan(0)
+    // Leave the pointer off the canvas so nothing counts as input, then sample two idle seconds,
+    // counting the browser's own animation frames over the same window.
+    await page.mouse.move(0, 0)
+    await page.waitForTimeout(600)
+    const { rendered, offered } = await page.evaluate(async () => {
+      const before = window.__tower2!.frames()
+      const start = performance.now()
+      let offered = 0
+      await new Promise<void>((done) => {
+        const tick = () => {
+          offered++
+          if (performance.now() - start < 2000) requestAnimationFrame(tick)
+          else done()
+        }
+        requestAnimationFrame(tick)
+      })
+      return { rendered: window.__tower2!.frames() - before, offered }
+    })
+    expect(rendered).toBeGreaterThan(20)
+    // Pacing is only observable when the browser offers frames faster than 30 a second.
+    if (offered >= 80) expect(rendered).toBeLessThan(offered * 0.7)
+    else expect(rendered).toBeLessThanOrEqual(offered + 2)
   })
 
   test('copies a floor, draws a corridor, stretches the core, places a room, and keeps it across undo and reload', async ({ page }) => {

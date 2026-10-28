@@ -84,7 +84,7 @@ export class Tower2Renderer {
   }
 
   setSize(viewport: Viewport, pixelRatio: number): void {
-    this.renderer.setPixelRatio(Math.min(pixelRatio, 2))
+    this.renderer.setPixelRatio(pixelRatio)
     this.renderer.setSize(viewport.width, viewport.height, false)
   }
 
