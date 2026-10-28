@@ -255,7 +255,7 @@ export class Crowd {
       this.carsByCore.delete(id)
       this.coreShapes.delete(id)
       for (const visitor of this.visitors) {
-        if (visitor.legs.slice(visitor.leg).some((leg) => leg.kind === 'ride' && leg.coreId === id)) visitor.leg = visitor.legs.length
+        if (visitor.legs.slice(visitor.leg).some((leg) => leg.kind === 'ride' && leg.coreId === id)) this.cancel(visitor)
       }
     }
     for (const core of cores.values()) {
@@ -265,6 +265,18 @@ export class Crowd {
         coreId: core.id, index, x: core.x + index + 0.5, y: core.y + 0.5, floor: core.bottomFloor, doors: 0, riders: [],
       })))
     }
+  }
+
+  /** End a visitor's trip now, taking them out of any car they are riding (another core's car included). */
+  private cancel(visitor: Visitor): void {
+    for (const cars of this.carsByCore.values()) {
+      for (const car of cars) {
+        const index = car.riders.indexOf(visitor)
+        if (index >= 0) car.riders.splice(index, 1)
+      }
+    }
+    delete visitor.ride
+    visitor.leg = visitor.legs.length
   }
 
   private advance(visitor: Visitor, dt: number): void {

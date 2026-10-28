@@ -149,6 +149,32 @@ describe('elevator cars', () => {
     }
   })
 
+  test('removing the second core of a transfer takes riders of the first out of its car too', () => {
+    // Floors 0–4 with a corridor on each; a low-rise core serves 0–2 and a high-rise core 2–4.
+    const building = new Building()
+    for (let floor = 0; floor <= 4; floor++) {
+      building.paintPlate(floor, Array.from({ length: 12 * 8 }, (_, i) => ({ x: 10 + (i % 12), y: 32 + Math.floor(i / 12) })))
+      building.paintCorridor(floor, Array.from({ length: 12 }, (_, x) => ({ x: 10 + x, y: 39 })))
+    }
+    building.placeCore(2, 12, 37)
+    building.resizeCore('core-1', 0, 2)
+    building.placeCore(2, 18, 37)
+    building.resizeCore('core-2', 2, 4)
+    expect(building.placeRoom('office', 4, 14, 34, 'south')).toEqual({ ok: true })
+    const analysis = new BuildingAnalysis(building)
+    const crowd = new Crowd(5)
+    const transferring = () => crowd.visitors.find((visitor) => visitor.ride?.state === 'riding'
+      && visitor.legs[visitor.leg]!.kind === 'ride' && (visitor.legs[visitor.leg] as { coreId: string }).coreId === 'core-1'
+      && visitor.legs.slice(visitor.leg + 1).some((leg) => leg.kind === 'ride' && leg.coreId === 'core-2'))
+    for (let frame = 0; frame < 4000 && !transferring(); frame++) crowd.step(analysis, 1 / 20)
+    const rider = transferring()!
+    expect(rider).toBeDefined()
+    building.removeCore('core-2')
+    for (let frame = 0; frame < 400; frame++) crowd.step(analysis, 1 / 20)
+    expect(crowd.visitors).not.toContain(rider)
+    for (const car of crowd.cars()) expect(car.riders).not.toContain(rider)
+  })
+
   test('reshaping a core rebuilds its cars and sends its waiting and riding visitors home', () => {
     const building = tower()
     const analysis = new BuildingAnalysis(building)
