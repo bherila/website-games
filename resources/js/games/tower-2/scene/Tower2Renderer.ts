@@ -315,6 +315,8 @@ export class Tower2Renderer {
       for (const material of this.lotMaterials) {
         material.opacity = look.opacity
         material.depthWrite = look.depthWrite
+        material.transparent = look.opacity < 1
+        material.needsUpdate = true
       }
     }
     if (floor === null || floor === this.gridFloor) return

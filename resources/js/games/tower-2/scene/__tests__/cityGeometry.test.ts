@@ -52,10 +52,11 @@ describe('the city around the lot', () => {
     for (const child of city.children) {
       const mesh = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
       expect(mesh.material.vertexColors).toBe(true)
-      expect(mesh.material.transparent).toBe(true)
+      expect(mesh.material.transparent).toBe(false)
       const positions = mesh.geometry.getAttribute('position')
       expect(Array.from(positions.array).every(Number.isFinite)).toBe(true)
       expect(mesh.geometry.getAttribute('color').count).toBe(positions.count)
+      if (mesh.name === 'city-static') expect(positions.count).toBeLessThan(2200)
       mesh.geometry.computeBoundingBox()
       expect(mesh.geometry.boundingBox!.max.y).toBeLessThan(5)
       if (mesh instanceof THREE.InstancedMesh) expect(mesh.count).toBeGreaterThan(0)
