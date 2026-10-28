@@ -422,6 +422,11 @@ has no economy, stars, tenants or schedules.
 - **Furniture:** each use has a low-poly layout drawn in room-local terms (across and in from the door
   wall), so it turns with the room: a studio's bed, sofa and kitchenette; an office's desk rows and
   screens; a shop's shelves, display table and till; a café's counter and tables (`scene/furniture.ts`).
+- **City context:** a paved lot meets a raised sidewalk with kerb ramps, a two-lane street and a
+  crosswalk. Instanced trees, lamps and parked cars join a bench and bus shelter; their layout leaves
+  lobby and storefront approaches clear after edits. Low, desaturated neighbouring blocks frame the
+  site. The city uses at most four draw calls and follows the lot's fade below ground
+  (`scene/cityLayout.ts`, `scene/cityGeometry.ts`). All shapes are original procedural geometry.
 - **Façade:** floor-to-ceiling glass with mullions on every plate edge open to the air. On the active floor
   the two sides facing the camera drop to a sill so the plan shows; the cutaway follows the view rotation.
   Storefronts open a bay under a sign band in the use's colour, and the lobby entrance opens under a canopy.
