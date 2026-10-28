@@ -38,6 +38,8 @@ describe('tutorial', () => {
     expect(building.inheritFloorBelow(1).ok).toBe(true)
     expect(progress()).toBe('raise-core')
     const core = building.cores()[0]!
+    // The step's floor is one where the core can be selected.
+    expect(building.coreAt(TUTORIAL.find((step) => step.id === 'raise-core')!.floor, core.x, core.y)).toBeDefined()
     expect(building.resizeCore(core.id, 0, 1).ok).toBe(true)
     expect(progress()).toBe('corridor-up')
     // A corridor away from the core is not served yet.

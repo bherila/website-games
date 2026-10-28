@@ -92,9 +92,10 @@ export const TUTORIAL: readonly TutorialStep[] = [
   {
     id: 'raise-core',
     title: 'Stretch the core up',
-    body: 'Select the core and raise its top floor to 1, so its elevators stop up here.',
+    body: 'Back on the street floor, select the core and raise its top floor to 1, so its elevators stop upstairs too.',
     tool: 'select',
-    floor: 1,
+    // The core does not reach floor 1 yet, so it can only be selected below.
+    floor: 0,
     done: (building, analysis) => building.coresOn(1).some((core) => analysis.isServed(1, core)),
   },
   {
