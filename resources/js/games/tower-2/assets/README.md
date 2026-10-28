@@ -88,3 +88,11 @@ Original floor finishes generated with the built-in image generator. Only the op
 #### 42
 
 > Use case: stylized-concept. Asset type: ONE original building address panel texture for a vibrant flat-shaded neo-90s miniature building game. Exact inscription: "42", spelled exactly. Design: two extremely large cream block numerals on a navy panel with a thin golden-yellow edge line, no emblem. Very wide rectangular composition about 4:1, fully front-facing and flat, bold broad block type taking most of the face, high contrast, readable when small. Entire image is the sign face with no outer padding or white surround; restrained thin contrasting edge line. Graphic painted finish, no perspective, bevels, lights or shadows. No extra words, real businesses, familiar logos, scenery, hardware or watermark. Opaque flat artwork, no transparency.
+
+## Dusk skyline (#206)
+
+`dusk-skyline.webp` is an original fictional city generated with the built-in image generator, resized to 1600 × 552 and encoded as WebP (21458 bytes). The source PNG stays outside the repository. A static canvas CSS background adds no WebGL draw calls or animation.
+
+Exact final prompt:
+
+> Use case: stylized-concept. Asset type: original wide skyline backdrop for a vibrant flat-shaded neo-90s isometric city-building game. Create an entirely fictional modest city at dusk, about 3:1 landscape composition. Layer broad simple stepped rectangular silhouettes with a few original asymmetrical roofs; no recognisable landmark, real skyline, business or borrowed architecture. Quiet low contrast throughout: deep indigo sky, muted magenta distance and desaturated cyan dusk haze. Buildings occupy the lower half, with plenty of uncluttered sky above; a restrained few tiny warm window dots, never bright enough to compete with a colourful foreground game board and phone HUD. Flat graphic painted illustration, soft atmospheric depth, subtle sky gradient, no photorealism. No dramatic sun, bright moon, sharp neon lights, people, cars, foreground props, text, logos or watermark. Opaque background artwork. It must remain calm when cropped to its centre for a 375px-wide phone.
