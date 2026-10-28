@@ -32,11 +32,13 @@ async function click(page: Page, floor: number, x: number, y: number): Promise<v
   await page.mouse.click(point.x, point.y)
 }
 
-async function open(page: Page): Promise<void> {
+/** A first visit: an empty site with the tutorial, or the example block loaded from its card. */
+async function open(page: Page, start: 'example' | 'tutorial' = 'example'): Promise<void> {
   await page.goto('/tower-2')
   await page.evaluate(() => localStorage.clear())
   await page.reload()
   await expect.poll(() => page.evaluate(() => window.__tower2 !== undefined)).toBe(true)
+  if (start === 'example') await press(page, 'Load the example block')
 }
 
 /** Click a toolbar control by its accessible name; some sit in a scrolling bar on phones. */
@@ -47,7 +49,7 @@ async function press(page: Page, name: string | RegExp): Promise<void> {
 }
 
 test.describe('Tower 2 prototype', () => {
-  test('starts on a lived-in starter block with visitors moving', async ({ page }) => {
+  test('loads the example block with visitors moving', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await open(page)
@@ -153,5 +155,36 @@ test.describe('Tower 2 prototype', () => {
     await click(page, 0, 18, 38)
     await expect(page.getByRole('region', { name: 'Selection' })).toContainText('Café')
     await expect(page.getByTestId('tower2-room-count')).toHaveText('5')
+  })
+
+  test('a first visit starts on an empty site and the tutorial walks through the first rooms', async ({ page }) => {
+    await open(page, 'tutorial')
+    const card = page.getByRole('region', { name: 'Tutorial' })
+    await expect(card).toContainText('Step 1 of 9')
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('0')
+    const top = 28
+    // Each step picks its own tool, so the player only drags and taps.
+    await drag(page, 0, [12, top], [27, 39])
+    await expect(card).toContainText('Run a corridor in from the street')
+    // A reload after the first autosave resumes the tutorial where it was.
+    await page.waitForTimeout(800)
+    await page.reload()
+    await expect(page.getByRole('region', { name: 'Tutorial' })).toContainText('Run a corridor in from the street')
+    await drag(page, 0, [20, top + 2], [20, 39])
+    await expect(card).toContainText('Place a core beside the corridor')
+    await click(page, 0, 21, top + 4)
+    await expect(card).toContainText('Open a shop onto the street')
+    await click(page, 0, 14, 38)
+    await expect(card).toContainText('Add a café off the corridor')
+    await expect(card).toContainText('Step 5 of 9')
+    // Undo steps the tutorial back with the building.
+    await page.keyboard.press('Control+z')
+    await expect(card).toContainText('Open a shop onto the street')
+    await press(page, 'Skip')
+    await expect(card).toHaveCount(0)
+    await page.waitForTimeout(800)
+    await page.reload()
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('0')
+    await expect(page.getByRole('region', { name: 'Tutorial' })).toHaveCount(0)
   })
 })

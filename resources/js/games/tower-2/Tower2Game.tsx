@@ -16,9 +16,31 @@ import { USES } from './engine/uses'
 import { isUseTool, nextTurn, type ToolId, TOOLS } from './interaction'
 import type { OverlayKind } from './scene/Tower2Renderer'
 import { type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
-import { useWorld } from './useWorld'
+import { TUTORIAL, tutorialProgress } from './tutorial'
+import { TutorialCard } from './TutorialCard'
+import { storage, useWorld } from './useWorld'
 
 const SQUARE_METRES_PER_TILE = 9
+/** 'on' or 'off' once the player has started, skipped or finished the tutorial. */
+const TUTORIAL_KEY = 'tower-2-tutorial'
+
+function readTutorialFlag(firstVisit: boolean): boolean {
+  try {
+    const flag = storage()?.getItem(TUTORIAL_KEY)
+    if (flag === 'on' || flag === 'off') return flag === 'on'
+  } catch {
+    // Blocked storage: fall through to the first-visit default.
+  }
+  return firstVisit
+}
+
+function writeTutorialFlag(on: boolean): void {
+  try {
+    storage()?.setItem(TUTORIAL_KEY, on ? 'on' : 'off')
+  } catch {
+    // The tutorial just won't survive a reload.
+  }
+}
 const MESSAGE_MS = 2600
 
 const TOOL_ICONS: Record<ToolId, typeof Square> = {
@@ -83,6 +105,8 @@ export function Tower2Game(): ReactElement {
   const [hint, setHint] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [visitors, setVisitors] = useState(0)
+  const [tutorialOn, setTutorialOn] = useState(() => readTutorialFlag(history.firstVisit))
+  const [framings, setFramings] = useState(0)
   const controlsRef = useRef<SceneControls>(null)
   const messageTimerRef = useRef<number | undefined>(undefined)
 
@@ -197,6 +221,35 @@ export function Tower2Game(): ReactElement {
     return () => window.removeEventListener('keydown', onKey)
   }, [history, chooseTool, stepFloor, inherit, removeSelected, selection, turn])
 
+  // The tutorial follows the building, so undo steps back through it too.
+  const tutorialStep = useMemo(() => (tutorialOn ? tutorialProgress(world.building, world.analysis) : -1), [tutorialOn, world])
+  const [seenStep, setSeenStep] = useState<number | null>(null)
+  if (seenStep !== tutorialStep) {
+    // A new step picks its tool for the player (adjusting state while rendering, not in an effect).
+    setSeenStep(tutorialStep)
+    const step = TUTORIAL[tutorialStep]
+    if (step) setTool(step.tool)
+  }
+  const tutorialGuide = TUTORIAL[tutorialStep]?.guide ?? null
+
+  const setTutorial = useCallback((on: boolean) => setTutorialOn(on), [])
+  // Store the flag whenever it is decided, including a first visit's default, so a reload resumes the tutorial.
+  useEffect(() => writeTutorialFlag(tutorialOn), [tutorialOn])
+
+  const startOver = useCallback((start: 'empty' | 'example') => {
+    history.reset(start)
+    setSelection(null)
+    setActiveFloor(0)
+    setTutorial(start === 'empty')
+    setFramings((count) => count + 1)
+    say(start === 'empty' ? 'An empty site. Undo brings your plan back.' : 'The example block. Undo brings your plan back.')
+  }, [history, say, setTutorial])
+
+  // Frame the new building once the scene has it.
+  useEffect(() => {
+    if (framings > 0) controlsRef.current?.frame()
+  }, [framings])
+
   const floorStats = summary.floors[activeFloor]!
   const currentTool = TOOLS.find((candidate) => candidate.id === tool)!
 
@@ -207,6 +260,7 @@ export function Tower2Game(): ReactElement {
         activeFloor={activeFloor}
         tool={tool}
         facing={facing}
+        guide={tutorialGuide}
         overlay={overlay}
         exterior={exterior}
         selection={selection}
@@ -248,7 +302,7 @@ export function Tower2Game(): ReactElement {
           <button type="button" aria-label="Zoom out" title="Zoom out (Ctrl+scroll)" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => controlsRef.current?.zoom(0.8)}><ZoomOut size={18} aria-hidden="true" /></button>
           <button type="button" aria-label="Frame the building" title="Frame the building" className={ICON_BUTTON} onClick={() => controlsRef.current?.frame()}><Maximize size={18} aria-hidden="true" /></button>
           <button type="button" aria-label="Exterior view (X)" title="Exterior view (X)" aria-pressed={exterior} className={exterior ? ICON_BUTTON_ON : ICON_BUTTON} onClick={() => setExterior((value) => !value)}><Building size={18} aria-hidden="true" /></button>
-          <button type="button" aria-label="Start over from the starter lot" title="Start over" className={ICON_BUTTON} onClick={() => { history.reset(); setSelection(null); say('Back to the starter lot. Undo brings your plan back.') }}><RefreshCcw size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Start over on an empty site with the tutorial" title="Start over on an empty site" className={ICON_BUTTON} onClick={() => startOver('empty')}><RefreshCcw size={18} aria-hidden="true" /></button>
         </div>
       </header>
 
@@ -263,6 +317,15 @@ export function Tower2Game(): ReactElement {
               ? <span className="flex items-center gap-2">Deep plan <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#1f3b8a,#6f8ff0,#ffd84d,#fff3a0)' }} /> By a window</span>
               : <span className="flex items-center gap-2">Near a core <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#22c55e,#eab308,#ef4444)' }} /> Far · grey: no core</span>}
           </div>
+        )}
+        {tutorialOn && (
+          <TutorialCard
+            step={tutorialStep}
+            activeFloor={activeFloor}
+            onGoToFloor={setActiveFloor}
+            onSkip={() => setTutorial(false)}
+            onExample={() => startOver('example')}
+          />
         )}
       </div>
 
@@ -347,9 +410,10 @@ export function Tower2Game(): ReactElement {
           <dt className="flex items-center gap-1 text-white/70"><Users size={13} aria-hidden="true" />Visitors</dt>
           <dd data-testid="tower2-visitors" className="text-right font-semibold tabular-nums">{visitors}</dd>
         </dl>
-        {(!summary.hasEntrance || summary.unreachable > 0) && (
+        {/* The tutorial already explains the entrance, so its warning waits until the tutorial ends. */}
+        {((!summary.hasEntrance && !tutorialOn) || summary.unreachable > 0) && (
           <ul className="mt-2 space-y-1 text-[11px] text-amber-200">
-            {!summary.hasEntrance && <li className="flex gap-1"><TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />Draw a street-floor corridor: its tile nearest the street is the entrance.</li>}
+            {!summary.hasEntrance && !tutorialOn && <li className="flex gap-1"><TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />Draw a street-floor corridor: its tile nearest the street is the entrance.</li>}
             {summary.unreachable > 0 && <li className="flex gap-1"><TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />{summary.unreachable} {summary.unreachable === 1 ? 'room has' : 'rooms have'} no route from the street.</li>}
           </ul>
         )}

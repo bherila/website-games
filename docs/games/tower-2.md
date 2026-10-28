@@ -392,7 +392,12 @@ only to this browser (`localStorage` key `tower-2-prototype`). It answers "is dr
 has no economy, stars, tenants or schedules.
 
 - **Site:** a 40×40 lot with six floors (street floor G to 5). The street runs along the lot's +y edge.
-  A starter block of two floors, a core and four rooms loads first, so visitors move at once.
+  A first visit starts on an empty site with a nine-step **tutorial** (`tutorial.ts`): a street-floor
+  block, a corridor in from the street, a core, a storefront shop, a café off the corridor, the floor
+  above, raising the core, a corridor upstairs and an office. Each step is finished by the state of the
+  building, so undo steps back through it; each picks its tool, and the first two outline where to work.
+  The card can skip the tutorial or load the example block (two floors, a core and four rooms). Start
+  over returns to an empty site with the tutorial.
 - **Tools:** Floor (drag to paint plate), Clear (plate, corridors and touched rooms; never a core), Atrium
   (cuts from this floor up), Corridor, Core (2×2, stretches over the contiguous free floors around the one
   you place it on; Select it to raise or lower either end), and the four uses as fixed modules: studio 3×4,
