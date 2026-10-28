@@ -3,7 +3,7 @@ import { fetchWrapper } from '@/fetchWrapper'
 import { definitionRowKey, flushGameDataWrites, gameDataStorage, initializeGameDataPersistence, resetGameDataPersistenceForTests } from '../../_shared/gameDataPersistence'
 import { Building, starterBuilding } from '../engine/building'
 import { parseTowerSave, TOWER_2_SAVE_DATA, TOWER_2_SAVE_SLOT, TOWER_2_STORAGE_KEY } from '../gameProgress'
-import { loadBuilding } from '../useWorld'
+import { eraseSavedTower, loadBuilding } from '../useWorld'
 
 jest.mock('@/fetchWrapper', () => ({
   fetchWrapper: { delete: jest.fn(), get: jest.fn(), getRaw: jest.fn(), put: jest.fn() },
@@ -100,5 +100,22 @@ describe('the Tower 2 save', () => {
     const [url, body] = mockPut.mock.lastCall as [string, { operations: unknown[] }]
     expect(url).toBe('/api/games/tower-2/data')
     expect(body.operations).toEqual([expect.objectContaining({ action: 'put', scope: 'save', slot: 'main', data: tower.snapshot() })])
+  })
+})
+
+describe('erasing the saved tower', () => {
+  test('removes it once the account confirms the deletion', async () => {
+    const store = new Map<string, string>([[TOWER_2_STORAGE_KEY, '{}']])
+    const target = { removeItem: (key: string) => void store.delete(key), setItem: (key: string, value: string) => void store.set(key, value) }
+    await expect(eraseSavedTower(target, async () => {}, starterBuilding().snapshot())).resolves.toBe(true)
+    expect(store.has(TOWER_2_STORAGE_KEY)).toBe(false)
+  })
+
+  test('saves the tower back and reports failure when the account cannot be reached', async () => {
+    const store = new Map<string, string>([[TOWER_2_STORAGE_KEY, '{}']])
+    const target = { removeItem: (key: string) => void store.delete(key), setItem: (key: string, value: string) => void store.set(key, value) }
+    const current = starterBuilding().snapshot()
+    await expect(eraseSavedTower(target, async () => { throw new Error('offline') }, current)).resolves.toBe(false)
+    expect(JSON.parse(store.get(TOWER_2_STORAGE_KEY)!)).toEqual(current)
   })
 })

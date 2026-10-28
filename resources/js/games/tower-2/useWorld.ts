@@ -38,6 +38,30 @@ function storage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null {
   }
 }
 
+/**
+ * Remove the saved tower and wait for the removal to reach the account. If it
+ * cannot (offline, or the server refused), save the current tower back so a
+ * reload does not bring an older account copy back, and report false.
+ */
+export async function eraseSavedTower(
+  target: Pick<Storage, 'removeItem' | 'setItem'> | null,
+  flush: () => Promise<void>,
+  current: BuildingSnapshot,
+): Promise<boolean> {
+  try {
+    target?.removeItem(STORAGE_KEY)
+    await flush()
+    return true
+  } catch {
+    try {
+      target?.setItem(STORAGE_KEY, JSON.stringify(current))
+    } catch {
+      // Blocked storage: nothing was saved to restore.
+    }
+    return false
+  }
+}
+
 export interface WorldHistory {
   world: World
   apply: (commit: (building: Building) => EditResult) => EditResult
@@ -47,8 +71,11 @@ export interface WorldHistory {
   reset: (start: 'empty' | 'example') => void
   /** True when this visit began without a saved plan. */
   firstVisit: boolean
-  /** Delete the saved tower (the account copy too) and wait for that to reach the server, for a clean restart. */
-  erase: () => Promise<void>
+  /**
+   * Delete the saved tower (the account copy too) and wait for that to reach the
+   * server. False when it could not, in which case the tower is saved back.
+   */
+  erase: () => Promise<boolean>
   canUndo: boolean
   canRedo: boolean
 }
@@ -129,15 +156,10 @@ export function useWorld(): WorldHistory {
     }))
   }, [])
 
-  const erase = useCallback(async () => {
+  const erase = useCallback(() => {
     window.clearTimeout(saveTimerRef.current)
-    try {
-      storage()?.removeItem(STORAGE_KEY)
-      await flushGameDataWrites()
-    } catch {
-      // Offline or blocked storage: the deletion is queued or there was nothing to delete.
-    }
-  }, [])
+    return eraseSavedTower(storage(), flushGameDataWrites, state.world.building.snapshot())
+  }, [state.world])
 
   return { world: state.world, apply, undo, redo, reset, erase, firstVisit: initial.fresh, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
 }

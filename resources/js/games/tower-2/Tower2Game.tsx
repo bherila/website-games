@@ -254,14 +254,18 @@ export function Tower2Game(): ReactElement {
 
   /** Debug reset: erase the saved tower (account copy too) and the tutorial flag, then load as a first visit. */
   const eraseEverything = useCallback(async () => {
-    await history.erase()
+    setConfirmingReset(false)
+    if (!await history.erase()) {
+      say('Reset could not reach your account, so nothing was erased. Check your connection and try again.')
+      return
+    }
     try {
       safeLocalStorage()?.removeItem(TUTORIAL_KEY)
     } catch {
       // Blocked storage: nothing was stored.
     }
     window.location.reload()
-  }, [history])
+  }, [history, say])
 
   // Frame the new building once the scene has it.
   useEffect(() => {
