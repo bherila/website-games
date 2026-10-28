@@ -12,6 +12,7 @@ import { type Building, DOOR_STEP, type Facing } from '../engine/building'
 import type { Car, Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
 import { loadAtlas } from './atlasMaterials'
+import { attachBackdrop } from './backdrop'
 import { buildCityContext } from './cityGeometry'
 import { buildFloorGeometry, buildGridGeometry, SLAB_THICKNESS } from './floorGeometry'
 import { loadFloorAtlas } from './floorMaterials'
@@ -96,10 +97,12 @@ export class Tower2Renderer {
   private readonly lotMaterials: THREE.MeshBasicMaterial[] = []
   private readonly releaseFloorAtlas: () => void
   private readonly releaseSignAtlas: () => void
+  private readonly releaseBackdrop: () => void
 
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setClearColor(0x000000, 0)
+    this.releaseBackdrop = attachBackdrop(canvas)
     this.releaseFloorAtlas = loadFloorAtlas([this.solidMaterial, this.ghostMaterial])
     this.releaseSignAtlas = loadAtlas([this.signMaterial, this.ghostSignMaterial], storefrontSignsUrl, { hideUntilLoaded: true })
     this.scene.add(this.cityGroup, this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
@@ -151,6 +154,7 @@ export class Tower2Renderer {
   }
 
   dispose(): void {
+    this.releaseBackdrop()
     this.releaseFloorAtlas()
     this.releaseSignAtlas()
     disposeObject(this.scene)

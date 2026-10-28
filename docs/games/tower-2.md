@@ -432,6 +432,9 @@ has no economy, stars, tenants or schedules.
   lobby and storefront approaches clear after edits. Low, desaturated neighbouring blocks frame the
   site. The city uses at most four draw calls and follows the lot's fade below ground
   (`scene/cityLayout.ts`, `scene/cityGeometry.ts`). All shapes are original procedural geometry.
+- **Backdrop:** an original generated fictional dusk skyline sits behind the transparent canvas as
+  static CSS art. It stays in screen space across quarter turns, crops to the centre on phones, adds
+  no WebGL draw calls and starts no animation or render loop (`scene/backdrop.ts`).
 - **Façade:** floor-to-ceiling glass with mullions on every plate edge open to the air. On the active floor
   the two sides facing the camera drop to a sill so the plan shows; the cutaway follows the view rotation.
   Storefronts open a bay under an original generated shop or café sign, chosen deterministically from
