@@ -8,11 +8,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { flushGameDataWrites, gameDataStorage } from '../_shared/gameDataPersistence'
 import { BuildingAnalysis } from './engine/analysis'
-import { Building, type BuildingSnapshot, type EditResult, starterBuilding } from './engine/building'
+import { type AnySnapshot, Building, type BuildingSnapshot, type EditResult, starterBuilding } from './engine/building'
+import { TOWER_2_STORAGE_KEY } from './gameProgress'
 import type { World } from './Tower2Scene'
 
-export const STORAGE_KEY = 'tower-2-prototype'
+export const STORAGE_KEY = TOWER_2_STORAGE_KEY
 const HISTORY_LIMIT = 60
 const SAVE_DELAY_MS = 400
 
@@ -20,16 +22,17 @@ const SAVE_DELAY_MS = 400
 export function loadBuilding(storage: Pick<Storage, 'getItem'> | null): { building: Building, fresh: boolean } {
   try {
     const saved = storage?.getItem(STORAGE_KEY)
-    if (saved) return { building: Building.fromSnapshot(JSON.parse(saved) as BuildingSnapshot), fresh: false }
+    if (saved) return { building: Building.fromSnapshot(JSON.parse(saved) as AnySnapshot), fresh: false }
   } catch {
     // A save from an older prototype, or one that no longer validates, starts over on an empty site.
   }
   return { building: new Building(), fresh: true }
 }
 
-export function storage(): Storage | null {
+/** The tower's storage: this browser when signed out, the account (with a local shadow) when signed in. */
+function storage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null {
   try {
-    return window.localStorage
+    return gameDataStorage()
   } catch {
     return null
   }
@@ -44,6 +47,8 @@ export interface WorldHistory {
   reset: (start: 'empty' | 'example') => void
   /** True when this visit began without a saved plan. */
   firstVisit: boolean
+  /** Delete the saved tower (the account copy too) and wait for that to reach the server, for a clean restart. */
+  erase: () => Promise<void>
   canUndo: boolean
   canRedo: boolean
 }
@@ -124,5 +129,15 @@ export function useWorld(): WorldHistory {
     }))
   }, [])
 
-  return { world: state.world, apply, undo, redo, reset, firstVisit: initial.fresh, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
+  const erase = useCallback(async () => {
+    window.clearTimeout(saveTimerRef.current)
+    try {
+      storage()?.removeItem(STORAGE_KEY)
+      await flushGameDataWrites()
+    } catch {
+      // Offline or blocked storage: the deletion is queued or there was nothing to delete.
+    }
+  }, [])
+
+  return { world: state.world, apply, undo, redo, reset, erase, firstVisit: initial.fresh, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
 }

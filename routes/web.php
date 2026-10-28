@@ -6,6 +6,7 @@ use App\Http\Controllers\GamePwaController;
 use App\Http\Controllers\GoogleLoginController;
 use App\Http\Controllers\OAuthLoginController;
 use App\Http\Controllers\Privacy\PrivacyRequestController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 if (app()->environment('e2e')) {
@@ -17,7 +18,14 @@ Route::view('/accessibility', 'accessibility')->name('accessibility');
 Route::post('/privacy/request', [PrivacyRequestController::class, 'store'])
     ->middleware('throttle:privacy-request')
     ->name('privacy.request');
-Route::get('/login', function () {
+Route::get('/login', function (Request $request) {
+    // A page anyone can open (Tower 2, say) links here with ?next=/path so
+    // sign-in returns to it. Only same-site paths are accepted.
+    $next = $request->query('next');
+    if (is_string($next) && preg_match('#^/(?![/\\\\])[A-Za-z0-9/_.-]*$#', $next) === 1) {
+        $request->session()->put('url.intended', url($next));
+    }
+
     return view('login');
 })->name('login');
 Route::get('/oauth/redirect', [OAuthLoginController::class, 'redirect'])

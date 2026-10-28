@@ -215,4 +215,17 @@ test.describe('Tower 2 prototype', () => {
     // Someone rides up to the office or studio and the bank reports a wait.
     await expect(page.getByTestId('tower2-core-wait')).toHaveText(/^\d+ s$/, { timeout: 20_000 })
   })
+
+  test('signed out, the tower saves in this browser, and Reset erases it back to a first visit', async ({ page }) => {
+    await open(page)
+    await expect(page.getByTestId('tower2-save-place')).toHaveAttribute('href', '/login?next=/tower-2')
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('4')
+    await page.waitForTimeout(800)
+    await page.reload()
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('4')
+    await press(page, 'Reset')
+    await press(page, 'Erase and restart')
+    await expect(page.getByRole('region', { name: 'Tutorial' })).toContainText('Step 1 of 9')
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('0')
+  })
 })

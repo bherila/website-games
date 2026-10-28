@@ -15,6 +15,7 @@ export const DATABASE_GAME_SLUGS = [
   'math-horde',
   '2048',
   'marble-works',
+  'tower-2',
 ] as const
 
 export type DatabaseGameSlug = (typeof DATABASE_GAME_SLUGS)[number]

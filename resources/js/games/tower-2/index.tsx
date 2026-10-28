@@ -1,14 +1,5 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-
+import { mountPersistedGame } from '../_shared/mountPersistedGame'
+import { TOWER_2_SAVE_DATA } from './gameProgress'
 import { Tower2Game } from './Tower2Game'
 
-const mount = document.getElementById('tower-2-root')
-
-if (mount) {
-  createRoot(mount).render(
-    <StrictMode>
-      <Tower2Game />
-    </StrictMode>,
-  )
-}
+mountPersistedGame('tower-2-root', () => <Tower2Game />, [TOWER_2_SAVE_DATA])
