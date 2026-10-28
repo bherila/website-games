@@ -157,6 +157,51 @@ describe('snapshots', () => {
     expect(() => Building.fromSnapshot({ ...snapshot, version: 3 })).toThrow('version')
   })
 
+  test('every state the edit rules allow survives a save, including rooms whose door was blocked later', () => {
+    const blockers: [string, (building: Building) => number][] = [
+      ['paving over a storefront doorway', (building) => {
+        building.paintPlate(0, rect(10, 30, 3, 3))
+        building.placeRoom('shop', 0, 10, 30, 'south')
+        building.paintPlate(0, rect(10, 33, 3, 1))
+        return 1
+      }],
+      ['erasing the corridor a door opens onto', (building) => {
+        building.paintPlate(0, rect(0, 0, 10, 8))
+        building.paintCorridor(0, rect(0, 4, 10, 1))
+        building.placeRoom('shop', 0, 3, 1, 'south')
+        building.erase(0, rect(0, 4, 10, 1))
+        return 1
+      }],
+      ['removing the core a door opens onto', (building) => {
+        building.paintPlate(0, rect(0, 0, 10, 8))
+        building.placeCore(0, 4, 4)
+        building.placeRoom('shop', 0, 3, 1, 'south')
+        building.removeCore(building.cores()[0]!.id)
+        return 1
+      }],
+      ['shortening the core a door opens onto', (building) => {
+        for (const floor of [0, 1]) building.paintPlate(floor, rect(0, 0, 10, 8))
+        building.placeCore(0, 4, 4)
+        building.placeRoom('shop', 1, 3, 1, 'south')
+        building.resizeCore(building.cores()[0]!.id, 0, 0)
+        return 1
+      }],
+    ]
+    for (const [edit, block] of blockers) {
+      const building = new Building()
+      const id = block(building)
+      expect([edit, building.room(id)]).toEqual([edit, expect.objectContaining({ id })])
+      const copy = Building.fromSnapshot(JSON.parse(JSON.stringify(building.snapshot())))
+      expect([edit, copy.snapshot()]).toEqual([edit, building.snapshot()])
+    }
+  })
+
+  test('a saved door must sit on its room\'s door wall', () => {
+    const snapshot = JSON.parse(JSON.stringify(starterBuilding().snapshot()))
+    snapshot.rooms[0].door = { x: 0, y: 0 }
+    expect(() => Building.fromSnapshot(snapshot)).toThrow('door wall')
+  })
+
   test('version 1 saves keep each room in place and turn it to a facing that has a door', () => {
     const snapshot = starterBuilding().snapshot()
     const legacy = {

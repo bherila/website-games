@@ -67,7 +67,11 @@ export interface RoomCheck {
   depth: number
 }
 
-/** What a saved room records; door and footprint are re-derived when it is replayed. */
+/**
+ * What a saved room records. The door is kept as placed: later edits can
+ * block it (paving over a storefront's doorway, erasing the corridor it opened
+ * onto), which leaves the room unreachable but must not invalidate the save.
+ */
 export interface SavedRoom {
   id: number
   use: UseKind
@@ -75,6 +79,8 @@ export interface SavedRoom {
   x: number
   y: number
   facing: Facing
+  door: PlateTile
+  storefront: boolean
 }
 
 /** Version 1 rooms stored a rotation flag and the door side the game picked. */
@@ -279,15 +285,8 @@ export class Building {
   checkRoom(use: UseKind, floor: number, x: number, y: number, facing: Facing, ignoreId: number | null = null): RoomCheck {
     const { width, depth } = roomFootprint(use, facing)
     const result = (reason?: string, door?: RoomCheck['door']): RoomCheck => ({ ok: !reason, reason, door, width, depth })
-    if (!this.isFloor(floor)) return result('That floor is outside the site')
-    for (let ty = y; ty < y + depth; ty++) {
-      for (let tx = x; tx < x + width; tx++) {
-        const use = this.inBounds(tx, ty) ? this.tileUse(floor, tx, ty) : 'empty'
-        if (use === 'empty') return result('Rooms need floor plate under every tile')
-        if (use === 'room' && this.roomAt(floor, tx, ty)?.id === ignoreId) continue
-        if (use !== 'plate') return result(`Overlaps a ${use}`)
-      }
-    }
+    const problem = this.footprintProblem(floor, x, y, width, depth, ignoreId)
+    if (problem) return result(problem)
     const storefronts = floor === 0 && STOREFRONT_USES.has(use)
     const door = this.doorFor(floor, x, y, width, depth, facing, storefronts)
     if (door) return result(undefined, door)
@@ -377,7 +376,7 @@ export class Building {
       version: 2,
       plates: this.plates.snapshot(),
       corridors,
-      rooms: this.rooms.map(({ id, use, floor, x, y, facing }) => ({ id, use, floor, x, y, facing })),
+      rooms: this.rooms.map(({ id, use, floor, x, y, facing, door, storefront }) => ({ id, use, floor, x, y, facing, door: { ...door }, storefront })),
       nextRoomId: this.nextRoomId,
       nextCoreId: this.nextCoreId,
     }
@@ -411,11 +410,7 @@ export class Building {
         }
       }
     } else {
-      for (const room of snapshot.rooms) {
-        building.nextRoomId = room.id
-        const result = building.placeRoom(room.use, room.floor, room.x, room.y, room.facing)
-        if (!result.ok) throw new RangeError(result.reason)
-      }
+      for (const room of snapshot.rooms) building.restoreRoom(room)
     }
     building.nextRoomId = Math.max(snapshot.nextRoomId, ...building.rooms.map((room) => room.id + 1), 1)
     building.nextCoreId = Math.max(snapshot.nextCoreId, 1)
@@ -424,6 +419,36 @@ export class Building {
   }
 
   // ── Internals ─────────────────────────────────────────────────────────────
+
+  private footprintProblem(floor: number, x: number, y: number, width: number, depth: number, ignoreId: number | null): string | null {
+    if (!this.isFloor(floor)) return 'That floor is outside the site'
+    for (let ty = y; ty < y + depth; ty++) {
+      for (let tx = x; tx < x + width; tx++) {
+        const use = this.inBounds(tx, ty) ? this.tileUse(floor, tx, ty) : 'empty'
+        if (use === 'empty') return 'Rooms need floor plate under every tile'
+        if (use === 'room' && this.roomAt(floor, tx, ty)?.id === ignoreId) continue
+        if (use !== 'plate') return `Overlaps a ${use}`
+      }
+    }
+    return null
+  }
+
+  /** Put a saved room back as it was placed; only its footprint and door position must still hold. */
+  private restoreRoom(saved: SavedRoom): void {
+    if (!Number.isSafeInteger(saved.id) || saved.id < 1 || this.room(saved.id)) throw new RangeError('A saved room has a bad or repeated id')
+    if (!(saved.use in USES) || !FACINGS.includes(saved.facing)) throw new RangeError('A saved room has an unknown use or facing')
+    const { width, depth } = roomFootprint(saved.use, saved.facing)
+    const problem = this.footprintProblem(saved.floor, saved.x, saved.y, width, depth, null)
+    if (problem) throw new RangeError(problem)
+    const { door } = saved
+    const onWall = saved.facing === 'south' ? door.y === saved.y + depth - 1 && door.x >= saved.x && door.x < saved.x + width
+      : saved.facing === 'north' ? door.y === saved.y && door.x >= saved.x && door.x < saved.x + width
+        : saved.facing === 'east' ? door.x === saved.x + width - 1 && door.y >= saved.y && door.y < saved.y + depth
+          : door.x === saved.x && door.y >= saved.y && door.y < saved.y + depth
+    if (!onWall) throw new RangeError('A saved door is not on its room\'s door wall')
+    this.rooms.push({ id: saved.id, use: saved.use, floor: saved.floor, x: saved.x, y: saved.y, width, depth, facing: saved.facing, door: { x: door.x, y: door.y }, storefront: saved.storefront === true })
+    this.roomGridRevision = -1
+  }
 
   private changed(): EditResult {
     this.revision++
