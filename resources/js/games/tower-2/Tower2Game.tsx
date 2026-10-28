@@ -105,15 +105,16 @@ export function Tower2Game(): ReactElement {
   const [selection, setSelection] = useState<Selection>(null)
   const [touchMode, setTouchMode] = useState<'draw' | 'move'>('draw')
   const [hint, setHint] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ text: string, tone: 'refusal' | 'info' } | null>(null)
   const [visitors, setVisitors] = useState(0)
   const [tutorialOn, setTutorialOn] = useState(() => readTutorialFlag(history.firstVisit))
   const [framings, setFramings] = useState(0)
   const controlsRef = useRef<SceneControls>(null)
   const messageTimerRef = useRef<number | undefined>(undefined)
 
-  const say = useCallback((text: string) => {
-    setMessage(text)
+  /** A short message under the toolbar: refusals in red, news in the panel colour. */
+  const say = useCallback((text: string, tone: 'refusal' | 'info' = 'refusal') => {
+    setMessage({ text, tone })
     window.clearTimeout(messageTimerRef.current)
     messageTimerRef.current = window.setTimeout(() => setMessage(null), MESSAGE_MS)
   }, [])
@@ -177,7 +178,7 @@ export function Tower2Game(): ReactElement {
 
   const inherit = useCallback(() => {
     const result = apply((building) => building.inheritFloorBelow(activeFloor))
-    if (result.ok) say(`${floorName(activeFloor)} now matches the floor below`)
+    if (result.ok) say(`${floorName(activeFloor)} now matches the floor below`, 'info')
   }, [apply, activeFloor, say])
 
   const chooseTool = useCallback((next: ToolId) => {
@@ -244,7 +245,7 @@ export function Tower2Game(): ReactElement {
     setActiveFloor(0)
     setTutorial(start === 'empty')
     setFramings((count) => count + 1)
-    say(start === 'empty' ? 'An empty site. Undo brings your plan back.' : 'The example block. Undo brings your plan back.')
+    say(start === 'empty' ? 'An empty site. Undo brings your plan back.' : 'The example block. Undo brings your plan back.', 'info')
   }, [history, say, setTutorial])
 
   // Frame the new building once the scene has it.
@@ -318,7 +319,7 @@ export function Tower2Game(): ReactElement {
       {/* Hint and messages */}
       {/* The header wraps to two rows below the lg breakpoint. */}
       <div aria-live="polite" className="pointer-events-none absolute inset-x-0 top-[calc(max(0.5rem,env(safe-area-inset-top))+7rem)] flex flex-col items-center gap-1.5 px-4 lg:top-[calc(max(0.5rem,env(safe-area-inset-top))+3.75rem)]">
-        {message && <p className="rounded-full bg-rose-500/90 px-3 py-1 text-center text-xs font-semibold shadow">{message}</p>}
+        {message && <p className={`rounded-full px-3 py-1 text-center text-xs font-semibold shadow ${message.tone === 'refusal' ? 'bg-rose-500/90' : 'bg-fuchsia-500/90'}`}>{message.text}</p>}
         <p data-testid="tower2-hint" className="rounded-full bg-slate-950/70 px-3 py-1 text-center text-xs text-white/85">{hint ?? currentTool.hint}</p>
         {overlay !== 'none' && (
           <div className={`${PANEL} px-3 py-1.5 text-[11px]`}>
