@@ -1,5 +1,6 @@
-import { BASEMENT_LIMIT, Building, type BuildingSnapshot, FACINGS, floorLabel, floorName, fromRuns, HEIGHT_LIMIT, nextFacing, starterBuilding, type TileRuns, toRuns } from '../building'
+import { BASEMENT_LIMIT, Building, type BuildingSnapshot, decodeMask, encodeMask, FACINGS, floorLabel, floorName, HEIGHT_LIMIT, nextFacing, starterBuilding, type TileMask } from '../building'
 import type { PlateTile } from '../floorPlate'
+import { USE_KINDS } from '../uses'
 
 function rect(x: number, y: number, width: number, depth: number): PlateTile[] {
   return Array.from({ length: width * depth }, (_, i) => ({ x: x + (i % width), y: y + Math.floor(i / width) }))
@@ -172,7 +173,7 @@ describe('snapshots', () => {
     expect(copy.snapshot()).toEqual(building.snapshot())
     expect(copy.placeRoom('studio', 1, 22, 34, 'north').ok).toBe(true)
     expect(copy.room(5)).toBeDefined()
-    const tampered = { ...snapshot, rooms: [...snapshot.rooms, { ...snapshot.rooms[0], id: 9 }] }
+    const tampered = { ...snapshot, rooms: [...snapshot.rooms, [9, ...snapshot.rooms[0].slice(1)]] }
     expect(() => Building.fromSnapshot(tampered)).toThrow('Overlaps a room')
     expect(() => Building.fromSnapshot({ ...snapshot, version: 4 })).toThrow('version')
   })
@@ -218,7 +219,8 @@ describe('snapshots', () => {
 
   test('a saved door must sit on its room\'s door wall', () => {
     const snapshot = JSON.parse(JSON.stringify(starterBuilding().snapshot()))
-    snapshot.rooms[0].door = { x: 0, y: 0 }
+    snapshot.rooms[0][6] = 0
+    snapshot.rooms[0][7] = 0
     expect(() => Building.fromSnapshot(snapshot)).toThrow('door wall')
   })
 
@@ -241,34 +243,58 @@ describe('snapshots', () => {
   })
 })
 
-/** A version 3 snapshot written the pre-version-3 way, with every tile listed. */
+/** A version 3 snapshot written the pre-version-3 way: every tile listed and rooms as objects. */
 function listed(snapshot: BuildingSnapshot) {
-  const tiles = (lists: TileRuns[]) => lists.map(({ floor, runs }) => ({ floor, tiles: fromRuns(runs) }))
-  return { ...snapshot, plates: { ...snapshot.plates, plates: tiles(snapshot.plates.plates), utilities: tiles(snapshot.plates.utilities) }, corridors: tiles(snapshot.corridors) }
+  const tiles = (lists: TileMask[]) => lists.map(({ floor, mask }) => ({ floor, tiles: decodeMask(mask, 40 * 40) }))
+  return {
+    ...snapshot,
+    plates: { ...snapshot.plates, plates: tiles(snapshot.plates.plates), utilities: tiles(snapshot.plates.utilities) },
+    corridors: tiles(snapshot.corridors),
+    rooms: snapshot.rooms.map(([id, use, floor, x, y, facing, doorX, doorY, storefront]) => ({
+      id, use: USE_KINDS[use]!, floor, x, y, facing: FACINGS[facing]!, door: { x: doorX, y: doorY }, storefront: storefront === 1,
+    })),
+  }
 }
 
-describe('tile runs', () => {
-  test('round-trip sorted tiles and reject malformed runs', () => {
-    expect(toRuns([])).toEqual([])
-    expect(toRuns([3, 4, 5, 9, 11, 12])).toEqual([3, 3, 9, 1, 11, 2])
-    expect(fromRuns([3, 3, 9, 1, 11, 2])).toEqual([3, 4, 5, 9, 11, 12])
-    expect(() => fromRuns([1])).toThrow('pairs')
-    expect(() => fromRuns([1, 0])).toThrow('malformed')
-    expect(() => fromRuns([-1, 2])).toThrow('malformed')
+describe('compact saves', () => {
+  test('tile masks are fixed-length bitsets that round-trip any pattern', () => {
+    const checkerboard = Array.from({ length: 800 }, (_, i) => (Math.floor(i / 20) % 2) + i * 2)
+    const empty = encodeMask([], 1600)
+    expect(encodeMask(checkerboard, 1600)).toHaveLength(empty.length)
+    expect(empty).toHaveLength(268)
+    expect(decodeMask(encodeMask(checkerboard, 1600), 1600)).toEqual(checkerboard)
+    expect(decodeMask(encodeMask([0, 1599], 1600), 1600)).toEqual([0, 1599])
   })
 
-  test('keep a fully built site far under the account save limit', () => {
+  test('malformed masks and rooms are refused without hanging', () => {
+    const good = encodeMask([3], 1600)
+    expect(() => decodeMask(good.slice(4), 1600)).toThrow('malformed')
+    expect(() => decodeMask(`${good}AAAA`, 1600)).toThrow('malformed')
+    expect(() => decodeMask(`!${good.slice(1)}`, 1600)).toThrow('malformed')
+    expect(() => decodeMask('A'.repeat(10_000_000), 1600)).toThrow('malformed')
+    const snapshot = JSON.parse(JSON.stringify(starterBuilding().snapshot()))
+    expect(() => Building.fromSnapshot({ ...snapshot, rooms: [[1, 0, 0]] })).toThrow('malformed')
+    expect(() => Building.fromSnapshot({ ...snapshot, corridors: [{ floor: 0, mask: 'AAAA' }] })).toThrow('malformed')
+  })
+
+  test('the densest tower the rules allow stays under the account save limit', () => {
+    // Every floor fully plated, a corridor every fourth row, and 3×3 shops packing the bands between.
     const building = new Building()
     for (let floor = building.lowestFloor; floor <= building.highestFloor; floor++) {
       building.paintPlate(floor, rect(0, 0, building.width, building.depth))
-      building.paintCorridor(floor, rect(0, 20, building.width, 1))
+      for (let y = 0; y < building.depth; y += 4) building.paintCorridor(floor, rect(0, y, building.width, 1))
+      for (let y = 1; y + 2 < building.depth; y += 4) {
+        for (let x = 0; x + 2 < building.width; x += 3) expect(building.placeRoom('shop', floor, x, y, 'north')).toEqual({ ok: true })
+      }
     }
-    // The account save cap is 256 KiB; listing every tile would come close to it.
-    expect(JSON.stringify(building.snapshot()).length).toBeLessThan(16_384)
-    expect(JSON.stringify(listed(building.snapshot())).length).toBeGreaterThan(150_000)
+    expect(building.allRooms().length).toBe(27 * 130)
+    const size = JSON.stringify(building.snapshot()).length
+    // ValidGameDataPayload::SAVE_MAX_ENCODED_BYTES, with room to spare.
+    expect(size).toBeLessThan(262_144 * 0.75)
+    expect(Building.fromSnapshot(JSON.parse(JSON.stringify(building.snapshot()))).allRooms()).toHaveLength(27 * 130)
   })
 
-  test('version 2 saves, which list each tile, still load', () => {
+  test('version 2 saves, which list each tile and room field, still load', () => {
     const building = starterBuilding()
     const copy = Building.fromSnapshot({ ...listed(building.snapshot()), version: 2 })
     expect(copy.snapshot()).toEqual(building.snapshot())

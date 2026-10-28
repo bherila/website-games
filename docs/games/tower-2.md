@@ -395,8 +395,9 @@ game data API (game `tower-2`, scope `save`, slot `main`; see `gameProgress.ts`)
 while offline. Signed out, it saves to this browser (`localStorage` key `tower-2-prototype`), and the
 header links to sign-in with `?next=/tower-2` so the player comes back. On first sign-in a browser tower
 moves into an account that has none; an account that already has a tower keeps its own. Snapshots are
-version 3: every tile mask is stored as runs, which keeps a fully built site well under the 256 KiB save
-limit. Later tower files will each get their own save slot. **Reset** (header) erases the tower, its
+version 3, with a hard size bound: each tile mask is a fixed-length base64 bitset and each room a row of
+nine numbers, so even the densest tower the rules allow (130 shops on each of 27 floors) stays well
+under the 256 KiB save limit. Later tower files will each get their own save slot. **Reset** (header) erases the tower, its
 account copy and the tutorial flag, then reloads as a first visit; it is for debugging.
 
 - **Site:** a 40×40 lot with a height limit of 24 floors (G to 23) and three basements (B1 to B3). The

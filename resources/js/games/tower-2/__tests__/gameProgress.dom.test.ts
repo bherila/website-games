@@ -54,7 +54,7 @@ describe('the Tower 2 save', () => {
     expect(parseTowerSave(JSON.parse(JSON.stringify(snapshot)))).toEqual(snapshot)
     expect(parseTowerSave(null)).toBeNull()
     expect(parseTowerSave({ version: 9 })).toBeNull()
-    expect(parseTowerSave({ ...snapshot, rooms: [...snapshot.rooms, { ...snapshot.rooms[0]!, id: 99 }] })).toBeNull()
+    expect(parseTowerSave({ ...snapshot, rooms: [...snapshot.rooms, [99, ...snapshot.rooms[0]!.slice(1)]] })).toBeNull()
   })
 
   test('is one tower in the main save slot', () => {
