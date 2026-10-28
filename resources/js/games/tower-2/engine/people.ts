@@ -172,6 +172,8 @@ function mulberry32(seed: number): () => number {
 export class Crowd {
   readonly visitors: Visitor[] = []
   private readonly carsByCore = new Map<string, Car[]>()
+  /** Each core's shape (position, width and floor span) when its cars were made. */
+  private readonly coreShapes = new Map<string, string>()
   private readonly waits = new Map<string, number[]>()
   private nextId = 1
   private spawnTimer = 0
@@ -229,6 +231,7 @@ export class Crowd {
   clear(): void {
     this.visitors.length = 0
     this.carsByCore.clear()
+    this.coreShapes.clear()
     this.waits.clear()
   }
 
@@ -238,19 +241,26 @@ export class Crowd {
   }
 
   /**
-   * Keep one car per shaft for every core. A core that is gone or reshaped
-   * drops its cars, and the visitors waiting for or riding them leave.
+   * Keep one car per shaft for every core. A core that is gone or changed in
+   * any way (moved, widened, narrowed, or stretched or shortened) drops its
+   * cars, and every visitor with a ride still ahead on it leaves: the trip was
+   * planned against the old core and may stop where it no longer goes.
    */
   private syncCars(building: Building): void {
     const cores = new Map(building.cores().map((core) => [core.id, core]))
-    for (const [id, cars] of this.carsByCore) {
+    const shape = (core: Core) => `${core.x},${core.y},${core.width},${core.bottomFloor},${core.topFloor}`
+    for (const id of [...this.carsByCore.keys()]) {
       const core = cores.get(id)
-      if (core && carsIn(core) === cars.length && core.x === cars[0]!.x - 0.5 && core.y === cars[0]!.y - 0.5) continue
+      if (core && shape(core) === this.coreShapes.get(id)) continue
       this.carsByCore.delete(id)
-      for (const visitor of this.visitors) if (this.rideLeg(visitor)?.coreId === id) visitor.leg = visitor.legs.length
+      this.coreShapes.delete(id)
+      for (const visitor of this.visitors) {
+        if (visitor.legs.slice(visitor.leg).some((leg) => leg.kind === 'ride' && leg.coreId === id)) visitor.leg = visitor.legs.length
+      }
     }
     for (const core of cores.values()) {
       if (this.carsByCore.has(core.id)) continue
+      this.coreShapes.set(core.id, shape(core))
       this.carsByCore.set(core.id, Array.from({ length: carsIn(core) }, (_, index) => ({
         coreId: core.id, index, x: core.x + index + 0.5, y: core.y + 0.5, floor: core.bottomFloor, doors: 0, riders: [],
       })))

@@ -117,6 +117,38 @@ describe('elevator cars', () => {
     expect(crowd.averageWait(core.id)).toBeGreaterThanOrEqual(0)
   })
 
+  test('any change to a core sends home every visitor with a ride still ahead on it', () => {
+    const edits: [string, (building: ReturnType<typeof tower>, id: string) => unknown][] = [
+      ['removing it', (building, id) => building.removeCore(id)],
+      ['shortening it', (building, id) => building.resizeCore(id, 0, 1)],
+      ['adding a car', (building, id) => building.setCoreCars(id, 3)],
+    ]
+    for (const [edit, change] of edits) {
+      const building = tower()
+      const analysis = new BuildingAnalysis(building)
+      const crowd = new Crowd(3)
+      const id = building.cores()[0]!.id
+      // Run until someone is aboard a car and someone else is still on the way to one.
+      const aboard = () => crowd.visitors.some((visitor) => visitor.ride?.state === 'riding')
+      const ahead = () => crowd.visitors.some((visitor) => !visitor.ride && visitor.legs.slice(visitor.leg).some((leg) => leg.kind === 'ride'))
+      for (let frame = 0; frame < 4000 && !(aboard() && ahead()); frame++) crowd.step(analysis, 1 / 20)
+      expect([edit, aboard() && ahead()]).toEqual([edit, true])
+      const planned = new Set(crowd.visitors
+        .filter((visitor) => visitor.legs.slice(visitor.leg).some((leg) => leg.kind === 'ride' && leg.coreId === id))
+        .map((visitor) => visitor.id))
+      change(building, id)
+      crowd.step(analysis, 1 / 20)
+      const stranded = crowd.visitors.filter((visitor) => planned.has(visitor.id))
+      expect([edit, stranded.length]).toEqual([edit, 0])
+      // Cars never carry anyone past the core's floors.
+      for (let frame = 0; frame < 600; frame++) {
+        crowd.step(analysis, 1 / 20)
+        const core = building.core(id)
+        for (const car of crowd.cars()) if (core) expect(car.floor).toBeLessThanOrEqual(core.topFloor)
+      }
+    }
+  })
+
   test('reshaping a core rebuilds its cars and sends its waiting and riding visitors home', () => {
     const building = tower()
     const analysis = new BuildingAnalysis(building)
