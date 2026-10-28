@@ -132,3 +132,22 @@ describe('storefronts', () => {
     expect(analysis.rate(building.room(1)!).footfall).toBe(1)
   })
 })
+
+describe('basements', () => {
+  test('have no daylight, are reached by riding a core down, and say why rooms there are dark', () => {
+    const building = new Building()
+    for (const floor of [-1, 0]) {
+      building.paintPlate(floor, rect(10, 30, 12, 10))
+      building.paintCorridor(floor, rect(10, 39, 12, 1))
+    }
+    building.placeCore(0, 10, 37)
+    building.placeRoom('office', -1, 14, 34, 'south')
+    const analysis = new BuildingAnalysis(building)
+    expect(analysis.daylight(-1).every((value) => value === 0)).toBe(true)
+    const office = building.roomsOn(-1)[0]!
+    expect(analysis.route(-1, office.door)!.map((hop) => [hop.floor, hop.toFloor])).toEqual([[0, -1]])
+    const rating = analysis.rate(office)
+    expect(rating).toMatchObject({ reachable: true, light: 0 })
+    expect(rating.notes).toContain('Underground: no daylight')
+  })
+})

@@ -156,6 +156,8 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
     return !open(x, y) && open(x + step.x, y + step.y)
   }
   const cutaway = new Set(options.cutaway ?? [])
+  // Underground, the open edges are retaining walls against the earth, not glass.
+  const underground = floor < 0
   const doorways = new Map<string, { kind: 'store' | 'lobby', hex: number }>()
   for (const room of building.roomsOn(floor)) {
     if (room.storefront) doorways.set(`${room.door.x},${room.door.y},${room.facing}`, { kind: 'store', hex: USES[room.use].color })
@@ -169,6 +171,10 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
         const cut = cutaway.has(side)
         const top = base + (cut ? SILL_HEIGHT : GLASS_HEIGHT)
         const panel = (a: number, b: number, y0: number, y1: number, n0: number, n1: number, hex: number, out = solid) => edgeBox(out, x, y, side, a, b, y0, y1, n0, n1, hex)
+        if (underground) {
+          panel(0, 1, base, top, -0.1, 0, PALETTE.retaining)
+          continue
+        }
         // A mullion at the start of each pane, and one closing the end of a run.
         const along = side === 'north' || side === 'south' ? { x: 1, y: 0 } : { x: 0, y: 1 }
         panel(-MULLION / 2, MULLION / 2, base, top, -GLASS_THICKNESS - 0.01, 0.01, PALETTE.mullion)

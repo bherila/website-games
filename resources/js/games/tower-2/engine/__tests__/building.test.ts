@@ -1,4 +1,4 @@
-import { Building, FACINGS, nextFacing, starterBuilding } from '../building'
+import { BASEMENT_LIMIT, Building, FACINGS, floorLabel, floorName, HEIGHT_LIMIT, nextFacing, starterBuilding } from '../building'
 import type { PlateTile } from '../floorPlate'
 
 function rect(x: number, y: number, width: number, depth: number): PlateTile[] {
@@ -137,7 +137,7 @@ describe('cores', () => {
     expect(building.resizeCore(core.id, 1, 2)).toEqual({ ok: true })
     building.paintCorridor(0, rect(0, 4, 2, 1))
     const blocked = building.resizeCore(core.id, 0, 2)
-    expect(blocked).toEqual({ ok: false, reason: 'Floor 0: overlaps a corridor' })
+    expect(blocked).toEqual({ ok: false, reason: 'The street floor: overlaps a corridor' })
     expect(building.checkCore(0, 0, 4).ok).toBe(false)
     expect(building.removeCore(core.id)).toEqual({ ok: true })
     expect(building.removeCore(core.id).ok).toBe(false)
@@ -218,5 +218,38 @@ describe('snapshots', () => {
     }
     const building = Building.fromSnapshot(legacy)
     expect(building.allRooms().map(({ id, x, y, facing }) => [id, x, y, facing])).toEqual([[1, 22, 36, 'west'], [2, 22, 29, 'south']])
+  })
+})
+
+describe('floors', () => {
+  test('run from basement B3 to the height limit, with labels and names', () => {
+    const building = new Building()
+    expect([building.lowestFloor, building.highestFloor]).toEqual([-BASEMENT_LIMIT, HEIGHT_LIMIT - 1])
+    expect(building.isFloor(-BASEMENT_LIMIT)).toBe(true)
+    expect(building.isFloor(-BASEMENT_LIMIT - 1)).toBe(false)
+    expect(building.isFloor(HEIGHT_LIMIT)).toBe(false)
+    expect([-2, 0, 7].map(floorLabel)).toEqual(['B2', 'G', '7'])
+    expect([-1, 0, 3].map(floorName)).toEqual(['basement B1', 'the street floor', 'floor 3'])
+  })
+
+  test('basements take plate, corridors and rooms, copy upward, and cores stretch down into them', () => {
+    const building = new Building()
+    for (const floor of [-2, -1, 0]) building.paintPlate(floor, rect(0, 0, 10, 8))
+    expect(building.builtFloors()).toEqual([-2, -1, 0])
+    // The street floor copies the basement below it; no floor exists under B3.
+    expect(building.inheritFloorBelow(0)).toEqual({ ok: true })
+    expect(building.inheritFloorBelow(-BASEMENT_LIMIT).ok).toBe(false)
+    expect(building.placeCore(0, 0, 4)).toEqual({ ok: true })
+    expect(building.cores()[0]).toMatchObject({ bottomFloor: -2, topFloor: 0 })
+    building.paintCorridor(-1, rect(2, 4, 8, 1))
+    // No storefronts below ground: only a corridor or core works.
+    expect(building.placeRoom('shop', -1, 3, 1, 'south')).toEqual({ ok: true })
+    expect(building.room(1)).toMatchObject({ floor: -1, storefront: false })
+    expect(building.checkRoom('shop', -1, 3, 5, 'south').ok).toBe(false)
+    // A building can rise to the limit and no further.
+    building.paintPlate(HEIGHT_LIMIT - 1, rect(0, 0, 2, 2))
+    expect(building.paintPlate(HEIGHT_LIMIT, rect(0, 0, 2, 2)).ok).toBe(false)
+    const copy = Building.fromSnapshot(JSON.parse(JSON.stringify(building.snapshot())))
+    expect(copy.snapshot()).toEqual(building.snapshot())
   })
 })

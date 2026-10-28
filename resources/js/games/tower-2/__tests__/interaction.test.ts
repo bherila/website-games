@@ -1,5 +1,5 @@
 import { Building, starterBuilding } from '../engine/building'
-import { centredOrigin, isRectTool, isUseTool, nextTurn, rectTiles, toolAction, TOOLS } from '../interaction'
+import { centredOrigin, isRectTool, isUseTool, nextTurn, rectTiles, stepperFloors, toolAction, TOOLS } from '../interaction'
 
 describe('tools', () => {
   test('have unique keys and a hint each, and classify drag and room tools', () => {
@@ -83,5 +83,16 @@ describe('turning a placed room', () => {
     }
     expect(seen).toEqual(['west', 'north', 'east', 'south'])
     expect(building.room(1)).toMatchObject({ x: 10, y: 10, facing: 'south' })
+  })
+})
+
+describe('the floor stepper', () => {
+  test('offers the built floors and one empty floor beyond each end, within the site', () => {
+    expect(stepperFloors([], 0, -3, 23)).toEqual([1, 0, -1])
+    expect(stepperFloors([0, 1, 2], 0, -3, 23)).toEqual([3, 2, 1, 0, -1])
+    // Stepping onto the empty floor above offers the next one up.
+    expect(stepperFloors([0, 1, 2], 3, -3, 23)).toEqual([4, 3, 2, 1, 0, -1])
+    expect(stepperFloors([-3, 0], -3, -3, 23)).toEqual([1, 0, -1, -2, -3])
+    expect(stepperFloors([0, 23], 23, -3, 23)[0]).toBe(23)
   })
 })

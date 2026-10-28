@@ -16,6 +16,8 @@ export const PALETTE = {
   /** Curtain-wall frames between glass panes. */
   mullion: 0x241c5c,
   door: 0xfff6d8,
+  /** Basement retaining walls, where glass would be above ground. */
+  retaining: 0x4a4370,
   /** The lobby entrance's canopy. */
   canopy: 0xffd23f,
   valid: 0x4ade80,

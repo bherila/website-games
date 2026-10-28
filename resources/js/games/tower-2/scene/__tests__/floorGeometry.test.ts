@@ -100,6 +100,15 @@ describe('façade', () => {
     expect(sign).toBe(true)
   })
 
+  test('a basement gets retaining walls instead of glass', () => {
+    const building = new Building()
+    building.paintPlate(-1, Array.from({ length: 6 }, (_, x) => ({ x, y: 0 })))
+    const { solid, glass } = buildFloorGeometry(building, -1, {})
+    expect(glass).toBeNull()
+    expect(hasColor(solid!, PALETTE.retaining)).toBe(true)
+    expect(hasColor(solid!, PALETTE.mullion)).toBe(false)
+  })
+
   test('the lobby entrance opens the glass under a canopy', () => {
     const building = block()
     const closed = buildFloorGeometry(building, 0, {})

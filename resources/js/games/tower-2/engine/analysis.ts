@@ -213,10 +213,11 @@ export class BuildingAnalysis {
     const score = reachable ? Math.round(raw * 100) / 100 : 0
     const notes: string[] = []
     if (!reachable) notes.push('No route from the street')
-    if (light < 0.4) notes.push('Dark: too far from a window')
+    if (room.floor < 0) notes.push('Underground: no daylight')
+    else if (light < 0.4) notes.push('Dark: too far from a window')
     if (Number.isFinite(walk) && walk > 12) notes.push('Long walk to a core')
     if (noisy) notes.push('Noisy shop or café next door or below')
-    if ((room.use === 'shop' || room.use === 'cafe') && room.floor > 0) notes.push('Wants the street floor')
+    if ((room.use === 'shop' || room.use === 'cafe') && room.floor !== 0) notes.push('Wants the street floor')
     return { light, walk, reachable, noisy, footfall, score, stars: starsFor(score), notes }
   }
 
@@ -226,7 +227,9 @@ export class BuildingAnalysis {
     if (!cache) {
       const { width, depth } = this.building
       const paths = new FloorPaths({ width, depth, tiles: floorTiles(this.building, floor) })
-      cache = { paths, daylight: daylightField(this.building.plateMask(floor), width, depth), regions: paths.connectedRegions().labels }
+      // Basements are underground: no glass, so no daylight anywhere.
+      const daylight = floor < 0 ? new Uint8Array(width * depth) : daylightField(this.building.plateMask(floor), width, depth)
+      cache = { paths, daylight, regions: paths.connectedRegions().labels }
       this.floors.set(floor, cache)
     }
     return cache

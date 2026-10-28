@@ -8,8 +8,20 @@ import { CORE_SIZE, type UseKind, USES } from './uses'
 
 export const SITE_WIDTH = 40
 export const SITE_DEPTH = 40
-/** Floors 0 (street) to FLOOR_COUNT - 1. */
-export const FLOOR_COUNT = 6
+/** The site's height limit: floors 0 (street) to HEIGHT_LIMIT - 1. */
+export const HEIGHT_LIMIT = 24
+/** Basements B1 to B3 are floors -1 to -BASEMENT_LIMIT. */
+export const BASEMENT_LIMIT = 3
+
+/** "G" for the street floor, "B1"… below it, the number above. */
+export function floorLabel(floor: number): string {
+  return floor === 0 ? 'G' : floor < 0 ? `B${-floor}` : String(floor)
+}
+
+/** A floor's name in sentences: "the street floor", "basement B1", "floor 3". */
+export function floorName(floor: number): string {
+  return floor === 0 ? 'the street floor' : floor < 0 ? `basement B${-floor}` : `floor ${floor}`
+}
 
 export interface Room {
   id: number
@@ -112,6 +124,10 @@ export interface BuildingSnapshot {
 
 const OK: EditResult = { ok: true }
 
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 function refuse(reason: string): EditResult {
   return { ok: false, reason }
 }
@@ -119,7 +135,8 @@ function refuse(reason: string): EditResult {
 export class Building {
   readonly width = SITE_WIDTH
   readonly depth = SITE_DEPTH
-  readonly floorCount = FLOOR_COUNT
+  readonly lowestFloor = -BASEMENT_LIMIT
+  readonly highestFloor = HEIGHT_LIMIT - 1
   /** Bumps on every successful edit; scene layers and analysis caches key on it. */
   revision = 0
   private plates = new FloorPlateModel({ width: SITE_WIDTH, depth: SITE_DEPTH })
@@ -133,7 +150,7 @@ export class Building {
   // ── Queries ───────────────────────────────────────────────────────────────
 
   isFloor(floor: number): boolean {
-    return Number.isSafeInteger(floor) && floor >= 0 && floor < this.floorCount
+    return Number.isSafeInteger(floor) && floor >= this.lowestFloor && floor <= this.highestFloor
   }
 
   inBounds(x: number, y: number): boolean {
@@ -150,6 +167,13 @@ export class Building {
 
   hasPlate(floor: number, x: number, y: number): boolean {
     return this.inBounds(x, y) && this.plates.hasPlate(floor, { x, y })
+  }
+
+  /** Floors with any plate, lowest first. */
+  builtFloors(): number[] {
+    const floors: number[] = []
+    for (let floor = this.lowestFloor; floor <= this.highestFloor; floor++) if (this.plateArea(floor) > 0) floors.push(floor)
+    return floors
   }
 
   overhangCount(floor: number): number {
@@ -238,18 +262,18 @@ export class Building {
   carveAtrium(floor: number, tiles: readonly PlateTile[]): EditResult {
     if (!this.isFloor(floor)) return refuse('That floor is outside the site')
     const inside = tiles.filter(({ x, y }) => this.inBounds(x, y))
-    for (let level = floor; level < this.floorCount; level++) {
-      if (inside.some(({ x, y }) => this.coreAt(level, x, y))) return refuse(`A core on floor ${level} is in the way`)
+    for (let level = floor; level <= this.highestFloor; level++) {
+      if (inside.some(({ x, y }) => this.coreAt(level, x, y))) return refuse(`A core on ${floorName(level)} is in the way`)
     }
     if (!inside.some(({ x, y }) => this.hasPlate(floor, x, y))) return refuse('An atrium needs floor plate to cut')
-    for (let level = floor; level < this.floorCount; level++) this.clearContents(level, inside)
-    this.plates.carveAtrium(floor, this.floorCount - 1, inside)
+    for (let level = floor; level <= this.highestFloor; level++) this.clearContents(level, inside)
+    this.plates.carveAtrium(floor, this.highestFloor, inside)
     return this.changed()
   }
 
   inheritFloorBelow(floor: number): EditResult {
-    if (!this.isFloor(floor) || floor === 0) return refuse('The street floor has nothing below to copy')
-    if (this.plateArea(floor - 1) === 0) return refuse(`Floor ${floor - 1} has no plate to copy`)
+    if (!this.isFloor(floor) || !this.isFloor(floor - 1)) return refuse('There is no floor below to copy')
+    if (this.plateArea(floor - 1) === 0) return refuse(`${capitalise(floorName(floor - 1))} has no plate to copy`)
     const below = this.plates.getPlate(floor - 1)
     const lost: PlateTile[] = []
     const current = this.plates.getPlate(floor)
@@ -330,8 +354,8 @@ export class Building {
     if (reason) return fail(reason)
     let bottomFloor = floor
     let topFloor = floor
-    while (bottomFloor > 0 && !this.coreFloorProblem(bottomFloor - 1, x, y)) bottomFloor--
-    while (topFloor < this.floorCount - 1 && !this.coreFloorProblem(topFloor + 1, x, y)) topFloor++
+    while (bottomFloor > this.lowestFloor && !this.coreFloorProblem(bottomFloor - 1, x, y)) bottomFloor--
+    while (topFloor < this.highestFloor && !this.coreFloorProblem(topFloor + 1, x, y)) topFloor++
     return { ok: true, bottomFloor, topFloor }
   }
 
@@ -353,7 +377,7 @@ export class Building {
     for (let floor = bottomFloor; floor <= topFloor; floor++) {
       if (floor >= core.bottomFloor && floor <= core.topFloor) continue
       const reason = this.coreFloorProblem(floor, core.x, core.y)
-      if (reason) return refuse(`Floor ${floor}: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`)
+      if (reason) return refuse(`${capitalise(floorName(floor))}: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`)
     }
     this.plates.resizeVerticalFootprint(id, bottomFloor, topFloor)
     // Rooms whose only door opened onto the removed core floors lose access, not their place.

@@ -391,7 +391,10 @@ only). The coordinator merges step 2 first.
 only to this browser (`localStorage` key `tower-2-prototype`). It answers "is drawing floors fun?", so it
 has no economy, stars, tenants or schedules.
 
-- **Site:** a 40×40 lot with six floors (street floor G to 5). The street runs along the lot's +y edge.
+- **Site:** a 40×40 lot with a height limit of 24 floors (G to 23) and three basements (B1 to B3). The
+  street runs along the lot's +y edge. The floor stepper lists the built floors plus one empty floor above
+  and below; step onto an empty one and paint or copy to add it. Basements have no daylight, get retaining
+  walls instead of glass, and show through a faded lot.
   A first visit starts on an empty site with a nine-step **tutorial** (`tutorial.ts`): a street-floor
   block, a corridor in from the street, a core, a storefront shop, a café off the corridor, the floor
   above, raising the core, a corridor upstairs and an office. Each step is finished by the state of the

@@ -76,7 +76,7 @@ function plateBounds(building: Building): { x: number, y: number, width: number,
   let minY = Infinity
   let maxX = -Infinity
   let maxY = -Infinity
-  for (let floor = 0; floor < building.floorCount; floor++) {
+  for (const floor of building.builtFloors()) {
     const plate = building.plateMask(floor)
     for (let index = 0; index < plate.length; index++) {
       if (plate[index] !== 1) continue
