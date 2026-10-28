@@ -7,6 +7,7 @@ import * as THREE from 'three'
 
 import { type Building, DOOR_STEP, type Facing, FACINGS, type Room } from '../engine/building'
 import { carsIn, USES } from '../engine/uses'
+import { furniture, placePiece } from './furniture'
 import { FLOOR_HEIGHT } from './isoCamera'
 import { PALETTE } from './palette'
 
@@ -136,6 +137,10 @@ export function buildFloorGeometry(building: Building, floor: number, options: F
     const hue = USES[room.use].color
     solid.box(room.x + 0.04, base, room.y + 0.04, room.x + room.width - 0.04, base + 0.03, room.y + room.depth - 0.04, lighten(hue, 0.55))
     roomWalls(solid, room, base, options.selectedRoomId === room.id ? PALETTE.select : hue)
+    for (const item of furniture(room.use, hue)) {
+      const at = placePiece(room, item)
+      solid.box(at.x0, base + item.h0, at.y0, at.x1, base + item.h1, at.y1, item.hex)
+    }
     const step = DOOR_STEP[room.facing]
     const sill = { x: room.door.x + 0.5 + step.x * 0.45, z: room.door.y + 0.5 + step.y * 0.45 }
     solid.box(sill.x - 0.3, base, sill.z - 0.3, sill.x + 0.3, base + 0.05, sill.z + 0.3, PALETTE.door)
