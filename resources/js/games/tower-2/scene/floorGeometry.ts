@@ -32,25 +32,28 @@ export interface FloorGeometryOptions {
   selectedCoreId?: string | null
 }
 
-class GeometryBuilder {
+export class GeometryBuilder {
   private readonly positions: number[] = []
   private readonly colors: number[] = []
   private readonly indices: number[] = []
   private readonly color = new THREE.Color()
 
-  /** An axis-aligned box in scene units; bottoms are never visible from above, so they are skipped. */
-  box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, hex: number): void {
+  /** A flat-shaded face, also used for the city's sloping kerb ramps. */
+  quad(corners: readonly (readonly number[])[], normal: readonly [number, number, number], hex: number): void {
     this.color.setHex(hex)
     const { r, g, b } = this.color
-    const quad = (corners: number[][], normal: [number, number, number]) => {
-      const shade = normal[1] > 0 ? 1 : 0.58 + 0.42 * Math.max(0, normal[0] * SUN.x + normal[2] * SUN.z)
-      const base = this.positions.length / 3
-      for (const corner of corners) {
-        this.positions.push(corner[0]!, corner[1]!, corner[2]!)
-        this.colors.push(r * shade, g * shade, b * shade)
-      }
-      this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    const shade = normal[1] > 0 ? 1 : 0.58 + 0.42 * Math.max(0, normal[0] * SUN.x + normal[2] * SUN.z)
+    const base = this.positions.length / 3
+    for (const corner of corners) {
+      this.positions.push(corner[0]!, corner[1]!, corner[2]!)
+      this.colors.push(r * shade, g * shade, b * shade)
     }
+    this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+  }
+
+  /** An axis-aligned box in scene units; bottoms are never visible from above, so they are skipped. */
+  box(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, hex: number): void {
+    const quad = (corners: number[][], normal: [number, number, number]) => this.quad(corners, normal, hex)
     quad([[x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0]], [0, 1, 0])
     quad([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], [0, 0, 1])
     quad([[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]], [0, 0, -1])

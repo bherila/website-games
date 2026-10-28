@@ -10,6 +10,7 @@ import { type BuildingAnalysis, lightLevel } from '../engine/analysis'
 import { type Building, DOOR_STEP, type Facing } from '../engine/building'
 import type { Car, Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
+import { buildCityContext } from './cityGeometry'
 import { buildFloorGeometry, buildGridGeometry, SLAB_THICKNESS } from './floorGeometry'
 import { applyCamera, cameraSides, FLOOR_HEIGHT, type IsoView, type Viewport } from './isoCamera'
 import { type FloorVisibility, floorVisibility, type QuarterTurn } from './isoProjection'
@@ -63,6 +64,7 @@ export class Tower2Renderer {
   readonly renderer: THREE.WebGLRenderer
   readonly camera = new THREE.OrthographicCamera()
   private readonly scene = new THREE.Scene()
+  private readonly cityGroup = new THREE.Group()
   private readonly floorsGroup = new THREE.Group()
   private readonly overlayGroup = new THREE.Group()
   private readonly previewGroup = new THREE.Group()
@@ -76,6 +78,7 @@ export class Tower2Renderer {
   private readonly ghostGlassMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.1, depthWrite: false })
   private floors: FloorLayer[] = []
   private floorsKey = ''
+  private cityStamp: number | null = null
   private overlayKey = ''
   private previewKey = ''
   private guideKey = ''
@@ -89,7 +92,7 @@ export class Tower2Renderer {
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setClearColor(0x000000, 0)
-    this.scene.add(this.lot(), this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
+    this.scene.add(this.cityGroup, this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
     this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: PALETTE.lotGrid, transparent: true, opacity: 0.22, depthWrite: false }))
     this.grid.renderOrder = 2
     this.scene.add(this.grid)
@@ -118,6 +121,7 @@ export class Tower2Renderer {
   }
 
   sync(inputs: SceneInputs): void {
+    this.syncCity(inputs)
     this.syncFloors(inputs)
     this.syncOverlay(inputs)
     this.syncPreview(inputs)
@@ -142,26 +146,16 @@ export class Tower2Renderer {
     this.renderer.dispose()
   }
 
-  private lot(): THREE.Object3D {
-    const { width, depth } = this.site
-    const group = new THREE.Group()
-    const y = -SLAB_THICKNESS - 0.02
-    const material = (color: number) => {
-      const made = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 })
-      this.lotMaterials.push(made)
-      return made
-    }
-    const lot = new THREE.Mesh(new THREE.PlaneGeometry(width + 4, depth + 4), material(PALETTE.lot))
-    lot.rotation.x = -Math.PI / 2
-    lot.position.set(width / 2, y, depth / 2)
-    const street = new THREE.Mesh(new THREE.PlaneGeometry(width + 24, 4), material(0x15112f))
-    street.rotation.x = -Math.PI / 2
-    street.position.set(width / 2, y - 0.01, depth + 4)
-    const kerb = new THREE.Mesh(new THREE.PlaneGeometry(width + 24, 0.3), material(0xffd23f))
-    kerb.rotation.x = -Math.PI / 2
-    kerb.position.set(width / 2, y + 0.005, depth + 2.15)
-    group.add(lot, street, kerb)
-    return group
+  private syncCity(inputs: SceneInputs): void {
+    if (this.cityStamp === inputs.stamp) return
+    this.cityStamp = inputs.stamp
+    clearGroup(this.cityGroup)
+    this.lotMaterials.length = 0
+    const context = buildCityContext(this.site, inputs.building.entrance(), inputs.building.roomsOn(0))
+    context.traverse(object => {
+      if (object instanceof THREE.Mesh) this.lotMaterials.push(object.material as THREE.MeshBasicMaterial)
+    })
+    this.cityGroup.add(context)
   }
 
   private visibility(inputs: SceneInputs, floor: number): FloorVisibility {
@@ -321,6 +315,8 @@ export class Tower2Renderer {
       for (const material of this.lotMaterials) {
         material.opacity = look.opacity
         material.depthWrite = look.depthWrite
+        material.transparent = look.opacity < 1
+        material.needsUpdate = true
       }
     }
     if (floor === null || floor === this.gridFloor) return
