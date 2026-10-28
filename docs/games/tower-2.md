@@ -419,6 +419,9 @@ has no economy, stars, tenants or schedules.
   free floors around the one it is placed on; Select it to raise or lower either end or add and remove
   cars. Visitors wait in the hall, the nearest car with room collects them (cars carry six and hold their
   doors 1.2 s), and the inspect panel shows the recent average wait and the queue.
+- **Furniture:** each use has a low-poly layout drawn in room-local terms (across and in from the door
+  wall), so it turns with the room: a studio's bed, sofa and kitchenette; an office's desk rows and
+  screens; a shop's shelves, display table and till; a café's counter and tables (`scene/furniture.ts`).
 - **Façade:** floor-to-ceiling glass with mullions on every plate edge open to the air. On the active floor
   the two sides facing the camera drop to a sill so the plan shows; the cutaway follows the view rotation.
   Storefronts open a bay under a sign band in the use's colour, and the lobby entrance opens under a canopy.
