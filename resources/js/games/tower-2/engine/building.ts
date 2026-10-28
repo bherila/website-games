@@ -113,13 +113,56 @@ export interface CoreCheck {
   topFloor: number
 }
 
+/** Tile masks as runs: [start, length, start, length, …] over row-major indices. */
+export interface TileRuns {
+  floor: number
+  runs: number[]
+}
+
+/**
+ * A saved building. Version 3 stores every tile mask as runs, which keeps a
+ * fully built site far under the account save limit; versions 1 and 2 listed
+ * each tile and still load.
+ */
 export interface BuildingSnapshot {
-  version: 2
-  plates: FloorPlateSnapshot
-  corridors: { floor: number, tiles: number[] }[]
+  version: 3
+  plates: Omit<FloorPlateSnapshot, 'plates' | 'utilities'> & { plates: TileRuns[], utilities: TileRuns[] }
+  corridors: TileRuns[]
   rooms: SavedRoom[]
   nextRoomId: number
   nextCoreId: number
+}
+
+type TileList = { floor: number, tiles: number[] }
+
+/** Saves from before version 3, whose masks list each tile. */
+type ListedSnapshot = Omit<BuildingSnapshot, 'version' | 'plates' | 'corridors'> & { plates: FloorPlateSnapshot, corridors: TileList[] }
+
+export type AnySnapshot = BuildingSnapshot
+  | ListedSnapshot & { version: 2 }
+  | Omit<ListedSnapshot, 'rooms'> & { version: 1, rooms: LegacyRoom[] }
+
+/** Sorted tile indices as [start, length] runs. */
+export function toRuns(tiles: readonly number[]): number[] {
+  const runs: number[] = []
+  for (const tile of tiles) {
+    const last = runs.length - 2
+    if (last >= 0 && runs[last]! + runs[last + 1]! === tile) runs[last + 1]!++
+    else runs.push(tile, 1)
+  }
+  return runs
+}
+
+export function fromRuns(runs: readonly number[]): number[] {
+  if (runs.length % 2 !== 0) throw new RangeError('Tile runs come in start and length pairs')
+  const tiles: number[] = []
+  for (let i = 0; i < runs.length; i += 2) {
+    const start = runs[i]!
+    const length = runs[i + 1]!
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(length) || start < 0 || length < 1 || length > 1_000_000) throw new RangeError('A tile run is malformed')
+    for (let tile = start; tile < start + length; tile++) tiles.push(tile)
+  }
+  return tiles
 }
 
 const OK: EditResult = { ok: true }
@@ -413,11 +456,13 @@ export class Building {
     const corridors = [...this.corridors.entries()].sort(([a], [b]) => a - b).map(([floor, mask]) => {
       const tiles: number[] = []
       for (let index = 0; index < mask.length; index++) if (mask[index] === 1) tiles.push(index)
-      return { floor, tiles }
-    }).filter(({ tiles }) => tiles.length > 0)
+      return { floor, runs: toRuns(tiles) }
+    }).filter(({ runs }) => runs.length > 0)
+    const plates = this.plates.snapshot()
+    const compact = (lists: TileList[]): TileRuns[] => lists.map(({ floor, tiles }) => ({ floor, runs: toRuns(tiles) }))
     return {
-      version: 2,
-      plates: this.plates.snapshot(),
+      version: 3,
+      plates: { ...plates, plates: compact(plates.plates), utilities: compact(plates.utilities) },
       corridors,
       rooms: this.rooms.map(({ id, use, floor, x, y, facing, door, storefront }) => ({ id, use, floor, x, y, facing, door: { ...door }, storefront })),
       nextRoomId: this.nextRoomId,
@@ -430,13 +475,18 @@ export class Building {
    * validates. Version 1 saves keep each room's footprint and turn it to a
    * facing whose wall still has a door, dropping rooms with none.
    */
-  static fromSnapshot(snapshot: BuildingSnapshot | { version: 1, rooms: LegacyRoom[] } & Omit<BuildingSnapshot, 'version' | 'rooms'>): Building {
-    if (snapshot?.version !== 1 && snapshot?.version !== 2) throw new RangeError('Unknown building save version')
+  static fromSnapshot(snapshot: AnySnapshot): Building {
+    if (snapshot?.version !== 1 && snapshot?.version !== 2 && snapshot?.version !== 3) throw new RangeError('Unknown building save version')
     const building = new Building()
-    const plates = FloorPlateModel.fromSnapshot(snapshot.plates)
+    const listed = (lists: TileRuns[]): TileList[] => lists.map(({ floor, runs }) => ({ floor, tiles: fromRuns(runs) }))
+    const plateSnapshot: FloorPlateSnapshot = snapshot.version === 3
+      ? { ...snapshot.plates, plates: listed(snapshot.plates.plates), utilities: listed(snapshot.plates.utilities) }
+      : snapshot.plates
+    const corridorLists = snapshot.version === 3 ? listed(snapshot.corridors) : snapshot.corridors
+    const plates = FloorPlateModel.fromSnapshot(plateSnapshot)
     if (plates.width !== building.width || plates.depth !== building.depth) throw new RangeError('Saved site has a different size')
     building.plates = plates
-    for (const { floor, tiles } of snapshot.corridors) {
+    for (const { floor, tiles } of corridorLists) {
       const result = building.paintCorridor(floor, tiles.map((index) => ({ x: index % building.width, y: Math.floor(index / building.width) })))
       if (!result.ok) throw new RangeError(result.reason)
     }

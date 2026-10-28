@@ -1,4 +1,4 @@
-import { BASEMENT_LIMIT, Building, FACINGS, floorLabel, floorName, HEIGHT_LIMIT, nextFacing, starterBuilding } from '../building'
+import { BASEMENT_LIMIT, Building, type BuildingSnapshot, FACINGS, floorLabel, floorName, fromRuns, HEIGHT_LIMIT, nextFacing, starterBuilding, type TileRuns, toRuns } from '../building'
 import type { PlateTile } from '../floorPlate'
 
 function rect(x: number, y: number, width: number, depth: number): PlateTile[] {
@@ -174,7 +174,7 @@ describe('snapshots', () => {
     expect(copy.room(5)).toBeDefined()
     const tampered = { ...snapshot, rooms: [...snapshot.rooms, { ...snapshot.rooms[0], id: 9 }] }
     expect(() => Building.fromSnapshot(tampered)).toThrow('Overlaps a room')
-    expect(() => Building.fromSnapshot({ ...snapshot, version: 3 })).toThrow('version')
+    expect(() => Building.fromSnapshot({ ...snapshot, version: 4 })).toThrow('version')
   })
 
   test('every state the edit rules allow survives a save, including rooms whose door was blocked later', () => {
@@ -223,7 +223,7 @@ describe('snapshots', () => {
   })
 
   test('version 1 saves keep each room in place and turn it to a facing that has a door', () => {
-    const snapshot = starterBuilding().snapshot()
+    const snapshot = listed(starterBuilding().snapshot())
     const legacy = {
       ...snapshot,
       version: 1 as const,
@@ -238,6 +238,40 @@ describe('snapshots', () => {
     }
     const building = Building.fromSnapshot(legacy)
     expect(building.allRooms().map(({ id, x, y, facing }) => [id, x, y, facing])).toEqual([[1, 22, 36, 'west'], [2, 22, 29, 'south']])
+  })
+})
+
+/** A version 3 snapshot written the pre-version-3 way, with every tile listed. */
+function listed(snapshot: BuildingSnapshot) {
+  const tiles = (lists: TileRuns[]) => lists.map(({ floor, runs }) => ({ floor, tiles: fromRuns(runs) }))
+  return { ...snapshot, plates: { ...snapshot.plates, plates: tiles(snapshot.plates.plates), utilities: tiles(snapshot.plates.utilities) }, corridors: tiles(snapshot.corridors) }
+}
+
+describe('tile runs', () => {
+  test('round-trip sorted tiles and reject malformed runs', () => {
+    expect(toRuns([])).toEqual([])
+    expect(toRuns([3, 4, 5, 9, 11, 12])).toEqual([3, 3, 9, 1, 11, 2])
+    expect(fromRuns([3, 3, 9, 1, 11, 2])).toEqual([3, 4, 5, 9, 11, 12])
+    expect(() => fromRuns([1])).toThrow('pairs')
+    expect(() => fromRuns([1, 0])).toThrow('malformed')
+    expect(() => fromRuns([-1, 2])).toThrow('malformed')
+  })
+
+  test('keep a fully built site far under the account save limit', () => {
+    const building = new Building()
+    for (let floor = building.lowestFloor; floor <= building.highestFloor; floor++) {
+      building.paintPlate(floor, rect(0, 0, building.width, building.depth))
+      building.paintCorridor(floor, rect(0, 20, building.width, 1))
+    }
+    // The account save cap is 256 KiB; listing every tile would come close to it.
+    expect(JSON.stringify(building.snapshot()).length).toBeLessThan(16_384)
+    expect(JSON.stringify(listed(building.snapshot())).length).toBeGreaterThan(150_000)
+  })
+
+  test('version 2 saves, which list each tile, still load', () => {
+    const building = starterBuilding()
+    const copy = Building.fromSnapshot({ ...listed(building.snapshot()), version: 2 })
+    expect(copy.snapshot()).toEqual(building.snapshot())
   })
 })
 
