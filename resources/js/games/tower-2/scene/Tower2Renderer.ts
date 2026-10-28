@@ -6,10 +6,12 @@
 import * as THREE from 'three'
 
 import { clearGroup, disposeObject } from '../../_shared/three/threeUtils'
+import storefrontSignsUrl from '../assets/storefront-signs.webp'
 import { type BuildingAnalysis, lightLevel } from '../engine/analysis'
 import { type Building, DOOR_STEP, type Facing } from '../engine/building'
 import type { Car, Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
+import { loadAtlas } from './atlasMaterials'
 import { buildCityContext } from './cityGeometry'
 import { buildFloorGeometry, buildGridGeometry, SLAB_THICKNESS } from './floorGeometry'
 import { loadFloorAtlas } from './floorMaterials'
@@ -50,6 +52,7 @@ interface FloorLayer {
   group: THREE.Group
   solid: THREE.Mesh | null
   glass: THREE.Mesh | null
+  signs: THREE.Mesh | null
 }
 
 /**
@@ -77,6 +80,8 @@ export class Tower2Renderer {
   private readonly ghostMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: GHOST_OPACITY, depthWrite: false })
   private readonly glassMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.42, depthWrite: false })
   private readonly ghostGlassMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.1, depthWrite: false })
+  private readonly signMaterial = new THREE.MeshBasicMaterial({ vertexColors: true })
+  private readonly ghostSignMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: GHOST_OPACITY, depthWrite: false })
   private floors: FloorLayer[] = []
   private floorsKey = ''
   private cityStamp: number | null = null
@@ -90,11 +95,13 @@ export class Tower2Renderer {
   private readonly dusk = new THREE.Color(0x1b1446)
   private readonly lotMaterials: THREE.MeshBasicMaterial[] = []
   private readonly releaseFloorAtlas: () => void
+  private readonly releaseSignAtlas: () => void
 
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setClearColor(0x000000, 0)
     this.releaseFloorAtlas = loadFloorAtlas([this.solidMaterial, this.ghostMaterial])
+    this.releaseSignAtlas = loadAtlas([this.signMaterial, this.ghostSignMaterial], storefrontSignsUrl, { hideUntilLoaded: true })
     this.scene.add(this.cityGroup, this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
     this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: PALETTE.lotGrid, transparent: true, opacity: 0.22, depthWrite: false }))
     this.grid.renderOrder = 2
@@ -145,8 +152,9 @@ export class Tower2Renderer {
 
   dispose(): void {
     this.releaseFloorAtlas()
+    this.releaseSignAtlas()
     disposeObject(this.scene)
-    for (const material of [this.solidMaterial, this.ghostMaterial, this.glassMaterial, this.ghostGlassMaterial]) material.dispose()
+    for (const material of [this.solidMaterial, this.ghostMaterial, this.glassMaterial, this.ghostGlassMaterial, this.signMaterial, this.ghostSignMaterial]) material.dispose()
     this.renderer.dispose()
   }
 
@@ -176,6 +184,7 @@ export class Tower2Renderer {
       this.floorsGroup.remove(layer.group)
       layer.solid?.geometry.dispose()
       layer.glass?.geometry.dispose()
+      layer.signs?.geometry.dispose()
     }
     this.floors = []
     for (const floor of inputs.building.builtFloors()) {
@@ -191,13 +200,18 @@ export class Tower2Renderer {
       const ghost = visibility === 'ghosted'
       const solid = geometry.solid ? new THREE.Mesh(geometry.solid, ghost ? this.ghostMaterial : this.solidMaterial) : null
       const glass = geometry.glass ? new THREE.Mesh(geometry.glass, ghost ? this.ghostGlassMaterial : this.glassMaterial) : null
+      const signs = geometry.signs ? new THREE.Mesh(geometry.signs, ghost ? this.ghostSignMaterial : this.signMaterial) : null
       if (solid) group.add(solid)
+      if (signs) {
+        signs.raycast = () => {}
+        group.add(signs)
+      }
       if (glass) {
         glass.renderOrder = 1
         group.add(glass)
       }
       this.floorsGroup.add(group)
-      this.floors.push({ group, solid, glass })
+      this.floors.push({ group, solid, glass, signs })
     }
   }
 
