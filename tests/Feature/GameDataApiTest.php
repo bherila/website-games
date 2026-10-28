@@ -326,6 +326,26 @@ class GameDataApiTest extends TestCase
             ->assertJsonPath('data.slot', 'autosave');
     }
 
+    public function test_tower_2_keeps_one_tower_per_account_in_its_main_save_slot(): void
+    {
+        $user = User::factory()->create();
+        $tower = ['version' => 3, 'plates' => ['width' => 40, 'depth' => 40, 'plates' => [['floor' => 0, 'runs' => [1132, 16]]], 'utilities' => [], 'verticals' => []], 'corridors' => [], 'rooms' => [], 'nextRoomId' => 1, 'nextCoreId' => 1];
+
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-2/data/save/main', ['data' => $tower])
+            ->assertOk()
+            ->assertJsonPath('data.game', GameSlug::Tower2->value)
+            ->assertJsonPath('data.slot', 'main')
+            ->assertJsonPath('data.data.plates.plates.0.runs', [1132, 16]);
+
+        // One tower for now: other save slots, levels and the generic autosave are refused.
+        foreach (['/api/games/tower-2/data/save/autosave', '/api/games/tower-2/data/save/second', '/api/games/tower-2/data/level/1'] as $url) {
+            $this->actingAs($user)->putJson($url, ['data' => $tower])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('slot');
+        }
+    }
+
     public function test_index_accepts_a_request_for_every_supported_game(): void
     {
         $slugs = array_map(static fn (GameSlug $game): string => $game->value, GameSlug::cases());

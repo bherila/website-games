@@ -4,7 +4,7 @@
  * changes anything and reports a player-facing reason when it refuses.
  */
 import { FloorPlateModel, type FloorPlateSnapshot, type PlateTile, type VerticalFootprint } from './floorPlate'
-import { carsIn, CORE_DEPTH, coreWidth, MAX_CARS, type UseKind, USES } from './uses'
+import { carsIn, CORE_DEPTH, coreWidth, MAX_CARS, USE_KINDS, type UseKind, USES } from './uses'
 
 export const SITE_WIDTH = 40
 export const SITE_DEPTH = 40
@@ -113,13 +113,61 @@ export interface CoreCheck {
   topFloor: number
 }
 
+/** One floor's tile mask: a base64 bitset over row-major indices, so its length is fixed by the site size. */
+export interface TileMask {
+  floor: number
+  mask: string
+}
+
+/** A room as numbers: [id, use, floor, x, y, facing, doorX, doorY, storefront], with use and facing as indices into USE_KINDS and FACINGS. */
+export type SavedRoomRow = [number, number, number, number, number, number, number, number, 0 | 1]
+
+/**
+ * A saved building. Version 3 is compact with a hard size bound: each tile
+ * mask is a fixed-length bitset and each room a short row of numbers, so even
+ * the fullest tower the rules allow fits the account save limit. Versions 1
+ * and 2 listed every tile and room field, and still load.
+ */
 export interface BuildingSnapshot {
-  version: 2
-  plates: FloorPlateSnapshot
-  corridors: { floor: number, tiles: number[] }[]
-  rooms: SavedRoom[]
+  version: 3
+  plates: Omit<FloorPlateSnapshot, 'plates' | 'utilities'> & { plates: TileMask[], utilities: TileMask[] }
+  corridors: TileMask[]
+  rooms: SavedRoomRow[]
   nextRoomId: number
   nextCoreId: number
+}
+
+type TileList = { floor: number, tiles: number[] }
+
+/** Saves from before version 3, whose masks list each tile and whose rooms are objects. */
+type ListedSnapshot = Omit<BuildingSnapshot, 'version' | 'plates' | 'corridors' | 'rooms'> & { plates: FloorPlateSnapshot, corridors: TileList[], rooms: SavedRoom[] }
+
+export type AnySnapshot = BuildingSnapshot
+  | ListedSnapshot & { version: 2 }
+  | Omit<ListedSnapshot, 'rooms'> & { version: 1, rooms: LegacyRoom[] }
+
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/
+
+/** Sorted tile indices below `cells` as a base64 bitset (bit i of byte i >> 3 is tile i). */
+export function encodeMask(tiles: readonly number[], cells: number): string {
+  const bytes = new Uint8Array(Math.ceil(cells / 8))
+  for (const tile of tiles) bytes[tile >> 3]! |= 1 << (tile & 7)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+/** The tile indices in a bitset; throws unless it is exactly the length the site needs. */
+export function decodeMask(mask: string, cells: number): number[] {
+  const length = Math.ceil(cells / 8)
+  if (typeof mask !== 'string' || mask.length !== 4 * Math.ceil(length / 3) || !BASE64.test(mask)) throw new RangeError('A tile mask is malformed')
+  const binary = atob(mask)
+  if (binary.length !== length) throw new RangeError('A tile mask is malformed')
+  const tiles: number[] = []
+  for (let tile = 0; tile < cells; tile++) {
+    if (binary.charCodeAt(tile >> 3) & (1 << (tile & 7))) tiles.push(tile)
+  }
+  return tiles
 }
 
 const OK: EditResult = { ok: true }
@@ -415,11 +463,16 @@ export class Building {
       for (let index = 0; index < mask.length; index++) if (mask[index] === 1) tiles.push(index)
       return { floor, tiles }
     }).filter(({ tiles }) => tiles.length > 0)
+    const cells = this.width * this.depth
+    const plates = this.plates.snapshot()
+    const compact = (lists: TileList[]): TileMask[] => lists.map(({ floor, tiles }) => ({ floor, mask: encodeMask(tiles, cells) }))
     return {
-      version: 2,
-      plates: this.plates.snapshot(),
-      corridors,
-      rooms: this.rooms.map(({ id, use, floor, x, y, facing, door, storefront }) => ({ id, use, floor, x, y, facing, door: { ...door }, storefront })),
+      version: 3,
+      plates: { ...plates, plates: compact(plates.plates), utilities: compact(plates.utilities) },
+      corridors: compact(corridors),
+      rooms: this.rooms.map(({ id, use, floor, x, y, facing, door, storefront }): SavedRoomRow => [
+        id, USE_KINDS.indexOf(use), floor, x, y, FACINGS.indexOf(facing), door.x, door.y, storefront ? 1 : 0,
+      ]),
       nextRoomId: this.nextRoomId,
       nextCoreId: this.nextCoreId,
     }
@@ -430,13 +483,19 @@ export class Building {
    * validates. Version 1 saves keep each room's footprint and turn it to a
    * facing whose wall still has a door, dropping rooms with none.
    */
-  static fromSnapshot(snapshot: BuildingSnapshot | { version: 1, rooms: LegacyRoom[] } & Omit<BuildingSnapshot, 'version' | 'rooms'>): Building {
-    if (snapshot?.version !== 1 && snapshot?.version !== 2) throw new RangeError('Unknown building save version')
+  static fromSnapshot(snapshot: AnySnapshot): Building {
+    if (snapshot?.version !== 1 && snapshot?.version !== 2 && snapshot?.version !== 3) throw new RangeError('Unknown building save version')
     const building = new Building()
-    const plates = FloorPlateModel.fromSnapshot(snapshot.plates)
+    const cells = building.width * building.depth
+    const listed = (lists: TileMask[]): TileList[] => lists.map(({ floor, mask }) => ({ floor, tiles: decodeMask(mask, cells) }))
+    const plateSnapshot: FloorPlateSnapshot = snapshot.version === 3
+      ? { ...snapshot.plates, plates: listed(snapshot.plates.plates), utilities: listed(snapshot.plates.utilities) }
+      : snapshot.plates
+    const corridorLists = snapshot.version === 3 ? listed(snapshot.corridors) : snapshot.corridors
+    const plates = FloorPlateModel.fromSnapshot(plateSnapshot)
     if (plates.width !== building.width || plates.depth !== building.depth) throw new RangeError('Saved site has a different size')
     building.plates = plates
-    for (const { floor, tiles } of snapshot.corridors) {
+    for (const { floor, tiles } of corridorLists) {
       const result = building.paintCorridor(floor, tiles.map((index) => ({ x: index % building.width, y: Math.floor(index / building.width) })))
       if (!result.ok) throw new RangeError(result.reason)
     }
@@ -452,8 +511,14 @@ export class Building {
           if (building.placeRoom(room.use, room.floor, room.x, room.y, facing).ok) break
         }
       }
-    } else {
+    } else if (snapshot.version === 2) {
       for (const room of snapshot.rooms) building.restoreRoom(room)
+    } else {
+      for (const row of snapshot.rooms) {
+        if (!Array.isArray(row) || row.length !== 9) throw new RangeError('A saved room is malformed')
+        const [id, use, floor, x, y, facing, doorX, doorY, storefront] = row
+        building.restoreRoom({ id, use: USE_KINDS[use]!, floor, x, y, facing: FACINGS[facing]!, door: { x: doorX, y: doorY }, storefront: storefront === 1 })
+      }
     }
     building.nextRoomId = Math.max(snapshot.nextRoomId, ...building.rooms.map((room) => room.id + 1), 1)
     building.nextCoreId = Math.max(snapshot.nextCoreId, 1)

@@ -4,12 +4,14 @@
  * question — is drawing floors fun? — so it has no economy or stars yet.
  */
 import {
-  ArrowLeft, ArrowUpDown, Bed, Briefcase, Building, ChevronDown, ChevronUp, CircleDashed, Coffee, Copy, Eraser, Footprints, Hand,
-  Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, ShoppingBag, Square, Star, Sun, Trash,
+  ArrowLeft, ArrowUpDown, Bed, Briefcase, Building, ChevronDown, ChevronUp, CircleDashed, Cloud, Coffee, Copy, Eraser, Footprints, Hand,
+HardDrive,   Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, ShoppingBag, Square, Star, Sun, Trash,
   TriangleAlert, Undo2, Users, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { readAuthenticationContext } from '../_shared/gameDataPersistence'
+import { safeLocalStorage } from '../_shared/progressParsers'
 import { hexColor } from '../_shared/three/threeUtils'
 import { type Building as BuildingModel, type EditResult, type Facing, floorLabel, nextFacing } from './engine/building'
 import { carsIn, MAX_CARS, USES } from './engine/uses'
@@ -18,7 +20,7 @@ import type { OverlayKind } from './scene/Tower2Renderer'
 import { type CoreStats, type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
 import { TUTORIAL, tutorialProgress } from './tutorial'
 import { TutorialCard } from './TutorialCard'
-import { storage, useWorld } from './useWorld'
+import { useWorld } from './useWorld'
 
 const SQUARE_METRES_PER_TILE = 9
 /** 'on' or 'off' once the player has started, skipped or finished the tutorial. */
@@ -26,7 +28,7 @@ const TUTORIAL_KEY = 'tower-2-tutorial'
 
 function readTutorialFlag(firstVisit: boolean): boolean {
   try {
-    const flag = storage()?.getItem(TUTORIAL_KEY)
+    const flag = safeLocalStorage()?.getItem(TUTORIAL_KEY)
     if (flag === 'on' || flag === 'off') return flag === 'on'
   } catch {
     // Blocked storage: fall through to the first-visit default.
@@ -36,7 +38,7 @@ function readTutorialFlag(firstVisit: boolean): boolean {
 
 function writeTutorialFlag(on: boolean): void {
   try {
-    storage()?.setItem(TUTORIAL_KEY, on ? 'on' : 'off')
+    safeLocalStorage()?.setItem(TUTORIAL_KEY, on ? 'on' : 'off')
   } catch {
     // The tutorial just won't survive a reload.
   }
@@ -109,6 +111,8 @@ export function Tower2Game(): ReactElement {
   const [visitors, setVisitors] = useState(0)
   const [tutorialOn, setTutorialOn] = useState(() => readTutorialFlag(history.firstVisit))
   const [framings, setFramings] = useState(0)
+  const [signedIn] = useState(() => readAuthenticationContext().authenticated)
+  const [confirmingReset, setConfirmingReset] = useState(false)
   const controlsRef = useRef<SceneControls>(null)
   const messageTimerRef = useRef<number | undefined>(undefined)
 
@@ -248,6 +252,21 @@ export function Tower2Game(): ReactElement {
     say(start === 'empty' ? 'An empty site. Undo brings your plan back.' : 'The example block. Undo brings your plan back.', 'info')
   }, [history, say, setTutorial])
 
+  /** Debug reset: erase the saved tower (account copy too) and the tutorial flag, then load as a first visit. */
+  const eraseEverything = useCallback(async () => {
+    setConfirmingReset(false)
+    if (!await history.erase()) {
+      say('Reset could not reach your account, so nothing was erased. Check your connection and try again.')
+      return
+    }
+    try {
+      safeLocalStorage()?.removeItem(TUTORIAL_KEY)
+    } catch {
+      // Blocked storage: nothing was stored.
+    }
+    window.location.reload()
+  }, [history, say])
+
   // Frame the new building once the scene has it.
   useEffect(() => {
     if (framings > 0) controlsRef.current?.frame()
@@ -288,6 +307,25 @@ export function Tower2Game(): ReactElement {
           <a href="/" aria-label="All games" className={ICON_BUTTON}><ArrowLeft size={20} aria-hidden="true" /></a>
           <h1 className="text-base font-black tracking-tight">Tower <span className="text-fuchsia-300">2</span></h1>
           <span className="ml-1 hidden rounded-full bg-fuchsia-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fuchsia-200 min-[400px]:inline">Prototype</span>
+        </div>
+        <div className={`${PANEL} pointer-events-auto relative flex items-center gap-0.5 p-1`}>
+          {signedIn
+            ? <span data-testid="tower2-save-place" title="Your tower saves to your account" className="flex h-10 items-center gap-1.5 px-2 text-[11px] font-semibold text-emerald-200"><Cloud size={16} aria-hidden="true" /><span className="hidden sm:inline">Saved to your account</span></span>
+            : (
+                <a data-testid="tower2-save-place" href="/login?next=/tower-2" title="Your tower saves in this browser. Sign in to keep it in your account." className="flex h-10 items-center gap-1.5 rounded-xl px-2 text-[11px] font-semibold text-amber-200 hover:bg-white/10">
+                  <HardDrive size={16} aria-hidden="true" /><span className="hidden sm:inline">This browser · Sign in to save</span>
+                </a>
+              )}
+          <button type="button" aria-expanded={confirmingReset} onClick={() => setConfirmingReset((value) => !value)} className="h-10 rounded-xl px-2 text-[11px] font-semibold text-white/80 hover:bg-white/10">Reset</button>
+          {confirmingReset && (
+            <div role="dialog" aria-label="Reset" className={`${PANEL} absolute left-0 top-12 z-10 w-64 p-3 text-xs`}>
+              <p className="mb-2 text-white/85">Erase this tower{signedIn ? ' here and in your account' : ''} and restart the tutorial? This can&apos;t be undone.</p>
+              <div className="flex gap-1.5">
+                <button type="button" onClick={() => void eraseEverything()} className="rounded-lg bg-rose-500/90 px-2.5 py-1.5 font-semibold hover:bg-rose-500">Erase and restart</button>
+                <button type="button" onClick={() => setConfirmingReset(false)} className="rounded-lg px-2.5 py-1.5 font-semibold text-white/80 hover:bg-white/10">Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
         <div className={`${PANEL} pointer-events-auto flex items-center gap-0.5 p-1`}>
           <button type="button" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" className={ICON_BUTTON} disabled={!history.canUndo} onClick={history.undo}><Undo2 size={18} aria-hidden="true" /></button>
