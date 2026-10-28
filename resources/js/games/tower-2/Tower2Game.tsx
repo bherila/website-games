@@ -13,7 +13,7 @@ import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, use
 import { hexColor } from '../_shared/three/threeUtils'
 import { type Building as BuildingModel, type EditResult, type Facing, FLOOR_COUNT, nextFacing } from './engine/building'
 import { USES } from './engine/uses'
-import { isUseTool, type ToolId, TOOLS, turnedInPlace } from './interaction'
+import { isUseTool, nextTurn, type ToolId, TOOLS } from './interaction'
 import type { OverlayKind } from './scene/Tower2Renderer'
 import { type SceneControls, type Selection, Tower2Scene } from './Tower2Scene'
 import { useWorld } from './useWorld'
@@ -132,15 +132,14 @@ export function Tower2Game(): ReactElement {
     setSelection(null)
   }, [apply, selected])
 
-  /** Turn the selected room a quarter about its centre, or failing that about its corner. */
+  /** Turn the selected room to its next facing that fits, about its centre or its corner. */
   const turnSelected = useCallback(() => {
     if (selected?.kind !== 'room') return
     const { room } = selected
-    const facing = nextFacing(room.facing)
-    const spots = turnedInPlace(room, facing)
-    const fits = spots.find(({ x, y }) => world.building.checkRoom(room.use, room.floor, x, y, facing, room.id).ok)
-    apply((building) => building.moveRoom(room.id, (fits ?? spots[0]!).x, (fits ?? spots[0]!).y, facing))
-  }, [apply, selected, world])
+    const turn = nextTurn(world.building, room)
+    if (turn) apply((building) => building.moveRoom(room.id, turn.x, turn.y, turn.facing))
+    else say('No other way round fits here')
+  }, [apply, say, selected, world])
 
   const turn = useCallback(() => {
     if (selected?.kind === 'room') turnSelected()

@@ -3,7 +3,7 @@
  * translates pointers into tiles. Drag tools act on the rectangle between the
  * press and the pointer; room and core tools act on a click.
  */
-import { type Building, type EditResult, type Facing, type Room, roomFootprint } from './engine/building'
+import { type Building, type EditResult, type Facing, nextFacing, type Room, roomFootprint } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
 import { CORE_SIZE, USE_KINDS, type UseKind, USES } from './engine/uses'
 import type { Preview } from './scene/Tower2Renderer'
@@ -63,6 +63,20 @@ export function turnedInPlace(room: Room, facing: Facing): PlateTile[] {
   const { width, depth } = roomFootprint(room.use, facing)
   const centred = { x: Math.round(room.x + room.width / 2 - width / 2), y: Math.round(room.y + room.depth / 2 - depth / 2) }
   return centred.x === room.x && centred.y === room.y ? [centred] : [centred, { x: room.x, y: room.y }]
+}
+
+/**
+ * The next facing, clockwise, that a placed room can turn to in place, skipping
+ * quarter-turns that do not fit so every valid facing stays reachable. Null
+ * when no other facing fits.
+ */
+export function nextTurn(building: Building, room: Room): { x: number, y: number, facing: Facing } | null {
+  for (let turns = 1; turns < 4; turns++) {
+    const facing = nextFacing(room.facing, turns)
+    const spot = turnedInPlace(room, facing).find(({ x, y }) => building.checkRoom(room.use, room.floor, x, y, facing, room.id).ok)
+    if (spot) return { ...spot, facing }
+  }
+  return null
 }
 
 /** The footprint origin that centres a room or core on the hovered tile. */

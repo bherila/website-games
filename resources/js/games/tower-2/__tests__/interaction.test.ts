@@ -1,5 +1,5 @@
 import { Building, starterBuilding } from '../engine/building'
-import { centredOrigin, isRectTool, isUseTool, rectTiles, toolAction, TOOLS } from '../interaction'
+import { centredOrigin, isRectTool, isUseTool, nextTurn, rectTiles, toolAction, TOOLS } from '../interaction'
 
 describe('tools', () => {
   test('have unique keys and a hint each, and classify drag and room tools', () => {
@@ -49,5 +49,21 @@ describe('tool actions', () => {
     expect(turned.preview).toMatchObject({ width: 5, depth: 4 })
     expect(shop.commit!(building)).toEqual({ ok: true })
     expect(building.allRooms()).toHaveLength(5)
+  })
+})
+
+describe('turning a placed room', () => {
+  test('skips a quarter-turn that does not fit to reach the next facing that does', () => {
+    // A three-tile-wide strip with corridors at both ends: a 3×4 studio fits facing south or north only.
+    const building = new Building()
+    building.paintPlate(0, Array.from({ length: 3 * 6 }, (_, i) => ({ x: i % 3, y: Math.floor(i / 3) })))
+    building.paintCorridor(0, [0, 1, 2].map((x) => ({ x, y: 0 })))
+    building.paintCorridor(0, [0, 1, 2].map((x) => ({ x, y: 5 })))
+    expect(building.placeRoom('studio', 0, 0, 1, 'south')).toEqual({ ok: true })
+    const studio = building.room(1)!
+    expect(nextTurn(building, studio)).toEqual({ x: 0, y: 1, facing: 'north' })
+    // With the north corridor gone, nothing else fits.
+    building.erase(0, [0, 1, 2].map((x) => ({ x, y: 0 })))
+    expect(nextTurn(building, studio)).toBeNull()
   })
 })
