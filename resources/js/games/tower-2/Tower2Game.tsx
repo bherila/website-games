@@ -252,20 +252,22 @@ export function Tower2Game(): ReactElement {
     say(start === 'empty' ? 'An empty site. Undo brings your plan back.' : 'The example block. Undo brings your plan back.', 'info')
   }, [history, say, setTutorial])
 
-  /** Debug reset: erase the saved tower (account copy too) and the tutorial flag, then load as a first visit. */
+  /** Debug reset: save an empty site over the tower (account copy too) and restart the tutorial, then reload as a first visit. */
   const eraseEverything = useCallback(async () => {
     setConfirmingReset(false)
-    if (!await history.erase()) {
-      say('Reset could not reach your account, so nothing was erased. Check your connection and try again.')
+    const outcome = await history.restart()
+    if (outcome === 'conflict') {
+      say('Reset did not apply: another tab or device saved this tower more recently. Reload to continue from that save.')
       return
     }
-    try {
-      safeLocalStorage()?.removeItem(TUTORIAL_KEY)
-    } catch {
-      // Blocked storage: nothing was stored.
+    writeTutorialFlag(true)
+    if (outcome === 'saved') {
+      window.location.reload()
+      return
     }
-    window.location.reload()
-  }, [history, say])
+    startOver('empty')
+    say('The site is cleared. Reset reaches your account once the connection returns.', 'info')
+  }, [history, say, startOver])
 
   // Frame the new building once the scene has it.
   useEffect(() => {
