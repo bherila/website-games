@@ -313,6 +313,15 @@ export async function flushGameDataWrites(): Promise<void> {
   }
 }
 
+/**
+ * True once a newer save from another tab or device has stopped this tab from
+ * writing the slot (the `game-data-conflict` banner is up). Writes to it are
+ * dropped until the page reloads.
+ */
+export function isSaveSlotBlocked(game: DatabaseGameSlug, slot: string): boolean {
+  return blockedSaveSlots.has(rowKey(game, 'save', slot))
+}
+
 /** Test-only reset for the module-level hydration and write caches. */
 export function resetGameDataPersistenceForTests(): void {
   for (const queue of writeQueues.values()) {

@@ -1,17 +1,17 @@
 /**
- * The building, its analysis, undo/redo and a local autosave. The prototype is
- * unlisted and never cloud-saved; browser storage may be unavailable, so every
- * read and write is guarded and the game works without it.
+ * The building, its analysis, undo/redo and an autosave: to this browser when
+ * signed out, to the account when signed in. Storage may be unavailable, so
+ * every read and write is guarded and the game works without it.
  *
  * Edits mutate the Building in place, then publish a new World wrapper so
  * React sees a new identity (and a new stamp) for every change.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { flushGameDataWrites, gameDataStorage } from '../_shared/gameDataPersistence'
+import { flushGameDataWrites, gameDataStorage, isSaveSlotBlocked } from '../_shared/gameDataPersistence'
 import { BuildingAnalysis } from './engine/analysis'
 import { type AnySnapshot, Building, type BuildingSnapshot, type EditResult, starterBuilding } from './engine/building'
-import { TOWER_2_STORAGE_KEY } from './gameProgress'
+import { TOWER_2_SAVE_SLOT, TOWER_2_STORAGE_KEY } from './gameProgress'
 import type { World } from './Tower2Scene'
 
 export const STORAGE_KEY = TOWER_2_STORAGE_KEY
@@ -38,28 +38,28 @@ function storage(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null {
   }
 }
 
+/** How Reset's empty site fared: in the account, queued for later, or refused because another device saved first. */
+export type RestartOutcome = 'saved' | 'waiting' | 'conflict'
+
 /**
- * Remove the saved tower and wait for the removal to reach the account. If it
- * cannot (offline, or the server refused), save the current tower back so a
- * reload does not bring an older account copy back, and report false.
+ * Save an empty site over the tower and wait for it to reach the account.
+ * Reset saves rather than deletes so it takes the ordinary write path: offline
+ * it stays queued and still lands once the connection returns, and a newer
+ * save from another device raises the usual conflict instead of passing for
+ * success.
  */
-export async function eraseSavedTower(
-  target: Pick<Storage, 'removeItem' | 'setItem'> | null,
+export async function saveEmptySite(
+  target: Pick<Storage, 'setItem'> | null,
   flush: () => Promise<void>,
-  current: BuildingSnapshot,
-): Promise<boolean> {
+  blocked: () => boolean,
+): Promise<RestartOutcome> {
   try {
-    target?.removeItem(STORAGE_KEY)
+    target?.setItem(STORAGE_KEY, JSON.stringify(new Building().snapshot()))
     await flush()
-    return true
   } catch {
-    try {
-      target?.setItem(STORAGE_KEY, JSON.stringify(current))
-    } catch {
-      // Blocked storage: nothing was saved to restore.
-    }
-    return false
+    return blocked() ? 'conflict' : 'waiting'
   }
+  return blocked() ? 'conflict' : 'saved'
 }
 
 export interface WorldHistory {
@@ -71,11 +71,8 @@ export interface WorldHistory {
   reset: (start: 'empty' | 'example') => void
   /** True when this visit began without a saved plan. */
   firstVisit: boolean
-  /**
-   * Delete the saved tower (the account copy too) and wait for that to reach the
-   * server. False when it could not, in which case the tower is saved back.
-   */
-  erase: () => Promise<boolean>
+  /** Save an empty site over the tower (the account copy too) and report whether it landed. */
+  restart: () => Promise<RestartOutcome>
   canUndo: boolean
   canRedo: boolean
 }
@@ -156,10 +153,10 @@ export function useWorld(): WorldHistory {
     }))
   }, [])
 
-  const erase = useCallback(() => {
+  const restart = useCallback(() => {
     window.clearTimeout(saveTimerRef.current)
-    return eraseSavedTower(storage(), flushGameDataWrites, state.world.building.snapshot())
-  }, [state.world])
+    return saveEmptySite(storage(), flushGameDataWrites, () => isSaveSlotBlocked('tower-2', TOWER_2_SAVE_SLOT))
+  }, [])
 
-  return { world: state.world, apply, undo, redo, reset, erase, firstVisit: initial.fresh, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
+  return { world: state.world, apply, undo, redo, reset, restart, firstVisit: initial.fresh, canUndo: state.undo.length > 0, canRedo: state.redo.length > 0 }
 }

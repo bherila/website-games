@@ -1,9 +1,9 @@
 import { fetchWrapper } from '@/fetchWrapper'
 
-import { definitionRowKey, flushGameDataWrites, gameDataStorage, initializeGameDataPersistence, resetGameDataPersistenceForTests } from '../../_shared/gameDataPersistence'
+import { definitionRowKey, flushGameDataWrites, gameDataStorage, initializeGameDataPersistence, isSaveSlotBlocked, resetGameDataPersistenceForTests } from '../../_shared/gameDataPersistence'
 import { Building, starterBuilding } from '../engine/building'
 import { parseTowerSave, TOWER_2_SAVE_DATA, TOWER_2_SAVE_SLOT, TOWER_2_STORAGE_KEY } from '../gameProgress'
-import { eraseSavedTower, loadBuilding } from '../useWorld'
+import { loadBuilding, saveEmptySite } from '../useWorld'
 
 jest.mock('@/fetchWrapper', () => ({
   fetchWrapper: { delete: jest.fn(), get: jest.fn(), getRaw: jest.fn(), put: jest.fn() },
@@ -46,7 +46,10 @@ describe('the Tower 2 save', () => {
     mockPut.mockReset()
   })
 
-  afterEach(() => resetGameDataPersistenceForTests())
+  afterEach(() => {
+    resetGameDataPersistenceForTests()
+    jest.restoreAllMocks()
+  })
 
   test('parses current and older snapshots into the current version, and refuses anything that does not replay', () => {
     const snapshot = starterBuilding().snapshot()
@@ -101,21 +104,56 @@ describe('the Tower 2 save', () => {
     expect(url).toBe('/api/games/tower-2/data')
     expect(body.operations).toEqual([expect.objectContaining({ action: 'put', scope: 'save', slot: 'main', data: tower.snapshot() })])
   })
-})
 
-describe('erasing the saved tower', () => {
-  test('removes it once the account confirms the deletion', async () => {
-    const store = new Map<string, string>([[TOWER_2_STORAGE_KEY, '{}']])
-    const target = { removeItem: (key: string) => void store.delete(key), setItem: (key: string, value: string) => void store.set(key, value) }
-    await expect(eraseSavedTower(target, async () => {}, starterBuilding().snapshot())).resolves.toBe(true)
-    expect(store.has(TOWER_2_STORAGE_KEY)).toBe(false)
-  })
+  describe('Reset', () => {
+    const blocked = (): boolean => isSaveSlotBlocked('tower-2', TOWER_2_SAVE_SLOT)
+    const accountTower = (revision: number) => ({ game: 'tower-2', scope: 'save', slot: 'main', data: starterBuilding().snapshot(), is_deleted: false, revision, updated_at: null })
 
-  test('saves the tower back and reports failure when the account cannot be reached', async () => {
-    const store = new Map<string, string>([[TOWER_2_STORAGE_KEY, '{}']])
-    const target = { removeItem: (key: string) => void store.delete(key), setItem: (key: string, value: string) => void store.set(key, value) }
-    const current = starterBuilding().snapshot()
-    await expect(eraseSavedTower(target, async () => { throw new Error('offline') }, current)).resolves.toBe(false)
-    expect(JSON.parse(store.get(TOWER_2_STORAGE_KEY)!)).toEqual(current)
+    test('signed out, saves an empty site in this browser', async () => {
+      window.localStorage.setItem(TOWER_2_STORAGE_KEY, JSON.stringify(starterBuilding().snapshot()))
+      await initializeGameDataPersistence([TOWER_2_SAVE_DATA])
+      await expect(saveEmptySite(gameDataStorage(), flushGameDataWrites, blocked)).resolves.toBe('saved')
+      expect(loadBuilding(gameDataStorage()).building.snapshot()).toEqual(new Building().snapshot())
+    })
+
+    test('offline, an unchanged tower is replaced by a queued empty site that lands later, never by a deletion', async () => {
+      signIn()
+      serverRows([accountTower(3)])
+      await initializeGameDataPersistence([TOWER_2_SAVE_DATA])
+      jest.spyOn(console, 'error').mockImplementation(() => {})
+      mockPut.mockRejectedValue(new Error('offline'))
+      await expect(saveEmptySite(gameDataStorage(), flushGameDataWrites, blocked)).resolves.toBe('waiting')
+      expect(loadBuilding(gameDataStorage()).building.snapshot()).toEqual(new Building().snapshot())
+
+      acceptBatches()
+      await flushGameDataWrites()
+      const sent = mockPut.mock.calls.flatMap(([, body]) => (body as { operations: { action: string, data?: unknown }[] }).operations)
+      expect(sent.length).toBeGreaterThan(0)
+      expect(sent.every((operation) => operation.action === 'put')).toBe(true)
+      expect(sent.at(-1)?.data).toEqual(new Building().snapshot())
+    })
+
+    test('reports a conflict, not success, when another device saved the tower first', async () => {
+      signIn()
+      serverRows([accountTower(3)])
+      await initializeGameDataPersistence([TOWER_2_SAVE_DATA])
+      mockPut.mockResolvedValue({ data: [{ action: 'put', scope: 'save', slot: 'main', status: 'stale', row: accountTower(4) }] })
+      await expect(saveEmptySite(gameDataStorage(), flushGameDataWrites, blocked)).resolves.toBe('conflict')
+    })
+
+    test('reports a conflict without writing when an earlier conflict already stopped saves', async () => {
+      signIn()
+      serverRows([accountTower(3)])
+      await initializeGameDataPersistence([TOWER_2_SAVE_DATA])
+      mockPut.mockResolvedValue({ data: [{ action: 'put', scope: 'save', slot: 'main', status: 'stale', row: accountTower(4) }] })
+      const edited = starterBuilding()
+      edited.paintPlate(0, [{ x: 30, y: 30 }])
+      gameDataStorage()?.setItem(TOWER_2_STORAGE_KEY, JSON.stringify(edited.snapshot()))
+      await flushGameDataWrites()
+      mockPut.mockClear()
+      acceptBatches()
+      await expect(saveEmptySite(gameDataStorage(), flushGameDataWrites, blocked)).resolves.toBe('conflict')
+      expect(mockPut).not.toHaveBeenCalled()
+    })
   })
 })
