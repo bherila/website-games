@@ -7,14 +7,12 @@ use App\Models\User;
 use BWH\Auth\OAuth\ProviderApplications;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -439,29 +437,28 @@ class OAuthLoginTest extends TestCase
         $existingUser = User::factory()->create(['email' => 'copied-account@example.test']);
         $this->fakeProvider('unlinked-provider-subject', 'Copied Account', 'copied-account@example.test');
 
-        Log::shouldReceive('warning')
-            ->once()
-            ->withArgs(function (string $message, array $context) use ($existingUser): bool {
-                $this->assertSame('OAuth sign-in could not be provisioned.', $message);
-                $this->assertSame('bherila', $context['provider']);
-                $this->assertNull($context['subject_bound_to']);
-                $this->assertSame('users#'.$existingUser->getKey(), $context['email_held_by']);
-                $this->assertFalse($context['email_holder_is_linked']);
-                $this->assertStringContainsString('oauth:bind-subject', $context['reason']);
-
-                $encoded = json_encode($context);
-                $this->assertIsString($encoded);
-                $this->assertStringNotContainsString('copied-account@example.test', $encoded);
-                $this->assertStringNotContainsString('unlinked-provider-subject', $encoded);
-
-                return true;
-            });
+        Log::spy();
 
         $this->withSession($this->oauthSession())
             ->get('/oauth/callback?state=expected-state&code=authorization-code')
             ->assertConflict();
 
         $this->assertGuest();
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(function (string $message, array $context) use ($existingUser): bool {
+            $this->assertSame('OAuth sign-in could not be given an account.', $message);
+            $this->assertSame('bherila', $context['provider']);
+            $this->assertNull($context['subject_bound_to']);
+            $this->assertSame($existingUser->getKey(), $context['email_held_by']);
+            $this->assertStringContainsString('oauth:bind-subject', $context['explanation']);
+
+            $encoded = json_encode($context);
+            $this->assertIsString($encoded);
+            $this->assertStringNotContainsString('copied-account@example.test', $encoded);
+            $this->assertStringNotContainsString('unlinked-provider-subject', $encoded);
+
+            return true;
+        });
     }
 
     /**
@@ -495,7 +492,7 @@ class OAuthLoginTest extends TestCase
 
     /**
      * A second request for the same subject may lose the race to insert it. That is a
-     * benign collision on the identity index, not the conflict above, and the loser should
+     * benign collision, not the conflict above, and the loser should
      * simply adopt the row the winner created rather than refuse a legitimate sign-in.
      */
     public function test_a_lost_race_to_create_the_same_subject_adopts_the_winning_row(): void
@@ -515,10 +512,10 @@ class OAuthLoginTest extends TestCase
 
         /**
          * A real race runs on a second connection, which the test suite's single in-memory
-         * database cannot provide. Its two observable effects are reproduced instead: the
-         * competing row lands between this request's subject lookup and its insert, so the
-         * insert collides; and being committed elsewhere, it is still there afterwards
-         * rather than being taken down by this request's rollback.
+         * database cannot provide. The competing row is committed between this request's
+         * subject lookup and its write. The shared resolver finds it when it reads the
+         * address under lock and adopts it because it already asserts this profile; the
+         * insert-collision path of the same rule is covered by the package's own tests.
          */
         $raced = false;
         DB::listen(function (QueryExecuted $query) use (&$raced, $winnerAttributes): void {
@@ -530,22 +527,11 @@ class OAuthLoginTest extends TestCase
             DB::table('users')->insert($winnerAttributes);
         });
 
-        $survived = false;
-        Event::listen(function (TransactionRolledBack $event) use (&$survived, $winnerAttributes): void {
-            if ($survived) {
-                return;
-            }
-
-            $survived = true;
-            DB::table('users')->insert($winnerAttributes);
-        });
-
         $this->withSession($this->oauthSession())
             ->get('/oauth/callback?state=expected-state&code=authorization-code')
             ->assertRedirect('/');
 
         $this->assertTrue($raced, 'The competing row must land before the insert for this to test anything.');
-        $this->assertTrue($survived, 'The insert must have collided and rolled back for this to test anything.');
         $winner = User::query()
             ->where('oauth_provider', 'bherila')
             ->where('oauth_subject', 'raced-provider-subject')
