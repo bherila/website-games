@@ -3,6 +3,7 @@
  * plus drawn corridors and fixed-size rooms. Every edit validates before it
  * changes anything and reports a player-facing reason when it refuses.
  */
+import { type FloorConstruction, floorConstruction, OVERHANG_REACH } from './construction'
 import { FloorPlateModel, type FloorPlateSnapshot, type PlateTile, type VerticalFootprint } from './floorPlate'
 import { carsIn, CORE_DEPTH, coreWidth, MAX_CARS, USE_KINDS, type UseKind, USES } from './uses'
 
@@ -68,6 +69,10 @@ export const STOREFRONT_USES: ReadonlySet<UseKind> = new Set(['shop', 'cafe'])
 export type Core = VerticalFootprint
 
 export type EditResult = { ok: true } | { ok: false, reason: string }
+
+export type PlateEditKind = 'paint' | 'erase' | 'atrium' | 'inherit'
+
+export type PlateEditCheck = { ok: true, costDelta: number, added: number, overhangAdded: number } | { ok: false, reason: string }
 
 export type TileUse = 'empty' | 'plate' | 'corridor' | 'room' | 'core'
 
@@ -287,20 +292,85 @@ export class Building {
 
   // ── Plates ────────────────────────────────────────────────────────────────
 
-  paintPlate(floor: number, tiles: readonly PlateTile[]): EditResult {
-    if (!this.isFloor(floor)) return refuse('That floor is outside the site')
+  construction(floor: number): FloorConstruction {
+    return floorConstruction(this.plateMask(floor), this.plateMask(floor - 1), this.width, floor)
+  }
+
+  /** Preview and commit share these checks, including effects on the floor above an edit. */
+  checkPlateEdit(kind: PlateEditKind, floor: number, tiles: readonly PlateTile[] = []): PlateEditCheck {
+    if (!this.isFloor(floor)) return { ok: false, reason: 'That floor is outside the site' }
     const inside = tiles.filter(({ x, y }) => this.inBounds(x, y))
-    if (inside.length === 0) return refuse('Paint inside the site')
-    this.plates.paint(floor, inside)
+    const changes = new Map<number, Uint8Array>()
+    if (kind === 'inherit') {
+      if (!this.isFloor(floor - 1)) return { ok: false, reason: 'There is no floor below to copy' }
+      if (this.plateArea(floor - 1) === 0) return { ok: false, reason: `${capitalise(floorName(floor - 1))} has no plate to copy` }
+      const below = this.plateMask(floor - 1)
+      if (this.coresOn(floor).some((core) => {
+        for (let y = core.y; y < core.y + core.depth; y++) {
+          for (let x = core.x; x < core.x + core.width; x++) if (below[y * this.width + x] !== 1) return true
+        }
+        return false
+      })) return { ok: false, reason: 'A core here sits outside the floor below' }
+      changes.set(floor, below)
+    } else {
+      if (kind === 'paint' && inside.length === 0) return { ok: false, reason: 'Paint inside the site' }
+      const levels = kind === 'atrium' ? this.builtFloors().filter((level) => level >= floor) : [floor]
+      if (kind !== 'paint') {
+        for (const level of levels) {
+          if (inside.some(({ x, y }) => this.coreAt(level, x, y))) return { ok: false, reason: kind === 'atrium'
+            ? `A core on ${floorName(level)} is in the way`
+            : 'A core stands here. Select it to shorten or remove it first.' }
+        }
+        if (!inside.some(({ x, y }) => this.hasPlate(floor, x, y))) return { ok: false, reason: kind === 'atrium' ? 'An atrium needs floor plate to cut' : 'Nothing to clear here' }
+      }
+      for (const level of levels) {
+        const mask = this.plateMask(level)
+        for (const { x, y } of inside) mask[y * this.width + x] = kind === 'paint' ? 1 : 0
+        changes.set(level, mask)
+      }
+    }
+    const affected = new Set<number>()
+    for (const level of changes.keys()) {
+      affected.add(level)
+      if (this.isFloor(level + 1)) affected.add(level + 1)
+    }
+    let costDelta = 0
+    let added = 0
+    let overhangAdded = 0
+    for (const level of [...affected].sort((a, b) => a - b)) {
+      const oldPlate = this.plateMask(level)
+      const plate = changes.get(level) ?? oldPlate
+      const below = changes.get(level - 1) ?? this.plateMask(level - 1)
+      const before = this.construction(level)
+      const after = floorConstruction(plate, below, this.width, level)
+      for (let index = 0; index < plate.length; index++) {
+        // Old prototype layouts still load and may be repaired, but cannot gain or worsen violations.
+        if (plate[index] === 1 && after.distances[index]! > OVERHANG_REACH
+          && (oldPlate[index] !== 1 || after.distances[index]! > before.distances[index]!)) {
+          return { ok: false, reason: `${capitalise(floorName(level))}: overhangs must reach a tile supported by the floor below within ${OVERHANG_REACH} tiles. Extend the floor below or shorten the overhang.` }
+        }
+        if (plate[index] === 1 && oldPlate[index] !== 1) {
+          added++
+          if (level > 0 && below[index] !== 1) overhangAdded++
+        }
+      }
+      costDelta += after.cost - before.cost
+    }
+    return { ok: true, costDelta, added, overhangAdded }
+  }
+
+  paintPlate(floor: number, tiles: readonly PlateTile[]): EditResult {
+    const check = this.checkPlateEdit('paint', floor, tiles)
+    if (!check.ok) return check
+    this.plates.paint(floor, tiles.filter(({ x, y }) => this.inBounds(x, y)))
     return this.changed()
   }
 
   /** Bulldoze: rooms touching the selection and corridors in it go with the plate. Cores stay. */
   erase(floor: number, tiles: readonly PlateTile[]): EditResult {
-    if (!this.isFloor(floor)) return refuse('That floor is outside the site')
+    const check = this.checkPlateEdit('erase', floor, tiles)
+    if (!check.ok) return check
     const inside = tiles.filter(({ x, y }) => this.inBounds(x, y))
-    if (inside.some(({ x, y }) => this.coreAt(floor, x, y))) return refuse('A core stands here. Select it to shorten or remove it first.')
-    if (!inside.some(({ x, y }) => this.hasPlate(floor, x, y))) return refuse('Nothing to clear here')
     this.clearContents(floor, inside)
     this.plates.erase(floor, inside)
     return this.changed()
@@ -308,27 +378,23 @@ export class Building {
 
   /** Cut the same hole from this floor to the top of the site. */
   carveAtrium(floor: number, tiles: readonly PlateTile[]): EditResult {
-    if (!this.isFloor(floor)) return refuse('That floor is outside the site')
+    const check = this.checkPlateEdit('atrium', floor, tiles)
+    if (!check.ok) return check
     const inside = tiles.filter(({ x, y }) => this.inBounds(x, y))
-    for (let level = floor; level <= this.highestFloor; level++) {
-      if (inside.some(({ x, y }) => this.coreAt(level, x, y))) return refuse(`A core on ${floorName(level)} is in the way`)
-    }
-    if (!inside.some(({ x, y }) => this.hasPlate(floor, x, y))) return refuse('An atrium needs floor plate to cut')
     for (let level = floor; level <= this.highestFloor; level++) this.clearContents(level, inside)
     this.plates.carveAtrium(floor, this.highestFloor, inside)
     return this.changed()
   }
 
   inheritFloorBelow(floor: number): EditResult {
-    if (!this.isFloor(floor) || !this.isFloor(floor - 1)) return refuse('There is no floor below to copy')
-    if (this.plateArea(floor - 1) === 0) return refuse(`${capitalise(floorName(floor - 1))} has no plate to copy`)
-    const below = this.plates.getPlate(floor - 1)
+    const check = this.checkPlateEdit('inherit', floor)
+    if (!check.ok) return check
+    const below = this.plateMask(floor - 1)
     const lost: PlateTile[] = []
-    const current = this.plates.getPlate(floor)
+    const current = this.plateMask(floor)
     for (let index = 0; index < current.length; index++) {
       if (current[index] === 1 && below[index] !== 1) lost.push({ x: index % this.width, y: Math.floor(index / this.width) })
     }
-    if (lost.some(({ x, y }) => this.coreAt(floor, x, y))) return refuse('A core here sits outside the floor below')
     this.clearContents(floor, lost)
     this.plates.inheritFloorBelow(floor)
     return this.changed()
