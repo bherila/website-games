@@ -21,16 +21,14 @@ describe('shell reach and estimates', () => {
   test('three unsupported tiles are allowed; a fourth refuses the entire edit without changing saves or revision', () => {
     const building = cantilever()
     expect(building.construction(1)).toMatchObject({ area: 5, overhang: 3, outOfReach: 0, maxReach: 3, premium: 660, cost: 1210 })
+    must(building.paintPlate(0, [{ x: 10, y: 11 }]))
     const before = building.snapshot()
     const revision = building.revision
     // One supported and one illegal tile: no partial paint.
     const tiles = [{ x: 10, y: 11 }, { x: 15, y: 10 }]
-    must(building.paintPlate(0, [{ x: 10, y: 11 }]))
-    const supported = building.snapshot()
     expect(building.paintPlate(1, tiles)).toMatchObject({ ok: false, reason: expect.stringContaining('within 3 tiles') })
-    expect(building.snapshot()).toEqual(supported)
-    expect(building.revision).toBe(revision + 1)
-    expect(before.plates.plates).toHaveLength(2)
+    expect(building.snapshot()).toEqual(before)
+    expect(building.revision).toBe(revision)
   })
 
   test('diagonal contact, disconnected islands and a missing floor below do not support new plate', () => {

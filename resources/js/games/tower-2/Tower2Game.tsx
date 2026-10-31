@@ -5,7 +5,7 @@
  */
 import {
   ArrowLeft, ArrowUpDown, Bed, Briefcase, Building, ChevronDown, ChevronUp, CircleDashed, Cloud, Coffee, Copy, Eraser, Footprints, Hand,
-HardDrive,   Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, Ruler, ShoppingBag, Square, Star, Sun, Trash,
+  HardDrive, Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, Ruler, ShoppingBag, Square, Star, Sun, Trash,
   TriangleAlert, Undo2, Users, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -357,7 +357,7 @@ export function Tower2Game(): ReactElement {
           <button type="button" aria-label="Zoom out" title="Zoom out (Ctrl+scroll)" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => controlsRef.current?.zoom(0.8)}><ZoomOut size={18} aria-hidden="true" /></button>
           <button type="button" aria-label="Frame the building" title="Frame the building" className={ICON_BUTTON} onClick={() => controlsRef.current?.frame()}><Maximize size={18} aria-hidden="true" /></button>
           <button type="button" aria-label="Exterior view (X)" title="Exterior view (X)" aria-pressed={exterior} className={exterior ? ICON_BUTTON_ON : ICON_BUTTON} onClick={() => setExterior((value) => !value)}><Building size={18} aria-hidden="true" /></button>
-          <button type="button" aria-label="Start over on an empty site with the tutorial" title="Start over on an empty site" className={ICON_BUTTON} onClick={() => startOver('empty')}><RefreshCcw size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Start over on an empty site with the tutorial" title="Start over on an empty site" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => startOver('empty')}><RefreshCcw size={18} aria-hidden="true" /></button>
         </div>
       </header>
 
@@ -474,12 +474,12 @@ export function Tower2Game(): ReactElement {
         </dl>
         {overlay === 'structure' && (
           <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-[11px]">
-            <p>Reach: up to {OVERHANG_REACH} tiles through connected plate.</p>
-            <p data-testid="tower2-overhang-count">{floorStats.overhang} overhang {floorStats.overhang === 1 ? 'tile' : 'tiles'} · 3× shell price</p>
+            <p className="text-white/85">Reach: up to {OVERHANG_REACH} tiles through connected plate.</p>
+            <p data-testid="tower2-overhang-count" className="text-white/85">{floorStats.overhang} overhang {floorStats.overhang === 1 ? 'tile' : 'tiles'} · 3× shell price</p>
             {floorStats.outOfReach > 0 && <p className="text-amber-200">{floorStats.outOfReach} tiles exceed reach. Add support below or trim this floor.</p>}
-            <p>Floor shell <strong data-testid="tower2-floor-cost">{formatCost(floorStats.cost)}</strong></p>
+            <p className="text-white/85">Floor shell <strong data-testid="tower2-floor-cost">{formatCost(floorStats.cost)}</strong></p>
             {floorStats.premium > 0 && <p className="text-pink-300">Includes {formatCost(floorStats.premium)} overhang premium</p>}
-            <p>Tower shell <strong data-testid="tower2-shell-cost">{formatCost(summary.shellCost)}</strong></p>
+            <p className="text-white/85">Tower shell <strong data-testid="tower2-shell-cost">{formatCost(summary.shellCost)}</strong></p>
             <p className="text-white/60">Plan estimate only; no budget yet.</p>
           </div>
         )}
