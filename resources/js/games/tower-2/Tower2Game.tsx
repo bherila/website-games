@@ -5,7 +5,7 @@
  */
 import {
   ArrowLeft, ArrowUpDown, Bed, Briefcase, Building, ChevronDown, ChevronUp, CircleDashed, Cloud, Coffee, Copy, Eraser, Footprints, Hand,
-HardDrive,   Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, ShoppingBag, Square, Star, Sun, Trash,
+HardDrive,   Layers, Maximize, Minus, MousePointer2, Pencil, Plus, Redo2, RefreshCcw, RotateCcw, RotateCw, Route, Ruler, ShoppingBag, Square, Star, Sun, Trash,
   TriangleAlert, Undo2, Users, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -14,6 +14,7 @@ import { readAuthenticationContext } from '../_shared/gameDataPersistence'
 import { safeLocalStorage } from '../_shared/progressParsers'
 import { hexColor } from '../_shared/three/threeUtils'
 import { type Building as BuildingModel, type EditResult, type Facing, floorLabel, nextFacing } from './engine/building'
+import { formatCost, OVERHANG_REACH } from './engine/construction'
 import { carsIn, MAX_CARS, USES } from './engine/uses'
 import { isUseTool, nextTurn, stepperFloors, type ToolId, TOOLS } from './interaction'
 import type { OverlayKind } from './scene/Tower2Renderer'
@@ -82,6 +83,8 @@ function Segmented<T extends string>({ value, options, onChange, label }: { valu
         <button
           key={option.value}
           type="button"
+          aria-label={option.label}
+          title={option.label}
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={`flex h-9 items-center gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold ${value === option.value ? 'bg-white text-slate-950' : 'text-white/85 hover:bg-white/10'}`}
@@ -136,7 +139,9 @@ export function Tower2Game(): ReactElement {
     const ratings = building.allRooms().map((room) => ({ room, rating: analysis.rate(room) }))
     const unreachable = ratings.filter(({ rating }) => !rating.reachable).length
     const meanStars = ratings.length ? ratings.reduce((sum, { rating }) => sum + rating.stars, 0) / ratings.length : 0
-    return { ratings, unreachable, meanStars, built: building.builtFloors(), hasEntrance: building.entrance() !== null }
+    const built = building.builtFloors()
+    const construction = built.map((floor) => building.construction(floor))
+    return { ratings, unreachable, meanStars, built, hasEntrance: building.entrance() !== null, shellCost: construction.reduce((sum, floor) => sum + floor.cost, 0) }
   }, [world])
 
   const selected = useMemo(() => {
@@ -214,7 +219,7 @@ export function Tower2Game(): ReactElement {
       else if (key === 'e') controlsRef.current?.rotate(1)
       else if (key === 'r') turn()
       else if (key === 'c') setCars((value) => (value % MAX_CARS) + 1)
-      else if (key === 'o') setOverlay((value) => (value === 'none' ? 'light' : value === 'light' ? 'walk' : 'none'))
+      else if (key === 'o') setOverlay((value) => (value === 'none' ? 'light' : value === 'light' ? 'walk' : value === 'walk' ? 'structure' : 'none'))
       else if (key === 'x') setExterior((value) => !value)
       else if (key === 'i') inherit()
       else if (key === 'escape') {
@@ -275,8 +280,7 @@ export function Tower2Game(): ReactElement {
   }, [framings])
 
   const floorStats = {
-    area: world.building.plateArea(activeFloor),
-    overhang: world.building.overhangCount(activeFloor),
+    ...useMemo(() => world.building.construction(activeFloor), [world, activeFloor]),
     rooms: world.building.roomsOn(activeFloor).length,
   }
   const built = new Set(summary.built)
@@ -342,6 +346,7 @@ export function Tower2Game(): ReactElement {
               { value: 'none', label: 'Plan', icon: <Layers size={16} aria-hidden="true" /> },
               { value: 'light', label: 'Light', icon: <Sun size={16} aria-hidden="true" /> },
               { value: 'walk', label: 'Walk', icon: <Footprints size={16} aria-hidden="true" /> },
+              { value: 'structure', label: 'Structure', icon: <Ruler size={16} aria-hidden="true" /> },
             ]}
           />
         </div>
@@ -365,7 +370,9 @@ export function Tower2Game(): ReactElement {
           <div className={`${PANEL} px-3 py-1.5 text-[11px]`}>
             {overlay === 'light'
               ? <span className="flex items-center gap-2">Deep plan <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#1f3b8a,#6f8ff0,#ffd84d,#fff3a0)' }} /> By a window</span>
-              : <span className="flex items-center gap-2">Near a core <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#22c55e,#eab308,#ef4444)' }} /> Far · grey: no core</span>}
+              : overlay === 'structure'
+                ? <span>Green: supported · Pink: overhang · Red: beyond {OVERHANG_REACH} tiles</span>
+                : <span className="flex items-center gap-2">Near a core <span aria-hidden="true" className="h-2 w-20 rounded-full sm:w-24" style={{ background: 'linear-gradient(90deg,#22c55e,#eab308,#ef4444)' }} /> Far · grey: no core</span>}
           </div>
         )}
         {tutorialOn && (
@@ -465,6 +472,17 @@ export function Tower2Game(): ReactElement {
           <dt className="text-white/70">Rooms here</dt>
           <dd className="text-right font-semibold tabular-nums">{floorStats.rooms}</dd>
         </dl>
+        {overlay === 'structure' && (
+          <div className="mt-2 space-y-1 border-t border-white/10 pt-2 text-[11px]">
+            <p>Reach: up to {OVERHANG_REACH} tiles through connected plate.</p>
+            <p data-testid="tower2-overhang-count">{floorStats.overhang} overhang {floorStats.overhang === 1 ? 'tile' : 'tiles'} · 3× shell price</p>
+            {floorStats.outOfReach > 0 && <p className="text-amber-200">{floorStats.outOfReach} tiles exceed reach. Add support below or trim this floor.</p>}
+            <p>Floor shell <strong data-testid="tower2-floor-cost">{formatCost(floorStats.cost)}</strong></p>
+            {floorStats.premium > 0 && <p className="text-pink-300">Includes {formatCost(floorStats.premium)} overhang premium</p>}
+            <p>Tower shell <strong data-testid="tower2-shell-cost">{formatCost(summary.shellCost)}</strong></p>
+            <p className="text-white/60">Plan estimate only; no budget yet.</p>
+          </div>
+        )}
         <div className="my-2 hidden h-px bg-white/10 sm:block" />
         <dl className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
           <dt className="text-white/70">Rooms</dt>

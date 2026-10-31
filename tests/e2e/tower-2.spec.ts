@@ -203,6 +203,56 @@ test.describe('Tower 2 prototype', () => {
     await expect(page.getByRole('button', { name: /^Basement B2, empty/ })).toBeVisible()
   })
 
+  test('previews cantilever cost, refuses excess reach, and preserves the plan through undo and reload', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    await open(page)
+    await press(page, /^Floor 1$/)
+    await press(page, 'Structure')
+    await expect(page.getByTestId('tower2-floor-cost')).toHaveText('$21,120')
+    await expect(page.getByTestId('tower2-overhang-count')).toContainText('0 overhang tiles')
+    await press(page, /^Floor \(2\)/)
+    // Extend three tiles west of the example's x=12 edge.
+    const a = await tile(page, 1, 11, 30)
+    const b = await tile(page, 1, 9, 30)
+    await page.mouse.move(a.x, a.y)
+    await page.mouse.down()
+    await page.mouse.move(b.x, b.y, { steps: 6 })
+    await expect(page.getByTestId('tower2-hint')).toHaveText('Shell estimate +$990 · 3 overhang tiles at 3× price')
+    await page.mouse.up()
+    await expect(page.getByTestId('tower2-floor-cost')).toHaveText('$22,110')
+    await expect(page.getByTestId('tower2-overhang-count')).toContainText('3 overhang tiles')
+    const forbidden = await tile(page, 1, 8, 30)
+    await page.mouse.move(forbidden.x, forbidden.y)
+    await expect(page.getByTestId('tower2-hint')).toContainText('within 3 tiles')
+    await page.mouse.click(forbidden.x, forbidden.y)
+    await expect(page.getByTestId('tower2-floor-cost')).toHaveText('$22,110')
+    await press(page, /Undo \(Ctrl\+Z\)/)
+    await expect(page.getByTestId('tower2-floor-cost')).toHaveText('$21,120')
+    await press(page, /Redo \(Ctrl\+Shift\+Z\)/)
+    await expect(page.getByTestId('tower2-floor-cost')).toHaveText('$22,110')
+    // Wait for the real autosave, then reload through the ordinary game entrypoint.
+    await expect.poll(() => page.evaluate(() => {
+      const saved = JSON.parse(localStorage.getItem('tower-2-prototype') ?? '{}')
+      const mask = saved.plates?.plates?.find((plate: { floor: number }) => plate.floor === 1)?.mask
+      if (!mask) return false
+      const index = 30 * 40 + 9
+      return (atob(mask).charCodeAt(index >> 3) & (1 << (index & 7))) !== 0
+    })).toBe(true)
+    await page.reload()
+    await press(page, /^Floor 1$/)
+    await press(page, 'Structure')
+    await expect(page.getByTestId('tower2-floor-cost')).toHaveText('$22,110')
+    await expect(page.getByTestId('tower2-overhang-count')).toContainText('3 overhang tiles')
+    const summary = page.getByRole('region', { name: 'Building summary' })
+    await expect(summary).toContainText('Plan estimate only; no budget yet.')
+    const box = await summary.boundingBox()
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1)
+    expect(errors).toEqual([])
+  })
+
   test('turns the example core into a two-car bank whose cars carry visitors upstairs', async ({ page }) => {
     await open(page)
     await press(page, /^Select/)

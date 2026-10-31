@@ -420,6 +420,19 @@ place, and if another tab or device saved more recently Reset changes nothing an
   floor a shop or café may instead face open lot or the street: a **storefront**, whose visitors walk in
   across the lot and whose footfall falls with that walk. Select a room to turn it in place, or drag it with
   Select to move it. **Copy floor below** copies the outline only.
+- **Shell reach and cost:** upper floors may cantilever up to **three orthogonal tile steps** through
+  connected plate from a tile with plate directly below. Diagonal-only contact and disconnected islands
+  do not count. The street floor and basements are exempt. Floor, Clear, Atrium and Copy validate the
+  complete proposed edit (including the floor above) before changing rooms, corridors or plate. An
+  atrium evaluates all its cuts together. Older saved layouts still load intact and can be repaired or
+  edited elsewhere, but an edit cannot add an over-limit tile or worsen an existing one's reach.
+  **Structure** (also in the O overlay cycle) colours supported tiles green, cantilevers pink and old
+  over-limit tiles red. It shows this floor's and the tower's shell estimates. A tile costs `$100 +
+  $10 × |floor|`; a cantilever costs **3×** that amount. Drag previews quote the change to the complete
+  shell estimate, including repricing the floor above when support is added or removed. This is the
+  current plan's replacement estimate, not spending or demolition refunds: there is no budget yet,
+  and rooms and cores are not priced. Undo, redo and saves retain the plan; cost is derived from it
+  without changing the save format. The three-tile reach is fixed until star progression exists.
 - **Rules it shows:** people walk corridors only; the entrance is the street-floor corridor tile nearest the
   street; a room is served when a route of corridors and cores (including transfers between cores) reaches
   it from there. Ratings mix daylight (steps to glass, capped at 6), the door's walk to a core, street
@@ -469,7 +482,7 @@ pixel density.
 Playtest order agreed on 2026-10-28: (1) pacing and placement clarity; (2) chosen doors, storefronts,
 the glass façade, and moving and turning rooms; (3) a tutorial that starts on an empty site instead of
 the prebuilt block; (4) adding floors above and below; (5) visible elevators, with shafts per core and
-banks; (6) furniture inside rooms. After that: overhang reach and cost, wet modules and risers, two exit
+banks; (6) furniture inside rooms. Overhang reach and shell cost estimates are now built. Next: wet modules and risers, two exit
 stairs per floor, a stack strip for core ranges, and then the economy (step 5).
 
 ## Open questions, with recommendations (not yet confirmed)
