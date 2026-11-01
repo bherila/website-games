@@ -156,18 +156,24 @@ something); and a reference `solution`.
 | 5 | Spring Up | Launcher | 2 |
 | 6 | Heavy Metal | The steel ball; glass breaks | 2 |
 | 7 | Fork in the Road | Switch; one marble per basket | 2 |
-| 8 | Steel Yourself | Glass track keeps glass and drops steel | 5 |
+| 8 | Steel Yourself | Glass track keeps glass and drops steel | 3 |
 | 9 | Wrong Order | Steel first, so glass track won't do: switch them | 6 |
 | 10 | Small Fry | Sieve | 2 |
-| 11 | Long Shot | One launcher, three weights, three distances | 3 |
-| 12 | Rendezvous | Two droppers, one basket, a funnel | 4 |
+| 11 | Long Shot | One launcher, three weights, three distances | 2 |
+| 12 | Rendezvous | Two walled shafts, one basket: only a Funnel catches both with one piece | 3 |
 | 13 | Launch Window | Launcher sorting with a bank shot | 5 |
 | 14 | Bounce House | One trampoline bounce: glass clears the wall, steel doesn't | 3 |
-| 15 | Switchyard | A tree of three switches for four marbles | 5 |
+| 15 | Switchyard | A tree of three switches for four marbles | 3 |
 | 16 | Sorting Office | Sieve the minis, then switch steel from glass | 6 |
-| 17 | Heavy Middle | Glass, steel, glass: a switch sorts them | 7 |
+| 17 | Heavy Middle | Glass, steel, glass: a switch sorts them | 6 |
 | 18 | Glass Maze | Steel smashes a path for the glass marbles | 6 |
 | 19 | Grand Machine | Sieve, switch and routing for five marbles | 8 |
+
+Par is the fewest pieces that collect every gem, and three stars should need the level's
+lesson piece. Both were audited for every level with the shortcut finder: par is proven minimal
+by exhaustive search where par is 3 or less, and for the larger levels no cheaper build turned
+up within a search budget; removing the lesson piece (Bumper, U-Turn, Launcher, Switch, Glass
+Track, Sieve, Funnel, Trampoline) leaves no three-star build within par.
 
 ### Shortcut finder
 
