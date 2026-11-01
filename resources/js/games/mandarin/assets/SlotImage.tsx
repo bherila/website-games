@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { type VisualSlot, visualSlot,type VisualSlotId } from './visualRegistry'
 
 interface SlotImageProps {
-  slotId: VisualSlotId | string
+  slotId: VisualSlotId | (string & {})
   className?: string
   /** Override the registry alt (e.g. decorative → ''). */
   alt?: string

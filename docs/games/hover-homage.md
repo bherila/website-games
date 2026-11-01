@@ -40,7 +40,7 @@ future games. Sections are normative unless marked "tuning" or "future".
   `scripts/select-gameplay-tests.mjs`. Register new browser specs in `test:e2e:gameplay`; the
   required `Run Tests` aggregate gate checks the gameplay matrix result.
 - **Lint gotchas:** `simple-import-sort/imports` and unused-imports are errors — run
-  `pnpm exec eslint --fix resources/js/games/hover/` before committing.
+  `pnpm exec oxlint --type-aware --fix resources/js/games/hover/` before committing.
 
 ## Game rules (normative)
 

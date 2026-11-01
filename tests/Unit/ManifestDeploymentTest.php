@@ -16,7 +16,7 @@ class ManifestDeploymentTest extends TestCase
             // ServerAliveInterval keepalives. v2.1.2 had none, so a quiet Artisan
             // step outlived the runner's idle-TCP timeout and stranded production
             // in maintenance (2026-09-29).
-            'bherila/shared-cpanel-deployment@5f635730a4ddbac1d10c2a031ac0b4a102066fe2',
+            'bherila/shared-cpanel-deployment@5798879af588e2c786357b69b314d89932b75803',
             'operational-audit: true',
             'deployment-mode: atomic',
             'atomic-layout: stable-directory',

@@ -38,7 +38,7 @@ export function measure(reports) {
 }
 
 export function mergeDurations(previous, measured, listed) {
-  return Object.fromEntries([...listed].sort().flatMap((key) => {
+  return Object.fromEntries([...listed].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).flatMap((key) => {
     const seconds = measured[key] ?? previous[key]
     return seconds === undefined ? [] : [[key, seconds]]
   }))

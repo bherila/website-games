@@ -23,9 +23,9 @@ export const PREVIEW_KEYS = {
 } as const
 
 export interface PreviewStore {
-  loadProgress(): unknown | null
+  loadProgress(): unknown
   saveProgress(progress: unknown): void
-  loadSettings(): unknown | null
+  loadSettings(): unknown
   saveSettings(settings: unknown): void
   loadOutbox(): PracticeEvent[]
   saveOutbox(events: readonly PracticeEvent[]): void
@@ -41,7 +41,7 @@ export interface PreviewStore {
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem' | 'key' | 'length'>
 
-function readJson(storage: StorageLike | null, key: string): unknown | null {
+function readJson(storage: StorageLike | null, key: string): unknown {
   if (!storage) return null
   try {
     const raw = storage.getItem(key)

@@ -23,7 +23,7 @@ function bootstrapBody(signedIn: boolean): unknown {
 function gatewayWith(handler: (call: Call) => Response | Promise<Response>): { gateway: HttpMandarinGateway; calls: Call[] } {
   const calls: Call[] = []
   const fetchImpl: typeof fetch = async (input, init) => {
-    const call = { url: String(input), init: init ?? {} }
+    const call = { url: input instanceof Request ? input.url : String(input), init: init ?? {} }
     calls.push(call)
     return handler(call)
   }
@@ -51,7 +51,7 @@ describe('HttpMandarinGateway', () => {
     let dualAccept = false
     const original = held.map((item) => JSON.stringify(item))
     const { gateway, calls } = gatewayWith((call) => {
-      const { events } = JSON.parse(String(call.init.body)) as { events: PracticeEvent[] }
+      const { events } = JSON.parse(call.init.body as string) as { events: PracticeEvent[] }
       return jsonResponse(200, { lastSequence: 1, acknowledgments: events.map((item) => ({
         clientEventId: item.clientEventId,
         status: item.schemaVersion === 2 && !dualAccept ? 'rejected' : 'accepted',
@@ -67,11 +67,11 @@ describe('HttpMandarinGateway', () => {
     }
     expect(await drainOutboxUntilCaughtUp(options)).toBe('sent')
     expect(held).toEqual([v2])
-    expect((JSON.parse(String(calls[0]!.init.body)) as { events: PracticeEvent[] }).events.map((item) => JSON.stringify(item))).toEqual(original)
+    expect((JSON.parse(calls[0]!.init.body as string) as { events: PracticeEvent[] }).events.map((item) => JSON.stringify(item))).toEqual(original)
     dualAccept = true
     expect(await drainOutboxUntilCaughtUp(options)).toBe('sent')
     expect(held).toEqual([])
-    expect((JSON.parse(String(calls[1]!.init.body)) as { events: PracticeEvent[] }).events).toEqual([v2])
+    expect((JSON.parse(calls[1]!.init.body as string) as { events: PracticeEvent[] }).events).toEqual([v2])
   })
 
   it('parses the bootstrap course, caches it, and gives guests an empty local projection without calling progress', async () => {
