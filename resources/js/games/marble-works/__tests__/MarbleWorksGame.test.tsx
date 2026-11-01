@@ -205,9 +205,15 @@ describe('MarbleWorksGame', () => {
     expect(screen.getByTestId('tray-ramp-steep')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByTestId('tray-ramp-steep')).toHaveAccessibleName('Steep Ramp, 3 left')
 
-    // Nothing is still picked, so clicking the new piece selects it.
-    tapCell(3, 2)
+    // The dropped piece is selected, so it can be flipped straight away.
     expect(screen.getByTestId('piece-action-bar')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Flip piece' }))
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@3,2F')
+
+    // Nothing is still picked, so clicking empty board just clears the selection.
+    tapCell(1, 1)
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@3,2F')
+    expect(screen.queryByTestId('piece-action-bar')).not.toBeInTheDocument()
   })
 
   it('drops nothing when a tray drag is released off the board', () => {

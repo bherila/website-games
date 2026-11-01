@@ -325,6 +325,8 @@ export function MarbleWorksGame(): ReactElement {
     nextUidRef.current += 1
     const next = [...placements, { ...placement, uid }]
     updatePlacements(next)
+    // Select what just landed, so Rotate / Flip are one tap away while it is still in mind.
+    setSelectedUid(uid)
     if (remainingCount(level, next, placement.pieceId) <= 0) {
       setArmed(null)
       setHover(null)
@@ -615,8 +617,15 @@ export function MarbleWorksGame(): ReactElement {
     )
   }
 
-  const actionBarAnchor = selected && layout && editing && !drag
-    ? worldToScreen(level, layout, selected.col + (placementSize(selected).w / 2), level.rows - selected.row)
+  const actionBar = selected && layout && editing && !drag
+    ? (() => {
+        const { w, h } = placementSize(selected)
+        const [x, pieceTop] = worldToScreen(level, layout, selected.col + (w / 2), level.rows - selected.row)
+        const [, pieceBottom] = worldToScreen(level, layout, selected.col + (w / 2), level.rows - selected.row - h)
+        const fits = (candidate: PiecePlacement): boolean => placementProblem(level, placements, candidate, selectedIndex) === null
+
+        return { x, pieceTop, pieceBottom, rotateFits: fits(rotatePlacement(selected)), flipFits: fits(flipPlacement(selected)) }
+      })()
     : null
 
   const tutorialMessage = tutorialStep === 'pick'
@@ -666,13 +675,20 @@ export function MarbleWorksGame(): ReactElement {
 
           {failed && <RunFailedToast kind={failed.kind} status={failed.status} />}
 
-          {actionBarAnchor && selected && (
+          {actionBar && selected && (
             <PieceActionBar
               canFlip={canFlip(selected.pieceId)}
               canRotate={canRotate(selected.pieceId)}
+              containerHeight={layout?.height ?? 0}
               containerWidth={layout?.width ?? 0}
-              x={actionBarAnchor[0]}
-              y={actionBarAnchor[1]}
+              flipFits={actionBar.flipFits}
+              flipped={selected.flipped}
+              pieceBottom={actionBar.pieceBottom}
+              pieceId={selected.pieceId}
+              pieceTop={actionBar.pieceTop}
+              rotateFits={actionBar.rotateFits}
+              variant={selected.variant}
+              x={actionBar.x}
               onFlip={() => replaceSelected(flipPlacement)}
               onRemove={removeSelected}
               onRotate={() => replaceSelected(rotatePlacement)}
