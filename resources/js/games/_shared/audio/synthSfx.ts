@@ -19,9 +19,9 @@ export interface SynthVoice {
   context: AudioContext
   output: AudioNode
   /** A tone gliding from `from` to `to` Hz over `duration` seconds, starting after `delay`. */
-  tone(from: number, to: number, duration: number, type: OscillatorType, gain: number, delay?: number): void
+  tone: (from: number, to: number, duration: number, type: OscillatorType, gain: number, delay?: number) => void
   /** A filtered white-noise burst: thuds, scrapes and whooshes. */
-  noise(duration: number, gain: number, frequency: number, options?: NoiseOptions): void
+  noise: (duration: number, gain: number, frequency: number, options?: NoiseOptions) => void
 }
 
 /** A recipe may scale itself by an optional 0..1 intensity. */

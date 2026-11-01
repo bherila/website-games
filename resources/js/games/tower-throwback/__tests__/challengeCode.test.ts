@@ -73,7 +73,7 @@ describe('challenge codes', () => {
   it('rejects an impossible lobby height', () => {
     // Hand-build a well-formed code whose lobby digit is out of range.
     const body = '00000004'
-    const sum = [...body].reduce((acc, char) => acc + Number.parseInt(char, 36), 0)
+    const sum = Array.from(body).reduce((acc, char) => acc + Number.parseInt(char, 36), 0)
     const forged = `${body}${(sum % 36).toString(36)}`.toUpperCase()
 
     expect(decodeChallengeCode(forged)).toBeNull()

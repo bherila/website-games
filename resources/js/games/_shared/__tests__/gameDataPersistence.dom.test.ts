@@ -190,7 +190,7 @@ describe('game data persistence', () => {
     await expect(initializeGameDataPersistence([progressDefinition, saveDefinition])).rejects.toBe('offline')
 
     expect(mockPut).toHaveBeenCalledTimes(1)
-    expect((mockPut.mock.calls[0]?.[1] as BatchBody).operations.map(({ scope, slot }) => `${scope}/${slot}`)).toEqual([
+    expect((mockPut.mock.calls[0]?.[1] as BatchBody | undefined)?.operations.map(({ scope, slot }) => `${scope}/${slot}`)).toEqual([
       'profile/default',
       'save/autosave',
     ])
@@ -200,7 +200,7 @@ describe('game data persistence', () => {
     await initializeGameDataPersistence([progressDefinition, saveDefinition])
 
     expect(mockPut).toHaveBeenCalledTimes(2)
-    expect((mockPut.mock.calls[1]?.[1] as BatchBody).operations.map(({ scope, slot }) => `${scope}/${slot}`)).toEqual([
+    expect((mockPut.mock.calls[1]?.[1] as BatchBody | undefined)?.operations.map(({ scope, slot }) => `${scope}/${slot}`)).toEqual([
       'profile/default',
       'save/autosave',
     ])
@@ -226,7 +226,7 @@ describe('game data persistence', () => {
     await initializeGameDataPersistence([progressDefinition, saveDefinition])
 
     expect(mockPut).toHaveBeenCalledTimes(1)
-    expect((mockPut.mock.calls[0]?.[1] as BatchBody).operations.map(({ scope, slot }) => `${scope}/${slot}`)).toEqual([
+    expect((mockPut.mock.calls[0]?.[1] as BatchBody | undefined)?.operations.map(({ scope, slot }) => `${scope}/${slot}`)).toEqual([
       'profile/default',
     ])
     expect(window.localStorage.getItem(progressDefinition.localStorageKey)).toBeNull()
@@ -337,7 +337,7 @@ describe('game data persistence', () => {
     await initializeGameDataPersistence([saveDefinition])
     await flushGameDataWrites()
 
-    const replayedOperation = (mockPut.mock.calls.at(-1)?.[1] as BatchBody).operations[0]
+    const replayedOperation = (mockPut.mock.calls.at(-1)?.[1] as BatchBody | undefined)?.operations[0]
     expect(replayedOperation?.revision).toBe(1)
     expect(replayedOperation?.writer_id).toBe(durableOperation?.writerId)
     expect(replayedOperation?.writer_sequence).toBe(durableOperation?.writerSequence)
@@ -462,7 +462,7 @@ describe('game data persistence', () => {
 
     await jest.advanceTimersByTimeAsync(1)
     expect(mockPut).toHaveBeenCalledTimes(2)
-    expect((mockPut.mock.calls[1]?.[1] as BatchBody).operations[0]).toMatchObject({
+    expect((mockPut.mock.calls[1]?.[1] as BatchBody | undefined)?.operations[0]).toMatchObject({
       data: { version: 1, score: 1 },
       writer_sequence: 1,
     })
@@ -473,7 +473,7 @@ describe('game data persistence', () => {
     await flushGameDataWrites()
 
     expect(mockPut).toHaveBeenCalledTimes(3)
-    expect((mockPut.mock.calls[2]?.[1] as BatchBody).operations[0]?.data?.score).toBe(9)
+    expect((mockPut.mock.calls[2]?.[1] as BatchBody | undefined)?.operations[0]?.data?.score).toBe(9)
     errorSpy.mockRestore()
   })
 
@@ -663,8 +663,8 @@ describe('game data persistence', () => {
     window.dispatchEvent(new Event('pagehide'))
 
     expect(mockPut).toHaveBeenCalledTimes(2)
-    const firstOperation = (mockPut.mock.calls[0]?.[1] as BatchBody).operations[0]
-    const secondOperation = (mockPut.mock.calls[1]?.[1] as BatchBody).operations[0]
+    const firstOperation = (mockPut.mock.calls[0]?.[1] as BatchBody | undefined)?.operations[0]
+    const secondOperation = (mockPut.mock.calls[1]?.[1] as BatchBody | undefined)?.operations[0]
     expect(firstOperation?.writer_sequence).toBe(1)
     expect(secondOperation?.writer_sequence).toBe(2)
     expect(mockPut.mock.calls[1]?.[2]).toEqual({ keepalive: true })

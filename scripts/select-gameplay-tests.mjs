@@ -141,7 +141,7 @@ export function planShards(tests, durations, { target = TARGET_SHARD_SECONDS, ma
     shards: count,
     unknown: estimated.filter((test) => !test.known).map((test) => test.key),
     estimates: shards.map((shard) => Math.round(shard.seconds)),
-    matrix: { include: shards.map((shard) => ({ shard: shard.shard, tests: shard.keys.sort().join('\n') })) },
+    matrix: { include: shards.map((shard) => ({ shard: shard.shard, tests: shard.keys.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join('\n') })) },
   }
 }
 

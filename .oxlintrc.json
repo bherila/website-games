@@ -1,0 +1,211 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "import",
+    "oxc"
+  ],
+  "jsPlugins": [
+    "eslint-plugin-simple-import-sort",
+    {
+      "name": "react-hooks-js",
+      "specifier": "eslint-plugin-react-hooks"
+    },
+    "eslint-plugin-unused-imports",
+    {
+      "name": "restricted-syntax",
+      "specifier": "./tools/oxlint/restricted-syntax-plugin.js"
+    },
+    {
+      "name": "eslint-react-web-api",
+      "specifier": "eslint-plugin-react-web-api"
+    },
+    {
+      "name": "eslint-react-naming-convention",
+      "specifier": "eslint-plugin-react-naming-convention"
+    },
+    {
+      "name": "eslint-react-dom",
+      "specifier": "eslint-plugin-react-dom"
+    },
+    {
+      "name": "eslint-react-rsc",
+      "specifier": "eslint-plugin-react-rsc"
+    }
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "env": {
+    "browser": true,
+    "es2020": true
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/vendor/**",
+    "**/public/**",
+    "**/storage/**",
+    "**/bootstrap/cache/**",
+    "postcss.config.js",
+    "vite.config.ts",
+    "tailwind.config.ts",
+    "training_data/**",
+    "jest.config.cjs"
+  ],
+  "rules": {
+    "no-unused-vars": "off",
+    "typescript/no-unused-vars": "off",
+    "typescript/no-explicit-any": "off",
+    "typescript/no-require-imports": "off",
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-array-constructor": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "no-case-declarations": "error",
+    "no-empty": "error",
+    "no-fallthrough": "error",
+    "no-prototype-builtins": "error",
+    "no-regex-spaces": "error",
+    "no-unexpected-multiline": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "prefer-rest-params": "error",
+    "prefer-spread": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react-hooks-js/config": "error",
+    "react-hooks-js/error-boundaries": "error",
+    "react-hooks-js/gating": "error",
+    "react-hooks-js/globals": "error",
+    "react-hooks-js/immutability": "error",
+    "react-hooks-js/incompatible-library": "warn",
+    "react-hooks-js/preserve-manual-memoization": "error",
+    "react-hooks-js/purity": "warn",
+    "react-hooks-js/refs": "error",
+    "react-hooks-js/set-state-in-render": "error",
+    "react-hooks-js/static-components": "error",
+    "react-hooks-js/unsupported-syntax": "error",
+    "react-hooks-js/use-memo": "error",
+    "unused-imports/no-unused-imports": "error",
+    "react/set-state-in-effect": "warn",
+    "react-hooks-js/set-state-in-effect": "off",
+    "react/no-array-index-key": "warn",
+    "react/no-direct-mutation-state": "error",
+    "react/jsx-key": "error",
+    "react/no-unstable-nested-components": "error",
+    "eslint-react-rsc/function-definition": "error",
+    "eslint-react-dom/no-dangerously-set-innerhtml": "warn",
+    "eslint-react-dom/no-dangerously-set-innerhtml-with-children": "error",
+    "eslint-react-dom/no-find-dom-node": "error",
+    "eslint-react-dom/no-flush-sync": "error",
+    "eslint-react-dom/no-hydrate": "error",
+    "eslint-react-dom/no-render": "error",
+    "eslint-react-dom/no-render-return-value": "error",
+    "eslint-react-dom/no-script-url": "warn",
+    "eslint-react-dom/no-unsafe-iframe-sandbox": "warn",
+    "eslint-react-dom/no-use-form-state": "error",
+    "eslint-react-dom/no-void-elements-with-children": "error",
+    "eslint-react-web-api/no-leaked-event-listener": "warn",
+    "eslint-react-web-api/no-leaked-fetch": "warn",
+    "eslint-react-web-api/no-leaked-intersection-observer": "warn",
+    "eslint-react-web-api/no-leaked-interval": "warn",
+    "eslint-react-web-api/no-leaked-resize-observer": "warn",
+    "eslint-react-web-api/no-leaked-timeout": "warn",
+    "eslint-react-naming-convention/context-name": "warn",
+    "eslint-react-naming-convention/id-name": "warn",
+    "eslint-react-naming-convention/ref-name": "warn",
+    "react/no-children-prop": "warn",
+    "react/jsx-no-comment-textnodes": "warn",
+    "typescript/unbound-method": "warn"
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/*.{js,cjs,mjs}"
+      ],
+      "env": {
+        "node": true,
+        "browser": true
+      }
+    },
+    {
+      "files": [
+        "**/*.test.ts"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          "window",
+          "document",
+          "HTMLElement"
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "@testing-library/*"
+            ]
+          }
+        ]
+      },
+      "excludeFiles": [
+        "**/*.dom.test.ts"
+      ]
+    },
+    {
+      "files": [
+        "resources/js/games/tower-throwback/engine/placement.ts",
+        "resources/js/games/tower-throwback/engine/schedules.ts",
+        "resources/js/games/tower-throwback/engine/stars.ts",
+        "resources/js/games/tower-throwback/engine/routing.ts",
+        "resources/js/games/tower-throwback/engine/people.ts"
+      ],
+      "rules": {
+        "restricted-syntax/no-restricted-syntax": [
+          "error",
+          {
+            "selector": "BinaryExpression[operator=/^(===|!==|<|>|<=|>=)$/][right.value=0][left.property.name=/[Ff]loor/]",
+            "message": "Compare floors to the map anchor via engine/mapGeometry.ts (isAnchorFloor / isExcavated / isOnBuildSide), not to literal 0 — see engine/MAP_GEOMETRY_CENSUS.md."
+          },
+          {
+            "selector": "BinaryExpression[operator=/^(===|!==)$/][right.value=99][left.property.name=/[Ff]loor/]",
+            "message": "Floor 99 is CITY_TOWER's floorRange.max, not a universal constant — use terminalFloor(map)."
+          },
+          {
+            "selector": "BinaryExpression[operator=/^(===|!==)$/][left.property.name=/[Ff]loor/] > UnaryExpression[operator='-'][argument.value=10]",
+            "message": "Floor -10 is CITY_TOWER's floorRange.min, not a universal constant — use excavationExtreme(map)."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "resources/js/games/tower-throwback/engine/placement.ts",
+        "resources/js/games/tower-throwback/engine/vip.ts",
+        "resources/js/games/tower-throwback/gameProgress.ts"
+      ],
+      "rules": {
+        "restricted-syntax/no-restricted-syntax": [
+          "error",
+          {
+            "selector": "Literal[value='cathedral']",
+            "message": "Use MapDefinition.endgameItem or catalog overhang metadata; final structures are map-specific."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "**/*.test.{ts,tsx,mjs}"
+      ],
+      "rules": {
+        "typescript/unbound-method": "off"
+      }
+    }
+  ]
+}

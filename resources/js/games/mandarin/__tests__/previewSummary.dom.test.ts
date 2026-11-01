@@ -38,7 +38,7 @@ class MemoryStorage implements Storage {
   }
 }
 
-function setInitialDataScript(data: unknown | null): void {
+function setInitialDataScript(data: unknown): void {
   const existing = document.getElementById('app-initial-data')
   if (existing) {
     existing.remove()
