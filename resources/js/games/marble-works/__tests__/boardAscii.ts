@@ -27,7 +27,8 @@ export function renderBoardAscii(level: LevelDef, placements: readonly PiecePlac
     }
   }
   const label = (x: number, y: number, text: string): void => {
-    ;[...text].forEach((glyph, index) => plot(x + (index / sx), y, glyph))
+    // Labels are ASCII (`S`, `G` and kind letters), so splitting by UTF-16 unit is exact.
+    text.split('').forEach((glyph, index) => plot(x + (index / sx), y, glyph))
   }
   for (const block of level.blocks) {
     for (let x = block.col; x < block.col + block.w; x += 1 / sx) {
