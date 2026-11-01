@@ -33,7 +33,6 @@
     },
     "devDependencies": {
         "@axe-core/playwright": "^4.14.0",
-        "@eslint-react/eslint-plugin": "^5.26.1",
         "@playwright/test": "^1.64.0",
         "@swc/core": "^1.16.18",
         "@swc/jest": "^0.2.39",
