@@ -10,6 +10,9 @@ function result(status: RunResult['status'], gems: number): RunResult {
   return { status, failedMarble: status === 'won' ? -1 : 0, paths: [[[1, 1], [2, 0]]], pathSteps: [[0, 6]], elapsed: 1, gems, allGems: false, home: 0, firstContacts: new Map() }
 }
 
+/** Pointer type the scene stub reports; tests switch it to 'mouse' for desktop flows. */
+let mockPointerType = 'touch'
+
 jest.mock('../MarbleWorksScene', () => ({
   MarbleWorksScene: (props: MarbleWorksSceneProps) => {
     const { onLayout } = props
@@ -21,7 +24,7 @@ jest.mock('../MarbleWorksScene', () => ({
       cell: { col, row },
       clientX: 0,
       clientY: 0,
-      pointerType: 'touch',
+      pointerType: mockPointerType,
       pressed: type !== 'up',
     })
 
@@ -56,12 +59,19 @@ function tapCell(col: number, row: number): void {
   fireEvent.click(screen.getByRole('button', { name: `up-${col}-${row}` }))
 }
 
+/** A mouse press on a tray card, dragged far enough to count as a drag. */
+function startTrayDrag(pieceId: string): void {
+  fireEvent.pointerDown(screen.getByTestId(`tray-${pieceId}`), { pointerId: 1, pointerType: 'mouse', button: 0, clientX: 10, clientY: 10 })
+  fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'mouse', clientX: 60, clientY: 10 })
+}
+
 function scene(): HTMLElement {
   return screen.getByTestId('scene-stub')
 }
 
 describe('MarbleWorksGame', () => {
   beforeEach(() => {
+    mockPointerType = 'touch'
     window.localStorage.clear()
     window.history.pushState({}, '', '/marble-works')
   })
@@ -174,6 +184,64 @@ describe('MarbleWorksGame', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove piece' }))
     expect(scene()).toHaveAttribute('data-placements', '')
     expect(screen.getByTestId('tray-ramp-steep')).toHaveAccessibleName('Steep Ramp, 4 left')
+  })
+
+  it('drags one piece from the tray onto the board with a mouse, leaving nothing picked', () => {
+    window.localStorage.setItem(MARBLE_WORKS_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 2, stars: { 1: 3 } }))
+    mockPointerType = 'mouse'
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 2, 0 stars' }))
+
+    startTrayDrag('ramp-steep')
+    expect(screen.getByTestId('tray-drag-icon')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'move-3-2' }))
+    expect(scene()).toHaveAttribute('data-ghost', 'ok')
+    expect(screen.queryByTestId('tray-drag-icon')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'up-3-2' }))
+    fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse' })
+
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@3,2')
+    expect(scene()).toHaveAttribute('data-ghost', 'none')
+    expect(screen.getByTestId('tray-ramp-steep')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('tray-ramp-steep')).toHaveAccessibleName('Steep Ramp, 3 left')
+
+    // Nothing is still picked, so clicking the new piece selects it.
+    tapCell(3, 2)
+    expect(screen.getByTestId('piece-action-bar')).toBeInTheDocument()
+  })
+
+  it('drops nothing when a tray drag is released off the board', () => {
+    window.localStorage.setItem(MARBLE_WORKS_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 2, stars: { 1: 3 } }))
+    mockPointerType = 'mouse'
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 2, 0 stars' }))
+
+    startTrayDrag('ramp-steep')
+    fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'mouse' })
+    // Releasing over the card itself clicks it; that must not pick the piece.
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+
+    expect(scene()).toHaveAttribute('data-placements', '')
+    expect(screen.getByTestId('tray-ramp-steep')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByTestId('tray-drag-icon')).not.toBeInTheDocument()
+  })
+
+  it('places one piece per click-pick with a mouse, but keeps the pick for the next tap on touch', () => {
+    window.localStorage.setItem(MARBLE_WORKS_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 2, stars: { 1: 3 } }))
+    mockPointerType = 'mouse'
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 2, 0 stars' }))
+
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(3, 2)
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@3,2')
+    expect(screen.getByTestId('tray-ramp-steep')).toHaveAttribute('aria-pressed', 'false')
+
+    mockPointerType = 'touch'
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 1)
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@3,2 ramp-steep@1,1')
+    expect(screen.getByTestId('tray-ramp-steep')).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('shakes instead of arming a used-up piece', () => {
