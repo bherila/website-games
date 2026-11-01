@@ -20,12 +20,22 @@ export const TUBE_GAP = 0.56
 export const TUBE_LEFT_X = 0.5 - TUBE_GAP / 2
 export const TUBE_RIGHT_X = 0.5 + TUBE_GAP / 2
 
-export type PieceFamily = 'track' | 'ramp' | 'turn' | 'tube' | 'jump' | 'bouncer'
-export type SurfaceMaterial = 'track' | 'tube' | 'rubber' | 'spring' | 'obstacle' | 'basket'
+export type PieceFamily = 'track' | 'ramp' | 'turn' | 'tube' | 'jump' | 'bouncer' | 'glass' | 'sorter'
+export type SurfaceMaterial = 'track' | 'tube' | 'rubber' | 'spring' | 'obstacle' | 'basket' | 'glass'
 
+/**
+ * Pieces with a behaviour get their own physics body:
+ * - launcher / trampoline kick the marble (scaled by its weight, see `impulseSpeedScale`);
+ * - toggle swaps to its mirror image each time a marble leaves it;
+ * - fragile shatters when a glass-breaking (steel) marble touches it;
+ * - sieve is a grate that marbles up to `maxRadius` fall straight through.
+ */
 export type PieceBehavior =
   | { kind: 'launcher'; angleDeg: number; speed: number }
   | { kind: 'trampoline'; keep: number; boost: number }
+  | { kind: 'toggle' }
+  | { kind: 'fragile' }
+  | { kind: 'sieve'; maxRadius: number }
 
 export interface WallDef {
   points: readonly Vec2[]
@@ -55,6 +65,10 @@ export type PieceId =
   | 'launcher'
   | 'bumper'
   | 'trampoline'
+  | 'toggle'
+  | 'glass-track'
+  | 'glass-pane'
+  | 'sieve'
 
 export interface PieceDef {
   id: PieceId
@@ -88,6 +102,11 @@ const UTURN_RADIUS = 1 - SURFACE
 const KICKER_LIP_DEG = 38
 const KICKER_RADIUS = 1 / Math.sin((KICKER_LIP_DEG * Math.PI) / 180)
 const TUBE_CEILING = SURFACE + TUBE_GAP
+
+/** The toggle's paddle: top corner to the far side's rolling surface, so it chains into track. */
+const TOGGLE_TOP = 0.98
+/** Sieve holes pass mini marbles (r 0.12) and hold glass and steel ones (r 0.2). */
+export const SIEVE_MAX_RADIUS = 0.15
 
 export const LAUNCHER_ANGLE_DEG = 62
 export const LAUNCHER_SPEED = 7
@@ -260,12 +279,53 @@ export const PIECES: Readonly<Record<PieceId, PieceDef>> = {
     behavior: { kind: 'trampoline', keep: 0.9, boost: 1.2 },
     variants: [{ w: 1, h: 1, walls: [{ points: [[0.04, SURFACE + 0.1], [0.96, SURFACE + 0.1]], thickness: 0.12 }] }],
   },
+  toggle: {
+    id: 'toggle',
+    family: 'sorter',
+    name: 'Switch',
+    material: 'track',
+    flippable: true,
+    behavior: { kind: 'toggle' },
+    // Flip sets which way the first marble goes; every marble that leaves flips it.
+    variants: [{ w: 1, h: 1, walls: [{ points: [[0, TOGGLE_TOP], [1, SURFACE]] }] }],
+  },
+  sieve: {
+    id: 'sieve',
+    family: 'sorter',
+    name: 'Sieve',
+    material: 'track',
+    flippable: false,
+    behavior: { kind: 'sieve', maxRadius: SIEVE_MAX_RADIUS },
+    // A two-cell grate: glass and steel marbles roll across, mini marbles drop through.
+    // Two cells, because a fast mini marble crossing one cell falls barely half a cell
+    // and would be caught again by whatever track follows.
+    variants: [{ w: 2, h: 1, walls: [{ points: [[0, SURFACE], [2, SURFACE]] }] }],
+  },
+  'glass-track': {
+    id: 'glass-track',
+    family: 'glass',
+    name: 'Glass Track',
+    material: 'glass',
+    flippable: false,
+    behavior: { kind: 'fragile' },
+    // Holds glass and mini marbles; a steel ball smashes straight through.
+    variants: [{ w: 1, h: 1, walls: [{ points: [[0, SURFACE], [1, SURFACE]] }] }],
+  },
+  'glass-pane': {
+    id: 'glass-pane',
+    family: 'glass',
+    name: 'Glass Pane',
+    material: 'glass',
+    flippable: false,
+    behavior: { kind: 'fragile' },
+    variants: [{ w: 1, h: 1, walls: [{ points: [[0.5, 0.04], [0.5, 0.96]], thickness: 0.12 }] }],
+  },
 }
 
 export const PIECE_IDS = Object.keys(PIECES) as PieceId[]
 
 /** Tray / docs ordering by family. */
-export const FAMILY_ORDER: readonly PieceFamily[] = ['track', 'ramp', 'turn', 'tube', 'jump', 'bouncer']
+export const FAMILY_ORDER: readonly PieceFamily[] = ['track', 'ramp', 'turn', 'tube', 'jump', 'bouncer', 'sorter', 'glass']
 
 export const FAMILY_LABELS: Readonly<Record<PieceFamily, string>> = {
   track: 'Track',
@@ -274,6 +334,8 @@ export const FAMILY_LABELS: Readonly<Record<PieceFamily, string>> = {
   tube: 'Tubes',
   jump: 'Jumps',
   bouncer: 'Bouncers',
+  sorter: 'Sorters',
+  glass: 'Glass',
 }
 
 export function pieceVariant(pieceId: PieceId, variant: number): PieceVariant {

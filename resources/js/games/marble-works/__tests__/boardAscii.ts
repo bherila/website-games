@@ -1,14 +1,18 @@
 import { cellCenter } from '../board/grid'
 import type { LevelDef, PiecePlacement } from '../levels/levelTypes'
-import { levelWalls, pegPosition } from '../physics/runWorld'
+import { levelWalls, marbleSchedule, pegPosition } from '../physics/runWorld'
 import type { Vec2 } from '../pieces/pieceCatalog'
 
+const PATH_GLYPHS = ['*', '+', '~', '^', '%', '&'] as const
+const KIND_GLYPHS = { glass: 'g', mini: 'm', steel: 's' } as const
+
 /**
- * ASCII picture of a level, its walls and a marble path — attached to failing
+ * ASCII picture of a level, its walls and the marbles' paths — attached to failing
  * solution tests so a broken level can be diagnosed from the CI log alone.
- * `#` walls, `█` blocks, `o` pegs, `*` marble path, `S` dropper, `G` basket.
+ * `#` walls, `█` blocks, `o` pegs, `$` gems, `S` droppers, `G` baskets (`Gs` = steel only),
+ * and one path glyph per marble in release order (`*`, `+`, `~`, …).
  */
-export function renderBoardAscii(level: LevelDef, placements: readonly PiecePlacement[], path: readonly Vec2[]): string {
+export function renderBoardAscii(level: LevelDef, placements: readonly PiecePlacement[], paths: readonly (readonly Vec2[])[]): string {
   const sx = 6
   const sy = 3
   const width = level.cols * sx
@@ -21,6 +25,9 @@ export function renderBoardAscii(level: LevelDef, placements: readonly PiecePlac
     if (line && col >= 0 && col < width) {
       line[col] = glyph
     }
+  }
+  const label = (x: number, y: number, text: string): void => {
+    ;[...text].forEach((glyph, index) => plot(x + (index / sx), y, glyph))
   }
   for (const block of level.blocks) {
     for (let x = block.col; x < block.col + block.w; x += 1 / sx) {
@@ -42,13 +49,25 @@ export function renderBoardAscii(level: LevelDef, placements: readonly PiecePlac
       }
     }
   }
-  for (const [x, y] of path) {
-    plot(x, y, '*')
+  for (const gem of level.gems) {
+    const [x, y] = cellCenter(level, gem)
+    plot(x, y, '$')
   }
-  const [sxw, syw] = cellCenter(level, level.start)
-  plot(sxw, syw, 'S')
-  const [gx, gy] = cellCenter(level, level.goal)
-  plot(gx, gy - 0.2, 'G')
+  paths.forEach((path, marble) => {
+    for (const [x, y] of path) {
+      plot(x, y, PATH_GLYPHS[marble % PATH_GLYPHS.length] ?? '*')
+    }
+  })
+  const schedule = marbleSchedule(level)
+  level.droppers.forEach((dropper, index) => {
+    const [x, y] = cellCenter(level, dropper.cell)
+    const kinds = schedule.filter((marble) => marble.dropper === index).map((marble) => KIND_GLYPHS[marble.kind]).join('')
+    label(x - 0.3, y + 0.25, `S${kinds}`)
+  })
+  for (const basket of level.baskets) {
+    const [x, y] = cellCenter(level, basket.cell)
+    label(x - 0.15, y - 0.2, `G${basket.accepts ? KIND_GLYPHS[basket.accepts] : ''}`)
+  }
 
-  return grid.map((line) => line.join('')).join('\n')
+  return grid.map((line) => line.join('').trimEnd()).join('\n')
 }

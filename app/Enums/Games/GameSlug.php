@@ -66,7 +66,8 @@ enum GameSlug: string
         $maximum = match ($this) {
             self::ChicksChallenge => 45,
             self::PlateEscape => 30,
-            self::MathHorde, self::MarbleWorks => 12,
+            self::MathHorde => 12,
+            self::MarbleWorks => 24,
             default => 25,
         };
 

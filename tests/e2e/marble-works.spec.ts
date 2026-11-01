@@ -36,7 +36,7 @@ test.describe('Marble Works', () => {
     await expect(page.getByRole('dialog', { name: 'Level complete' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('level-complete-stars')).toHaveAttribute('data-stars', '3')
 
-    const saved = await page.evaluate(() => window.localStorage.getItem('bwh.marble-works.progress.v1'))
+    const saved = await page.evaluate(() => window.localStorage.getItem('bwh.marble-works.progress.v2'))
     expect(JSON.parse(saved ?? '{}')).toMatchObject({ unlockedLevel: 2, stars: { 1: 3 } })
 
     await page.reload()
@@ -48,7 +48,7 @@ test.describe('Marble Works', () => {
   })
 
   test('the board stays inside the viewport without page overflow', async ({ page }) => {
-    await page.goto('/marble-works?level=12')
+    await page.goto('/marble-works?level=19')
     await expect(page.getByTestId('marble-works-canvas')).toBeVisible()
     const viewport = page.viewportSize()
     const box = await page.locator(BOARD).boundingBox()

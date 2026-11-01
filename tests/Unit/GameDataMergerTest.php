@@ -69,6 +69,20 @@ class GameDataMergerTest extends TestCase
         );
     }
 
+    public function test_a_newer_campaign_replaces_old_progress_and_an_older_one_is_ignored(): void
+    {
+        $merger = new GameDataMerger;
+        $oldCampaign = ['version' => 1, 'stars' => 3];
+        $newCampaign = ['version' => 1, 'stars' => 1, 'campaign_revision' => 2];
+
+        $this->assertSame($newCampaign, $merger->merge($oldCampaign, $newCampaign));
+        $this->assertSame($newCampaign, $merger->merge($newCampaign, $oldCampaign));
+        $this->assertSame(
+            ['version' => 1, 'stars' => 2, 'campaign_revision' => 2],
+            $merger->merge($newCampaign, ['version' => 1, 'stars' => 2, 'campaign_revision' => 2]),
+        );
+    }
+
     public function test_list_values_are_replaced_instead_of_recursively_merged(): void
     {
         $result = (new GameDataMerger)->merge(
