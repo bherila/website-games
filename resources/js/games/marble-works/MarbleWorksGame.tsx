@@ -1,5 +1,6 @@
 import { Eraser, Grid3x3, Play, Square } from 'lucide-react'
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent as ReactPointerEvent, type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import { BottomControlButton, GAME_TOOLBAR_PADDING_CLASS, GameBottomToolbar } from '../_shared/GameControlPrimitives'
@@ -33,6 +34,7 @@ import { PIECE_IDS, type PieceId, type Vec2 } from './pieces/pieceCatalog'
 import { GameHud } from './ui/GameHud'
 import { HintBubble, LevelCompleteOverlay, RunFailedToast, type WinSummary } from './ui/Overlays'
 import { PieceActionBar } from './ui/PieceActionBar'
+import { PieceIcon } from './ui/PieceIcon'
 import { PieceTray } from './ui/PieceTray'
 
 type Phase = 'edit' | 'running' | 'won'
@@ -51,7 +53,23 @@ interface Drag {
   moved: boolean
 }
 
+/**
+ * A mouse or pen press on a tray card. It becomes a drag (one piece carried to the board)
+ * once the pointer travels `TRAY_DRAG_THRESHOLD_PX`; released before that, it is a click.
+ */
+interface TrayDrag {
+  pieceId: PieceId
+  pointerId: number
+  x: number
+  y: number
+  moved: boolean
+}
+
 type TutorialStep = 'pick' | 'place' | 'fix' | 'flip' | 'go'
+
+const TRAY_DRAG_THRESHOLD_PX = 6
+/** A click this soon after a tray drag ends is the drag's own release, not a pick. */
+const TRAY_CLICK_AFTER_DRAG_MS = 250
 
 const FAIL_RESET_DELAY_MS = 650
 
@@ -95,6 +113,9 @@ export function MarbleWorksGame(): ReactElement {
   const [lastWin, setLastWin] = useState<WinSummary | null>(null)
   const [trayShake, setTrayShake] = useState<{ pieceId: PieceId; key: number } | null>(null)
   const [tutorialHint, setTutorialHint] = useState<TapHintPosition | null>(null)
+  const [trayDragIcon, setTrayDragIcon] = useState<{ pieceId: PieceId; x: number; y: number } | null>(null)
+  const trayDragRef = useRef<TrayDrag | null>(null)
+  const trayDragEndedAtRef = useRef(Number.NEGATIVE_INFINITY)
 
   const placementsByLevelRef = useRef(new Map<number, PlacedPiece[]>())
   const orientationsRef = useRef(new Map<PieceId, { variant: number; flipped: boolean }>())
@@ -220,7 +241,7 @@ export function MarbleWorksGame(): ReactElement {
   const shakeTray = (pieceId: PieceId): void => setTrayShake((current) => ({ pieceId, key: (current?.key ?? 0) + 1 }))
 
   const handleArm = (pieceId: PieceId): void => {
-    if (!level || !editing) {
+    if (!level || !editing || performance.now() - trayDragEndedAtRef.current < TRAY_CLICK_AFTER_DRAG_MS) {
       return
     }
     if (armed?.pieceId === pieceId) {
@@ -237,6 +258,61 @@ export function MarbleWorksGame(): ReactElement {
     setSelectedUid(null)
     setHintOpen(false)
   }
+
+  /** Starts a possible tray drag. Touch keeps tap-to-pick, so the tray strip still scrolls. */
+  const handleTrayPointerDown = (pieceId: PieceId, event: ReactPointerEvent<HTMLButtonElement>): void => {
+    if (event.pointerType === 'touch' || event.button !== 0 || !level || !editing || (remaining[pieceId] ?? 0) <= 0) {
+      return
+    }
+    trayDragRef.current = { pieceId, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
+  }
+
+  // A tray drag follows the pointer across the page. The board's own pointer events (no
+  // capture, since the press began on the tray) show the ghost and drop the piece; the window
+  // listener runs after them and ends the drag wherever the button is released.
+  useEffect(() => {
+    const onMove = (event: PointerEvent): void => {
+      const current = trayDragRef.current
+      if (!current || event.pointerId !== current.pointerId) {
+        return
+      }
+      if (!current.moved) {
+        if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < TRAY_DRAG_THRESHOLD_PX) {
+          return
+        }
+        current.moved = true
+        const orientation = orientationsRef.current.get(current.pieceId) ?? { variant: 0, flipped: false }
+        setArmed({ pieceId: current.pieceId, ...orientation })
+        setSelectedUid(null)
+        setHintOpen(false)
+      }
+      setTrayDragIcon({ pieceId: current.pieceId, x: event.clientX, y: event.clientY })
+    }
+    const onEnd = (event: PointerEvent): void => {
+      const current = trayDragRef.current
+      if (!current || event.pointerId !== current.pointerId) {
+        return
+      }
+      trayDragRef.current = null
+      if (!current.moved) {
+        return
+      }
+      setTrayDragIcon(null)
+      setArmed(null)
+      setHover(null)
+      // Releasing over the card it came from would also click it; that is not a pick.
+      trayDragEndedAtRef.current = performance.now()
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+    }
+  }, [])
 
   const placeArmed = (placement: PiecePlacement): void => {
     if (!level) {
@@ -336,7 +412,7 @@ export function MarbleWorksGame(): ReactElement {
             }
           }
         }
-      } else if (!drag && armed && event.pointerType === 'mouse') {
+      } else if (!drag && armed && event.pointerType !== 'touch') {
         const next = cell ? anchoredPlacement(armed, cell) : null
         if (next?.col !== hover?.col || next?.row !== hover?.row || next?.variant !== hover?.variant || next?.flipped !== hover?.flipped) {
           setHover(next)
@@ -358,14 +434,20 @@ export function MarbleWorksGame(): ReactElement {
     // Pointer up.
     const current = drag
     setDrag(null)
-    if (!current) {
+    const fromTray = !current && trayDragRef.current?.moved === true
+    if (!current && !fromTray) {
       return
     }
-    if (current.kind === 'place') {
+    if (!current || current.kind === 'place') {
       if (cell && armed) {
         const placement = anchoredPlacement(armed, cell)
         if (placementProblem(level, placements, placement) === null) {
           placeArmed(placement)
+          // With a mouse or pen a pick places one piece; touch keeps it for the next tap.
+          if (event.pointerType !== 'touch') {
+            setArmed(null)
+            setHover(null)
+          }
         } else {
           shakeTray(armed.pieceId)
         }
@@ -617,7 +699,20 @@ export function MarbleWorksGame(): ReactElement {
           shakePiece={trayShake}
           trayRef={trayRef}
           onArm={handleArm}
+          onPiecePointerDown={handleTrayPointerDown}
         />
+
+        {trayDragIcon && !hover && createPortal(
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 opacity-90 drop-shadow-lg"
+            data-testid="tray-drag-icon"
+            style={{ left: trayDragIcon.x, top: trayDragIcon.y }}
+          >
+            <PieceIcon className="size-12" pieceId={trayDragIcon.pieceId} />
+          </div>,
+          document.body,
+        )}
 
         <div className="pointer-events-none absolute inset-0 z-30">
           <TapHint position={tutorialStep ? tutorialHint : null} />

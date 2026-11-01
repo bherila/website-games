@@ -12,8 +12,12 @@ Route `/marble-works` (`games.marble-works`), entrypoint
 ## Core loop
 
 1. **Edit.** Tap a tray card to arm a piece. Then tap or drag on the board: a ghost snaps to
-   the cell under the pointer (green = fits, red = doesn't) and is placed on release. With a
-   mouse, the ghost follows the pointer while you hover.
+   the cell under the pointer (green = fits, red = doesn't) and is placed on release. On touch
+   the piece stays armed for the next tap (tap its card again or press Esc to put it down).
+   With a mouse or pen the ghost follows the pointer while you hover, and each pick places one
+   piece: drag a card straight onto the board (the piece follows the cursor until it is over
+   the board), or click a card and then the board. Touch does not drag out of the tray, so the
+   tray strip still scrolls on phones.
 2. Tap a placed piece to select it. A floating bar offers **Rotate / Flip / Remove**.
    Dragging a placed piece moves it; dropping it on the tray removes it.
 3. **Go** builds the physics world from the level plus the placements and opens the
