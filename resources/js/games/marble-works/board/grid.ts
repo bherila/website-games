@@ -78,11 +78,15 @@ export function placementWalls(board: BoardSize, placement: PiecePlacement): Wor
   })
 }
 
-/** Cells occupied by the level itself (dropper, basket, blocks, pegs, fixed pieces, no-build). */
+/** Cells occupied by the level itself (droppers, baskets, blocks, pegs, fixed pieces, no-build). Gems never block building. */
 export function reservedCells(level: LevelDef): Set<string> {
   const reserved = new Set<string>()
-  reserved.add(cellKey(level.start))
-  reserved.add(cellKey(level.goal))
+  for (const dropper of level.droppers) {
+    reserved.add(cellKey(dropper.cell))
+  }
+  for (const basket of level.baskets) {
+    reserved.add(cellKey(basket.cell))
+  }
   for (const block of level.blocks) {
     for (let row = block.row; row < block.row + block.h; row += 1) {
       for (let col = block.col; col < block.col + block.w; col += 1) {
@@ -180,16 +184,20 @@ export function canFlip(pieceId: PieceId): boolean {
   return PIECES[pieceId].flippable
 }
 
-/** 1 star for a solve, 2 within `par.two` pieces, 3 within `par.three`. */
-export function computeStars(piecesUsed: number, par: LevelDef['par']): 1 | 2 | 3 {
-  if (piecesUsed <= par.three) {
-    return 3
-  }
-  if (piecesUsed <= par.two) {
-    return 2
-  }
+export interface StarBreakdown {
+  stars: 1 | 2 | 3
+  /** Every gem collected (always true on a level without gems). */
+  gems: boolean
+  /** Solved with at most `par` pieces. */
+  par: boolean
+}
 
-  return 1
+/** 1 star for a solve, +1 for collecting every gem, +1 for staying within par. */
+export function computeStars(piecesUsed: number, level: Pick<LevelDef, 'par' | 'gems'>, gemsCollected: number): StarBreakdown {
+  const gems = gemsCollected >= level.gems.length
+  const par = piecesUsed <= level.par
+
+  return { stars: (1 + (gems ? 1 : 0) + (par ? 1 : 0)) as 1 | 2 | 3, gems, par }
 }
 
 /** Whether a placement is the tutorial's piece on its cell *and* in its orientation. */

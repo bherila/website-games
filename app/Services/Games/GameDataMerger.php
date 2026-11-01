@@ -44,6 +44,19 @@ class GameDataMerger
             return $existing;
         }
 
+        // A rebuilt campaign starts every level and profile metric afresh. A
+        // row from a newer campaign replaces the old one outright; a write
+        // from an older client (an older campaign) is dropped. Missing
+        // metadata identifies the original campaign.
+        $existingCampaign = $existing['campaign_revision'] ?? 1;
+        $incomingCampaign = $incoming['campaign_revision'] ?? 1;
+        if ($incomingCampaign > $existingCampaign) {
+            return $incoming;
+        }
+        if ($incomingCampaign < $existingCampaign) {
+            return $existing;
+        }
+
         // Best moves are comparable only within one layout. Missing metadata
         // identifies the original layout, including writes from older clients.
         $existingLayout = $existing['layout_revision'] ?? 1;

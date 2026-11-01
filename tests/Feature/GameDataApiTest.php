@@ -264,7 +264,7 @@ class GameDataApiTest extends TestCase
             'data' => ['version' => 1, 'stars' => 1],
         ])->assertUnprocessable()->assertJsonValidationErrors('slot');
 
-        $this->actingAs($user)->putJson('/api/games/marble-works/data/level/13', [
+        $this->actingAs($user)->putJson('/api/games/marble-works/data/level/25', [
             'data' => ['version' => 1, 'stars' => 1],
         ])->assertUnprocessable()->assertJsonValidationErrors('slot');
 
@@ -372,12 +372,12 @@ class GameDataApiTest extends TestCase
     public function test_marble_works_accepts_its_final_campaign_level(): void
     {
         $this->actingAs(User::factory()->create())
-            ->putJson('/api/games/marble-works/data/level/12', [
-                'data' => ['version' => 1, 'stars' => 3],
+            ->putJson('/api/games/marble-works/data/level/24', [
+                'data' => ['version' => 1, 'stars' => 3, 'campaign_revision' => 2],
             ])
             ->assertOk()
             ->assertJsonPath('data.game', GameSlug::MarbleWorks->value)
-            ->assertJsonPath('data.slot', '12');
+            ->assertJsonPath('data.slot', '24');
     }
 
     public function test_payload_must_be_an_array_within_the_size_limit(): void

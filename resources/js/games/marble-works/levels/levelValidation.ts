@@ -15,9 +15,22 @@ export function validateLevel(level: LevelDef): string[] {
     problems.push(`${where}: board ${level.cols}×${level.rows} is outside 3–10 × 3–12.`)
   }
 
+  if (level.droppers.length < 1 || level.droppers.every((dropper) => dropper.marbles.length === 0)) {
+    problems.push(`${where}: no marbles to drop.`)
+  }
+  if (level.baskets.length < 1) {
+    problems.push(`${where}: no basket.`)
+  }
+  const kinds = new Set(level.droppers.flatMap((dropper) => dropper.marbles))
+  for (const kind of kinds) {
+    if (!level.baskets.some((basket) => basket.accepts === undefined || basket.accepts === kind)) {
+      problems.push(`${where}: no basket accepts the ${kind} marble.`)
+    }
+  }
+
   const singles: [string, Cell][] = [
-    ['start', level.start],
-    ['goal', level.goal],
+    ...level.droppers.map((dropper, index): [string, Cell] => [`dropper ${index}`, dropper.cell]),
+    ...level.baskets.map((basket, index): [string, Cell] => [`basket ${index}`, basket.cell]),
     ...level.pegs.map((peg, index): [string, Cell] => [`peg ${index}`, peg]),
     ...level.noBuild.map((cell, index): [string, Cell] => [`no-build ${index}`, cell]),
   ]
@@ -38,6 +51,15 @@ export function validateLevel(level: LevelDef): string[] {
   }
 
   singles.forEach(([label, cell]) => claim(cell, label))
+  level.gems.forEach((gem, index) => {
+    if (!inBounds(level, gem)) {
+      problems.push(`${where}: gem ${index} (${cellKey(gem)}) is off the board.`)
+    }
+    const owner = claimed.get(cellKey(gem))
+    if (owner) {
+      problems.push(`${where}: gem ${index} sits on ${owner}.`)
+    }
+  })
   level.blocks.forEach((block, index) => {
     for (let row = block.row; row < block.row + block.h; row += 1) {
       for (let col = block.col; col < block.col + block.w; col += 1) {
@@ -74,11 +96,8 @@ export function validateLevel(level: LevelDef): string[] {
     placed.push(placement)
   }
 
-  if (level.par.three < level.solution.length) {
-    problems.push(`${where}: 3-star par (${level.par.three}) is below the reference solution (${level.solution.length}).`)
-  }
-  if (level.par.two < level.par.three) {
-    problems.push(`${where}: 2-star par must be ≥ 3-star par.`)
+  if (level.par < level.solution.length) {
+    problems.push(`${where}: par (${level.par}) is below the reference solution (${level.solution.length}).`)
   }
 
   if (level.tutorial) {

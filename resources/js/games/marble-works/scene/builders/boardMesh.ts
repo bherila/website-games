@@ -3,13 +3,17 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 
 import { cellCenter } from '../../board/grid'
 import type { LevelDef } from '../../levels/levelTypes'
+import { MARBLE_KINDS } from '../../physics/marbles'
 import { BASKET_WALL, PEG_RADIUS,pegPosition } from '../../physics/runWorld'
 import type { Vec2 } from '../../pieces/pieceCatalog'
+import { markGlass } from '../glassQuality'
 import {
   BASKET_COLOR,
   BASKET_DARK_COLOR,
   DROPPER_COLOR,
   FRAME_COLOR,
+  GEM_COLOR,
+  MARBLE_STYLES,
   NO_BUILD_COLOR,
   OBSTACLE_COLOR,
   PEG_COLOR,
@@ -17,6 +21,7 @@ import {
   PEGBOARD_HOLE_COLOR,
 } from '../palette'
 import { canvasTexture, seededRandom } from '../textures'
+import { createMarbleMesh } from './marbleMesh'
 import { createWallGeometry, PIECE_DEPTH } from './wallGeometry'
 
 export const PEGBOARD_Z = -(PIECE_DEPTH / 2) - 0.05
@@ -177,10 +182,11 @@ export interface DropperMesh {
 }
 
 /** Tower-top dropper cup with a gate the marble rests on. */
-export function createDropper(level: LevelDef): DropperMesh {
+export function createDropper(level: LevelDef, index: number): DropperMesh {
   const group = new THREE.Group()
-  const left = level.start.col
-  const bottom = level.rows - level.start.row - 1
+  const cell = level.droppers[index]?.cell ?? { col: 0, row: 0 }
+  const left = cell.col
+  const bottom = level.rows - cell.row - 1
   const material = new THREE.MeshStandardMaterial({ color: DROPPER_COLOR, roughness: 0.35 })
   for (const x of [0.14, 0.86]) {
     const wall = new THREE.Mesh(new RoundedBoxGeometry(0.1, 0.8, PIECE_DEPTH, 2, 0.03), material.clone())
@@ -208,16 +214,25 @@ export function createDropper(level: LevelDef): DropperMesh {
 export interface BasketMesh {
   group: THREE.Group
   glow: THREE.Mesh
-  /** Wobbles on a win. */
+  /** Wobbles on a win, bobs when a marble lands. */
   body: THREE.Group
+  /** Capacity pips, lit one by one as marbles land (empty when unlimited). */
+  pips: THREE.Mesh[]
 }
 
-/** Woven basket with a pennant flag and a soft glow ring. */
-export function createBasket(level: LevelDef): BasketMesh {
+/**
+ * Woven basket with a pennant and a soft glow ring. A basket that only takes one kind
+ * of marble flies that kind's colour and shows a little marble on its pennant; one with
+ * a capacity shows a pip per marble it takes.
+ */
+export function createBasket(level: LevelDef, index: number): BasketMesh {
   const group = new THREE.Group()
   const body = new THREE.Group()
-  const left = level.goal.col
-  const bottom = level.rows - level.goal.row - 1
+  const basket = level.baskets[index]
+  const cell = basket?.cell ?? { col: 0, row: 0 }
+  const left = cell.col
+  const bottom = level.rows - cell.row - 1
+  const flagColor = basket?.accepts ? MARBLE_STYLES[basket.accepts].badge : '#22c55e'
   body.position.set(left + 0.5, bottom, 0)
   group.add(body)
 
@@ -261,10 +276,28 @@ export function createBasket(level: LevelDef): BasketMesh {
   body.add(pole)
   const flag = new THREE.Mesh(
     new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.26, -0.08), new THREE.Vector2(0, -0.16)])),
-    new THREE.MeshStandardMaterial({ color: '#22c55e', side: THREE.DoubleSide }),
+    new THREE.MeshStandardMaterial({ color: flagColor, side: THREE.DoubleSide }),
   )
   flag.position.set(0.45, 1.2, 0.01)
   body.add(flag)
+  if (basket?.accepts) {
+    const badge = createMarbleMesh(basket.accepts)
+    badge.group.scale.setScalar(0.42 / MARBLE_KINDS[basket.accepts].radius / 2)
+    badge.group.position.set(0.24, 0.42, (PIECE_DEPTH / 2) + 0.12)
+    body.add(badge.group)
+  }
+
+  const pips: THREE.Mesh[] = []
+  const capacity = basket?.capacity ?? 0
+  for (let pip = 0; pip < capacity; pip += 1) {
+    const mesh = new THREE.Mesh(
+      new THREE.CircleGeometry(0.055, 16),
+      new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55 }),
+    )
+    mesh.position.set(((pip - ((capacity - 1) / 2)) * 0.16), 0.17, (PIECE_DEPTH / 2) + 0.07)
+    body.add(mesh)
+    pips.push(mesh)
+  }
 
   const glow = new THREE.Mesh(
     new THREE.RingGeometry(0.42, 0.62, 40),
@@ -273,5 +306,41 @@ export function createBasket(level: LevelDef): BasketMesh {
   glow.position.set(left + 0.5, bottom + 0.4, PEGBOARD_Z + 0.02)
   group.add(glow)
 
-  return { group, glow, body }
+  return { group, glow, body, pips }
+}
+
+export interface GemMesh {
+  group: THREE.Group
+  crystal: THREE.Mesh
+}
+
+/** A faceted crystal: refractive like the marbles, with a glowing core so it reads at a glance. */
+export function createGem(level: LevelDef, index: number): GemMesh {
+  const gem = level.gems[index] ?? { col: 0, row: 0 }
+  const [x, y] = cellCenter(level, gem)
+  const group = new THREE.Group()
+  group.position.set(x, y, 0.05)
+  const crystal = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.2, 0),
+    markGlass(new THREE.MeshPhysicalMaterial({
+      color: GEM_COLOR,
+      metalness: 0,
+      roughness: 0.04,
+      transmission: 0.85,
+      thickness: 0.4,
+      ior: 2.2,
+      attenuationColor: new THREE.Color(GEM_COLOR),
+      attenuationDistance: 0.3,
+      clearcoat: 1,
+      flatShading: true,
+      envMapIntensity: 1.8,
+    }), 0.85),
+  )
+  crystal.scale.set(1, 1.25, 1)
+  crystal.castShadow = true
+  group.add(crystal)
+  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), new THREE.MeshBasicMaterial({ color: '#fecdd3' }))
+  crystal.add(core)
+
+  return { group, crystal }
 }

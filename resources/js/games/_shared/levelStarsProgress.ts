@@ -20,6 +20,13 @@ export interface LevelStarsProgressConfig {
   game: DatabaseGameSlug
   storageKey: string
   totalLevels: number
+  /**
+   * Bump when the campaign is rebuilt so old progress no longer applies. Rows carry it as
+   * `campaign_revision`; the server replaces rows from an older campaign instead of merging
+   * their stars, and rows from any other campaign are ignored here. Omitted = the original
+   * campaign (rows without the field).
+   */
+  campaignRevision?: number
 }
 
 export interface LevelStarsProgressApi {
@@ -35,7 +42,10 @@ export interface LevelStarsProgressApi {
  * Builds the progress codec shared by star-rated campaigns: a versioned localStorage blob
  * plus the `profile/default {unlocked_level}` + `level/N {stars}` database rows.
  */
-export function defineLevelStarsProgress({ game, storageKey, totalLevels }: LevelStarsProgressConfig): LevelStarsProgressApi {
+export function defineLevelStarsProgress({ game, storageKey, totalLevels, campaignRevision }: LevelStarsProgressConfig): LevelStarsProgressApi {
+  const revisionData = campaignRevision === undefined ? {} : { campaign_revision: campaignRevision }
+  const isThisCampaign = (data: Record<string, unknown>): boolean => (data.campaign_revision ?? 1) === (campaignRevision ?? 1)
+
   function createInitialProgress(): LevelStarsProgress {
     return { version: 1, unlockedLevel: 1, stars: {} }
   }
@@ -66,7 +76,7 @@ export function defineLevelStarsProgress({ game, storageKey, totalLevels }: Leve
       {
         scope: 'profile',
         slot: 'default',
-        data: { version: 1, unlocked_level: progress.unlockedLevel },
+        data: { version: 1, unlocked_level: progress.unlockedLevel, ...revisionData },
       },
       ...Object.entries(progress.stars)
         .filter(([level]) => {
@@ -77,19 +87,19 @@ export function defineLevelStarsProgress({ game, storageKey, totalLevels }: Leve
         .map(([level, stars]) => ({
           scope: 'level' as const,
           slot: level,
-          data: { version: 1, stars },
+          data: { version: 1, stars, ...revisionData },
         })),
     ],
     decode: (rows) => {
       const profileRow = rows.get(definitionRowKey('profile', 'default'))
-      const profile = profileRow?.data.version === 1 ? profileRow : undefined
+      const profile = profileRow?.data.version === 1 && isThisCampaign(profileRow.data) ? profileRow : undefined
       let unlockedLevel = parseInteger(profile?.data.unlocked_level, 1) ?? 1
       const stars: Record<number, number> = {}
       let found = Boolean(profile)
 
       for (let level = 1; level <= totalLevels; level += 1) {
         const row = rows.get(definitionRowKey('level', String(level)))
-        if (row?.data.version !== 1) {
+        if (row?.data.version !== 1 || !isThisCampaign(row.data)) {
           continue
         }
 

@@ -4,6 +4,11 @@ import { useEffect } from 'react'
 import { MARBLE_WORKS_PROGRESS_STORAGE_KEY } from '../gameTypes'
 import { MarbleWorksGame } from '../MarbleWorksGame'
 import type { MarbleWorksSceneProps } from '../MarbleWorksScene'
+import type { RunResult } from '../physics/runWorld'
+
+function result(status: RunResult['status'], gems: number): RunResult {
+  return { status, failedMarble: status === 'won' ? -1 : 0, paths: [[[1, 1], [2, 0]]], pathSteps: [[0, 6]], elapsed: 1, gems, allGems: false, home: 0, firstContacts: new Map() }
+}
 
 jest.mock('../MarbleWorksScene', () => ({
   MarbleWorksScene: (props: MarbleWorksSceneProps) => {
@@ -25,7 +30,7 @@ jest.mock('../MarbleWorksScene', () => ({
         data-editing={String(props.editing)}
         data-free-cells={props.freeCells.map((cell) => `${cell.col},${cell.row}`).join(' ')}
         data-ghost={props.ghost ? (props.ghost.ok ? 'ok' : 'bad') : 'none'}
-        data-ghost-path={props.ghostPath ? String(props.ghostPath.length) : 'none'}
+        data-ghost-path={props.ghostPaths ? String(props.ghostPaths.length) : 'none'}
         data-placements={props.placements.map((placement) => `${placement.pieceId}@${placement.col},${placement.row}${placement.flipped ? 'F' : ''}`).join(' ')}
         data-run-token={String(props.runToken)}
         data-testid="scene-stub"
@@ -38,8 +43,9 @@ jest.mock('../MarbleWorksScene', () => ({
             <button type="button" onClick={() => pointer('up', col, row)}>{`up-${col}-${row}`}</button>
           </span>
         )))}
-        <button type="button" onClick={() => props.onRunEnd('won', [[1, 1]])}>run-won</button>
-        <button type="button" onClick={() => props.onRunEnd('out', [[1, 1], [2, 0]])}>run-out</button>
+        <button type="button" onClick={() => props.onRunEnd(result('won', props.level.gems.length))}>run-won</button>
+        <button type="button" onClick={() => props.onRunEnd(result('won', 0))}>run-won-no-gems</button>
+        <button type="button" onClick={() => props.onRunEnd(result('out', 0))}>run-out</button>
       </div>
     )
   },
@@ -125,9 +131,9 @@ describe('MarbleWorksGame', () => {
     // The 3-wide funnel centres on the tapped cell, so the edge columns can never host it…
     expect(cells).not.toContain('0,1')
     expect(cells).not.toContain('7,1')
-    // …nor can a cell whose neighbour is a block or a no-build cell.
+    // …nor can a cell whose neighbour is a peg or a block.
+    expect(cells).not.toContain('4,3')
     expect(cells).not.toContain('4,6')
-    expect(cells).not.toContain('4,2')
     expect(cells).toContain('3,1')
   })
 
@@ -167,7 +173,7 @@ describe('MarbleWorksGame', () => {
     tapCell(2, 3)
     fireEvent.click(screen.getByRole('button', { name: 'Remove piece' }))
     expect(scene()).toHaveAttribute('data-placements', '')
-    expect(screen.getByTestId('tray-ramp-steep')).toHaveAccessibleName('Steep Ramp, 3 left')
+    expect(screen.getByTestId('tray-ramp-steep')).toHaveAccessibleName('Steep Ramp, 4 left')
   })
 
   it('shakes instead of arming a used-up piece', () => {
@@ -190,7 +196,7 @@ describe('MarbleWorksGame', () => {
       fireEvent.click(screen.getByRole('button', { name: 'run-out' }))
 
       expect(screen.getByTestId('run-failed')).toHaveTextContent('fell off the board')
-      expect(scene()).toHaveAttribute('data-ghost-path', '2')
+      expect(scene()).toHaveAttribute('data-ghost-path', '1')
       act(() => {
         jest.advanceTimersByTime(1000)
       })
@@ -213,17 +219,36 @@ describe('MarbleWorksGame', () => {
     expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
   })
 
-  it('awards fewer stars above par', () => {
+  it('awards a star each for collecting every gem and for staying within par', () => {
     window.localStorage.setItem(MARBLE_WORKS_PROGRESS_STORAGE_KEY, JSON.stringify({ version: 1, unlockedLevel: 2, stars: { 1: 3 } }))
     render(<MarbleWorksGame />)
     fireEvent.click(screen.getByRole('button', { name: 'Level 2, 0 stars' }))
     fireEvent.click(screen.getByTestId('tray-ramp-steep'))
     tapCell(3, 2)
     tapCell(2, 3)
-    tapCell(1, 3)
+    tapCell(3, 4)
+    tapCell(2, 5)
+    expect(screen.getByTestId('par-pill')).toHaveTextContent('4/ 3')
     fireEvent.click(screen.getByRole('button', { name: 'Go' }))
     fireEvent.click(screen.getByRole('button', { name: 'run-won' }))
 
     expect(screen.getByTestId('level-complete-stars')).toHaveAttribute('data-stars', '2')
+    expect(screen.getByTestId('level-complete-goals')).toHaveTextContent('Gems 1 of 1')
+    expect(screen.getByTestId('level-complete-goals')).toHaveTextContent('4 pieces (par 3)')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Replay level' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+    fireEvent.click(screen.getByRole('button', { name: 'run-won-no-gems' }))
+    expect(screen.getByTestId('level-complete-stars')).toHaveAttribute('data-stars', '1')
+  })
+
+  it('names the marble that failed', () => {
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+    fireEvent.click(screen.getByRole('button', { name: 'run-out' }))
+
+    expect(screen.getByTestId('run-failed')).toHaveTextContent('The glass marble fell off the board.')
+    expect(scene()).toHaveAttribute('data-ghost-path', '1')
   })
 })

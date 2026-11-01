@@ -26,15 +26,16 @@ import { LEVELS } from './levels/levels'
 import type { Cell, LevelDef, PiecePlacement, PlacedPiece } from './levels/levelTypes'
 import { LevelSelect } from './LevelSelect'
 import { type BoardPointerEvent, MarbleWorksScene } from './MarbleWorksScene'
-import type { RunStatus } from './physics/runOutcome'
+import type { MarbleKind } from './physics/marbles'
+import type { FailStatus } from './physics/runOutcome'
+import { marbleSchedule, type RunResult } from './physics/runWorld'
 import { PIECE_IDS, type PieceId, type Vec2 } from './pieces/pieceCatalog'
 import { GameHud } from './ui/GameHud'
-import { HintBubble, LevelCompleteOverlay, RunFailedToast } from './ui/Overlays'
+import { HintBubble, LevelCompleteOverlay, RunFailedToast, type WinSummary } from './ui/Overlays'
 import { PieceActionBar } from './ui/PieceActionBar'
 import { PieceTray } from './ui/PieceTray'
 
 type Phase = 'edit' | 'running' | 'won'
-type FailStatus = Exclude<RunStatus, 'running' | 'won'>
 
 interface Armed {
   pieceId: PieceId
@@ -86,11 +87,12 @@ export function MarbleWorksGame(): ReactElement {
   const [hover, setHover] = useState<PiecePlacement | null>(null)
   const [phase, setPhase] = useState<Phase>('edit')
   const [runToken, setRunToken] = useState<number | null>(null)
-  const [failed, setFailed] = useState<FailStatus | null>(null)
-  const [ghostPath, setGhostPath] = useState<Vec2[] | null>(null)
+  const [failed, setFailed] = useState<{ status: FailStatus; kind: MarbleKind | null } | null>(null)
+  const [ghostPaths, setGhostPaths] = useState<Vec2[][] | null>(null)
+  const [liveGems, setLiveGems] = useState(0)
   const [layout, setLayout] = useState<BoardLayout | null>(null)
   const [hintOpen, setHintOpen] = useState(false)
-  const [lastWin, setLastWin] = useState<{ stars: 1 | 2 | 3; pieces: number } | null>(null)
+  const [lastWin, setLastWin] = useState<WinSummary | null>(null)
   const [trayShake, setTrayShake] = useState<{ pieceId: PieceId; key: number } | null>(null)
   const [tutorialHint, setTutorialHint] = useState<TapHintPosition | null>(null)
 
@@ -121,7 +123,7 @@ export function MarbleWorksGame(): ReactElement {
 
   const updatePlacements = useCallback((next: PlacedPiece[]): void => {
     setPlacements(next)
-    setGhostPath(null)
+    setGhostPaths(null)
     setFailed(null)
     if (levelId !== null) {
       placementsByLevelRef.current.set(levelId, next)
@@ -143,9 +145,10 @@ export function MarbleWorksGame(): ReactElement {
     setPhase('edit')
     setRunToken(null)
     setFailed(null)
-    setGhostPath(null)
+    setGhostPaths(null)
+    setLiveGems(0)
     setLastWin(null)
-    setHintOpen(Boolean(target.hint) && !target.tutorial && progress.stars[id] === undefined)
+    setHintOpen(Boolean(target.hint) && target.autoHint === true && !target.tutorial && progress.stars[id] === undefined)
   }, [progress.stars])
 
   const goToSelect = useCallback((): void => {
@@ -399,7 +402,8 @@ export function MarbleWorksGame(): ReactElement {
       setSelectedUid(null)
       setDrag(null)
       setFailed(null)
-      setGhostPath(null)
+      setGhostPaths(null)
+      setLiveGems(0)
       setHintOpen(false)
       setPhase('running')
       setRunToken((current) => (current ?? 0) + 1)
@@ -410,21 +414,25 @@ export function MarbleWorksGame(): ReactElement {
     }
   }
 
-  const handleRunEnd = useCallback((status: Exclude<RunStatus, 'running'>, path: Vec2[]): void => {
+  const handleRunEnd = useCallback((result: RunResult): void => {
     if (!level) {
       return
     }
-    if (status === 'won') {
-      const stars = computeStars(placements.length, level.par)
-      setLastWin({ stars, pieces: placements.length })
+    setLiveGems(result.gems)
+    if (result.status === 'won') {
+      const breakdown = computeStars(placements.length, level, result.gems)
+      setLastWin({ ...breakdown, pieces: placements.length, parPieces: level.par, gemsCollected: result.gems, gemsTotal: level.gems.length })
       setPhase('won')
-      const next = recordWin(loadProgress(), level.id, stars)
+      const next = recordWin(loadProgress(), level.id, breakdown.stars)
       saveProgress(next)
       setProgress(next)
       return
     }
-    setFailed(status)
-    setGhostPath(path)
+    if (result.status === 'running') {
+      return
+    }
+    setFailed({ status: result.status, kind: marbleSchedule(level)[result.failedMarble]?.kind ?? null })
+    setGhostPaths(result.paths)
     clearFailTimer()
     failTimerRef.current = window.setTimeout(() => {
       failTimerRef.current = null
@@ -549,7 +557,7 @@ export function MarbleWorksGame(): ReactElement {
             editing={editing}
             freeCells={freeCells}
             ghost={ghost}
-            ghostPath={ghostPath}
+            ghostPaths={ghostPaths}
             key={level.id}
             level={level}
             placements={placements}
@@ -557,11 +565,12 @@ export function MarbleWorksGame(): ReactElement {
             selected={editing ? selected : null}
             tutorialCell={tutorialStep === 'place' || tutorialStep === 'fix' || tutorialStep === 'flip' ? tutorial?.cell ?? null : null}
             onBoardPointer={handleBoardPointer}
+            onGem={setLiveGems}
             onLayout={setLayout}
             onRunEnd={handleRunEnd}
           />
 
-          <GameHud hintOpen={hintOpen} level={level} piecesUsed={placements.length} onToggleHint={() => setHintOpen((open) => !open)} />
+          <GameHud gemsCollected={liveGems} hintOpen={hintOpen} level={level} piecesUsed={placements.length} onToggleHint={() => setHintOpen((open) => !open)} />
 
           {hintOpen && level.hint && <HintBubble text={level.hint} onClose={() => setHintOpen(false)} />}
 
@@ -573,7 +582,7 @@ export function MarbleWorksGame(): ReactElement {
             </div>
           )}
 
-          {failed && <RunFailedToast status={failed} />}
+          {failed && <RunFailedToast kind={failed.kind} status={failed.status} />}
 
           {actionBarAnchor && selected && (
             <PieceActionBar
@@ -591,8 +600,7 @@ export function MarbleWorksGame(): ReactElement {
           {phase === 'won' && lastWin && (
             <LevelCompleteOverlay
               isFinalLevel={level.id >= LEVELS.length}
-              piecesUsed={lastWin.pieces}
-              stars={lastWin.stars}
+              summary={lastWin}
               onLevels={goToSelect}
               onNext={() => startLevel(level.id + 1)}
               onReplay={handleReplay}

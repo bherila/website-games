@@ -21,7 +21,10 @@ describe('piece meshes', () => {
           })
 
           expect(vertices).toBeGreaterThan(0)
-          expect(Boolean(mesh.spring)).toBe(Boolean(PIECES[pieceId].behavior))
+          const behavior = PIECES[pieceId].behavior?.kind
+          expect(Boolean(mesh.spring)).toBe(behavior === 'launcher' || behavior === 'trampoline')
+          expect(Boolean(mesh.paddle)).toBe(behavior === 'toggle')
+          expect(Boolean(mesh.glass)).toBe(behavior === 'fragile')
         }
       }
     })
