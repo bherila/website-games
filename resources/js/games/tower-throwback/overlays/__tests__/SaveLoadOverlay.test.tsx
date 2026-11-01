@@ -340,7 +340,7 @@ describe('SaveLoadOverlay', () => {
     expect(exportedBlob).toBeDefined()
     const contents = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '')
       reader.onerror = () => reject(reader.error)
       reader.readAsText(exportedBlob!)
     })

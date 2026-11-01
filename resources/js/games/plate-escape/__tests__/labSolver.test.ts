@@ -48,7 +48,7 @@ test('boards reached only by turning are searched and scored like any other', ()
 
 test('the stop rule decides how far the dial can wander between removals', () => {
   const free = analyses.get(LAB_DIAL_PIN)!.boards.find((board) => board.removed.length === 1 && board.removed[0] === 'door-pin')!
-  expect(turnings(free).map(({ next }) => next.dials.dial).sort()).toEqual([0, 1, 2, 3])
+  expect(turnings(free).map(({ next }) => next.dials.dial).sort((a, b) => (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER))).toEqual([0, 1, 2, 3])
   // A jamming dial with a head in its window does not move at all.
   const jammed = analyses.get(LAB_DIAL_JAM)!.boards[0]!
   expect(turnings(jammed)).toHaveLength(1)

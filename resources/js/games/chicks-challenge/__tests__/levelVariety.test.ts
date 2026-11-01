@@ -31,7 +31,7 @@ function flatten(state: GameState, kinds: readonly TileKind[]): GameState {
 
 function play(state: GameState, moves: string): GameState {
   const intents: Record<string, MoveIntent> = { U: 'up', D: 'down', L: 'left', R: 'right', W: 'wait' }
-  return [...moves].reduce((current, char) => {
+  return Array.from(moves).reduce((current, char) => {
     const result = applyMove(current, intents[char] as MoveIntent)
     if (!result.accepted) {
       throw new Error(`move ${char} rejected`)

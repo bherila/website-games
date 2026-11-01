@@ -68,7 +68,7 @@ describe('load-aware elevator choice', () => {
         }
       }
     }
-    expect([...boarded].sort()).toEqual([left, right].sort())
+    expect([...boarded].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))).toEqual([left, right].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
     expect(state.people).toHaveLength(0)
   })
 
