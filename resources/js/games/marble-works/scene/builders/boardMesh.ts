@@ -6,6 +6,7 @@ import type { LevelDef } from '../../levels/levelTypes'
 import { MARBLE_KINDS } from '../../physics/marbles'
 import { BASKET_WALL, PEG_RADIUS,pegPosition } from '../../physics/runWorld'
 import type { Vec2 } from '../../pieces/pieceCatalog'
+import { markGlass } from '../glassQuality'
 import {
   BASKET_COLOR,
   BASKET_DARK_COLOR,
@@ -321,7 +322,7 @@ export function createGem(level: LevelDef, index: number): GemMesh {
   group.position.set(x, y, 0.05)
   const crystal = new THREE.Mesh(
     new THREE.OctahedronGeometry(0.2, 0),
-    new THREE.MeshPhysicalMaterial({
+    markGlass(new THREE.MeshPhysicalMaterial({
       color: GEM_COLOR,
       metalness: 0,
       roughness: 0.04,
@@ -333,7 +334,7 @@ export function createGem(level: LevelDef, index: number): GemMesh {
       clearcoat: 1,
       flatShading: true,
       envMapIntensity: 1.8,
-    }),
+    }), 0.85),
   )
   crystal.scale.set(1, 1.25, 1)
   crystal.castShadow = true

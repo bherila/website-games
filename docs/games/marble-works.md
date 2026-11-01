@@ -194,8 +194,15 @@ camera looking head-on at the board.
 - **Piece colours** are set per family in `scene/palette.ts`. Obstacles are slate with bolts,
   and no-build cells are red-hatched.
 - **Glass:** marbles, tubes, glass pieces and gems use `MeshPhysicalMaterial` transmission,
-  so the board behind them is refracted through them, with reflections from a
-  `RoomEnvironment` map generated once per level (and released with it).
+  so the board behind them is refracted through them. Refraction renders the board a second
+  time each frame, at half resolution (`transmissionResolutionScale`). `scene/glassQuality.ts`
+  picks the quality: software-rendered browsers (no GPU) and devices whose median frame time
+  over their first 30 frames exceeds 45 ms draw the same materials as tinted see-through glass
+  instead (`lite`). Only the physical materials (glass, steel, gems) get the reflection map,
+  prefiltered from a small painted studio image once per level; sampling it across the
+  painted board cost most of a software renderer's frame rate. Measured in local headless
+  Chromium (SwiftShader) on level 1: about 8 fps and a 3 s load, against 8.4 fps and 2.2 s
+  before the rebuild; refraction plus a room environment map had cost it 2 fps and 12 s.
 - **Marbles:** glass marbles have a spinning cat's-eye swirl; mini marbles are small green
   glass; steel balls are polished metal with a machined band. Queued marbles wait in a row
   on top of their dropper. A marble that lands sinks into its basket and lights a pip.

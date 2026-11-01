@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 import { type ConfettiBurst, createConfettiBurst, disposeConfettiBurst, updateConfettiBurst } from '../../_shared/three/effects/confetti'
 import { advanceFixedSteps, createFixedStepClock, type FixedStepClock } from '../../_shared/three/physicsStep'
@@ -28,6 +27,15 @@ import { createPieceMesh, pieceGlassMaterial, type PieceMesh, poseToggle } from 
 import { PIECE_DEPTH } from './builders/wallGeometry'
 import { createDotTrail, type DotTrail, setDotTrail, thinPath } from './effects/dotTrail'
 import { createShardBurst, disposeShardBurst, type ShardBurst, updateShardBurst } from './effects/shards'
+import {
+  applyGlassQuality,
+  type GlassQuality,
+  isSoftwareRenderer,
+  medianFrameTime,
+  QUALITY_SAMPLE_FRAMES,
+  QUALITY_SLOW_FRAME_S,
+  setMaterialQuality,
+} from './glassQuality'
 import { GEM_COLOR, GHOST_OK_COLOR, GLASS_PIECE_TINT, MARBLE_STYLES, SELECTION_COLOR } from './palette'
 import { canvasTexture } from './textures'
 
@@ -136,6 +144,9 @@ export class MarbleWorksSceneController {
   private readonly marbles: MarbleView[]
   private readonly ghostPaths: DotTrail[]
   private readonly shardMaterial: THREE.Material
+  private glassQuality: GlassQuality
+  /** Frame times sampled to decide whether refraction is affordable (null once decided). */
+  private frameSamples: number[] | null = []
   private tutorialMarker: THREE.Mesh | null = null
   private run: RunWorld | null = null
   private runCallbacks: RunCallbacks | null = null
@@ -161,16 +172,33 @@ export class MarbleWorksSceneController {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.NeutralToneMapping
+    // Refraction renders the board into a buffer behind the glass; half resolution is plenty
+    // for marbles a few dozen pixels across and halves that pass's cost.
+    this.renderer.transmissionResolutionScale = 0.5
+    this.glassQuality = isSoftwareRenderer(this.renderer.getContext()) ? 'lite' : 'refractive'
+    if (this.glassQuality === 'lite') {
+      this.frameSamples = null
+    }
 
-    // A studio environment for reflections on glass, steel and gems. Generated once per
-    // level; the generator and its temporary room scene are released straight away.
+    // A small painted studio (sky, floor and two soft boxes) gives glass, steel and gems
+    // their reflections. Prefiltering a 128×64 image is far cheaper than rendering a room.
+    const studio = canvasTexture(128, 64, (context) => {
+      const sky = context.createLinearGradient(0, 0, 0, 64)
+      sky.addColorStop(0, '#ffffff')
+      sky.addColorStop(0.45, '#cfe6f7')
+      sky.addColorStop(0.55, '#8a7a66')
+      sky.addColorStop(1, '#3b3127')
+      context.fillStyle = sky
+      context.fillRect(0, 0, 128, 64)
+      context.fillStyle = '#ffffff'
+      context.fillRect(18, 10, 22, 12)
+      context.fillRect(80, 14, 30, 8)
+    })
+    studio.mapping = THREE.EquirectangularReflectionMapping
     const pmrem = new THREE.PMREMGenerator(this.renderer)
-    const room = new RoomEnvironment()
-    this.environment = pmrem.fromScene(room, 0.04).texture
-    room.traverse((object) => disposeObject(object))
+    this.environment = pmrem.fromEquirectangular(studio).texture
+    studio.dispose()
     pmrem.dispose()
-    this.scene.environment = this.environment
-    this.scene.environmentIntensity = 0.55
 
     this.scene.background = canvasTexture(4, 256, (context) => {
       const gradient = context.createLinearGradient(0, 0, 0, 256)
@@ -237,7 +265,9 @@ export class MarbleWorksSceneController {
       this.scene.add(ghost.mesh)
     }
     this.shardMaterial = pieceGlassMaterial(GLASS_PIECE_TINT)
+    ;(this.shardMaterial as THREE.MeshPhysicalMaterial).envMap = this.environment
     this.placeMarblesInDroppers()
+    this.dress(this.scene)
 
     this.timer.connect(document)
     this.loop = this.loop.bind(this)
@@ -272,6 +302,7 @@ export class MarbleWorksSceneController {
         this.removePiece(placement.uid)
       }
       const mesh = createPieceMesh(this.level, placement, 'player')
+      this.dress(mesh.group)
       const holder = new THREE.Group()
       const [cx, cy] = footprintCenter(this.level, placement)
       holder.position.set(cx, cy, 0)
@@ -413,6 +444,49 @@ export class MarbleWorksSceneController {
     this.environment.dispose()
     this.shardMaterial.dispose()
     this.renderer.dispose()
+  }
+
+  /**
+   * Gives glass, steel and gem materials (the physical ones) the studio reflections, and
+   * applies the glass quality. Plain painted materials skip the environment map: sampling it
+   * across the whole pegboard costs a lot of fill rate for no visible gain.
+   */
+  private dress(root: THREE.Object3D): void {
+    root.traverse((object) => {
+      const { material } = object as THREE.Mesh
+      if (material instanceof THREE.MeshPhysicalMaterial && material.envMap !== this.environment) {
+        material.envMap = this.environment
+        material.envMapIntensity *= 0.55
+        material.needsUpdate = true
+      }
+    })
+    applyGlassQuality(root, this.glassQuality)
+    if (root === this.scene) {
+      setMaterialQuality(this.shardMaterial, this.glassQuality)
+    }
+  }
+
+  private setGlassQuality(quality: GlassQuality): void {
+    this.glassQuality = quality
+    applyGlassQuality(this.scene, quality)
+    setMaterialQuality(this.shardMaterial, quality)
+  }
+
+  /** Samples early frame times and drops to lite glass if refraction is too slow here. */
+  private sampleFrame(dt: number): void {
+    if (!this.frameSamples) {
+      return
+    }
+    this.frameSamples.push(dt)
+    if (this.frameSamples.length < QUALITY_SAMPLE_FRAMES) {
+      return
+    }
+    // The first frames include shader compilation; judge the rest.
+    const slow = medianFrameTime(this.frameSamples.slice(5)) > QUALITY_SLOW_FRAME_S
+    this.frameSamples = null
+    if (slow) {
+      this.setGlassQuality('lite')
+    }
   }
 
   private *allPieceMeshes(): Generator<PieceMesh> {
@@ -626,6 +700,7 @@ export class MarbleWorksSceneController {
     }
 
     this.animate(now, dt)
+    this.sampleFrame(dt)
     this.renderer.render(this.scene, this.camera)
   }
 

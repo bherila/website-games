@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { type BoardSize, localToWorld, placementWalls, type WorldWall } from '../../board/grid'
 import type { PiecePlacement } from '../../levels/levelTypes'
 import { PIECES, type Vec2 } from '../../pieces/pieceCatalog'
+import { markGlass } from '../glassQuality'
 import {
   FAMILY_COLORS,
   FIXED_PIECE_COLOR,
@@ -34,8 +35,8 @@ export interface TogglePaddle {
 }
 
 /** Glass for tubes and glass pieces: refractive and lightly tinted, like the marbles. */
-export function pieceGlassMaterial(tint: string, opacity = 1, attenuation = '#ffffff'): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({
+export function pieceGlassMaterial(tint: string, opacity = 1, attenuation = '#ffffff', liteOpacity = 0.6): THREE.MeshPhysicalMaterial {
+  return markGlass(new THREE.MeshPhysicalMaterial({
     color: tint,
     metalness: 0,
     roughness: 0.06,
@@ -49,7 +50,7 @@ export function pieceGlassMaterial(tint: string, opacity = 1, attenuation = '#ff
     transparent: opacity < 1,
     opacity,
     envMapIntensity: 1.2,
-  })
+  }), liteOpacity)
 }
 
 const FRONT_Z = (PIECE_DEPTH / 2) + 0.002

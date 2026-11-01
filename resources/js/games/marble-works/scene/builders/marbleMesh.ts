@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import { MARBLE_KINDS, type MarbleKind } from '../../physics/marbles'
+import { markGlass } from '../glassQuality'
 import { MARBLE_STYLES } from '../palette'
 
 export interface MarbleMesh {
@@ -17,7 +18,7 @@ export interface MarbleMesh {
  * reflections on top.
  */
 function glassMaterial(tint: string, attenuation: string): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({
+  return markGlass(new THREE.MeshPhysicalMaterial({
     color: tint,
     metalness: 0,
     roughness: 0.02,
@@ -30,7 +31,7 @@ function glassMaterial(tint: string, attenuation: string): THREE.MeshPhysicalMat
     clearcoatRoughness: 0.03,
     specularIntensity: 1,
     envMapIntensity: 1.4,
-  })
+  }), 0.55)
 }
 
 /** A cat's-eye vane set: thin coloured blades sealed inside the glass. */
