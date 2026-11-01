@@ -157,7 +157,7 @@ something); and a reference `solution`.
 | 9 | Wrong Order | Steel first, so glass track won't do: switch them | 6 |
 | 10 | Small Fry | Sieve | 2 |
 | 11 | Long Shot | One launcher, three weights, three distances | 3 |
-| 12 | Rendezvous | Two droppers, one basket, a funnel | 4 |
+| 12 | Rendezvous | Two walled shafts, one basket: only a Funnel catches both with one piece | 3 |
 | 13 | Launch Window | Launcher sorting with a bank shot | 5 |
 | 14 | Bounce House | One trampoline bounce: glass clears the wall, steel doesn't | 3 |
 | 15 | Switchyard | A tree of three switches for four marbles | 5 |

@@ -140,11 +140,13 @@ describe('MarbleWorksGame', () => {
     const cells = (scene().getAttribute('data-free-cells') ?? '').split(' ')
     // The 3-wide funnel centres on the tapped cell, so the edge columns can never host it…
     expect(cells).not.toContain('0,1')
-    expect(cells).not.toContain('7,1')
-    // …nor can a cell whose neighbour is a peg or a block.
-    expect(cells).not.toContain('4,3')
-    expect(cells).not.toContain('4,6')
-    expect(cells).toContain('3,1')
+    expect(cells).not.toContain('8,1')
+    // …nor can a cell whose neighbour is a block (the shaft walls).
+    expect(cells).not.toContain('3,4')
+    expect(cells).not.toContain('5,5')
+    expect(cells).toContain('4,1')
+    // The chamber above the basket is exactly a Funnel wide.
+    expect(cells).toContain('4,7')
   })
 
   it('rejects placements on blocked cells and shows a red ghost while dragging there', () => {
