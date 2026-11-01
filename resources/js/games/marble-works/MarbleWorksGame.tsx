@@ -325,6 +325,8 @@ export function MarbleWorksGame(): ReactElement {
     nextUidRef.current += 1
     const next = [...placements, { ...placement, uid }]
     updatePlacements(next)
+    // Select what just landed, so Rotate / Flip are one tap away while it is still in mind.
+    setSelectedUid(uid)
     if (remainingCount(level, next, placement.pieceId) <= 0) {
       setArmed(null)
       setHover(null)

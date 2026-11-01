@@ -18,7 +18,10 @@ Route `/marble-works` (`games.marble-works`), entrypoint
    piece: drag a card straight onto the board (the piece follows the cursor until it is over
    the board), or click a card and then the board. Touch does not drag out of the tray, so the
    tray strip still scrolls on phones.
-2. Tap a placed piece to select it. A floating bar offers **Rotate / Flip / Remove**.
+2. A piece is selected as soon as it is placed, and tapping a placed piece selects it. A
+   floating bar above it (below it on the top rows) offers **Rotate / Flip / Remove**. Rotate
+   and Flip draw the piece as it will look afterwards, are disabled with a "No room" tooltip
+   when that would not fit, and show their shortcuts (R, F, Delete) as tooltips.
    Dragging a placed piece moves it; dropping it on the tray removes it.
 3. **Go** builds the physics world from the level plus the placements and opens the
    droppers. **Stop** returns to Edit with every piece kept.
