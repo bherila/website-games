@@ -2,9 +2,9 @@
  * The Marble Works campaign: 19 levels in three acts.
  *
  * - Workshop (1–6): one idea per level — ramps, flips, bumpers, U-Turns, launchers, steel.
- * - Sorting (7–13): several marbles at once. Switches, glass track, sieves and launchers
- *   send different marbles different ways; baskets take one kind or a fixed count.
- * - Machines (14–19): every marble needs its own route through one build.
+ * - Sorting (7–14): several marbles at once. Switches, glass track, sieves, launchers and
+ *   trampolines send different marbles different ways; baskets take one kind or a fixed count.
+ * - Machines (15–19): every marble needs its own route through one build.
  *
  * Every level's `solution` is proven by `levelSolutions.test.ts` to win with every gem
  * within par. Levels were tuned with the shortcut finder (`scripts/marble-works/search.mjs`):
@@ -97,38 +97,40 @@ export const LEVELS: readonly LevelDef[] = [
     gems: [G(4, 0), G(8, 1)], inventory: { launcher: 1, 'ramp-steep': 3, 'track-short': 2, bumper: 1 }, par: 5,
     hint: 'One launcher, three marbles, three baskets.',
     solution: [P('ramp-steep', 1, 1), P('launcher', 3, 1), P('ramp-steep', 9, 0, 0, true), P('bumper', 5, 2, 1), P('ramp-steep', 8, 3)] },
+  { ...E, id: 14, title: 'Bounce House', cols: 10, rows: 9, droppers: [{ cell: G(0, 0), marbles: ['glass', 'steel'] }],
+    fixed: [P('curve', 0, 1)], baskets: [{ cell: G(8, 4), accepts: 'glass' }, { cell: G(2, 8), accepts: 'steel' }],
+    blocks: [{ col: 8, row: 5, w: 2, h: 4 }, { col: 7, row: 4, w: 1, h: 5 }, { col: 0, row: 2, w: 3, h: 2 }],
+    noBuild: [G(4, 0), G(4, 1), G(5, 2), G(4, 3), G(4, 4)], gems: [G(3, 7)],
+    inventory: { trampoline: 1, uturn: 1, 'track-short': 2, curve: 1, 'ramp-gentle': 1 }, par: 3,
+    hint: 'Steel bounces low, glass bounces high. Drop them far enough that only one clears the wall.',
+    autoHint: true,
+    solution: [P('trampoline', 5, 6), P('uturn', 6, 5, 0, true), P('track-short', 3, 7)] },
   // ---- Act 3: machines
-  { ...E, id: 14, title: 'Switchyard', cols: 9, rows: 9, droppers: [{ cell: G(4, 0), marbles: ['glass', 'glass', 'glass', 'glass'], interval: 2 }],
+  { ...E, id: 15, title: 'Switchyard', cols: 9, rows: 9, droppers: [{ cell: G(4, 0), marbles: ['glass', 'glass', 'glass', 'glass'], interval: 2 }],
     baskets: [{ cell: G(1, 8), capacity: 1 }, { cell: G(3, 8), capacity: 1 }, { cell: G(5, 8), capacity: 1 }, { cell: G(7, 8), capacity: 1 }],
     blocks: [{ col: 4, row: 5, w: 1, h: 4 }, { col: 2, row: 8, w: 1, h: 1 }, { col: 6, row: 8, w: 1, h: 1 }, { col: 0, row: 3, w: 1, h: 6 }, { col: 8, row: 3, w: 1, h: 6 }],
     noBuild: [G(4, 3), G(2, 5), G(2, 6), G(4, 1)], gems: [G(1, 5), G(5, 5)], inventory: { toggle: 3, 'ramp-steep': 4, 'track-short': 3 }, par: 5,
     hint: 'Four marbles, four baskets, three Switches.',
     solution: [P('toggle', 4, 2), P('ramp-steep', 5, 3), P('toggle', 6, 4), P('ramp-steep', 3, 3, 0, true), P('toggle', 2, 4, 0, true)] },
-  { ...E, id: 15, title: 'Sorting Office', cols: 8, rows: 9, droppers: [{ cell: G(0, 0), marbles: ['steel', 'mini', 'glass', 'mini'] }],
+  { ...E, id: 16, title: 'Sorting Office', cols: 8, rows: 9, droppers: [{ cell: G(0, 0), marbles: ['steel', 'mini', 'glass', 'mini'] }],
     fixed: [P('curve', 0, 1)], baskets: [{ cell: G(1, 8), accepts: 'mini', capacity: 2 }, { cell: G(4, 8), accepts: 'steel' }, { cell: G(7, 5), accepts: 'glass' }],
     blocks: [{ col: 7, row: 6, w: 1, h: 3 }, { col: 2, row: 8, w: 2, h: 1 }, { col: 5, row: 8, w: 2, h: 1 }], gems: [G(4, 4), G(6, 3)],
     inventory: { sieve: 1, toggle: 1, 'glass-track': 2, 'track-short': 3, 'ramp-steep': 4 }, par: 6,
     hint: 'Take the minis out first. Whatever is left takes turns.',
     solution: [P('sieve', 1, 1), P('track-short', 3, 1), P('track-short', 4, 1), P('toggle', 5, 2, 0, true), P('ramp-steep', 2, 2, 0, true), P('track-short', 3, 3)] },
-  { ...E, id: 16, title: 'Heavy Middle', cols: 9, rows: 10, droppers: [{ cell: G(4, 0), marbles: ['glass', 'steel', 'glass'] }],
+  { ...E, id: 17, title: 'Heavy Middle', cols: 9, rows: 10, droppers: [{ cell: G(4, 0), marbles: ['glass', 'steel', 'glass'] }],
     baskets: [{ cell: G(0, 9), accepts: 'glass', capacity: 2 }, { cell: G(8, 9), accepts: 'steel' }], noBuild: [G(4, 1)],
     blocks: [{ col: 2, row: 3, w: 5, h: 1 }, { col: 0, row: 6, w: 4, h: 1 }, { col: 5, row: 6, w: 4, h: 1 }, { col: 3, row: 8, w: 3, h: 2 }], gems: [G(1, 4), G(7, 4)],
     inventory: { toggle: 1, 'glass-track': 2, 'ramp-steep': 5, 'track-short': 3, 'track-long': 1 }, par: 7,
     hint: 'Glass, steel, glass. What else alternates?',
     solution: [P('toggle', 4, 2), P('ramp-steep', 8, 3, 0, true), P('ramp-steep', 0, 3), P('glass-track', 3, 5), P('track-long', 1, 8), P('track-short', 6, 8), P('track-short', 7, 8)] },
-  { ...E, id: 17, title: 'Glass Maze', cols: 7, rows: 9, droppers: [{ cell: G(3, 0), marbles: ['steel', 'glass', 'glass'] }],
+  { ...E, id: 18, title: 'Glass Maze', cols: 7, rows: 9, droppers: [{ cell: G(3, 0), marbles: ['steel', 'glass', 'glass'] }],
     fixed: [P('glass-pane', 1, 3), P('glass-pane', 5, 3), P('glass-track', 2, 5), P('glass-track', 4, 5), P('glass-pane', 3, 7)],
     baskets: [{ cell: G(0, 8), accepts: 'glass', capacity: 1 }, { cell: G(6, 8), accepts: 'glass', capacity: 1 }, { cell: G(3, 8), accepts: 'steel' }],
     blocks: [{ col: 1, row: 8, w: 1, h: 1 }, { col: 5, row: 8, w: 1, h: 1 }], noBuild: [G(3, 1)], gems: [G(2, 6), G(5, 6)],
     inventory: { toggle: 1, 'ramp-steep': 4, 'track-short': 3, bumper: 1 }, par: 6,
     hint: 'Let the steel ball smash a path for the glass marbles.',
     solution: [P('ramp-steep', 3, 4), P('bumper', 5, 6, 0, true), P('ramp-steep', 1, 5), P('toggle', 3, 6, 0, true), P('track-short', 2, 6), P('track-short', 4, 7)] },
-  { ...E, id: 18, title: 'Bounce House', cols: 8, rows: 8, droppers: [{ cell: G(1, 0), marbles: ['glass', 'steel'] }],
-    baskets: [{ cell: G(6, 5), accepts: 'glass' }, { cell: G(3, 7), accepts: 'steel' }],
-    blocks: [{ col: 5, row: 4, w: 1, h: 4 }, { col: 6, row: 6, w: 2, h: 2 }, { col: 0, row: 3, w: 2, h: 1 }], noBuild: [G(4, 4)], gems: [G(4, 2)],
-    inventory: { trampoline: 1, bumper: 2, 'ramp-steep': 2, 'track-short': 2 }, par: 6,
-    hint: 'Steel bounces low, glass bounces high.',
-    solution: [P('bumper', 1, 1, 1, true), P('bumper', 3, 4, 1, true), P('trampoline', 4, 3), P('ramp-steep', 5, 2), P('track-short', 3, 1), P('ramp-steep', 7, 4)] },
   { ...E, id: 19, title: 'Grand Machine', cols: 9, rows: 10, droppers: [{ cell: G(0, 0), marbles: ['glass', 'mini', 'steel', 'glass', 'mini'] }],
     fixed: [P('curve', 0, 1)], baskets: [{ cell: G(1, 9), accepts: 'mini', capacity: 2 }, { cell: G(4, 9), accepts: 'steel' }, { cell: G(8, 6), accepts: 'glass', capacity: 2 }],
     blocks: [{ col: 8, row: 7, w: 1, h: 3 }, { col: 2, row: 9, w: 2, h: 1 }, { col: 5, row: 9, w: 3, h: 1 }, { col: 3, row: 5, w: 4, h: 1 }],

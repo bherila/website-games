@@ -155,11 +155,11 @@ something); and a reference `solution`.
 | 11 | Long Shot | One launcher, three weights, three distances | 3 |
 | 12 | Rendezvous | Two droppers, one basket, a funnel | 4 |
 | 13 | Launch Window | Launcher sorting with a bank shot | 5 |
-| 14 | Switchyard | A tree of three switches for four marbles | 5 |
-| 15 | Sorting Office | Sieve the minis, then switch steel from glass | 6 |
-| 16 | Heavy Middle | Glass, steel, glass: a switch sorts them | 7 |
-| 17 | Glass Maze | Steel smashes a path for the glass marbles | 6 |
-| 18 | Bounce House | Steel bounces low, glass high | 6 |
+| 14 | Bounce House | One trampoline bounce: glass clears the wall, steel doesn't | 3 |
+| 15 | Switchyard | A tree of three switches for four marbles | 5 |
+| 16 | Sorting Office | Sieve the minis, then switch steel from glass | 6 |
+| 17 | Heavy Middle | Glass, steel, glass: a switch sorts them | 7 |
+| 18 | Glass Maze | Steel smashes a path for the glass marbles | 6 |
 | 19 | Grand Machine | Sieve, switch and routing for five marbles | 8 |
 
 ### Shortcut finder
