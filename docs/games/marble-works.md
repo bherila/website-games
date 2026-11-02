@@ -257,7 +257,8 @@ client). The original campaign's `v1` local key is not read.
   `layout.test.ts`, `runOutcome.test.ts`, `pieceMesh.test.ts`, and the React tests (the scene
   is mocked).
 - `tests/e2e/marble-works.spec.ts` (`pnpm run test:e2e:marble-works`): builds and wins the
-  tutorial in a real browser and checks the board fits the viewport. It is not part of the PR
+  tutorial in a real browser, checks the board fits the viewport, and checks at iPad landscape
+  size that the tray's cards are large, clear of the screen edge and all fit without scrolling. It is not part of the PR
   gate.
 - `tests/Feature/MarbleWorksGamePageTest.php`, plus the level-24/25 bounds in
   `GameDataApiTest` and the campaign-revision rule in `tests/Unit/GameDataMergerTest.php`.
