@@ -6,6 +6,7 @@ const ALL_GAMES = [
   ['/parking-pickup', '#cars-game-root'],
   ['/marble-sort', '#marble-sort-root'],
   ['/marble-works', '#marble-works-root'],
+  ['/tower-defense', '#tower-defense-root'],
   ['/block-blaster', '#block-blaster-root'],
   ['/hover', '#hover-game-root'],
   ['/chicks-challenge', '#chicks-game-root'],

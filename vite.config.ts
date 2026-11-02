@@ -30,6 +30,7 @@ export default defineConfig({
         'resources/js/games/chicks-challenge/index.tsx',
         'resources/js/games/tower-throwback/index.tsx',
         'resources/js/games/tower-2/index.tsx',
+        'resources/js/games/tower-defense/index.tsx',
         'resources/js/games/mandarin/index.tsx',
         'resources/js/games/2048/index.tsx',
         'resources/js/games/game-select/index.tsx',
