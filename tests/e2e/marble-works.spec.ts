@@ -61,4 +61,23 @@ test.describe('Marble Works', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect(overflow).toBeLessThanOrEqual(1)
   })
+
+  test.describe('on an iPad', () => {
+    test.use({ viewport: { width: 1180, height: 820 }, hasTouch: true })
+
+    test('the tray cards are big, clear of the screen edge, and all fit in landscape', async ({ page }) => {
+      await page.goto('/marble-works?level=19')
+      await expect(page.getByTestId('marble-works-canvas')).toBeVisible()
+      const tray = page.getByTestId('piece-tray')
+      expect(await tray.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(0)
+      const cards = tray.getByRole('button')
+      expect(await cards.count()).toBeGreaterThan(0)
+      for (const card of await cards.all()) {
+        const box = await card.boundingBox()
+        expect(box?.x).toBeGreaterThanOrEqual(16)
+        expect(box?.width).toBeGreaterThanOrEqual(88)
+        expect(box?.height).toBeGreaterThanOrEqual(96)
+      }
+    })
+  })
 })
