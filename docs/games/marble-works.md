@@ -222,7 +222,9 @@ camera looking head-on at the board.
 - **Effects:** a smashed glass piece bursts into tumbling, seeded shards
   (`scene/effects/shards.ts`); a collected gem pops in a small burst; a switch's paddle
   swings between its two poses.
-- **Tray:** a strip along the bottom in portrait, and a left column at `md` and wider.
+- **Tray:** a strip along the bottom in portrait, and a left column at `md` and wider. The
+  column's cards are larger and sit at least 20 px in from the screen edge (or the safe area,
+  if that is more), because a tablet's edge swipes and case lip swallow touches right at it.
 - **Chrome:** the shared `GameBottomToolbar` (Levels, Clear, Go/Stop, Fullscreen),
   `LevelSelectGrid` and `TapHint`.
 - **Reduced motion:** with `prefers-reduced-motion`, the trail, confetti, basket wobble and
