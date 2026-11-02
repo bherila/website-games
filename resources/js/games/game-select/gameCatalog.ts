@@ -17,6 +17,8 @@ import { loadProgress as loadMathHordeProgress } from '../math-horde/gameProgres
 import { TOTAL_LEVELS as MATH_HORDE_TOTAL_LEVELS } from '../math-horde/gameTypes'
 import { loadProgress as loadPlateEscapeProgress } from '../plate-escape/gameProgress'
 import { LEVELS as PLATE_ESCAPE_LEVELS } from '../plate-escape/level'
+import { loadProgress as loadTowerDefenseProgress } from '../tower-defense/gameProgress'
+import { TOTAL_LEVELS as TOWER_DEFENSE_TOTAL_LEVELS } from '../tower-defense/levels'
 import { loadProgress as loadTowerProgress } from '../tower-throwback/gameProgress'
 import { TOTAL_MILESTONES as TOWER_TOTAL_LEVELS } from '../tower-throwback/gameTypes'
 
@@ -122,6 +124,16 @@ const CATALOG: GameCatalogEntry[] = [
     href: '/marble-works',
     totalLevels: MARBLE_WORKS_TOTAL_LEVELS,
     loadProgress: () => loadMarbleWorksProgress(),
+  },
+  {
+    kind: 'levels',
+    slug: 'tower-defense',
+    title: 'Tower Defense',
+    emoji: '🏰',
+    description: 'Run your hero around the field to build towers and mazes, collect the gold, and hold back wave after wave.',
+    href: '/tower-defense',
+    totalLevels: TOWER_DEFENSE_TOTAL_LEVELS,
+    loadProgress: () => loadTowerDefenseProgress(),
   },
   {
     kind: 'levels',

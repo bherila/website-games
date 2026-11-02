@@ -369,6 +369,24 @@ class GameDataApiTest extends TestCase
             ->assertJsonPath('data.slot', '12');
     }
 
+    public function test_tower_defense_accepts_only_its_campaign_levels(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-defense/data/level/8', [
+                'data' => ['version' => 1, 'stars' => 3],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.game', GameSlug::TowerDefense->value);
+
+        $this->actingAs($user)
+            ->putJson('/api/games/tower-defense/data/level/9', [
+                'data' => ['version' => 1, 'stars' => 3],
+            ])
+            ->assertUnprocessable();
+    }
+
     public function test_marble_works_accepts_its_final_campaign_level(): void
     {
         $this->actingAs(User::factory()->create())

@@ -3,10 +3,11 @@ import { SFX_RECIPES as chicks } from '../../../chicks-challenge/audio/sfx'
 import { SFX_RECIPES as hover } from '../../../hover/audio/sfx'
 import { SFX_RECIPES as mathHorde } from '../../../math-horde/audio/sfx'
 import { PLATE_SOUNDS } from '../../../plate-escape/sfx'
+import { SFX_RECIPES as towerDefense } from '../../../tower-defense/audio/sfx'
 import type { SynthRecipe } from '../synthSfx'
 import { recordRecipe } from './recipeHarness'
 
-const games: Record<string, Record<string, SynthRecipe>> = { '2048': twenty48, chicks, hover, 'math-horde': mathHorde, 'plate-escape': PLATE_SOUNDS }
+const games: Record<string, Record<string, SynthRecipe>> = { '2048': twenty48, chicks, hover, 'math-horde': mathHorde, 'plate-escape': PLATE_SOUNDS, 'tower-defense': towerDefense }
 const cases = Object.entries(games).flatMap(([game, recipes]) => Object.entries(recipes).map(([name, recipe]) => [game, name, recipe] as const))
 
 test.each(cases)('%s %s makes an audible, bounded sound at any intensity', (_game, _name, recipe) => {

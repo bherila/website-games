@@ -20,6 +20,7 @@ enum GameSlug: string
     case TwentyFortyEight = '2048';
     case MarbleWorks = 'marble-works';
     case Tower2 = 'tower-2';
+    case TowerDefense = 'tower-defense';
 
     public function supports(GameDataScope $scope, string $slot): bool
     {
@@ -68,6 +69,7 @@ enum GameSlug: string
             self::PlateEscape => 30,
             self::MathHorde => 12,
             self::MarbleWorks => 24,
+            self::TowerDefense => 8,
             default => 25,
         };
 

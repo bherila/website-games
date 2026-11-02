@@ -84,6 +84,10 @@ Route::get('/marble-works', function () {
     return view('games.marble-works');
 })->name('games.marble-works');
 
+Route::get('/tower-defense', function () {
+    return view('games.tower-defense');
+})->name('games.tower-defense');
+
 Route::view('/plate-escape', 'games.plate-escape')->name('games.plate-escape');
 
 Route::get('/block-blaster', function () {
