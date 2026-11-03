@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { ELEMENTS, HERO_UPGRADES, MAX_TIER, TOWERS, towerStats, upgradeCost } from '../catalog'
 import { sellValue } from '../gameEngine'
 import type { Building, HeroUpgrade, HudSnapshot } from '../gameTypes'
+import { GameIcon, INLINE_ICON } from './GameIcon'
 
 function PanelShell({ title, onClose, children, testId }: { title: ReactNode; onClose: () => void; children: ReactNode; testId: string }): ReactElement {
   return (
@@ -40,10 +41,10 @@ export function BuildingPanel({ building, gold, upgradeQueued, onUpgrade, onSell
   const element = def.element ? ELEMENTS[def.element] : null
 
   return (
-    <PanelShell title={<>{def.symbol} {def.name} · tier {building.tier}/{MAX_TIER}</>} testId="building-panel" onClose={onClose}>
+    <PanelShell title={<><GameIcon className={INLINE_ICON} name={building.tower} /> {def.name} · tier {building.tier}/{MAX_TIER}</>} testId="building-panel" onClose={onClose}>
       <p className="mb-2 text-xs text-slate-300">
         {def.blurb}
-        {element && <> Strong against {ELEMENTS[element.strongAgainst].symbol} {ELEMENTS[element.strongAgainst].name}.</>}
+        {element && <> Strong against <GameIcon className={INLINE_ICON} name={element.strongAgainst} /> {ELEMENTS[element.strongAgainst].name}.</>}
       </p>
       <dl className="mb-2 flex gap-3 text-xs font-bold tabular-nums">
         <div><dt className="text-slate-400">Health</dt><dd>{Math.ceil(building.hp)}/{building.maxHp}{next && <span className="text-emerald-300"> → {next.hp}</span>}</dd></div>
@@ -83,7 +84,7 @@ interface HeroPanelProps {
 
 export function HeroPanel({ hud, onBuy, onClose }: HeroPanelProps): ReactElement {
   return (
-    <PanelShell title="🛠️ Hero upgrades" testId="hero-panel" onClose={onClose}>
+    <PanelShell title={<><GameIcon className={INLINE_ICON} name="boots" /> Hero upgrades</>} testId="hero-panel" onClose={onClose}>
       <div className="flex flex-col gap-2">
         {(Object.keys(HERO_UPGRADES) as HeroUpgrade[]).map((id) => {
           const def = HERO_UPGRADES[id]
@@ -99,7 +100,7 @@ export function HeroPanel({ hud, onBuy, onClose }: HeroPanelProps): ReactElement
               type="button"
               onClick={() => onBuy(id)}
             >
-              <span aria-hidden="true" className="text-2xl">{def.symbol}</span>
+              <GameIcon className="size-9" name={id} />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-black">{def.name} · level {level}/{def.costs.length}</span>
                 <span className="block truncate text-xs text-slate-300">{def.blurb}</span>

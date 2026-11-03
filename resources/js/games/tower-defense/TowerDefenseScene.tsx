@@ -73,6 +73,8 @@ export function TowerDefenseScene({ state, active, speed, overlayRef, playSfx, o
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
+    renderer.toneMapping = THREE.NeutralToneMapping
+    renderer.toneMappingExposure = 1.05
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFShadowMap
     renderer.domElement.dataset.testid = 'tower-defense-canvas'
@@ -82,12 +84,13 @@ export function TowerDefenseScene({ state, active, speed, overlayRef, playSfx, o
     renderer.domElement.style.touchAction = 'none'
     container.appendChild(renderer.domElement)
 
-    scene.add(new THREE.HemisphereLight(theme.ambient, theme.rim, 1.15))
-    const sun = new THREE.DirectionalLight(theme.sunlight, 2)
+    // A bright bounce from the ground keeps the shaded sides of models clay-soft, not black.
+    scene.add(new THREE.HemisphereLight(theme.ambient, theme.groundLight, 1.45))
+    const sun = new THREE.DirectionalLight(theme.sunlight, 2.1)
     sun.position.set((COLS / 2) - 10, 26, (ROWS / 2) + 8)
     sun.target.position.set(COLS / 2, 0, ROWS / 2)
     sun.castShadow = true
-    sun.shadow.mapSize.set(1024, 1024)
+    sun.shadow.mapSize.set(2048, 2048)
     sun.shadow.camera.left = -18
     sun.shadow.camera.right = 18
     sun.shadow.camera.top = 18
@@ -248,10 +251,10 @@ export function TowerDefenseScene({ state, active, speed, overlayRef, playSfx, o
       }
 
       const overlay = overlayRef.current
-      terrainView.update(state, now / 1000, overlay.tool !== null, reducedMotion)
+      terrainView.update(state, camera, now / 1000, overlay.tool !== null, reducedMotion)
       buildingView.update(state, overlay, now / 1000, reducedMotion)
       unitView.update(state, camera, reducedMotion, overlay.heroSelected)
-      effects.update(frameDelta)
+      effects.update(frameDelta, camera)
       renderer.render(scene, camera)
 
       if (state.status !== 'playing' && !finished) {
@@ -276,5 +279,10 @@ export function TowerDefenseScene({ state, active, speed, overlayRef, playSfx, o
     }
   }, [state, overlayRef])
 
-  return <div className="absolute inset-0 overflow-hidden" data-testid="tower-defense-scene" ref={containerRef} />
+  return (
+    <div className="absolute inset-0 overflow-hidden" data-testid="tower-defense-scene" ref={containerRef}>
+      {/* Darkens the screen's edges to draw the eye to the board; pointers pass straight through. */}
+      <div aria-hidden="true" style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 68%, rgba(0,0,0,0.16) 100%)' }} />
+    </div>
+  )
 }

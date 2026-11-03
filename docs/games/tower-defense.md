@@ -56,24 +56,75 @@ card, N sends the next wave, Space pauses, Escape clears the selection. A hidden
 allows levels 1-8 and profile `default`. A run in progress is not saved; reloading returns to
 level select, as in Math Horde.
 
+## Art
+
+`docs/games/tower-defense-concept.webp` is the target look: warm, chunky, toy-like low poly. New models
+and themes should match it. Everything on the board is drawn in code, not from image files:
+
+- `scene/models.ts`: towers, walls and enemies. A tower's body is lit; its flame, crystal or orb is a
+  separate unlit `towerGlowGeometry`, so it stays bright in every theme and can animate.
+- `scene/groundPaint.ts`: paints each level's ground and shores once into one canvas texture. Detail
+  has to be bold and have no "up", because wide screens turn the board on its side.
+- `scene/water.ts`: animated water and lava in one shader. Its mask matches the holes cut in the land.
+- `scene/terrainView.ts`: scenery placement, the keep, portals and the dirt path that follows the route.
+- `scene/themes.ts`: every colour for the five themes.
+
+`ui/icons/*.webp` are generated images (192 px, transparent), shown through `ui/GameIcon.tsx`. They came
+from an image model working from the concept sheet, in one consistent style: chunky low-poly 3D,
+three-quarter view, one bold centred subject filling about 80% of the frame, soft top light, readable at
+48 pixels. Add a new tower's icon the same way, and check it at 48 pixels.
+
 ## Testing
 
 - `__tests__/gameEngine.test.ts`: every rule above, headlessly.
 - `__tests__/levels.test.ts`: map validity, the difficulty curve and balance. `__tests__/pilot.ts`
-  is a plain player that drives only the public commands. It never mazes or matches elements, so
-  "it can win every level" leaves a real player headroom, and "doing nothing loses by wave 5"
-  shows the threat is real. Changing `catalog.ts` or the wave curve should re-run these.
+  is a scripted player that drives only the public commands. By default it never mazes or matches
+  elements, so "it can win every level" leaves a real player headroom, and "doing nothing loses by
+  wave 5" shows the threat is real. Changing `catalog.ts` or the wave curve should re-run these.
 - `__tests__/TowerDefenseGame.test.tsx`: pointer handling, panels, overlays and saved progress.
 - `tests/e2e/tower-defense.spec.ts`: real browser journeys at desktop, phone and iPad sizes.
+
+## Flyers against walkers
+
+Walkers test total damage, because a longer maze gives every tower more time to shoot. Flyers test
+coverage of the straight line to the keep, because walls do nothing to them. The pilot's `style`
+option measures both, and each run returns `leaks`, `routeLength` and `flightCoverage`:
+
+- `plain` builds no maze and covers the route and the flight line.
+- `maze-ignoring-flyers` builds wall barriers and aims every tower at the walkers.
+- `maze-covering-flyers` builds the same barriers and gives every third tower to the flight line.
+
+Lives lost to flyers per run, averaged over seeds 1-5 at current balance:
+
+| Level | `plain` | `maze-ignoring-flyers` | `maze-covering-flyers` |
+|---|---|---|---|
+| 1 Meadow Pass | 0 | 0 | 0 |
+| 2 Twin Creeks | 0 | 0.6 | 0 |
+| 3 Stone Garden | 0 | 0 (4 of 5 runs lost by wave 7) | 0 |
+| 4 Two Gates | 0 | 3 | 1 |
+| 5 Frozen Switchback | 0 | 6.2 | 3.6 (2 of 5 runs lost at wave 10) |
+| 6 Glacier Lake | 0 | 0 | 0 |
+| 7 Cinder Crossing | 0 | 6.2 | 3.2 |
+| 8 The Last Keep | 0 | 0.8 (1 of 5 runs lost at wave 18) | 0 (3 of 5 runs lost at wave 18) |
+
+A run lost early misses its level's later flyer waves (7, 12 and 17), so Stone Garden and Frozen
+Switchback undercount. Trust the flyer columns more than the mazing styles' total lives: these pilots lay out barriers by route length
+alone, so they often move walkers away from their own towers, and they do worse than `plain` on
+some levels. That says more about their skill than about mazing.
+
+Tuning target, not yet met or enforced: covering the line leaks almost nothing, and ignoring it
+costs a good share of lives without ending the run. Flyer count sets the most a player can lose,
+flyer health sets how much coverage they need, and speed barely matters. `hpScale` and `countScale`
+apply to every enemy, so tuning flyers per level needs a new field.
 
 ## Picking this up later
 
 ### Status
 
-Shipped in #235. Everything above is implemented and tested, but **nobody had played a full
-level by hand when it merged**, so the balance below comes only from the scripted pilot. The
-first job of any iteration is to ask how it felt on a real device. The iPad layout has only run
-in Chromium at iPad size, not on an iPad.
+Shipped in #235, with its current look from #238. Everything above is implemented and tested, but
+**nobody had played a full level by hand when these merged**, so the balance below comes only from
+the scripted pilot. The first job of any iteration is to ask how it felt on a real device. The iPad
+layout and the new graphics have only run in Chromium at iPad size, not on an iPad.
 
 ### Where to change what
 
@@ -83,7 +134,7 @@ in Chromium at iPad size, not on an iPad.
 | Coin lifetime, wave timers, build reach, repair, sweep radius | constants at the top of `gameEngine.ts` |
 | Wave size, health curve, coin curve, which enemies come when | `buildWaves` and the patterns in `levels.ts` |
 | A map, its starting gold, its difficulty, its element picks | `LEVELS` in `levels.ts` |
-| Models and colours | `scene/models.ts`, `scene/themes.ts` |
+| Models, ground, water and colours | See "Art" above |
 | What a tap or drag means | `handlePointer` in `TowerDefenseGame.tsx` |
 | Camera angle and fit | `scene/boardCamera.ts` (the e2e helper `cellPoint` reuses it) |
 | HUD, tray, panels, overlays | `ui/` |
@@ -125,14 +176,14 @@ order of the pilot's purchases.
 
 How to read it:
 
-- The pilot never mazes or matches elements, so its result is a floor, not the difficulty a
-  person will feel. Levels 1 to 3 are probably too easy for anyone who mazes.
+- The default pilot never mazes or matches elements, so its result is a floor, not the difficulty a
+  person will feel. The maze styles under "Flyers against walkers" do maze, but not well. Levels 1 to 3 are probably too easy for anyone who mazes.
 - Levels are not in strict order for the pilot. Glacier Lake is the hardest for it because its two
   routes around the lake are nearly equal, so a tower can flip the route away from the others.
   A person can see that on the route arrows; check by hand before easing it further.
 - Results are chaotic: a small number change can swing a level by many lives. Compare across
   seeds with `runPilot(level, { seed })` before trusting one run. `runPilot` also takes
-  `maxTowers`, `coinEffort`, `thinkSeconds`, `elements` and `callWavesEarly`.
+  `style`, `maxTowers`, `coinEffort`, `thinkSeconds`, `elements` and `callWavesEarly`.
 - If a tuning change fails the "can be won" test, first check whether the pilot or the level is
   at fault. Every early failure of this kind was the pilot's: chasing coins starved its build
   queue, and it ignored the flyers' straight line.
@@ -148,8 +199,6 @@ How to read it:
 - **Enemy health needs a floor of 1.** At 0 an enemy can never be killed and the level never ends.
 - **`GamePwaTest` pins the number of app shortcuts,** so filtering local PHPUnit to
   `GamePwaRoutes` misses it. Run `--filter=GamePwa`.
-- **Tray icons are emoji, which are blank in headless Chromium here** because it has no emoji font.
-  Screenshots from this machine do not show them, so check icons on a real device.
 
 ### Running it
 

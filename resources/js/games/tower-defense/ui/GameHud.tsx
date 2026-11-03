@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 
 import { ELEMENTS, elementWeakTo, ENEMIES } from '../catalog'
 import type { HudSnapshot, WaveDef } from '../gameTypes'
+import { GameIcon, INLINE_ICON } from './GameIcon'
 
 interface GameHudProps {
   title: string
@@ -44,8 +45,8 @@ export function GameHud({ title, hud }: GameHudProps): ReactElement {
           <>
             <span className={cn('shrink-0 rounded-full px-1.5 font-black', wave.boss ? 'bg-rose-600 text-white' : 'bg-slate-700 text-slate-100')}>{wave.boss ? 'BOSS' : 'NEXT'}</span>
             {hud.nextWaveIn !== null && <span className="shrink-0 font-black tabular-nums text-amber-200">{Math.ceil(hud.nextWaveIn)}s</span>}
-            <span className="truncate">{element && <span>{element.symbol} {element.name} </span>}{waveSummary(wave)}</span>
-            {element && counter && <span className="shrink-0 text-emerald-300">· {ELEMENTS[counter].symbol} beats it</span>}
+            <span className="truncate">{element && <span><GameIcon className={INLINE_ICON} name={element.id} /> {element.name} </span>}{waveSummary(wave)}</span>
+            {element && counter && <span className="shrink-0 text-emerald-300">· <GameIcon className={INLINE_ICON} name={counter} /> beats it</span>}
           </>
         ) : (
           <span>Final wave. Hold the keep!</span>
