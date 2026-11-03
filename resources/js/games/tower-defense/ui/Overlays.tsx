@@ -1,8 +1,9 @@
-import { ArrowRight, Grid3x3, Play, RotateCcw, Star, Trophy, X } from 'lucide-react'
+import { ArrowRight, ArrowUpCircle, Grid3x3, Play, RotateCcw, Star, Trophy, X } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 
 import { ELEMENT_IDS, ELEMENTS, elementWeakTo, TOWERS } from '../catalog'
 import type { ElementId, WaveDef } from '../gameTypes'
+import { GameIcon, INLINE_ICON } from './GameIcon'
 
 function Overlay({ children, label }: { children: ReactNode; label: string }): ReactElement {
   return (
@@ -26,11 +27,11 @@ function ActionButton({ children, label, onClick, primary = false }: { children:
 }
 
 export function TutorialOverlay({ onStart }: { onStart: () => void }): ReactElement {
-  const steps: readonly (readonly [string, string])[] = [
-    ['🏹', 'Pick a tower or wall from the tray, then tap the ground. Your hero runs over and builds it.'],
-    ['🧱', 'Enemies follow the arrows to your keep. Build walls to make their path longer. Block it completely and they will smash their way through.'],
-    ['🪙', 'Defeated enemies drop gold coins. Tap near them so your hero collects them before they fade.'],
-    ['⬆️', 'Tap a tower to upgrade or sell it. Waves get tougher, so spend your gold well!'],
+  const steps: readonly (readonly [ReactElement, string])[] = [
+    [<GameIcon className="size-8" key="arrow" name="arrow" />, 'Pick a tower or wall from the tray, then tap the ground. Your hero runs over and builds it.'],
+    [<GameIcon className="size-8" key="wall" name="wall" />, 'Enemies follow the arrows to your keep. Build walls to make their path longer. Block it completely and they will smash their way through.'],
+    [<GameIcon className="size-8" key="magnet" name="magnet" />, 'Defeated enemies drop gold coins. Tap near them so your hero collects them before they fade.'],
+    [<ArrowUpCircle aria-hidden="true" className="size-8 shrink-0 text-emerald-300" key="upgrade" />, 'Tap a tower to upgrade or sell it. Waves get tougher, so spend your gold well!'],
   ]
 
   return (
@@ -39,8 +40,8 @@ export function TutorialOverlay({ onStart }: { onStart: () => void }): ReactElem
         <h2 className="text-center text-2xl font-black">Defend the keep</h2>
         <ul className="mt-3 flex flex-col gap-2.5 text-sm leading-5 text-slate-200">
           {steps.map(([icon, text]) => (
-            <li className="flex gap-2.5" key={icon}>
-              <span aria-hidden="true" className="text-xl">{icon}</span>
+            <li className="flex items-start gap-2.5 text-slate-200" key={text}>
+              {icon}
               <span>{text}</span>
             </li>
           ))}
@@ -129,7 +130,7 @@ export function ElementPickOverlay({ unlocked, nextWave, onPick }: ElementPickOv
         <h2 className="text-center text-xl font-black">Choose an element</h2>
         <p className="mt-1 text-center text-xs text-slate-300">
           It unlocks a new tower.
-          {nextWave?.element && <> The next wave is {ELEMENTS[nextWave.element].symbol} {ELEMENTS[nextWave.element].name}.</>}
+          {nextWave?.element && <> The next wave is <GameIcon className={INLINE_ICON} name={nextWave.element} /> {ELEMENTS[nextWave.element].name}.</>}
         </p>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {options.map((element) => {
@@ -144,14 +145,14 @@ export function ElementPickOverlay({ unlocked, nextWave, onPick }: ElementPickOv
                 type="button"
                 onClick={() => onPick(element)}
               >
-                <span aria-hidden="true" className="text-2xl leading-none">{def.symbol}</span>
+                <GameIcon className="size-9" name={def.tower} />
                 <span className="min-w-0">
                   <span className="block text-sm font-black">
                     {tower.name}
                     {counter === element && <span className="ml-1.5 rounded-full bg-emerald-500 px-1.5 text-[10px] font-black text-emerald-950">beats next wave</span>}
                   </span>
                   <span className="block text-xs leading-4 text-slate-300">{tower.blurb}</span>
-                  <span className="block text-[11px] font-bold text-emerald-300">Strong against {ELEMENTS[def.strongAgainst].symbol} {ELEMENTS[def.strongAgainst].name}</span>
+                  <span className="block text-[11px] font-bold text-emerald-300">Strong against <GameIcon className={INLINE_ICON} name={def.strongAgainst} /> {ELEMENTS[def.strongAgainst].name}</span>
                 </span>
               </button>
             )

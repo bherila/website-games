@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 import { TOWERS,towerStats } from '../catalog'
 import type { Building, GameState, Plan, TowerId } from '../gameTypes'
-import { towerGeometry } from './models'
+import { towerGeometry, towerGlowGeometry } from './models'
 
 export interface BoardOverlay {
   /** The armed build tool. */
@@ -13,8 +13,13 @@ export interface BoardOverlay {
   heroSelected: boolean
 }
 
+/** Towers stand a little over their cell: they read at phone size, and the camera looks down on them. */
+const TOWER_SCALE = 1.14
+
 interface BuildingEntry {
   mesh: THREE.Mesh
+  /** The tower's unlit bright parts: flame, crystal or orb. */
+  glow: THREE.Mesh | null
   tier: number
   tower: TowerId
 }
@@ -25,6 +30,7 @@ export interface BuildingView {
 
 export function createBuildingView(scene: THREE.Scene): BuildingView {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, flatShading: true })
+  const glowMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })
   const ghostMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.55, roughness: 0.8, flatShading: true, depthWrite: false })
   const entries = new Map<number, BuildingEntry>()
   const planMeshes = new Map<number, THREE.Mesh>()
@@ -73,25 +79,57 @@ export function createBuildingView(scene: THREE.Scene): BuildingView {
     ;(rangeFill.material as THREE.MeshBasicMaterial).color.setHex(color)
   }
 
-  function syncBuilding(building: Building, reducedMotion: boolean): void {
+  function addGlow(entry: BuildingEntry, tier: number): void {
+    if (entry.glow) {
+      entry.mesh.remove(entry.glow)
+      entry.glow = null
+    }
+    const geometry = towerGlowGeometry(entry.tower, tier)
+    if (geometry) {
+      entry.glow = new THREE.Mesh(geometry, glowMaterial)
+      entry.mesh.add(entry.glow)
+    }
+  }
+
+  function animateGlow(entry: BuildingEntry, building: Building, time: number): void {
+    const glow = entry.glow
+    if (!glow) {
+      return
+    }
+    const phase = time + (building.id * 1.7)
+    if (building.tower === 'ember') {
+      const flicker = 1 + (Math.sin(phase * 11) * 0.07) + (Math.sin(phase * 17) * 0.05)
+      glow.scale.set(flicker, 1, flicker)
+    } else if (building.tower !== 'frost') {
+      glow.position.y = Math.sin(phase * 1.8) * 0.045
+    }
+  }
+
+  function syncBuilding(building: Building, time: number, reducedMotion: boolean): void {
     let entry = entries.get(building.id)
     if (!entry) {
       const mesh = new THREE.Mesh(towerGeometry(building.tower, building.tier), material)
       mesh.castShadow = true
       mesh.receiveShadow = true
       scene.add(mesh)
-      entry = { mesh, tier: building.tier, tower: building.tower }
+      entry = { mesh, glow: null, tier: building.tier, tower: building.tower }
+      addGlow(entry, building.tier)
       entries.set(building.id, entry)
     }
     if (entry.tier !== building.tier) {
       entry.tier = building.tier
       entry.mesh.geometry = towerGeometry(building.tower, building.tier)
+      addGlow(entry, building.tier)
+    }
+    if (!reducedMotion) {
+      animateGlow(entry, building, time)
     }
     // It rises out of the ground as the hero works, and shudders when struck.
     const rise = 0.15 + (0.85 * building.progress)
     const shake = !reducedMotion && building.hitAge < 0.15 ? Math.sin(building.hitAge * 90) * 0.04 : 0
     entry.mesh.position.set(building.col + 0.5 + shake, 0, building.row + 0.5)
-    entry.mesh.scale.set(1, rise, 1)
+    const size = building.tower === 'wall' ? 1 : TOWER_SCALE
+    entry.mesh.scale.set(size, rise * size, size)
     if (TOWERS[building.tower].damage > 0) {
       entry.mesh.rotation.y = Math.atan2(Math.cos(building.aim), Math.sin(building.aim))
     }
@@ -122,7 +160,7 @@ export function createBuildingView(scene: THREE.Scene): BuildingView {
       const live = new Set<number>()
       for (const building of state.buildings) {
         live.add(building.id)
-        syncBuilding(building, reducedMotion)
+        syncBuilding(building, time, reducedMotion)
       }
       for (const [id, entry] of entries) {
         if (!live.has(id)) {

@@ -3,7 +3,6 @@ import type { ElementId, EnemyKind, HeroUpgrade, TowerId } from './gameTypes'
 export interface ElementDef {
   id: ElementId
   name: string
-  symbol: string
   color: number
   /** The element it deals bonus damage to. */
   strongAgainst: ElementId
@@ -12,12 +11,12 @@ export interface ElementDef {
 
 // The strength cycle: each element beats the next and loses to the previous.
 export const ELEMENTS: Record<ElementId, ElementDef> = {
-  fire: { id: 'fire', name: 'Fire', symbol: '🔥', color: 0xf97316, strongAgainst: 'nature', tower: 'ember' },
-  nature: { id: 'nature', name: 'Nature', symbol: '🌿', color: 0x22c55e, strongAgainst: 'earth', tower: 'thorn' },
-  earth: { id: 'earth', name: 'Earth', symbol: '🪨', color: 0xa16207, strongAgainst: 'light', tower: 'boulder' },
-  light: { id: 'light', name: 'Light', symbol: '☀️', color: 0xfacc15, strongAgainst: 'dark', tower: 'sun' },
-  dark: { id: 'dark', name: 'Dark', symbol: '🌑', color: 0x8b5cf6, strongAgainst: 'water', tower: 'hex' },
-  water: { id: 'water', name: 'Water', symbol: '💧', color: 0x38bdf8, strongAgainst: 'fire', tower: 'frost' },
+  fire: { id: 'fire', name: 'Fire', color: 0xf97316, strongAgainst: 'nature', tower: 'ember' },
+  nature: { id: 'nature', name: 'Nature', color: 0x22c55e, strongAgainst: 'earth', tower: 'thorn' },
+  earth: { id: 'earth', name: 'Earth', color: 0xa16207, strongAgainst: 'light', tower: 'boulder' },
+  light: { id: 'light', name: 'Light', color: 0xfacc15, strongAgainst: 'dark', tower: 'sun' },
+  dark: { id: 'dark', name: 'Dark', color: 0x8b5cf6, strongAgainst: 'water', tower: 'hex' },
+  water: { id: 'water', name: 'Water', color: 0x38bdf8, strongAgainst: 'fire', tower: 'frost' },
 }
 
 export const ELEMENT_IDS: readonly ElementId[] = ['fire', 'water', 'nature', 'earth', 'light', 'dark']
@@ -44,7 +43,6 @@ export function elementWeakTo(element: ElementId): ElementId {
 export interface TowerDef {
   id: TowerId
   name: string
-  symbol: string
   element: ElementId | null
   /** One line for the build and upgrade panels. */
   blurb: string
@@ -73,39 +71,39 @@ export interface TowerDef {
 
 export const TOWERS: Record<TowerId, TowerDef> = {
   wall: {
-    id: 'wall', name: 'Wall', symbol: '🧱', element: null, blurb: 'Cheap blocker. Bends the path, soaks up attacks.',
+    id: 'wall', name: 'Wall', element: null, blurb: 'Cheap blocker. Bends the path, soaks up attacks.',
     costs: [4, 10, 24], hp: 90, buildSeconds: 0.3, range: 0, damage: 0, cooldown: 0, splash: 0, hitsAir: false, projectileSpeed: 0,
   },
   arrow: {
-    id: 'arrow', name: 'Arrow Tower', symbol: '🏹', element: null, blurb: 'Quick single shots. Hits ground and air.',
+    id: 'arrow', name: 'Arrow Tower', element: null, blurb: 'Quick single shots. Hits ground and air.',
     costs: [30, 36, 80], hp: 70, buildSeconds: 0.9, range: 3.5, damage: 10, cooldown: 0.7, splash: 0, hitsAir: true, projectileSpeed: 11,
   },
   ember: {
-    id: 'ember', name: 'Ember Tower', symbol: '🔥', element: 'fire', blurb: 'Fireballs that splash and set enemies alight.',
+    id: 'ember', name: 'Ember Tower', element: 'fire', blurb: 'Fireballs that splash and set enemies alight.',
     costs: [50, 60, 130], hp: 70, buildSeconds: 1, range: 3.2, damage: 13, cooldown: 1.05, splash: 0.9, hitsAir: true, projectileSpeed: 8,
     burn: { dps: 6, seconds: 2 },
   },
   frost: {
-    id: 'frost', name: 'Frost Tower', symbol: '💧', element: 'water', blurb: 'Chills a small area, slowing everything in it.',
+    id: 'frost', name: 'Frost Tower', element: 'water', blurb: 'Chills a small area, slowing everything in it.',
     costs: [45, 54, 120], hp: 70, buildSeconds: 1, range: 3.2, damage: 7, cooldown: 1, splash: 1, hitsAir: true, projectileSpeed: 8,
     slow: { factor: 0.55, seconds: 1.6 },
   },
   thorn: {
-    id: 'thorn', name: 'Thorn Tower', symbol: '🌿', element: 'nature', blurb: 'Poison stacks with every hit. Long reach.',
+    id: 'thorn', name: 'Thorn Tower', element: 'nature', blurb: 'Poison stacks with every hit. Long reach.',
     costs: [50, 60, 130], hp: 70, buildSeconds: 1, range: 3.9, damage: 5, cooldown: 0.65, splash: 0, hitsAir: true, projectileSpeed: 10,
     poison: { dps: 3.2, seconds: 3, maxStacks: 6 },
   },
   boulder: {
-    id: 'boulder', name: 'Boulder Tower', symbol: '🪨', element: 'earth', blurb: 'Heavy, slow, huge splash. Ground only. Tough.',
+    id: 'boulder', name: 'Boulder Tower', element: 'earth', blurb: 'Heavy, slow, huge splash. Ground only. Tough.',
     costs: [65, 78, 170], hp: 150, buildSeconds: 1.2, range: 3.1, damage: 34, cooldown: 1.9, splash: 1.25, hitsAir: false, projectileSpeed: 7,
   },
   sun: {
-    id: 'sun', name: 'Sun Spire', symbol: '☀️', element: 'light', blurb: 'An instant beam that leaps between enemies.',
+    id: 'sun', name: 'Sun Spire', element: 'light', blurb: 'An instant beam that leaps between enemies.',
     costs: [70, 84, 180], hp: 70, buildSeconds: 1.2, range: 4.4, damage: 15, cooldown: 0.95, splash: 0, hitsAir: true, projectileSpeed: 0,
     chain: 3,
   },
   hex: {
-    id: 'hex', name: 'Hex Obelisk', symbol: '🌑', element: 'dark', blurb: 'Hunts the toughest enemy and tears away its health.',
+    id: 'hex', name: 'Hex Obelisk', element: 'dark', blurb: 'Hunts the toughest enemy and tears away its health.',
     costs: [80, 96, 210], hp: 70, buildSeconds: 1.2, range: 3.6, damage: 34, cooldown: 1.7, splash: 0, hitsAir: true, projectileSpeed: 12,
     currentHpDamage: 0.05, targetsToughest: true,
   },
@@ -177,14 +175,13 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
 export interface HeroUpgradeDef {
   id: HeroUpgrade
   name: string
-  symbol: string
   blurb: string
   costs: readonly number[]
 }
 
 export const HERO_UPGRADES: Record<HeroUpgrade, HeroUpgradeDef> = {
-  boots: { id: 'boots', name: 'Swift Boots', symbol: '🥾', blurb: 'The hero runs faster.', costs: [40, 90, 180] },
-  magnet: { id: 'magnet', name: 'Coin Magnet', symbol: '🧲', blurb: 'Coins fly to the hero from further away.', costs: [30, 70, 150] },
+  boots: { id: 'boots', name: 'Swift Boots', blurb: 'The hero runs faster.', costs: [40, 90, 180] },
+  magnet: { id: 'magnet', name: 'Coin Magnet', blurb: 'Coins fly to the hero from further away.', costs: [30, 70, 150] },
 }
 
 export const HERO_BASE_SPEED = 4.2

@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { ENEMIES, heroMagnet } from '../catalog'
 import { COIN_LIFETIME_SECONDS, COIN_SETTLE_SECONDS, COIN_WARNING_SECONDS } from '../gameEngine'
 import { COLS, type Enemy, type EnemyKind, type GameState } from '../gameTypes'
+import { createGlowMaterial } from './glow'
 import { enemyGeometry } from './models'
 import { ball, box, cone, cylinder, mergeParts, part } from './parts'
 import { ELEMENT_TINT, TOWER_SHOT_COLOR } from './themes'
@@ -65,6 +66,12 @@ export function createUnitView(scene: THREE.Scene): UnitView {
   shots.frustumCulled = false
   shots.count = 0
   scene.add(shots)
+  // A soft halo around every shot, so it reads as light against any ground.
+  const halos = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), createGlowMaterial(), SHOT_CAPACITY)
+  halos.frustumCulled = false
+  halos.count = 0
+  halos.renderOrder = 6
+  scene.add(halos)
 
   // The hero: bright blue with a gold helmet and a hammer, standing on a beacon so it is never lost.
   const heroMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, flatShading: true })
@@ -206,6 +213,7 @@ export function createUnitView(scene: THREE.Scene): UnitView {
       coins.instanceMatrix.needsUpdate = true
 
       let shotCount = 0
+      let haloCount = 0
       for (const shot of state.projectiles) {
         if (shotCount >= SHOT_CAPACITY) {
           break
@@ -219,12 +227,25 @@ export function createUnitView(scene: THREE.Scene): UnitView {
         dummy.updateMatrix()
         shots.setMatrixAt(shotCount, dummy.matrix)
         shots.setColorAt(shotCount, color.setHex(TOWER_SHOT_COLOR[shot.tower] ?? 0xffffff))
+        if (shot.tower !== 'boulder') {
+          dummy.quaternion.copy(camera.quaternion)
+          dummy.scale.setScalar(0.62 * (1 + ((shot.tier - 1) * 0.2)))
+          dummy.updateMatrix()
+          halos.setMatrixAt(haloCount, dummy.matrix)
+          halos.setColorAt(haloCount, color)
+          haloCount += 1
+        }
         shotCount += 1
       }
       shots.count = shotCount
       shots.instanceMatrix.needsUpdate = true
       if (shots.instanceColor) {
         shots.instanceColor.needsUpdate = true
+      }
+      halos.count = haloCount
+      halos.instanceMatrix.needsUpdate = true
+      if (halos.instanceColor) {
+        halos.instanceColor.needsUpdate = true
       }
 
       const heroState = state.hero

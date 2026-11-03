@@ -2,21 +2,24 @@ import * as THREE from 'three'
 
 import { TOWERS } from '../catalog'
 import type { GameEvent } from '../gameTypes'
+import { createGlowMaterial } from './glow'
 import { TOWER_SHOT_COLOR } from './themes'
 
 const RING_POOL = 40
 const SPARK_POOL = 220
 const BEAM_POOL = 36
+const FLASH_POOL = 40
 
 interface Ring { x: number; z: number; age: number; life: number; radius: number; color: number; active: boolean }
 interface Spark { x: number; y: number; z: number; vx: number; vy: number; vz: number; age: number; life: number; size: number; color: number; active: boolean }
+interface Flash { x: number; z: number; age: number; life: number; size: number; color: number; active: boolean }
 interface Beam { ax: number; az: number; bx: number; bz: number; age: number; active: boolean }
 
 const BEAM_LIFE = 0.13
 
 export interface Effects {
   handle: (events: readonly GameEvent[]) => void
-  update: (frameDelta: number) => void
+  update: (frameDelta: number, camera: THREE.Camera) => void
 }
 
 export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effects {
@@ -33,10 +36,21 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
   const beamMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xfff7a8 }), BEAM_POOL)
   beamMesh.frustumCulled = false
   scene.add(beamMesh)
+  // Light around beams and impacts; these draw additively, so they brighten what's beneath them.
+  const beamGlow = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), BEAM_POOL)
+  beamGlow.frustumCulled = false
+  scene.add(beamGlow)
+  const flashMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), createGlowMaterial(), FLASH_POOL)
+  flashMesh.frustumCulled = false
+  flashMesh.renderOrder = 6
+  flashMesh.count = 0
+  scene.add(flashMesh)
 
   const rings: Ring[] = Array.from({ length: RING_POOL }, () => ({ x: 0, z: 0, age: 0, life: 1, radius: 1, color: 0xffffff, active: false }))
   const sparks: Spark[] = Array.from({ length: SPARK_POOL }, () => ({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, age: 0, life: 1, size: 1, color: 0xffffff, active: false }))
   const beams: Beam[] = Array.from({ length: BEAM_POOL }, () => ({ ax: 0, az: 0, bx: 0, bz: 0, age: 0, active: false }))
+  const flashes: Flash[] = Array.from({ length: FLASH_POOL }, () => ({ x: 0, z: 0, age: 0, life: 1, size: 1, color: 0xffffff, active: false }))
+  let nextFlash = 0
   let nextRing = 0
   let nextSpark = 0
   let nextBeam = 0
@@ -46,6 +60,14 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
     nextRing = (nextRing + 1) % RING_POOL
     if (ring) {
       Object.assign(ring, { x, z, radius, color: ringColor, life, age: 0, active: true })
+    }
+  }
+
+  function addFlash(x: number, z: number, size: number, flashColor: number, life = 0.18): void {
+    const flash = flashes[nextFlash]
+    nextFlash = (nextFlash + 1) % FLASH_POOL
+    if (flash) {
+      Object.assign(flash, { x, z, size, color: flashColor, life, age: 0, active: true })
     }
   }
 
@@ -84,6 +106,7 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
               addRing(event.x, event.y, event.splash, TOWER_SHOT_COLOR[event.tower] ?? 0xffffff)
             }
             addSparks(event.x, event.y, event.tower === 'boulder' ? 6 : 2, TOWER_SHOT_COLOR[event.tower] ?? 0xffffff)
+            addFlash(event.x, event.y, 0.7 + (event.splash * 1.2), TOWER_SHOT_COLOR[event.tower] ?? 0xffffff)
             break
           case 'beam':
             for (let index = 0; index < event.points.length - 1; index += 1) {
@@ -98,6 +121,7 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
             break
           case 'death':
             addSparks(event.x, event.y, event.kind === 'boss' ? 26 : 7, 0xfde68a)
+            addFlash(event.x, event.y, event.kind === 'boss' ? 3.4 : 1.2, 0xfde68a, event.kind === 'boss' ? 0.4 : 0.22)
             if (event.kind === 'boss') {
               addRing(event.x, event.y, 2, 0xfde68a, 0.6)
             }
@@ -112,6 +136,7 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
           case 'upgraded':
             addRing(event.x, event.y, 1, 0xfacc15, 0.5)
             addSparks(event.x, event.y, 12, 0xfacc15)
+            addFlash(event.x, event.y, 1.8, 0xfacc15, 0.35)
             break
           case 'sold':
             addSparks(event.x, event.y, 6, 0xfbbf24)
@@ -128,7 +153,32 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
         }
       }
     },
-    update(frameDelta) {
+    update(frameDelta, camera) {
+      let flashCount = 0
+      for (const flash of flashes) {
+        if (!flash.active) {
+          continue
+        }
+        flash.age += frameDelta
+        if (flash.age >= flash.life) {
+          flash.active = false
+          continue
+        }
+        const remaining = 1 - (flash.age / flash.life)
+        dummy.position.set(flash.x, 0.55, flash.z)
+        dummy.quaternion.copy(camera.quaternion)
+        dummy.scale.setScalar(flash.size * (0.7 + (0.3 * remaining)))
+        dummy.updateMatrix()
+        flashMesh.setMatrixAt(flashCount, dummy.matrix)
+        flashMesh.setColorAt(flashCount, color.setHex(flash.color).multiplyScalar(remaining))
+        flashCount += 1
+      }
+      flashMesh.count = flashCount
+      flashMesh.instanceMatrix.needsUpdate = true
+      if (flashMesh.instanceColor) {
+        flashMesh.instanceColor.needsUpdate = true
+      }
+
       let ringCount = 0
       for (const ring of rings) {
         if (!ring.active) {
@@ -199,10 +249,15 @@ export function createEffects(scene: THREE.Scene, reducedMotion: boolean): Effec
         dummy.scale.set(length, thick, thick)
         dummy.updateMatrix()
         beamMesh.setMatrixAt(beamCount, dummy.matrix)
+        dummy.scale.set(length, thick * 3.5, thick * 3.5)
+        dummy.updateMatrix()
+        beamGlow.setMatrixAt(beamCount, dummy.matrix)
         beamCount += 1
       }
       beamMesh.count = beamCount
       beamMesh.instanceMatrix.needsUpdate = true
+      beamGlow.count = beamCount
+      beamGlow.instanceMatrix.needsUpdate = true
     },
   }
 }
