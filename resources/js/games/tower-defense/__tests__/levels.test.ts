@@ -86,6 +86,26 @@ describe('balance, played headlessly', () => {
     expect(last.state.status).toBe('lost')
   })
 
+  it('counts every life lost as a flyer or walker leak', () => {
+    const level = LEVELS[3] ?? LEVELS[0]!
+    const { state, leaks } = runPilot(level, { style: 'maze-ignoring-flyers' })
+    expect(state.lives).toBeLessThan(state.maxLives)
+    expect(leaks.flyerLives + leaks.walkerLives).toBe(state.maxLives - state.lives)
+  })
+
+  // Walls stretch the walk but not the flight, which is why flyers are balanced separately.
+  it.each([LEVELS[4], LEVELS[6]].map((level) => [level?.title, level ?? LEVELS[0]!] as const))('%s: a maze stretches the walk and covering the flight line stops more flyers', (_title, level) => {
+    const plain = runPilot(level)
+    const ignoring = runPilot(level, { style: 'maze-ignoring-flyers' })
+    const covering = runPilot(level, { style: 'maze-covering-flyers' })
+    expect(ignoring.routeLength).toBeGreaterThan(plain.routeLength * 1.2)
+    expect(Number.isFinite(covering.routeLength)).toBe(true)
+    expect(plain.leaks.flyers).toBe(0)
+    expect(ignoring.leaks.flyers).toBeGreaterThan(0)
+    expect(covering.leaks.flyers).toBeLessThan(ignoring.leaks.flyers)
+    expect(covering.flightCoverage).toBeGreaterThanOrEqual(ignoring.flightCoverage)
+  })
+
   it('collecting coins matters: a hero who ignores them does worse', () => {
     const level = LEVELS[3] ?? LEVELS[0]!
     const diligent = runPilot(level)

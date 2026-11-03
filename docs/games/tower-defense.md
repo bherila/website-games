@@ -78,8 +78,41 @@ three-quarter view, one bold centred subject filling about 80% of the frame, sof
 
 - `__tests__/gameEngine.test.ts`: every rule above, headlessly.
 - `__tests__/levels.test.ts`: map validity, the difficulty curve and balance. `__tests__/pilot.ts`
-  is a plain player that drives only the public commands. It never mazes or matches elements, so
-  "it can win every level" leaves a real player headroom, and "doing nothing loses by wave 5"
-  shows the threat is real. Changing `catalog.ts` or the wave curve should re-run these.
+  is a scripted player that drives only the public commands. By default it never mazes or matches
+  elements, so "it can win every level" leaves a real player headroom, and "doing nothing loses by
+  wave 5" shows the threat is real. Changing `catalog.ts` or the wave curve should re-run these.
 - `__tests__/TowerDefenseGame.test.tsx`: pointer handling, panels, overlays and saved progress.
 - `tests/e2e/tower-defense.spec.ts`: real browser journeys at desktop, phone and iPad sizes.
+
+## Flyers against walkers
+
+Walkers test total damage, because a longer maze gives every tower more time to shoot. Flyers test
+coverage of the straight line to the keep, because walls do nothing to them. The pilot's `style`
+option measures both, and each run returns `leaks`, `routeLength` and `flightCoverage`:
+
+- `plain` builds no maze and covers the route and the flight line.
+- `maze-ignoring-flyers` builds wall barriers and aims every tower at the walkers.
+- `maze-covering-flyers` builds the same barriers and gives every third tower to the flight line.
+
+Lives lost to flyers per run, averaged over seeds 1-5 at current balance:
+
+| Level | `plain` | `maze-ignoring-flyers` | `maze-covering-flyers` |
+|---|---|---|---|
+| 1 Meadow Pass | 0 | 0 | 0 |
+| 2 Twin Creeks | 0 | 0.6 | 0 |
+| 3 Stone Garden | 0 | 0 (4 of 5 runs lost by wave 7) | 0 |
+| 4 Two Gates | 0 | 3 | 1 |
+| 5 Frozen Switchback | 0 | 6.2 | 3.6 (2 of 5 runs lost at wave 10) |
+| 6 Glacier Lake | 0 | 0 | 0 |
+| 7 Cinder Crossing | 0 | 6.2 | 3.2 |
+| 8 The Last Keep | 0 | 0.8 (1 of 5 runs lost at wave 18) | 0 (3 of 5 runs lost at wave 18) |
+
+A run lost early misses its level's later flyer waves (7, 12 and 17), so Stone Garden and Frozen
+Switchback undercount. Trust the flyer columns more than the mazing styles' total lives: these pilots lay out barriers by route length
+alone, so they often move walkers away from their own towers, and they do worse than `plain` on
+some levels. That says more about their skill than about mazing.
+
+Tuning target, not yet met or enforced: covering the line leaks almost nothing, and ignoring it
+costs a good share of lives without ending the run. Flyer count sets the most a player can lose,
+flyer health sets how much coverage they need, and speed barely matters. `hpScale` and `countScale`
+apply to every enemy, so tuning flyers per level needs a new field.
