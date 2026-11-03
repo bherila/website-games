@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 import { ELEMENTS, TOWERS } from '../catalog'
 import type { HudSnapshot, TowerId } from '../gameTypes'
+import { GameIcon } from './GameIcon'
 
 interface BuildTrayProps {
   hud: HudSnapshot
@@ -43,7 +44,7 @@ export function BuildTray({ hud, tool, heroOpen, disabled, onTool, onHero }: Bui
         type="button"
         onClick={onHero}
       >
-        <span aria-hidden="true" className="text-2xl leading-none md:text-3xl">🛠️</span>
+        <GameIcon className="size-9 md:size-11" name="boots" />
         <span className="w-full truncate text-center text-[10px] font-bold leading-tight md:text-xs">Hero</span>
       </button>
       {towers.map((tower, index) => {
@@ -67,7 +68,7 @@ export function BuildTray({ hud, tool, heroOpen, disabled, onTool, onHero }: Bui
             type="button"
             onClick={() => onTool(tower)}
           >
-            <span aria-hidden="true" className={cn('text-2xl leading-none md:text-3xl', !affordable && 'opacity-40 grayscale')}>{def.symbol}</span>
+            <GameIcon className={cn('size-9 md:size-11', !affordable && 'opacity-40 grayscale')} name={tower} />
             <span className="w-full truncate text-center text-[10px] font-bold leading-tight md:text-xs">{def.name.replace(' Tower', '')}</span>
             <span className={cn('rounded-full px-1.5 text-[11px] font-black leading-4 tabular-nums', affordable ? 'bg-amber-400 text-amber-950' : 'bg-slate-600 text-slate-200')}>{cost}</span>
           </button>

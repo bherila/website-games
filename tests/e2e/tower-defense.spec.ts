@@ -56,6 +56,9 @@ test.describe('Tower Defense', () => {
     await expect(page.getByTestId('gold')).toHaveText('100')
     const play = page.getByTestId('tower-defense-play')
 
+    // The tray's art really loaded; a bad path would still leave a working, blank button.
+    await expect.poll(() => page.getByTestId('tray-arrow').locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
+
     // Three arrow towers around the middle of the board, beside the walkers' route.
     await page.getByTestId('tray-arrow').click()
     for (const [x, y] of [[0.2, 0], [-0.2, 0.08], [0.2, 0.16]] as const) {

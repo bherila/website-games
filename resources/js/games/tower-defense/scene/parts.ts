@@ -24,14 +24,54 @@ export function part(geometry: THREE.BufferGeometry, color: number, position: re
   return piece
 }
 
+/** Darkens a model towards its feet, which grounds it the way real occlusion would, for free. */
+function shadeByHeight(geometry: THREE.BufferGeometry): void {
+  geometry.computeBoundingBox()
+  const bounds = geometry.boundingBox
+  const span = bounds ? bounds.max.y - bounds.min.y : 0
+  if (!bounds || span <= 0) {
+    return
+  }
+  const position = geometry.getAttribute('position')
+  const color = geometry.getAttribute('color')
+  for (let index = 0; index < position.count; index += 1) {
+    const shade = 0.82 + (0.26 * ((position.getY(index) - bounds.min.y) / span))
+    color.setXYZ(index, color.getX(index) * shade, color.getY(index) * shade, color.getZ(index) * shade)
+  }
+}
+
+/** Bakes a little light into each facet, so unlit glowing parts still show their shape. */
+export function bakeFacets(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  const position = geometry.getAttribute('position')
+  const color = geometry.getAttribute('color')
+  const light = new THREE.Vector3(-0.4, 0.8, 0.45).normalize()
+  const a = new THREE.Vector3()
+  const b = new THREE.Vector3()
+  const c = new THREE.Vector3()
+  for (let index = 0; index + 2 < position.count; index += 3) {
+    a.fromBufferAttribute(position, index)
+    b.fromBufferAttribute(position, index + 1)
+    c.fromBufferAttribute(position, index + 2)
+    const shade = 0.6 + (Math.max(0, b.sub(a).cross(c.sub(a)).normalize().dot(light)) * 0.55)
+    for (let corner = index; corner < index + 3; corner += 1) {
+      color.setXYZ(corner, color.getX(corner) * shade, color.getY(corner) * shade, color.getZ(corner) * shade)
+    }
+  }
+
+  return geometry
+}
+
 /** Merges parts into one geometry that draws in a single call. */
-export function mergeParts(parts: readonly THREE.BufferGeometry[]): THREE.BufferGeometry {
+export function mergeParts(parts: readonly THREE.BufferGeometry[], shaded = true): THREE.BufferGeometry {
   const merged = mergeGeometries([...parts], false)
   for (const piece of parts) {
     piece.dispose()
   }
   if (!merged) {
     throw new Error('Tower Defense: model parts could not be merged')
+  }
+  if (shaded) {
+    shadeByHeight(merged)
   }
   merged.computeBoundingSphere()
 

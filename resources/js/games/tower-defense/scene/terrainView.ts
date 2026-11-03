@@ -3,11 +3,15 @@ import * as THREE from 'three'
 import { previewPaths } from '../gameEngine'
 import { COLS, type GameState, ROWS, type Terrain } from '../gameTypes'
 import { cellIndex } from '../pathfinding'
-import { ball, box, cone, cylinder, mergeParts, part } from './parts'
+import { createDiscTexture, createGlowMaterial, createSwirlTexture } from './glow'
+import { paintBoard, paintSurroundings } from './groundPaint'
+import { ball, box, cone, crystal, cylinder, mergeParts, part } from './parts'
+import { addScenery, SURROUNDINGS_LEVEL } from './scenery'
 import { THEMES } from './themes'
+import { createWater } from './water'
 
 const PATH_MARKERS = 150
-const SCENERY_COUNT = 90
+const DIRT_DECALS = 720
 
 function jitter(col: number, row: number): number {
   const value = Math.sin((col * 127.1) + (row * 311.7)) * 43758.5453
@@ -16,7 +20,7 @@ function jitter(col: number, row: number): number {
 }
 
 export interface TerrainView {
-  update: (state: GameState, time: number, showGrid: boolean, reducedMotion: boolean) => void
+  update: (state: GameState, camera: THREE.Camera, time: number, showGrid: boolean, reducedMotion: boolean) => void
 }
 
 export function createTerrainView(scene: THREE.Scene, state: GameState): TerrainView {
@@ -25,7 +29,7 @@ export function createTerrainView(scene: THREE.Scene, state: GameState): Terrain
   const dummy = new THREE.Object3D()
   const tint = new THREE.Color()
 
-  // The land itself: one instanced slab per cell, checkered faintly so cells can be read.
+  // The land's thickness: its sides show as banks along every stretch of water.
   const counts: Partial<Record<Terrain, number>> = {}
   for (const terrain of state.terrain) {
     counts[terrain] = (counts[terrain] ?? 0) + 1
@@ -48,65 +52,57 @@ export function createTerrainView(scene: THREE.Scene, state: GameState): Terrain
           ? theme.rock
           : isWater
             ? theme.waterGlow
-            : (col + row) % 2 === 0 ? theme.groundA : theme.groundB
+            : theme.shore
       tint.setHex(base).offsetHSL(0, 0, (jitter(col, row) - 0.5) * 0.025)
       tiles.setColorAt(cellIndex(col, row), tint)
     }
   }
   scene.add(tiles)
 
-  // A rim under the board, wide enough to fill the screen at any aspect ratio.
-  const rim = new THREE.Mesh(new THREE.BoxGeometry(COLS + 60, 0.4, ROWS + 60), new THREE.MeshStandardMaterial({ color: theme.rim, roughness: 1 }))
-  rim.position.set(COLS / 2, -0.62, ROWS / 2)
+  // The painted surface: all the ground detail in one texture and one draw call.
+  const boardTexture = paintBoard(state, theme)
+  const land = new THREE.Mesh(
+    new THREE.PlaneGeometry(COLS, ROWS),
+    boardTexture
+      ? new THREE.MeshStandardMaterial({ map: boardTexture, alphaTest: 0.5, roughness: 1 })
+      : new THREE.MeshStandardMaterial({ color: theme.groundA, transparent: true, opacity: 0, roughness: 1 }),
+  )
+  land.rotation.x = -Math.PI / 2
+  land.position.set(COLS / 2, 0.002, ROWS / 2)
+  land.receiveShadow = true
+  scene.add(land)
+
+  // The land beyond the board, wide enough to fill the screen at any aspect ratio.
+  const surroundings = paintSurroundings(theme)
+  if (surroundings) {
+    surroundings.repeat.set((COLS + 60) / 12, (ROWS + 60) / 12)
+  }
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(COLS + 60, 0.4, ROWS + 60), new THREE.MeshStandardMaterial({ color: surroundings ? 0xffffff : theme.rim, map: surroundings, roughness: 1 }))
+  rim.position.set(COLS / 2, SURROUNDINGS_LEVEL - 0.2, ROWS / 2)
   rim.receiveShadow = true
   scene.add(rim)
 
-  const edgeMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.rim).offsetHSL(0, 0, -0.08), roughness: 1 })
-  for (const [w, d, x, z] of [[COLS + 0.5, 0.25, COLS / 2, -0.12], [COLS + 0.5, 0.25, COLS / 2, ROWS + 0.12], [0.25, ROWS, -0.12, ROWS / 2], [0.25, ROWS, COLS + 0.12, ROWS / 2]] as const) {
-    const edge = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), edgeMaterial)
-    edge.position.set(x, -0.2, z)
+  // A low lip of darker ground marks where the buildable board ends.
+  const edgeMaterial = new THREE.MeshStandardMaterial({ color: theme.groundDark, roughness: 1 })
+  for (const [w, d, x, z] of [[COLS + 0.36, 0.18, COLS / 2, -0.09], [COLS + 0.36, 0.18, COLS / 2, ROWS + 0.09], [0.18, ROWS, -0.09, ROWS / 2], [0.18, ROWS, COLS + 0.09, ROWS / 2]] as const) {
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(w, 0.26, d), edgeMaterial)
+    edge.position.set(x, -0.1, z)
+    edge.receiveShadow = true
     scene.add(edge)
   }
 
-  // Scenery beyond the board fills the rest of a wide screen and frames the field.
-  const scenery = mergeParts(state.level.theme === 'meadow' || state.level.theme === 'tundra'
-    ? [
-        part(cylinder(0.08, 0.11, 0.4, 5), 0x5e3c1b, [0, 0.2, 0]),
-        part(cone(0.42, 0.7, 6), theme.rock === 0x7b7f86 ? 0x2f6b34 : 0x4f7f6b, [0, 0.66, 0]),
-        part(cone(0.32, 0.56, 6), theme.rock === 0x7b7f86 ? 0x3a8240 : 0x6b9a88, [0, 1.02, 0]),
-      ]
-    : [part(ball(0.42, 0), theme.rock, [0, 0.2, 0], [0.4, 0.2, 0], [1.15, 0.8, 1.05]), part(ball(0.22, 0), theme.rockTop, [0.2, 0.38, 0.12])])
-  const sceneryMesh = new THREE.InstancedMesh(scenery, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }), SCENERY_COUNT)
-  sceneryMesh.castShadow = true
-  for (let index = 0; index < SCENERY_COUNT; index += 1) {
-    // Scatter on a jittered grid around the board, skipping the board itself and its edge.
-    const u = jitter(index, 3)
-    const v = jitter(7, index)
-    let x = (u * (COLS + 34)) - 17
-    let z = (v * (ROWS + 34)) - 17
-    if (x > -1 && x < COLS + 1 && z > -1 && z < ROWS + 1) {
-      if (u < 0.5) {
-        x = -1.6 - (u * 12)
-      } else {
-        x = COLS + 1.6 + ((u - 0.5) * 12)
-      }
-      z = (v * (ROWS + 6)) - 3
-    }
-    dummy.position.set(x, -0.42, z)
-    dummy.rotation.set(0, jitter(index, index) * Math.PI * 2, 0)
-    dummy.scale.setScalar(0.8 + (jitter(index, 11) * 0.7))
-    dummy.updateMatrix()
-    sceneryMesh.setMatrixAt(index, dummy.matrix)
-  }
-  scene.add(sceneryMesh)
+  addScenery(scene, state.level.theme, theme)
 
   // Rocks are irregular lumps, so they read as immovable next to the tidy buildings.
   const rockGeometry = mergeParts([
-    part(ball(0.42, 0), theme.rock, [0, 0.26, 0], [0.3, 0.4, 0], [1.1, 0.95, 1.1]),
-    part(ball(0.27, 0), theme.rockTop, [0.12, 0.56, -0.06], [0.7, 0, 0.3]),
+    part(ball(0.42, 0), theme.rock, [0, 0.24, 0], [0.3, 0.4, 0], [1.14, 0.85, 1.1]),
+    part(ball(0.3, 0), theme.rockTop, [0.1, 0.5, -0.06], [0.7, 0, 0.3], [1, 0.8, 1]),
+    part(ball(0.17, 0), theme.rock, [-0.28, 0.14, 0.24], [0.2, 0.9, 0]),
+    part(ball(0.12, 0), theme.rockTop, [0.32, 0.1, 0.26], [0.9, 0.2, 0]),
   ])
   const rocks = new THREE.InstancedMesh(rockGeometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }), Math.max(1, counts.rock ?? 0))
   rocks.castShadow = true
+  rocks.receiveShadow = true
   rocks.count = 0
   for (let row = 0; row < ROWS; row += 1) {
     for (let col = 0; col < COLS; col += 1) {
@@ -115,7 +111,7 @@ export function createTerrainView(scene: THREE.Scene, state: GameState): Terrain
       }
       dummy.position.set(col + 0.5, 0, row + 0.5)
       dummy.rotation.set(0, jitter(col, row) * Math.PI * 2, 0)
-      const size = 0.9 + (jitter(row, col) * 0.2)
+      const size = 0.95 + (jitter(row, col) * 0.2)
       dummy.scale.set(size, size, size)
       dummy.updateMatrix()
       rocks.setMatrixAt(rocks.count, dummy.matrix)
@@ -124,48 +120,104 @@ export function createTerrainView(scene: THREE.Scene, state: GameState): Terrain
   }
   scene.add(rocks)
 
-  const water = new THREE.Mesh(
-    new THREE.PlaneGeometry(COLS, ROWS),
-    new THREE.MeshStandardMaterial({ color: theme.water, emissive: theme.waterGlow, emissiveIntensity: state.level.theme === 'ember' ? 1.6 : 0.4, roughness: 0.35, metalness: 0.1 }),
-  )
-  water.rotation.x = -Math.PI / 2
-  water.position.set(COLS / 2, -0.16, ROWS / 2)
-  water.visible = (counts.water ?? 0) > 0
-  scene.add(water)
+  const water = createWater(scene, state, theme, state.level.theme === 'ember')
 
-  // Spawns: a dark gateway enemies climb out of.
-  const portals: THREE.Mesh[] = []
+  // Spawns: an upright stone ring around a swirling gateway, turned to face the player.
+  const portals: THREE.Group[] = []
+  const swirls: THREE.Mesh[] = []
+  const portalGlows: THREE.Mesh[] = []
+  const portalGlowMaterial = createGlowMaterial()
+  portalGlowMaterial.color.setHex(0x6d28d9)
+  const swirlMaterial = new THREE.MeshBasicMaterial({ map: createSwirlTexture(), toneMapped: false, color: 0xffffff })
+  const PORTAL_STONES = 9
+  const portalRing = mergeParts([
+    ...Array.from({ length: PORTAL_STONES }, (_, index) => {
+      const angle = (index / PORTAL_STONES) * Math.PI * 2
+
+      return part(box(0.24, 0.3, 0.24), index % 2 === 0 ? theme.rockTop : theme.rock, [Math.cos(angle) * 0.52, 0.62 + (Math.sin(angle) * 0.52), 0], [0, 0, angle + (Math.PI / 2)])
+    }),
+    part(box(1.05, 0.14, 0.42), theme.rock, [0, 0.07, 0]),
+    part(crystal(0.1), 0xf59e0b, [0.46, 0.2, 0.08], [0, 0, 0], [0.8, 1.6, 0.8]),
+    part(crystal(0.09), 0xf59e0b, [-0.46, 0.18, 0.08], [0, 0, 0], [0.8, 1.6, 0.8]),
+  ])
+  const portalMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true })
   for (const { col, row } of state.spawns) {
-    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.46, 20), new THREE.MeshBasicMaterial({ color: 0x1e1033 }))
-    hole.rotation.x = -Math.PI / 2
-    hole.position.set(col + 0.5, 0.02, row + 0.5)
-    scene.add(hole)
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.06, 6, 20), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7c3aed, emissiveIntensity: 0.9 }))
-    ring.rotation.x = -Math.PI / 2
-    ring.position.set(col + 0.5, 0.05, row + 0.5)
-    scene.add(ring)
-    portals.push(ring)
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.9), portalGlowMaterial)
+    glow.rotation.x = -Math.PI / 2
+    glow.position.set(col + 0.5, 0.02, row + 0.5)
+    glow.renderOrder = 1
+    scene.add(glow)
+    portalGlows.push(glow)
+    const portal = new THREE.Group()
+    portal.position.set(col + 0.5, 0, row + 0.5)
+    const leaning = new THREE.Group()
+    // Leaning back keeps the ring round from the board's high camera.
+    leaning.rotation.x = -0.5
+    leaning.position.z = -0.1
+    const ring = new THREE.Mesh(portalRing, portalMaterial)
+    ring.castShadow = true
+    const swirl = new THREE.Mesh(new THREE.CircleGeometry(0.46, 24), swirlMaterial)
+    swirl.position.set(0, 0.62, 0.01)
+    leaning.add(ring, swirl)
+    portal.add(leaning)
+    scene.add(portal)
+    portals.push(portal)
+    swirls.push(swirl)
   }
 
-  // The keep: what the player is defending.
+  // Walkers wear a dirt path along their route, so the path bends with the player's maze.
+  const dirtTexture = createDiscTexture()
+  const dirt = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: theme.path, map: dirtTexture, transparent: true, depthWrite: false, roughness: 1 }), DIRT_DECALS)
+  dirt.frustumCulled = false
+  dirt.receiveShadow = true
+  dirt.renderOrder = 1
+  dirt.count = 0
+  scene.add(dirt)
+
+  // The keep: what the player is defending. It stands larger than a tower, on the paved ground around it.
+  const STONE = 0xb4ada3
+  const STONE_LIGHT = 0xd6cfc4
+  const ROOF = 0x5583ec
+  const WINDOW = 0xffc23d
+  const turret = (x: number, z: number): THREE.BufferGeometry[] => [
+    part(cylinder(0.17, 0.2, 0.86, 8), STONE, [x * 0.43, 0.43, z * 0.43]),
+    part(cylinder(0.23, 0.17, 0.11, 8), STONE_LIGHT, [x * 0.43, 0.91, z * 0.43]),
+    part(cone(0.24, 0.42, 8), ROOF, [x * 0.43, 1.18, z * 0.43]),
+  ]
+  const gate = (x: number, z: number): THREE.BufferGeometry[] => [
+    part(box(x === 0 ? 0.26 : 0.05, 0.36, x === 0 ? 0.05 : 0.26), WINDOW, [x * 0.43, 0.2, z * 0.43]),
+    part(box(x === 0 ? 0.32 : 0.04, 0.05, x === 0 ? 0.04 : 0.32), 0x6b4522, [x * 0.45, 0.4, z * 0.45]),
+    // A banner either side of the gate.
+    part(box(x === 0 ? 0.09 : 0.03, 0.26, x === 0 ? 0.03 : 0.09), 0x1e40af, [(x * 0.44) + (z * 0.26), 0.42, (z * 0.44) + (x * 0.26)]),
+    part(box(x === 0 ? 0.09 : 0.03, 0.26, x === 0 ? 0.03 : 0.09), 0x1e40af, [(x * 0.44) - (z * 0.26), 0.42, (z * 0.44) - (x * 0.26)]),
+  ]
   const keepGeometry = mergeParts([
-    part(box(0.82, 0.6, 0.82), 0xcbd5e1, [0, 0.3, 0]),
-    part(box(0.2, 0.32, 0.06), 0x57341a, [0, 0.16, 0.42]),
-    part(box(0.2, 0.32, 0.06), 0x57341a, [0, 0.16, -0.42]),
-    part(box(0.06, 0.32, 0.2), 0x57341a, [0.42, 0.16, 0]),
-    part(box(0.06, 0.32, 0.2), 0x57341a, [-0.42, 0.16, 0]),
-    ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].flatMap(([x = 0, z = 0]) => [
-      part(cylinder(0.14, 0.16, 0.98, 8), 0xe2e8f0, [x * 0.4, 0.49, z * 0.4]),
-      part(cone(0.2, 0.3, 8), 0x2563eb, [x * 0.4, 1.13, z * 0.4]),
+    part(box(1.04, 0.09, 1.04), 0x8f867c, [0, 0.045, 0]),
+    part(box(0.84, 0.56, 0.84), STONE, [0, 0.32, 0]),
+    part(box(0.56, 0.42, 0.56), STONE_LIGHT, [0, 0.8, 0]),
+    part(cone(0.5, 0.5, 4), ROOF, [0, 1.25, 0], [0, Math.PI / 4, 0]),
+    ...[-0.31, 0, 0.31].flatMap((offset) => [
+      part(box(0.13, 0.12, 0.08), STONE_LIGHT, [offset, 0.66, 0.4]),
+      part(box(0.13, 0.12, 0.08), STONE_LIGHT, [offset, 0.66, -0.4]),
+      part(box(0.08, 0.12, 0.13), STONE_LIGHT, [0.4, 0.66, offset]),
+      part(box(0.08, 0.12, 0.13), STONE_LIGHT, [-0.4, 0.66, offset]),
     ]),
-    part(cylinder(0.02, 0.02, 0.6, 4), 0x475569, [0, 0.9, 0]),
-    part(box(0.26, 0.15, 0.02), 0xfacc15, [0.14, 1.12, 0]),
+    ...gate(0, 1), ...gate(0, -1), ...gate(1, 0), ...gate(-1, 0),
+    part(box(0.09, 0.14, 0.03), WINDOW, [0, 0.84, 0.29]),
+    part(box(0.03, 0.14, 0.09), WINDOW, [0.29, 0.84, 0]),
+    part(box(0.03, 0.14, 0.09), WINDOW, [-0.29, 0.84, 0]),
+    part(box(0.09, 0.14, 0.03), WINDOW, [0, 0.84, -0.29]),
+    ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].flatMap(([x = 0, z = 0]) => turret(x, z)),
+    part(cylinder(0.02, 0.02, 0.5, 4), 0x475569, [0, 1.65, 0]),
+    part(cone(0.13, 0.3, 3), 0xfacc15, [0.15, 1.8, 0], [0, 0, -Math.PI / 2], [1, 1, 0.3]),
   ])
   const keepMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, flatShading: true })
   for (const { col, row } of state.exits) {
     const keep = new THREE.Mesh(keepGeometry, keepMaterial)
     keep.position.set(col + 0.5, 0, row + 0.5)
+    keep.scale.setScalar(1.25)
     keep.castShadow = true
+    keep.receiveShadow = true
     scene.add(keep)
   }
 
@@ -199,8 +251,35 @@ export function createTerrainView(scene: THREE.Scene, state: GameState): Terrain
   let routedVersion = -1
   let routedWave = -1
 
+  function wearDirt(): void {
+    let index = 0
+    for (const route of routes) {
+      for (let point = 0; point < route.points.length - 1; point += 1) {
+        const from = route.points[point]
+        const to = route.points[point + 1]
+        for (const share of [0, 1 / 3, 2 / 3]) {
+          if (!from || !to || index >= DIRT_DECALS) {
+            continue
+          }
+          const x = from.x + ((to.x - from.x) * share)
+          const z = from.y + ((to.y - from.y) * share)
+          dummy.position.set(x, 0.006, z)
+          dummy.rotation.set(0, 0, 0)
+          // A little width variation keeps the edge from looking machine-cut.
+          dummy.scale.setScalar(0.92 + (jitter(Math.round(x * 3), Math.round(z * 3)) * 0.1))
+          dummy.updateMatrix()
+          dirt.setMatrixAt(index, dummy.matrix)
+          index += 1
+        }
+      }
+    }
+    dirt.count = index
+    dirt.instanceMatrix.needsUpdate = true
+  }
+
   function refreshRoutes(): void {
     routes = previewPaths(state).map((path) => ({ points: path.points, color: path.blocked ? BLOCKED_COLOR : OK_COLOR }))
+    wearDirt()
     // Flyers ignore the maze entirely, so show their straight line before they arrive.
     const nextFlyers = state.waves[state.waveNumber]?.groups.some((group) => group.kind === 'flyer') ?? false
     const liveFlyers = state.enemies.some((enemy) => enemy.flying)
@@ -222,10 +301,20 @@ export function createTerrainView(scene: THREE.Scene, state: GameState): Terrain
   }
 
   return {
-    update(current, time, showGrid, reducedMotion) {
-      for (const ring of portals) {
-        ring.rotation.z = reducedMotion ? 0 : time * 1.5
+    update(current, camera, time, showGrid, reducedMotion) {
+      for (const portal of portals) {
+        portal.rotation.y = Math.atan2(camera.position.x - portal.position.x, camera.position.z - portal.position.z)
       }
+      for (const swirl of swirls) {
+        swirl.rotation.z = reducedMotion ? 0 : time * -1.6
+      }
+      if (!reducedMotion) {
+        const pulse = 1 + (Math.sin(time * 2.4) * 0.14)
+        for (const glow of portalGlows) {
+          glow.scale.set(pulse, pulse, 1)
+        }
+      }
+      water.update(reducedMotion ? 0 : time)
       grid.visible = showGrid
       if (routedVersion !== current.gridVersion || routedWave !== current.waveNumber) {
         routedVersion = current.gridVersion

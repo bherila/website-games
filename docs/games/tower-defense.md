@@ -56,6 +56,24 @@ card, N sends the next wave, Space pauses, Escape clears the selection. A hidden
 allows levels 1-8 and profile `default`. A run in progress is not saved; reloading returns to
 level select, as in Math Horde.
 
+## Art
+
+`docs/games/tower-defense-concept.webp` is the target look: warm, chunky, toy-like low poly. New models
+and themes should match it. Everything on the board is drawn in code, not from image files:
+
+- `scene/models.ts`: towers, walls and enemies. A tower's body is lit; its flame, crystal or orb is a
+  separate unlit `towerGlowGeometry`, so it stays bright in every theme and can animate.
+- `scene/groundPaint.ts`: paints each level's ground and shores once into one canvas texture. Detail
+  has to be bold and have no "up", because wide screens turn the board on its side.
+- `scene/water.ts`: animated water and lava in one shader. Its mask matches the holes cut in the land.
+- `scene/terrainView.ts`: scenery placement, the keep, portals and the dirt path that follows the route.
+- `scene/themes.ts`: every colour for the five themes.
+
+`ui/icons/*.webp` are generated images (192 px, transparent), shown through `ui/GameIcon.tsx`. They came
+from an image model working from the concept sheet, in one consistent style: chunky low-poly 3D,
+three-quarter view, one bold centred subject filling about 80% of the frame, soft top light, readable at
+48 pixels. Add a new tower's icon the same way, and check it at 48 pixels.
+
 ## Testing
 
 - `__tests__/gameEngine.test.ts`: every rule above, headlessly.
