@@ -1,4 +1,4 @@
-import { injectUnit, makeTestState, placeShaft } from '../engine/__tests__/testState'
+import { injectUnit, makeTestState, placeShaft, placeSlabRow } from '../engine/__tests__/testState'
 import { stepEngine } from '../engine/engine'
 import { geometryFor, oneDimensionalGeometry, setTowerGeometry } from '../engine/towerGeometry'
 import {
@@ -12,6 +12,36 @@ import {
 } from '../TowerScene'
 
 describe('bulkGhostsForCommands', () => {
+  it('leaves elevator landings and the entire live state unchanged until a drag is committed', () => {
+    const state = makeTestState()
+    placeSlabRow(state, 0, 0, 30)
+    placeShaft(state, 'standard', 10, 0, 2)
+    const shaft = state.shafts[0]
+    if (!shaft) throw new Error('Expected the fixture elevator')
+    const stops = shaft.stops
+    const enabledStops = shaft.enabledStops
+    const before = structuredClone({ ...state, rng: state.rng.state() })
+    const command = { type: 'place', kind: 'slab', floor: 1, x: 10, widthTiles: 2 } as const
+
+    // Moving over valid and invalid cells, then cancelling the preview, must
+    // not paint a real floor or add an unsupported saved elevator landing.
+    expect(bulkGhostsForCommands(state, [command]).map((ghost) => ghost.valid)).toEqual([true])
+    expect(bulkGhostsForCommands(state, [command, command]).map((ghost) => ghost.valid)).toEqual([true, false])
+    expect(bulkGhostsForCommands(state, [])).toEqual([])
+
+    expect({ ...state, rng: state.rng.state() }).toEqual(before)
+    expect(state.shafts[0]).toBe(shaft)
+    expect(shaft.stops).toBe(stops)
+    expect(shaft.enabledStops).toBe(enabledStops)
+
+    // The actual release still goes through the engine and adds its landing.
+    expect(stepEngine(state, [command], 0)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'placed', kind: 'slab' }),
+    ]))
+    expect(shaft.stops).toEqual([0, 1])
+    expect(shaft.enabledStops).toEqual([0, 1])
+  })
+
   it('simulates bottom-to-top slab commands without mutating the live state', () => {
     const state = makeTestState()
     const ghosts = bulkGhostsForCommands(state, [
