@@ -19,7 +19,7 @@ interface NewGameOverlayProps {
   onStart: (lobbyHeight: 1 | 2 | 3, seed?: number, mapId?: string) => void
   onResume: (slotId: SandboxSlotId) => void
   onImport: (slotId: SandboxSlotId, raw: string) => ImportFeedback
-  startError?: string
+  startError?: string | undefined
 }
 
 const LOBBY_CHOICES: Array<{ height: 1 | 2 | 3; name: string; note: string }> = [
