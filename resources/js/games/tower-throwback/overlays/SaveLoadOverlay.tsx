@@ -7,6 +7,7 @@ import { SANDBOX_SLOT_IDS, type SandboxSlotId } from '../gameTypes'
 import { ChallengeCodeCard } from '../hud/ChallengeCodeCard'
 import { DestructiveActionConfirmation } from './DestructiveActionConfirmation'
 import { readTowerSaveFile } from './importSaveFile'
+import { LocalSlotTakeover } from './LocalSlotTakeover'
 
 type PendingSaveAction =
   | { type: 'save' | 'load' | 'clear'; slotId: SandboxSlotId }
@@ -29,6 +30,8 @@ interface SaveLoadOverlayProps {
   onClear: (slotId: SandboxSlotId) => void
   onSetDisastersEnabled: (enabled: boolean) => void
   onRestoreFocus?: () => void
+  otherTabSlots?: readonly SandboxSlotId[]
+  onTakeOverSlot?: (slotId: SandboxSlotId) => void
   cloudEnabled?: boolean
   cloudSlots?: Record<SandboxSlotId, CloudSlotView>
   onCloudRestore?: (slotId: SandboxSlotId) => void
@@ -175,6 +178,8 @@ export function SaveLoadOverlay({
   onClear,
   onSetDisastersEnabled,
   onRestoreFocus,
+  otherTabSlots = [],
+  onTakeOverSlot,
   cloudEnabled = false,
   cloudSlots,
   onCloudRestore,
@@ -452,6 +457,9 @@ export function SaveLoadOverlay({
                   Clear
                 </button>
               </div>
+              {otherTabSlots.includes(slot.id) && onTakeOverSlot && (
+                <LocalSlotTakeover slotId={slot.id} label={slot.label} onTakeOver={onTakeOverSlot} />
+              )}
               {cloudEnabled && cloudSlots && (
                 <CloudSlotStatusRow
                   slotId={slot.id}
