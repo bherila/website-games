@@ -104,6 +104,46 @@ describe('closing elevator landings', () => {
     assertNoRosters(state)
   })
 
+  it('keeps boarded riders aboard when only their already-used origin closes', () => {
+    const state = tower()
+    const shaftId = placeShaft(state, 'standard', 10, 0, 3)
+    const shaft = state.shafts[0]!
+    shaft.enabledStops = [0, 3]
+    const person = spawnPerson(state, { tier: 'med', floor: 0, x: 10, toFloor: 3, toX: 10, purpose: 'shopping' })!
+    board(state, person)
+    const current = JSON.stringify(person)
+    const carY = shaft.cars[0]!.y
+    disable(state, shaftId, 0)
+    expect(JSON.stringify(person)).toBe(current)
+    expect(shaft.cars[0]!.y).toBe(carY)
+    expect(shaft.cars[0]!.passengerIds).toContain(person.id)
+    expect(person.floor).toBe(0)
+    expect(saveSandbox(state)).toEqual({ ok: true })
+    expect(loadSandbox()).not.toBeNull()
+    travel(state, 5)
+    expect(person.floor).toBe(3)
+    assertNoRosters(state)
+  })
+
+  it('preserves an intact stair in progress when a later elevator landing closes', () => {
+    const state = tower(2)
+    place(state, 'stairs', 0, 5)
+    const closed = placeShaft(state, 'standard', 15, 1, 2)
+    const person = spawnPerson(state, { tier: 'med', floor: 0, x: 5, toFloor: 2, toX: 15, purpose: 'shopping' })!
+    stepPeople(state, 0.1, [])
+    const current = { ...person.legs[person.legIndex]! }
+    const position = person.floor
+    const backup = placeShaft(state, 'standard', 30, 1, 2)
+    disable(state, closed, 2)
+    expect(state.people).toContain(person)
+    expect(person.floor).toBe(position)
+    expect(person.legs[person.legIndex]).toEqual(current)
+    expect(person.legs.some((leg) => leg.shaftId === backup)).toBe(true)
+    travel(state, 5)
+    expect(person.floor).toBe(2)
+    assertNoRosters(state)
+  })
+
   it('keeps unaffected passengers in the same car while an invalid ride is abandoned', () => {
     const state = tower()
     const shaftId = placeShaft(state, 'standard', 10, 0, 3)
@@ -168,6 +208,32 @@ describe('removing walking connectors', () => {
       } else expect(state.people).toHaveLength(0)
       assertNoRosters(state)
     }
+  })
+
+  it.each(['stairs', 'escalator'] as const)('preserves an intact in-flight %s leg when a later connector disappears', (kind) => {
+    const state = tower(2)
+    setStars(state, 2)
+    place(state, kind, 0, 5)
+    const removed = place(state, 'stairs', 1, 15)
+    const person = spawnPerson(state, { tier: 'med', floor: 0, x: 5, toFloor: 2, toX: 15, purpose: 'shopping' })!
+    expect(person.legs[0]!.type).toBe(kind)
+    stepPeople(state, 0.1, [])
+    expect(person.floor).toBeGreaterThan(0)
+    expect(person.floor).toBeLessThan(1)
+    const current = { ...person.legs[person.legIndex]! }
+    const position = person.floor
+    const backup = placeShaft(state, 'standard', 30, 1, 2)
+    stepEngine(state, [{ type: 'demolishUnit', unitId: removed }], 0)
+    expect(state.people).toContain(person)
+    expect(person.floor).toBe(position)
+    expect(person.legs[person.legIndex]).toEqual(current)
+    expect(person.legs.some((leg) => leg.shaftId === backup)).toBe(true)
+    expect(saveSandbox(state)).toEqual({ ok: true })
+    expect(loadSandbox()).not.toBeNull()
+    travel(state, 5)
+    expect(person.floor).toBe(2)
+    expect(person.x).toBe(15)
+    assertNoRosters(state)
   })
 
   it.each([false, true])('repairs a removed stair tail without disturbing the current elevator (alternate=%s)', (alternate) => {

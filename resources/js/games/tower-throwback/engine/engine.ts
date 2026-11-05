@@ -326,7 +326,7 @@ function dispatch(state: EngineState, cmd: EngineCommand, events: EngineEvent[])
       }
       state.structureVersion += 1
       if (!cmd.enabled) {
-        replanShaftAfterResize(state, shaft, [cmd.floor])
+        replanShaftAfterResize(state, shaft, [cmd.floor], { preserveBoardedOrigin: true })
         vacateUnroutableUnits(state, events) // severed floors evict immediately
       }
       return
