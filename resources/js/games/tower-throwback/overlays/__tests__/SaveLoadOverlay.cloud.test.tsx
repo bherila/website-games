@@ -149,3 +149,25 @@ describe('SaveLoadOverlay — honest cloud states', () => {
     expect(screen.queryByTestId('cloud-retry-slot-a')).toBeNull()
   })
 })
+
+it.each(['readable', 'unknown-map'] as const)('confirms replacing %s local data from cloud and restores focus on cancellation', (kind) => {
+  const onCloudRestore = jest.fn()
+  const props = baseProps()
+  if (kind === 'unknown-map') {
+    props.slots[1] = { ...props.slots[1]!, saved: false, loadFailure: 'unknownMap' }
+  }
+  render(<SaveLoadOverlay {...props} cloudEnabled
+    cloudSlots={cloudSlots({ 'slot-a': view({ status: 'cloudAvailable', canRestore: true }) })}
+    onCloudRestore={onCloudRestore} />)
+  const trigger = screen.getByTestId('cloud-restore-slot-a')
+  fireEvent.click(trigger)
+  expect(onCloudRestore).not.toHaveBeenCalled()
+  expect(screen.getByTestId('confirm-destructive-action')).toHaveTextContent('Restore and replace')
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(trigger).toHaveFocus()
+  expect(onCloudRestore).not.toHaveBeenCalled()
+  fireEvent.click(trigger)
+  fireEvent.click(screen.getByRole('button', { name: 'Restore and replace' }))
+  expect(onCloudRestore).toHaveBeenCalledTimes(1)
+  expect(onCloudRestore).toHaveBeenCalledWith('slot-a')
+})

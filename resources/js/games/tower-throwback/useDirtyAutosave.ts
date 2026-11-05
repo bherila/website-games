@@ -22,7 +22,7 @@ import {
 } from './saveHealth'
 
 export type AutosaveOutcome =
-  | { ok: true }
+  | { ok: true; pendingChanges?: boolean }
   | { ok: false; error: string; conflict: boolean }
 
 export interface DirtyAutosaveOptions {
@@ -40,6 +40,8 @@ export interface DirtyAutosave {
   markDirty: () => void
   /** Force an immediate write, bypassing the debounce (used by manual saves). */
   flush: () => void
+  /** Report an already completed write of the active slot without writing again. */
+  recordResult: (result: AutosaveOutcome) => void
 }
 
 const TICK_MS = 1_000
@@ -57,13 +59,15 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
     nowRef.current = now
   }, [now])
 
-  const runSave = useCallback(() => {
-    scheduleRef.current = emptySchedule()
-    setHealth((prev) => ({ ...prev, status: 'saving' }))
-    const result = saveRef.current()
+  const recordResult = useCallback((result: AutosaveOutcome) => {
     const at = nowRef.current()
+    // A controller can save before its scene consumes queued commands. The
+    // snapshot is durable, but those commands still need another write after
+    // the scene resumes; do not describe them as saved or lose their debounce.
+    const pending = result.ok && result.pendingChanges
+    scheduleRef.current = pending ? markScheduleDirty(emptySchedule(), at) : emptySchedule()
     if (result.ok) {
-      setHealth({ status: 'saved', lastSavedAt: at, error: null })
+      setHealth({ status: pending ? 'pending' : 'saved', lastSavedAt: at, error: null })
       return
     }
     // A conflict is handled by the caller (it tears the session down), so it is
@@ -74,6 +78,11 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
       error: result.conflict ? null : result.error,
     }))
   }, [])
+
+  const runSave = useCallback(() => {
+    setHealth((prev) => ({ ...prev, status: 'saving' }))
+    recordResult(saveRef.current())
+  }, [recordResult])
 
   const markDirty = useCallback(() => {
     if (!enabled) {
@@ -119,7 +128,7 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
     }
   }, [enabled])
 
-  return { health, markDirty, flush }
+  return { health, markDirty, flush, recordResult }
 }
 
 export { msUntilAutosave }
