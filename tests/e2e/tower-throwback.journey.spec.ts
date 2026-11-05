@@ -129,7 +129,10 @@ test.describe('Tower Throwback real player journey', () => {
     await expect(page.getByRole('dialog', { name: /keyboard shortcuts/i })).toHaveCount(0)
     await page.mouse.up()
     await expect(page.getByTestId('funds')).toHaveText(funds)
-    await clickPlacement(page, canvas, { floor: 1, x: 200 })
+    // The paused camera and pointer are still over the same target. Start a
+    // fresh native gesture without repeating the coordinate calibration.
+    await page.mouse.down()
+    await page.mouse.up()
     await expect(page.getByTestId('funds')).not.toHaveText(funds)
   })
 
