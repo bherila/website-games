@@ -17,6 +17,7 @@ describe('bulkGhostsForCommands', () => {
     placeSlabRow(state, 0, 0, 30)
     placeShaft(state, 'standard', 10, 0, 2)
     const shaft = state.shafts[0]
+    if (!shaft) throw new Error('Expected the fixture elevator')
     const stops = shaft.stops
     const enabledStops = shaft.enabledStops
     const before = structuredClone({ ...state, rng: state.rng.state() })
