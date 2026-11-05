@@ -23,7 +23,7 @@ import type { EngineEvent, EngineState, IncomeTier, JourneyLeg, JourneyPurpose, 
 import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { postImmediate } from './economy'
-import { slabAt } from './grid'
+import { isSlabFamily, slabAt } from './grid'
 import { getMap } from './maps'
 import { findRoute, type RouteOpts, spreadElevatorLegs } from './routing'
 import { geometryFor } from './towerGeometry'
@@ -346,18 +346,69 @@ export function replanShaftAfterResize(state: EngineState, shaft: Shaft, removed
     // Still riding → a passenger of ANOTHER shaft (this shaft's own affected
     // passengers were set down above). Splice a fresh tail after the in-flight
     // leg so they are not carried toward a landing that no longer exists.
+    replanRidingTail(state, person)
+  }
+}
+
+/** Keep the current ride, but replace a tail invalidated by a topology change. */
+function replanRidingTail(state: EngineState, person: Person): void {
+  const current = person.legs[person.legIndex]
+  if (current?.type !== 'elevator') {
+    return
+  }
+  const final = person.legs[person.legs.length - 1]!
+  const plan = getAux(state).plans.get(person.id)
+  const tail = planJourney(state, person.id, current.toFloor, current.toX, final.toFloor, final.toX, { staff: plan?.staff === true })
+  if (tail === null) {
+    // Despawning an in-flight rider must also release their physical car seat.
+    for (const shaft of state.shafts) {
+      for (const car of shaft.cars) {
+        car.passengerIds = car.passengerIds.filter((id) => id !== person.id)
+      }
+    }
+    despawnPerson(state, person.id)
+    return
+  }
+  person.legs = [...person.legs.slice(0, person.legIndex + 1), ...tail]
+}
+
+/** Re-plan journeys crossing a removed stair, escalator or walkable floor/bridge. */
+export function replanAfterConnectorRemoval(state: EngineState, unit: Unit): void {
+  const isVertical = unit.kind === 'stairs' || unit.kind === 'escalator'
+  if (!isVertical && !isSlabFamily(unit.kind)) {
+    return
+  }
+  const usesRemovedConnector = (leg: JourneyLeg, fromX = leg.fromX): boolean => {
+    if (isVertical) {
+      return leg.type === unit.kind && leg.fromX === unit.x
+        && Math.min(leg.fromFloor, leg.toFloor) === unit.floor
+        && Math.max(leg.fromFloor, leg.toFloor) === unit.floor + 1
+    }
+    return (leg.type === 'walk' || leg.type === 'skybridge') && leg.fromFloor === unit.floor
+      && Math.max(fromX, leg.toX) >= unit.x
+      && Math.min(fromX, leg.toX) < unit.x + unit.width
+  }
+  // EngineState keeps people in id order, including simultaneous reroutes.
+  for (const person of [...state.people]) {
+    if (!person.legs.slice(person.legIndex).some((leg, index) =>
+      usesRemovedConnector(leg, index === 0 && (leg.type === 'walk' || leg.type === 'skybridge') ? person.x : leg.fromX),
+    )) {
+      continue
+    }
+    if (person.state === 'riding') {
+      replanRidingTail(state, person)
+      continue
+    }
     const current = person.legs[person.legIndex]
-    if (current?.type !== 'elevator') {
-      continue
+    if (current && usesRemovedConnector(current) && isVertical) {
+      // A walker partway up the removed connector is set down at its nearest
+      // endpoint (ties at the lower floor), then uses the remaining structure.
+      const lower = Math.min(current.fromFloor, current.toFloor)
+      const upper = Math.max(current.fromFloor, current.toFloor)
+      person.floor = person.floor - lower <= upper - person.floor ? lower : upper
+      person.x = current.fromX
     }
-    const final = person.legs[person.legs.length - 1]!
-    const plan = getAux(state).plans.get(person.id)
-    const tail = planJourney(state, person.id, current.toFloor, current.toX, final.toFloor, final.toX, { staff: plan?.staff === true })
-    if (tail === null) {
-      despawnPerson(state, person.id) // no route left from the alight point — abandon, like a patience expiry
-      continue
-    }
-    person.legs = [...person.legs.slice(0, person.legIndex + 1), ...tail]
+    replanJourney(state, person)
   }
 }
 

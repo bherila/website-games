@@ -60,7 +60,7 @@ import {
   terminalFloor,
 } from './mapGeometry'
 import { getMap } from './maps'
-import { releaseShaftOccupants, replanShaftAfterResize } from './people'
+import { releaseShaftOccupants, replanAfterConnectorRemoval, replanShaftAfterResize } from './people'
 import { geometryFor, setTowerGeometry } from './towerGeometry'
 
 type PlaceCommand = Extract<EngineCommand, { type: 'place' }>
@@ -773,10 +773,12 @@ export function validateDemolish(state: EngineState, cmd: DemolishCommand): Plac
 
 export function applyDemolish(state: EngineState, cmd: DemolishCommand): EngineEvent[] {
   let refund = 0
+  let removedUnit: Unit | undefined
   if (cmd.type === 'demolishUnit') {
     const unit = state.units.find((u) => u.id === cmd.unitId)
     if (unit) {
       refund = refundOf(unitBuildCost(state, unit.kind, unit.floor, unit.width))
+      removedUnit = unit
       state.units = state.units.filter((u) => u.id !== cmd.unitId)
     }
   } else {
@@ -794,5 +796,8 @@ export function applyDemolish(state: EngineState, cmd: DemolishCommand): EngineE
   }
   state.structureVersion += 1
   rebuildGrid(state)
+  if (removedUnit) {
+    replanAfterConnectorRemoval(state, removedUnit)
+  }
   return [{ type: 'demolished', refund }]
 }
