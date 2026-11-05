@@ -49,12 +49,12 @@ function now(): number {
 }
 
 export interface GameSounds {
-  playEvents(events: EngineEvent[]): void
+  playEvents: (events: EngineEvent[]) => void
   muted: boolean
-  toggleMute(): void
+  toggleMute: () => void
   /** Master volume in [0,1]; preserved across mute/unmute. */
   level: number
-  setLevel(level: number): void
+  setLevel: (level: number) => void
 }
 
 /**
