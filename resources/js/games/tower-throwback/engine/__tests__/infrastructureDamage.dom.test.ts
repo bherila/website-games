@@ -29,16 +29,16 @@ function travel(state: EngineState, minutes = 5): void {
 }
 
 function resume(state: EngineState): EngineState {
-  expect(saveSandbox(state, 'damage-a')).toEqual({ ok: true })
-  const saved = loadSandbox('damage-a')
+  expect(saveSandbox(state, 'slot-a')).toEqual({ ok: true })
+  const saved = loadSandbox('slot-a')
   expect(saved).not.toBeNull()
   return restoreSandbox(saved!)
 }
 
 function expectSameSave(a: EngineState, b: EngineState): void {
-  expect(saveSandbox(a, 'damage-a')).toEqual({ ok: true })
-  expect(saveSandbox(b, 'damage-b')).toEqual({ ok: true })
-  expect(loadSandbox('damage-b')).toEqual(loadSandbox('damage-a'))
+  expect(saveSandbox(a, 'slot-a')).toEqual({ ok: true })
+  expect(saveSandbox(b, 'slot-b')).toEqual({ ok: true })
+  expect(loadSandbox('slot-b')).toEqual(loadSandbox('slot-a'))
 }
 
 function tower(top = 1): EngineState {
