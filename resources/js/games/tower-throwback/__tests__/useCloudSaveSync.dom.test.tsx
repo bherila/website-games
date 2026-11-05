@@ -11,7 +11,7 @@ import { type ReactElement, useEffect } from 'react'
 import { CLOUD_ENVELOPE_FORMAT, CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from '../cloudPayload'
 import * as cloudSync from '../cloudSync'
 import { createEngineState } from '../engine/engine'
-import { clearSandbox, importSandbox, loadSandbox, migrateSandboxPayload, type SavedSandbox, saveSandbox } from '../gameProgress'
+import { claimSandboxSlot, clearSandbox, getOrCreateTabSessionId, importSandbox, loadSandbox, migrateSandboxPayload, sandboxOwnerStorageKey, type SavedSandbox, saveSandbox } from '../gameProgress'
 import type { SandboxSlotId } from '../gameTypes'
 import { MAX_CLOUD_PAYLOAD_BYTES } from '../saveBudget'
 import { type CloudSaveSync, useCloudSaveSync } from '../useCloudSaveSync'
@@ -370,5 +370,37 @@ describe('useCloudSaveSync compressed (v3) cloud payloads', () => {
     expect(migrateSandboxPayload(envelope)).toBeNull()
     expect(importSandbox(JSON.stringify(envelope), 'slot-a')).toEqual({ ok: false, reason: 'invalidPayload' })
     expect(localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')).toBe(localBytes)
+  })
+})
+
+
+describe('cloud restore local ownership', () => {
+  it('claims a successfully restored slot for this tab', async () => {
+    const saved = savedSandbox()
+    clearSandbox('slot-a')
+    await renderSync(new Set<SandboxSlotId>())
+    mocked.getCloudSlot.mockResolvedValueOnce({ meta: slotMeta(), payload: saved })
+    await act(async () => { expect(await api().restore('slot-a')).toEqual(saved) })
+    expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe(getOrCreateTabSessionId())
+  })
+
+  it.each(['before', 'during'] as const)('does not overwrite a slot another tab claims %s the fetch', async (when) => {
+    const saved = savedSandbox()
+    const localBytes = localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')
+    await renderSync()
+    let finish!: (result: { meta: cloudSync.CloudSlotMeta; payload: SavedSandbox }) => void
+    mocked.getCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    if (when === 'before') claimSandboxSlot('slot-a', 'other-tab')
+    let restored: SavedSandbox | null = saved
+    await act(async () => {
+      const pending = api().restore('slot-a')
+      if (when === 'during') claimSandboxSlot('slot-a', 'other-tab')
+      finish({ meta: slotMeta(), payload: { ...saved, seed: 999 } })
+      restored = await pending
+    })
+    expect(restored).toBeNull()
+    expect(localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')).toBe(localBytes)
+    expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe('other-tab')
+    expect(api().slots['slot-a'].status).not.toBe('synced')
   })
 })

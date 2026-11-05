@@ -261,3 +261,46 @@ it.each(['unavailable', 'rejection'] as const)('releases the slot guard after a 
   fireEvent.click(screen.getByRole('button', { name: 'Load tower', exact: true }))
   expect(runningScene().engineState.seed).toBe(999)
 })
+
+it.each(['import', 'clear', 'cloud'] as const)('preserves another tab’s inactive slot during %s', (operation) => {
+  seedSlot('autosave', 4242)
+  const previous = seedSlot('slot-a', 999)
+  claimSandboxSlot('slot-a', 'other-tab')
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  if (operation === 'import') {
+    fireEvent.change(screen.getByTestId('import-payload'), { target: { value: exportSandbox(loadSandbox()!) } })
+    fireEvent.click(screen.getByTestId('import-save'))
+    fireEvent.click(screen.getByRole('button', { name: 'Import and replace' }))
+  } else if (operation === 'clear') {
+    fireEvent.click(screen.getByTestId('clear-slot-a'))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear slot', exact: true }))
+  } else {
+    fireEvent.click(screen.getByTestId('cloud-restore-slot-a'))
+  }
+  expect(screen.getByTestId('save-message')).toHaveTextContent('another tab')
+  expect(localStorage.getItem(sandboxStorageKey('slot-a'))).toBe(previous)
+  expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe('other-tab')
+  expect(cloud.restore).not.toHaveBeenCalled()
+  expect(cloud.remove).not.toHaveBeenCalled()
+})
+
+it('preserves an inactive slot and its ownership when an import write fails', () => {
+  seedSlot('autosave', 4242)
+  const previous = seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  fireEvent.change(screen.getByTestId('import-payload'), { target: { value: exportSandbox(loadSandbox()!) } })
+  fireEvent.click(screen.getByTestId('import-save'))
+  const realSetItem = Storage.prototype.setItem
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    if (key === sandboxStorageKey('slot-a')) throw new DOMException('Full', 'QuotaExceededError')
+    realSetItem.call(this, key, value)
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Import and replace' }))
+  expect(screen.getByTestId('save-message')).toHaveTextContent('full')
+  expect(localStorage.getItem(sandboxStorageKey('slot-a'))).toBe(previous)
+  expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBeNull()
+})

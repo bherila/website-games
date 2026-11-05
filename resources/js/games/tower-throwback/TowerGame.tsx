@@ -109,7 +109,7 @@ function storageFailureMessage(reason: 'storageUnavailable' | 'quotaExceeded' | 
   return reason === 'storageUnavailable' ? 'Browser storage is unavailable.' : 'Browser storage is full. The save was not written.'
 }
 
-function importFailureMessage(reason: 'invalidJson' | 'invalidPayload' | 'storageUnavailable' | 'quotaExceeded'): string {
+function importFailureMessage(reason: 'invalidJson' | 'invalidPayload' | 'storageUnavailable' | 'quotaExceeded' | 'slotOwnedByAnotherTab'): string {
   switch (reason) {
     case 'invalidJson':
       return 'Import failed: the JSON is incomplete or malformed.'
@@ -117,6 +117,7 @@ function importFailureMessage(reason: 'invalidJson' | 'invalidPayload' | 'storag
       return 'Import failed: the payload is not a compatible Tower Throwback save.'
     case 'storageUnavailable':
     case 'quotaExceeded':
+    case 'slotOwnedByAnotherTab':
       return storageFailureMessage(reason)
   }
 }
@@ -320,6 +321,11 @@ export function TowerGame(): ReactElement {
     const pending = refusePendingRestore(slotId)
     if (pending) {
       return pending
+    }
+    if (isSandboxSlotOwnedByAnotherTab(slotId, sandboxSessionIdRef.current)) {
+      const message = { kind: 'error' as const, text: storageFailureMessage('slotOwnedByAnotherTab') }
+      setSaveMessage(message)
+      return message
     }
     if (!engineStateRef.current || activeSlotRef.current !== slotId) {
       return null
@@ -565,14 +571,13 @@ export function TowerGame(): ReactElement {
     if (refusal) {
       return refusal
     }
-    const result = importSandbox(raw, slotId)
+    const result = importSandbox(raw, slotId, sandboxSessionIdRef.current)
     if (!result.ok) {
       const message = { kind: 'error' as const, text: importFailureMessage(result.reason) }
       setSaveMessage(message)
       return message
     }
 
-    claimSandboxSlot(slotId, sandboxSessionIdRef.current)
     refreshSlots()
     mirrorToCloud(slotId)
     const message = { kind: 'success' as const, text: `Imported to ${slotLabel(slotId)}.` }
