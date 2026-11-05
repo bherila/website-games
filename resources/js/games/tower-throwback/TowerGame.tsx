@@ -194,7 +194,8 @@ export function TowerGame(): ReactElement {
   const buildToolRef = useRef<SelectedTool | null>(null)
   const engineStateRef = useRef<EngineState | null>(engineState)
   const activeSlotRef = useRef<SandboxSlotId>('autosave')
-  const sandboxSessionIdRef = useRef(getOrCreateTabSessionId())
+  const [sandboxSessionId] = useState(getOrCreateTabSessionId)
+  const sandboxSessionIdRef = useRef(sandboxSessionId)
   const restoringSlotsRef = useRef(new Set<SandboxSlotId>())
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
@@ -305,7 +306,7 @@ export function TowerGame(): ReactElement {
   )
   const cloud = useCloudSaveSync(localSavedSlots)
   const otherTabSlots = slotSummaries
-    .filter((slot) => isSandboxSlotOwnedByAnotherTab(slot.id, sandboxSessionIdRef.current))
+    .filter((slot) => isSandboxSlotOwnedByAnotherTab(slot.id, sandboxSessionId))
     .map((slot) => slot.id)
 
   const refusePendingRestore = useCallback((slotId: SandboxSlotId): SaveMessage | null => {
