@@ -628,8 +628,15 @@ function dominantVacancyReason(unit: Unit, breakdown: EvalBreakdown, fallback: V
   return fallback
 }
 
-export function vacateUnit(unit: Unit, reason: VacancyReason, events: EngineEvent[]): void {
+export function vacateUnit(unit: Unit, reason: VacancyReason, events: EngineEvent[], state?: EngineState): void {
   const { floor, id: unitId, kind: unitKind } = unit
+  if (state && unit.population.vip > 0) {
+    for (const record of state.vips) {
+      if (record.state === 'resident' && record.unitId === unitId) {
+        record.unitId = null // evacuated residents retry their deferred move-in
+      }
+    }
+  }
   unit.occupied = false
   unit.population = { low: 0, med: 0, high: 0, vip: 0 }
   unit.vacancyReason = reason

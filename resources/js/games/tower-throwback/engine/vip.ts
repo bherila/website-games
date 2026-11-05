@@ -45,8 +45,10 @@ import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { postImmediate } from './economy'
 import { dominantNoiseSourceAt, noiseExposureAt } from './heatmaps'
+import { hotelReceptionExists } from './hotelAvailability'
 import { getMap } from './maps'
 import { despawnPerson, spawnPerson, streetEntrance } from './people'
+import { hasRouteToLobby } from './routing'
 import { applyStarLoss, applyStarUp, starUpArmed } from './stars'
 
 const ARRIVAL_MINUTE = 10 * 60
@@ -235,6 +237,7 @@ export function stepVips(state: EngineState, events: EngineEvent[]): void {
   const aux = getAux(state)
 
   for (const record of state.vips) {
+    reconcileResidentHome(state, record)
     if (record.state === 'resident' && record.unitId === null) {
       tryMoveIn(state, record, events)
     }
@@ -300,6 +303,21 @@ function tryMoveIn(state: EngineState, record: VipRecord, events: EngineEvent[])
   events.push({ type: 'vipMovedIn', target: record.target, unitId: home.id })
 }
 
+/** A VIP tenancy contains only its single resident/guest, never ordinary tenants. */
+function isVipTenancy(unit: Unit): boolean {
+  return unit.occupied && unit.population.vip === 1
+    && unit.population.low === 0 && unit.population.med === 0 && unit.population.high === 0
+}
+
+function reconcileResidentHome(state: EngineState, record: VipRecord): void {
+  if (record.state !== 'resident' || record.unitId === null) return
+  const home = state.units.find((unit) => unit.id === record.unitId)
+  if (home && home.kind === MOVE_IN_KIND[record.target] && isVipTenancy(home)) return
+  // Evacuation/demolition can leave legacy saves pointing at an empty unit or
+  // a replacement tenant. Keep the earned star and retry the documented move-in.
+  record.unitId = null
+}
+
 // ── Visit itinerary ──────────────────────────────────────────────────────────
 
 function tourStops(state: EngineState): VisitStop[] {
@@ -332,11 +350,43 @@ function amenityStops(state: EngineState): VisitStop[] {
 }
 
 function cleanVacantSuite(state: EngineState): Unit | null {
+  if (!hotelReceptionExists(state)) return null
   return (
     unitsInIdOrder(state).find(
-      (u) => u.kind === 'hotelSuite' && !u.occupied && !u.dirty && !u.offline && !u.infested && !u.flags.noRoute && !u.flags.noReception,
+      (u) => u.kind === 'hotelSuite' && !u.occupied && !u.dirty && !u.offline && !u.infested && hasRouteToLobby(state, u),
     ) ?? null
   )
+}
+
+function liveStopAvailable(state: EngineState, visit: ActiveVisit): boolean {
+  const stop = visit.stops[visit.stopIndex]!
+  if (stop.final) {
+    const entrance = streetEntrance(state)
+    return entrance !== null && entrance.floor === stop.floor && entrance.x === stop.x
+  }
+  const unit = state.units.find((candidate) => candidate.id === stop.unitId)
+  if (!unit || unit.floor !== stop.floor || unit.x !== stop.x || unit.offline || unit.infested || !hasRouteToLobby(state, unit)) return false
+  if (stop.suite) {
+    return unit.kind === 'hotelSuite' && hotelReceptionExists(state)
+      && (visit.atStop ? isVipTenancy(unit) : !unit.occupied)
+  }
+  if (stop.amenityKind !== null) return unit.kind === stop.amenityKind && unit.occupied
+  return unit.kind === getMap(state.mapId).endgameItem || unit.occupied
+}
+
+function releaseSuite(state: EngineState, visit: ActiveVisit): void {
+  const stop = visit.stops[visit.stopIndex]!
+  // suiteId initially denotes a planned room. Only an arrived suite stop owns
+  // a tenancy; later stops must never clean up a room's replacement guest.
+  if (visit.atStop && stop.suite && stop.unitId === visit.suiteId) {
+    const suite = state.units.find((unit) => unit.id === visit.suiteId)
+    if (suite && isVipTenancy(suite)) {
+      suite.occupied = false
+      suite.population = { low: 0, med: 0, high: 0, vip: 0 }
+      suite.dirty = true
+    }
+  }
+  visit.suiteId = null
 }
 
 function startVisit(state: EngineState, target: VipTarget, events: EngineEvent[]): void {
@@ -426,6 +476,11 @@ export function stepVipMinute(state: EngineState, minute: number, events: Engine
     return
   }
 
+  if (visit.atStop && !liveStopAvailable(state, visit)) {
+    resolveVisit(state, visit, ['A required destination was no longer available'], true, events)
+    return
+  }
+
   if (visit.personId !== null) {
     const person = state.people.find((p) => p.id === visit.personId)
     if (!person) {
@@ -461,6 +516,10 @@ function settleLegWait(visit: ActiveVisit): void {
 
 function departForStop(state: EngineState, visit: ActiveVisit, from: { floor: number; x: number }, events: EngineEvent[]): void {
   const stop = visit.stops[visit.stopIndex]!
+  if (!liveStopAvailable(state, visit)) {
+    resolveVisit(state, visit, ['A required destination was unavailable or had no route'], true, events)
+    return
+  }
   if (from.floor === stop.floor && from.x === stop.x) {
     visit.personId = null
     arriveAtStop(state, visit, state.clock.minute, events)
@@ -489,6 +548,10 @@ function departForStop(state: EngineState, visit: ActiveVisit, from: { floor: nu
 
 function arriveAtStop(state: EngineState, visit: ActiveVisit, minute: number, events: EngineEvent[]): void {
   const stop = visit.stops[visit.stopIndex]!
+  if (!liveStopAvailable(state, visit)) {
+    resolveVisit(state, visit, ['A required destination was no longer available or had no route'], true, events)
+    return
+  }
   visit.atStop = true
 
   if (stop.final) {
@@ -543,12 +606,7 @@ function arriveAtStop(state: EngineState, visit: ActiveVisit, minute: number, ev
 function departFromStop(state: EngineState, visit: ActiveVisit, events: EngineEvent[]): void {
   const stop = visit.stops[visit.stopIndex]!
   if (stop.suite && visit.suiteId !== null) {
-    const suite = state.units.find((u) => u.id === visit.suiteId)
-    if (suite) {
-      suite.occupied = false
-      suite.population = { low: 0, med: 0, high: 0, vip: 0 }
-      suite.dirty = true // checkout
-    }
+    releaseSuite(state, visit)
   }
   if (visit.personId !== null) {
     despawnPerson(state, visit.personId)
@@ -575,14 +633,7 @@ function resolveVisit(
   if (visit.personId !== null) {
     despawnPerson(state, visit.personId)
   }
-  if (visit.suiteId !== null) {
-    const suite = state.units.find((u) => u.id === visit.suiteId)
-    if (suite && suite.population.vip > 0) {
-      suite.occupied = false
-      suite.population = { low: 0, med: 0, high: 0, vip: 0 }
-      suite.dirty = true
-    }
-  }
+  releaseSuite(state, visit)
   if (!record) {
     return
   }
@@ -637,6 +688,7 @@ function resolveVisit(
 export function vipWeeklyPass(state: EngineState, events: EngineEvent[]): void {
   const v = TUNING.vip
   for (const record of state.vips) {
+    reconcileResidentHome(state, record)
     if (record.state !== 'resident' || record.unitId === null) {
       continue
     }

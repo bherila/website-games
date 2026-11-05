@@ -224,7 +224,7 @@ function applyFireDamage(state: EngineState, unitIds: readonly number[], events:
     unit.damageKind = 'fire'
     unit.incidentPenaltyUntilDay = null
     if (unit.occupied) {
-      vacateUnit(unit, 'incidentDamage', events)
+      vacateUnit(unit, 'incidentDamage', events, state)
     }
   }
 }
