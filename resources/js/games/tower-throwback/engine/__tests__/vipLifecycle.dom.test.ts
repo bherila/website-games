@@ -20,8 +20,8 @@ function drive(state: EngineState, events: EngineEvent[], done: () => boolean, l
 }
 
 function resume(state: EngineState): EngineState {
-  expect(saveSandbox(state, 'vip')).toEqual({ ok: true })
-  const saved = loadSandbox('vip')
+  expect(saveSandbox(state, 'slot-a')).toEqual({ ok: true })
+  const saved = loadSandbox('slot-a')
   if (!saved) throw new Error('Expected VIP lifecycle save')
   return restoreSandbox(saved)
 }
