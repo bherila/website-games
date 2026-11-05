@@ -23,7 +23,7 @@ import type { EngineEvent, EngineState, IncomeTier, JourneyLeg, JourneyPurpose, 
 import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { postImmediate } from './economy'
-import { slabAt } from './grid'
+import { isSlabFamily, slabAt } from './grid'
 import { hotelReceptionExists, hotelRoomAvailable } from './hotelAvailability'
 import { getMap } from './maps'
 import { findRoute, hasRouteToLobby, type RouteOpts, spreadElevatorLegs } from './routing'
@@ -301,18 +301,22 @@ export function releaseShaftOccupants(state: EngineState, shaft: Shaft): void {
 }
 
 /** Re-plan only journeys invalidated by removed landings after a shaft contraction. */
-export function replanShaftAfterResize(state: EngineState, shaft: Shaft, removedStops: readonly number[]): void {
+export function replanShaftAfterResize(
+  state: EngineState,
+  shaft: Shaft,
+  removedStops: readonly number[],
+  options: { preserveBoardedOrigin?: boolean } = {},
+): void {
   if (removedStops.length === 0) {
     return
   }
   const removed = new Set(removedStops)
+  const isAffectedLeg = (person: Person, leg: JourneyLeg | undefined, index: number): boolean =>
+    leg?.type === 'elevator' && leg.shaftId === shaft.id
+      && (removed.has(leg.toFloor)
+        || (removed.has(leg.fromFloor) && !(options.preserveBoardedOrigin && person.state === 'riding' && index === 0)))
   const affectedLeg = (person: Person): boolean =>
-    person.legs.slice(person.legIndex).some(
-      (leg) =>
-        leg.type === 'elevator' &&
-        leg.shaftId === shaft.id &&
-        (removed.has(leg.fromFloor) || removed.has(leg.toFloor)),
-    )
+    person.legs.slice(person.legIndex).some((leg, index) => isAffectedLeg(person, leg, index))
   const nearestEnabledStop = (carY: number): number =>
     shaft.enabledStops.reduce((nearest, floor) => {
       const distance = Math.abs(floor - carY)
@@ -324,7 +328,7 @@ export function replanShaftAfterResize(state: EngineState, shaft: Shaft, removed
     const remainingPassengers: number[] = []
     for (const id of car.passengerIds) {
       const person = state.people.find((candidate) => candidate.id === id)
-      if (!person || !affectedLeg(person)) {
+      if (!person || !isAffectedLeg(person, person.legs[person.legIndex], 0)) {
         remainingPassengers.push(id)
         continue
       }
@@ -341,24 +345,86 @@ export function replanShaftAfterResize(state: EngineState, shaft: Shaft, removed
       continue
     }
     if (person.state !== 'riding') {
-      replanJourney(state, person)
+      const current = person.legs[person.legIndex]
+      if (current?.type === 'stairs' || current?.type === 'escalator') {
+        replanAfterCurrentLeg(state, person)
+      } else {
+        replanJourney(state, person)
+      }
       continue
     }
     // Still riding → a passenger of ANOTHER shaft (this shaft's own affected
     // passengers were set down above). Splice a fresh tail after the in-flight
     // leg so they are not carried toward a landing that no longer exists.
+    replanAfterCurrentLeg(state, person)
+  }
+}
+
+/** Keep an intact current leg, but replace a tail invalidated by a topology change. */
+function replanAfterCurrentLeg(state: EngineState, person: Person): void {
+  const current = person.legs[person.legIndex]
+  if (!current) {
+    return
+  }
+  const final = person.legs[person.legs.length - 1]!
+  const plan = getAux(state).plans.get(person.id)
+  const tail = planJourney(state, person.id, current.toFloor, current.toX, final.toFloor, final.toX, { staff: plan?.staff === true })
+  if (tail === null) {
+    // Despawning an in-flight rider must also release their physical car seat.
+    for (const shaft of state.shafts) {
+      for (const car of shaft.cars) {
+        car.passengerIds = car.passengerIds.filter((id) => id !== person.id)
+      }
+    }
+    despawnPerson(state, person.id)
+    return
+  }
+  person.legs = [...person.legs.slice(0, person.legIndex + 1), ...tail]
+}
+
+/** Re-plan journeys crossing a removed stair, escalator or walkable floor/bridge. */
+export function replanAfterConnectorRemoval(state: EngineState, unit: Unit): void {
+  const isVertical = unit.kind === 'stairs' || unit.kind === 'escalator'
+  if (!isVertical && !isSlabFamily(unit.kind)) {
+    return
+  }
+  const usesRemovedConnector = (leg: JourneyLeg, fromX = leg.fromX): boolean => {
+    if (isVertical) {
+      return leg.type === unit.kind && leg.fromX === unit.x
+        && Math.min(leg.fromFloor, leg.toFloor) === unit.floor
+        && Math.max(leg.fromFloor, leg.toFloor) === unit.floor + 1
+    }
+    return (leg.type === 'walk' || leg.type === 'skybridge') && leg.fromFloor === unit.floor
+      && Math.max(fromX, leg.toX) >= unit.x
+      && Math.min(fromX, leg.toX) < unit.x + unit.width
+  }
+  // EngineState keeps people in id order, including simultaneous reroutes.
+  for (const person of [...state.people]) {
+    if (!person.legs.slice(person.legIndex).some((leg, index) =>
+      usesRemovedConnector(leg, index === 0 && (leg.type === 'walk' || leg.type === 'skybridge') ? person.x : leg.fromX),
+    )) {
+      continue
+    }
+    if (person.state === 'riding') {
+      replanAfterCurrentLeg(state, person)
+      continue
+    }
     const current = person.legs[person.legIndex]
-    if (current?.type !== 'elevator') {
+    if (current && (current.type === 'stairs' || current.type === 'escalator') && !usesRemovedConnector(current)) {
+      // The current connector is still present. Finish it before rerouting:
+      // an in-flight floor such as 0.2 has no structural route-search node.
+      replanAfterCurrentLeg(state, person)
       continue
     }
-    const final = person.legs[person.legs.length - 1]!
-    const plan = getAux(state).plans.get(person.id)
-    const tail = planJourney(state, person.id, current.toFloor, current.toX, final.toFloor, final.toX, { staff: plan?.staff === true })
-    if (tail === null) {
-      despawnPerson(state, person.id) // no route left from the alight point — abandon, like a patience expiry
-      continue
+    if (current && usesRemovedConnector(current) && isVertical) {
+      // A walker partway up the removed connector is set down at its nearest
+      // endpoint (ties at the lower floor), then uses the remaining structure.
+      const lower = Math.min(current.fromFloor, current.toFloor)
+      const upper = Math.max(current.fromFloor, current.toFloor)
+      person.floor = person.floor - lower <= upper - person.floor ? lower : upper
+      person.x = current.fromX
     }
-    person.legs = [...person.legs.slice(0, person.legIndex + 1), ...tail]
+    replanJourney(state, person)
   }
 }
 
