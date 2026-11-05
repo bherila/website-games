@@ -185,12 +185,39 @@ function stateForLeg(leg: JourneyLeg | undefined): Person['state'] {
   return leg?.type === 'elevator' ? 'queued' : 'walking'
 }
 
+/** Deferred tenant trips must still belong to a live tenancy when they spawn. */
+function tenantTripStillValid(state: EngineState, opts: SpawnOpts): boolean {
+  if (opts.tenantUnitId == null || !['lunch', 'errand', 'amenity'].includes(opts.purpose)) return true
+  const home = findUnit(state, opts.tenantUnitId)
+  if (!home || !home.occupied || home.offline || home.infested || home.population[opts.tier] <= 0) return false
+  const category = itemDef(home.kind).category
+  const returning = opts.purpose === 'errand' && opts.destUnitId === home.id
+  if (returning) return category === 'residential' && opts.toFloor === home.floor && opts.toX === home.x
+  if (opts.floor !== home.floor || opts.x !== home.x) return false
+  if (opts.purpose === 'errand') return category === 'residential' && opts.destUnitId == null
+  if (opts.purpose === 'lunch' && category !== 'office') return false
+  if (opts.purpose === 'amenity' && category !== 'office' && category !== 'residential'
+    && !(category === 'hotel' && itemDef(home.kind).income?.type === 'perNight')) return false
+  const destination = findUnit(state, opts.destUnitId)
+  if (!destination || !destination.occupied || destination.offline || destination.infested
+    || destination.floor !== opts.toFloor || destination.x !== opts.toX) return false
+  if (opts.purpose === 'lunch') {
+    return destination.kind === 'fastfood' || destination.kind === 'foodCourt'
+      || (destination.kind === 'restaurant' && opts.tier !== 'low')
+      || (destination.kind === 'fancyRestaurant' && (opts.tier === 'high' || opts.tier === 'vip'))
+  }
+  return ['fitness', 'pool', 'spa', 'medicalClinic'].includes(destination.kind)
+}
+
 /**
  * Spawn a person on a routed journey. Returns null (and spawns nothing) when
  * no route exists or the journey is zero-length; defers to the overflow FIFO
  * when the active-population LOD cap is reached.
  */
 export function spawnPerson(state: EngineState, opts: SpawnOpts): Person | null {
+  // Check before enqueuing AND when the FIFO retries through this same entry
+  // point. Already-started people and external visitors are unaffected.
+  if (!tenantTripStillValid(state, opts)) return null
   if (state.people.length >= TUNING.people.maxActive) {
     getAux(state).overflow.push(opts)
     return null
