@@ -270,7 +270,6 @@ export class MarbleWorksSceneController {
     this.dress(this.scene)
 
     this.timer.connect(document)
-    this.loop = this.loop.bind(this)
     this.frame = requestAnimationFrame(this.loop)
   }
 
@@ -664,7 +663,7 @@ export class MarbleWorksSceneController {
     callbacks?.onEnd(summarizeRun(this.level, run))
   }
 
-  private loop(timestamp: number): void {
+  private loop = (timestamp: number): void => {
     if (this.disposed) {
       return
     }

@@ -34,12 +34,12 @@ export function clampIntensity(intensity = 1): number {
 
 export interface SynthSfx<Name extends string> {
   /** Create or resume the AudioContext. Call from a user gesture. */
-  unlock(): void
-  play(name: Name, intensity?: number): void
+  unlock: () => void
+  play: (name: Name, intensity?: number) => void
   /** The running voice for continuous sounds, or null without Web Audio. Call after unlock. */
-  live(): SynthVoice | null
-  setMuted(muted: boolean): void
-  dispose(): void
+  live: () => SynthVoice | null
+  setMuted: (muted: boolean) => void
+  dispose: () => void
 }
 
 export interface SynthOptions<Name extends string> {

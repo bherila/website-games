@@ -101,7 +101,8 @@ test.describe('BWH Games PWA offline reload', () => {
 
     await page.goto('/')
     await page.evaluate(() => {
-      const nativeSubmit = HTMLFormElement.prototype.submit
+      const formPrototype: { submit: (this: HTMLFormElement) => void } = HTMLFormElement.prototype
+      const nativeSubmit = formPrototype.submit
       HTMLFormElement.prototype.submit = function (this: HTMLFormElement): void {
         void caches.keys()
           .then((keys) => sessionStorage.setItem(

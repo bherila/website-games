@@ -301,11 +301,11 @@ export function createShowground(): THREE.Group {
   const stage = new THREE.Group()
   lawn(stage, 3.0, -1.7, '#a7c48a')
   const apron = block(stage, [4.7, 0.2, 1.9], [0, -1.6, 0.35], '#8a6040')
-  apron.raycast = THREE.Mesh.prototype.raycast
+  apron.raycast = THREE.Mesh.prototype.raycast.bind(apron)
   apron.receiveShadow = true
   // The dark stage behind the backdrop, and the posts carrying the roof's back edge.
   const wings = block(stage, [4.4, 3.7, 0.08], [0, 0.35, -0.6], '#2b2433')
-  wings.raycast = THREE.Mesh.prototype.raycast
+  wings.raycast = THREE.Mesh.prototype.raycast.bind(wings)
   for (const x of [-2.2, 2.2]) block(stage, [0.14, 3.9, 0.14], [x, 0.4, -0.5], '#5e3b24')
   // Bunting between the back posts, above the roof.
   for (let index = 0; index < 10; index++) {
@@ -329,13 +329,14 @@ export function createMidway(): THREE.Group {
   stage.add(inert(new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(stars, 3)), new THREE.PointsMaterial({ color: '#fff6d8', size: 0.12 }))))
   lawn(stage, 3.0, -1.6, '#2f4a3a')
   const plinth = block(stage, [3.8, 0.12, 1.2], [0, -1.54, 0], '#5c5a55')
-  plinth.raycast = THREE.Mesh.prototype.raycast
+  plinth.raycast = THREE.Mesh.prototype.raycast.bind(plinth)
   const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.6, 14), material('#8d969b', { metalness: 0.6, roughness: 0.3 }))
   axle.rotation.x = Math.PI / 2
   axle.position.set(0, 1.3, 0.1)
   stage.add(axle)
   // A lit ticket booth to one side, behind the wheel.
-  block(stage, [0.8, 1.0, 0.7], [2.3, -1.1, -1.2], '#7b4fa0').raycast = THREE.Mesh.prototype.raycast
+  const booth = block(stage, [0.8, 1.0, 0.7], [2.3, -1.1, -1.2], '#7b4fa0')
+  booth.raycast = THREE.Mesh.prototype.raycast.bind(booth)
   flat(stage, [[-0.25, -0.2], [0.25, -0.2], [0.25, 0.2], [-0.25, 0.2]], 0, '#ffe6a0', { emissive: '#ffd27a', emissiveIntensity: 0.8 }).position.set(2.3, -0.95, -0.84)
   // Strings of lamps from the frame's top out to posts on the grass.
   for (const x of [-2.6, 2.6]) {
@@ -356,7 +357,7 @@ export function createParade(): THREE.Group {
   for (let z = -2.6; z < 2.7; z += 0.7) lines.push(-0.04, -1.595, z, 0.04, -1.595, z + 0.35)
   stage.add(inert(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)), new THREE.LineBasicMaterial({ color: '#f2efe6' }))))
   const deck = block(stage, [2.56, 0.4, 2.4], [0, -1.1, 0], '#5e3b24')
-  deck.raycast = THREE.Mesh.prototype.raycast
+  deck.raycast = THREE.Mesh.prototype.raycast.bind(deck)
   deck.receiveShadow = true
   for (const x of [-1.2, 1.2]) {
     for (const z of [-0.8, 0.8]) {
@@ -367,7 +368,8 @@ export function createParade(): THREE.Group {
     }
   }
   // The low rail on the left that carries the rack.
-  block(stage, [0.1, 1.0, 1.9], [-1.24, -0.4, 0], '#5e3b24').raycast = THREE.Mesh.prototype.raycast
+  const rail = block(stage, [0.1, 1.0, 1.9], [-1.24, -0.4, 0], '#5e3b24')
+  rail.raycast = THREE.Mesh.prototype.raycast.bind(rail)
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 8), material('#3d3a36'))
   pole.position.set(0, 2.45, 0)
   stage.add(pole)

@@ -460,7 +460,8 @@ function planRemainingPlacements(state: EngineState, commands: PlacementCommand[
   return { commands: planned, totalCost }
 }
 
-function clonePlacementState(state: EngineState): EngineState {
+/** Isolate all mutable placement data while preserving the active geometry. */
+export function clonePlacementState(state: EngineState): EngineState {
   const clone: EngineState = {
     ...state,
     units: state.units.map((unit) => ({ ...unit, population: { ...unit.population }, flags: { ...unit.flags } })),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { type EngineEvent, type HudSnapshot } from '../gameTypes'
-import { getAudioLevel, isAudioMuted, setAudioLevel, setAudioMuted } from './audioEngine'
+import { ensureAudioRunning, getAudioLevel, isAudioMuted, setAudioLevel, setAudioMuted } from './audioEngine'
 import {
   cashTick,
   demolishCrunch,
@@ -49,12 +49,12 @@ function now(): number {
 }
 
 export interface GameSounds {
-  playEvents(events: EngineEvent[]): void
+  playEvents: (events: EngineEvent[]) => void
   muted: boolean
-  toggleMute(): void
+  toggleMute: () => void
   /** Master volume in [0,1]; preserved across mute/unmute. */
   level: number
-  setLevel(level: number): void
+  setLevel: (level: number) => void
 }
 
 /**
@@ -65,6 +65,17 @@ export interface GameSounds {
 export function useGameSounds(snapshot: HudSnapshot | null): GameSounds {
   const [muted, setMuted] = useState<boolean>(() => isAudioMuted())
   const [levelState, setLevelState] = useState<number>(() => getAudioLevel())
+
+  useEffect(() => {
+    // Capture the start/build gesture before child handlers stop propagation.
+    // Keep listening so a later browser suspension can recover the same way.
+    document.addEventListener('pointerdown', ensureAudioRunning, true)
+    document.addEventListener('keydown', ensureAudioRunning, true)
+    return () => {
+      document.removeEventListener('pointerdown', ensureAudioRunning, true)
+      document.removeEventListener('keydown', ensureAudioRunning, true)
+    }
+  }, [])
 
   const lastDingRef = useRef(Number.NEGATIVE_INFINITY)
   const lastCashRef = useRef(Number.NEGATIVE_INFINITY)
