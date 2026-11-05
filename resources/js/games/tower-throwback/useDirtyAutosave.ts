@@ -40,6 +40,8 @@ export interface DirtyAutosave {
   markDirty: () => void
   /** Force an immediate write, bypassing the debounce (used by manual saves). */
   flush: () => void
+  /** Report an already completed write of the active slot without writing again. */
+  recordResult: (result: AutosaveOutcome) => void
 }
 
 const TICK_MS = 1_000
@@ -57,10 +59,8 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
     nowRef.current = now
   }, [now])
 
-  const runSave = useCallback(() => {
+  const recordResult = useCallback((result: AutosaveOutcome) => {
     scheduleRef.current = emptySchedule()
-    setHealth((prev) => ({ ...prev, status: 'saving' }))
-    const result = saveRef.current()
     const at = nowRef.current()
     if (result.ok) {
       setHealth({ status: 'saved', lastSavedAt: at, error: null })
@@ -74,6 +74,11 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
       error: result.conflict ? null : result.error,
     }))
   }, [])
+
+  const runSave = useCallback(() => {
+    setHealth((prev) => ({ ...prev, status: 'saving' }))
+    recordResult(saveRef.current())
+  }, [recordResult])
 
   const markDirty = useCallback(() => {
     if (!enabled) {
@@ -119,7 +124,7 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
     }
   }, [enabled])
 
-  return { health, markDirty, flush }
+  return { health, markDirty, flush, recordResult }
 }
 
 export { msUntilAutosave }

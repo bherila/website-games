@@ -554,10 +554,33 @@ export function sandboxLoadFailure(slotId: SandboxSlotId = 'autosave'): 'unknown
   }
 }
 
-export function clearSandbox(slotId: SandboxSlotId = 'autosave'): void {
+export type SandboxClearResult =
+  | { ok: true }
+  | { ok: false; reason: 'storageUnavailable' | 'slotOwnedByAnotherTab' }
+  | { ok: false; reason: 'removalFailed'; saveRemoved: boolean }
+
+export function clearSandbox(slotId: SandboxSlotId = 'autosave', sessionId?: string): SandboxClearResult {
   const storage = safeLocalStorage()
-  storage?.removeItem(sandboxStorageKey(slotId))
-  storage?.removeItem(sandboxOwnerStorageKey(slotId))
+  if (!storage) {
+    return { ok: false, reason: 'storageUnavailable' }
+  }
+  let saveRemoved = false
+  try {
+    if (sessionId) {
+      const owner = storage.getItem(sandboxOwnerStorageKey(slotId))
+      if (owner !== null && owner !== sessionId) {
+        return { ok: false, reason: 'slotOwnedByAnotherTab' }
+      }
+    }
+    // These keys cannot be removed atomically. Preserve the owner until the
+    // tower is gone, and report partial completion if releasing it fails.
+    storage.removeItem(sandboxStorageKey(slotId))
+    saveRemoved = true
+    storage.removeItem(sandboxOwnerStorageKey(slotId))
+    return { ok: true }
+  } catch {
+    return { ok: false, reason: 'removalFailed', saveRemoved }
+  }
 }
 
 export function loadSandboxSlotSummaries(): SandboxSlotSummary[] {

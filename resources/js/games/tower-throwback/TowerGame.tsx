@@ -416,6 +416,36 @@ export function TowerGame(): ReactElement {
     })
   }, [refreshSlots, selectTool])
 
+  /**
+   * The dirty-autosave write. Shares the ownership gate with every other save
+   * path: a slot claimed by another tab refuses the write and tears this
+   * session down rather than overwriting newer progress.
+   */
+  const persistCurrentTower = useCallback((): AutosaveOutcome => {
+    const state = engineStateRef.current
+    if (!state) {
+      return { ok: true }
+    }
+    const slotId = activeSlotRef.current
+    const result = saveSandbox(state, slotId, sandboxSessionIdRef.current)
+    if (result.ok) {
+      refreshSlots()
+      mirrorToCloud(slotId)
+      return { ok: true }
+    }
+    if (result.reason === 'slotOwnedByAnotherTab') {
+      leaveGameForSlotConflict(slotId)
+      return { ok: false, error: storageFailureMessage(result.reason), conflict: true }
+    }
+    return { ok: false, error: storageFailureMessage(result.reason), conflict: false }
+  }, [leaveGameForSlotConflict, mirrorToCloud, refreshSlots])
+
+  const autosave = useDirtyAutosave({
+    save: persistCurrentTower,
+    enabled: !visualTestMode && engineState !== null,
+  })
+  const { recordResult: recordSaveResult } = autosave
+
   const startGame = useCallback((lobbyHeight: 1 | 2 | 3, seed?: number, mapId: string = CITY_TOWER.id) => {
     if (refusePendingRestore('autosave')) {
       return
@@ -484,13 +514,8 @@ export function TowerGame(): ReactElement {
         setShowTowerCard(true)
       }
       if (event.type === 'settlement' || event.type === 'starUp') {
-        const result = saveSandbox(state, activeSlotRef.current, sandboxSessionIdRef.current)
-        if (result.ok) {
-          refreshSlots()
-          mirrorToCloud(activeSlotRef.current)
-        } else if (result.reason === 'slotOwnedByAnotherTab') {
-          leaveGameForSlotConflict(activeSlotRef.current)
-        }
+        const result = persistCurrentTower()
+        recordSaveResult(result)
       }
       if (event.type === 'demolished') {
         setSelection((prev) => {
@@ -505,7 +530,7 @@ export function TowerGame(): ReactElement {
         })
       }
     }
-  }, [leaveGameForSlotConflict, mirrorToCloud, refreshSlots])
+  }, [recordSaveResult, persistCurrentTower])
 
   const onSelectTile = useCallback((tile: { floor: number; x: number }) => {
     const state = engineStateRef.current
@@ -538,6 +563,9 @@ export function TowerGame(): ReactElement {
     // and claiming first means the write's ownership gate never rejects our own save.
     claimSandboxSlot(slotId, sandboxSessionIdRef.current)
     const result = saveSandbox(state, slotId, sandboxSessionIdRef.current)
+    if (slotId === activeSlotRef.current) {
+      recordSaveResult(result.ok ? result : { ok: false, error: storageFailureMessage(result.reason), conflict: false })
+    }
     if (result.ok) {
       refreshSlots()
       mirrorToCloud(slotId)
@@ -546,7 +574,7 @@ export function TowerGame(): ReactElement {
     }
 
     setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
-  }, [mirrorToCloud, refreshSlots, refusePendingRestore])
+  }, [recordSaveResult, mirrorToCloud, refreshSlots, refusePendingRestore])
 
   const loadFromSlot = useCallback((slotId: SandboxSlotId) => {
     if (refusePendingRestore(slotId)) {
@@ -606,41 +634,21 @@ export function TowerGame(): ReactElement {
     if (refuseActiveSlotReplacement(slotId)) {
       return
     }
-    clearSandbox(slotId)
+    const result = clearSandbox(slotId, sandboxSessionIdRef.current)
+    if (!result.ok) {
+      const text = result.reason === 'removalFailed'
+        ? result.saveRemoved
+          ? 'The local tower was removed, but this browser could not finish clearing the slot. The cloud copy is retained. Retry Clear to finish.'
+          : 'Could not clear this browser slot. Its saved tower and cloud copy are retained. Retry Clear.'
+        : storageFailureMessage(result.reason)
+      setSaveMessage({ kind: 'error', text })
+      return
+    }
     refreshSlots()
     cloud.remove(slotId)
     setExportText('')
     setSaveMessage({ kind: 'success', text: `Cleared ${slotLabel(slotId)}.` })
   }, [cloud, refreshSlots, refuseActiveSlotReplacement])
-
-  /**
-   * The dirty-autosave write. Shares the ownership gate with every other save
-   * path: a slot claimed by another tab refuses the write and tears this
-   * session down rather than overwriting newer progress.
-   */
-  const persistCurrentTower = useCallback((): AutosaveOutcome => {
-    const state = engineStateRef.current
-    if (!state) {
-      return { ok: true }
-    }
-    const slotId = activeSlotRef.current
-    const result = saveSandbox(state, slotId, sandboxSessionIdRef.current)
-    if (result.ok) {
-      refreshSlots()
-      mirrorToCloud(slotId)
-      return { ok: true }
-    }
-    if (result.reason === 'slotOwnedByAnotherTab') {
-      leaveGameForSlotConflict(slotId)
-      return { ok: false, error: storageFailureMessage(result.reason), conflict: true }
-    }
-    return { ok: false, error: storageFailureMessage(result.reason), conflict: false }
-  }, [leaveGameForSlotConflict, mirrorToCloud, refreshSlots])
-
-  const autosave = useDirtyAutosave({
-    save: persistCurrentTower,
-    enabled: !visualTestMode && engineState !== null,
-  })
 
   useEffect(() => {
     markDirtyRef.current = autosave.markDirty
@@ -674,17 +682,21 @@ export function TowerGame(): ReactElement {
         saveSandbox(state, slotId, sandboxSessionIdRef.current)
       }
     }
+    return save
+  }, [leaveGameForSlotConflict, visualTestMode])
+
+  useEffect(() => {
+    if (visualTestMode) {
+      return
+    }
     const onVisibility = (): void => {
-      if (document.hidden) {
-        save()
+      if (document.hidden && engineStateRef.current) {
+        recordSaveResult(persistCurrentTower())
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibility)
-      save()
-    }
-  }, [leaveGameForSlotConflict, visualTestMode])
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [recordSaveResult, persistCurrentTower, visualTestMode])
 
   useEffect(() => {
     const onStorage = (event: StorageEvent): void => {

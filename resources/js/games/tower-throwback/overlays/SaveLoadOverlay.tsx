@@ -10,7 +10,7 @@ import { readTowerSaveFile } from './importSaveFile'
 import { LocalSlotTakeover } from './LocalSlotTakeover'
 
 type PendingSaveAction =
-  | { type: 'save' | 'load' | 'clear'; slotId: SandboxSlotId }
+  | { type: 'save' | 'load' | 'clear' | 'restore'; slotId: SandboxSlotId }
   | { type: 'import'; slotId: SandboxSlotId; raw: string }
 
 interface SaveLoadOverlayProps {
@@ -97,6 +97,12 @@ function actionCopy(action: PendingSaveAction, slot: SandboxSlotSummary): { conf
         description: 'This saved tower will be permanently removed from browser storage.',
         confirmLabel: 'Clear slot',
       }
+    case 'restore':
+      return {
+        title: `Replace ${slot.label} with the cloud save?`,
+        description: 'The existing tower in this browser slot will be replaced by the cloud tower.',
+        confirmLabel: 'Restore and replace',
+      }
     case 'import':
       return {
         title: `Replace ${slot.label} with imported data?`,
@@ -109,7 +115,7 @@ function actionCopy(action: PendingSaveAction, slot: SandboxSlotSummary): { conf
 interface CloudSlotStatusRowProps {
   slotId: SandboxSlotId
   view: CloudSlotView
-  onCloudRestore: ((slotId: SandboxSlotId) => void) | undefined
+  onCloudRestore: ((slotId: SandboxSlotId, event: MouseEvent<HTMLButtonElement>) => void) | undefined
   onTakeOver: ((slotId: SandboxSlotId) => void) | undefined
   onCloudRetry: ((slotId: SandboxSlotId) => void) | undefined
 }
@@ -142,7 +148,7 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
         <button
           type="button"
           data-testid={`cloud-restore-${slotId}`}
-          onClick={() => onCloudRestore(slotId)}
+          onClick={(event) => onCloudRestore(slotId, event)}
           className="rounded bg-sky-500/25 px-2 py-0.5 text-[11px] font-bold text-sky-100 hover:bg-sky-500/40"
         >
           Restore from cloud
@@ -300,6 +306,9 @@ export function SaveLoadOverlay({
         break
       case 'clear':
         onClear(action.slotId)
+        break
+      case 'restore':
+        onCloudRestore?.(action.slotId)
         break
       case 'import':
         onImport(action.slotId, action.raw)
@@ -464,7 +473,7 @@ export function SaveLoadOverlay({
                 <CloudSlotStatusRow
                   slotId={slot.id}
                   view={cloudSlots[slot.id]}
-                  onCloudRestore={onCloudRestore}
+                  onCloudRestore={onCloudRestore ? (slotId, event) => requestAction({ type: 'restore', slotId }, event) : undefined}
                   onTakeOver={onTakeOver}
                   onCloudRetry={onCloudRetry}
                 />

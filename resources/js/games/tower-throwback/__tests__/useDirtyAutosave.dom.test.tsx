@@ -1,10 +1,10 @@
 import { act, render } from '@testing-library/react'
 import { type ReactElement, useEffect } from 'react'
 
-import { AUTOSAVE_MAX_UNSAVED_MS, AUTOSAVE_QUIET_MS, type SaveHealth } from '../saveHealth'
-import { type AutosaveOutcome, useDirtyAutosave } from '../useDirtyAutosave'
+import { AUTOSAVE_MAX_UNSAVED_MS, AUTOSAVE_QUIET_MS } from '../saveHealth'
+import { type AutosaveOutcome, type DirtyAutosave, useDirtyAutosave } from '../useDirtyAutosave'
 
-const published: { current: { health: SaveHealth; markDirty: () => void; flush: () => void } | null } = { current: null }
+const published: { current: DirtyAutosave | null } = { current: null }
 
 function api() {
   if (!published.current) {
@@ -184,4 +184,26 @@ describe('useDirtyAutosave', () => {
     advance(AUTOSAVE_QUIET_MS * 2)
     expect(save).toHaveBeenCalledTimes(1)
   })
+})
+
+it('records an external same-slot success, clears a previous failure and cancels the pending debounce', () => {
+  const save = jest.fn((): AutosaveOutcome => ({ ok: false, error: 'Full', conflict: false }))
+  const view = render(<Harness save={save} />)
+  act(() => api().flush())
+  expect(api().health).toEqual({ status: 'failed', lastSavedAt: null, error: 'Full' })
+  advance(1_000)
+  act(() => api().markDirty())
+  act(() => api().recordResult({ ok: true }))
+  expect(api().health).toEqual({ status: 'saved', lastSavedAt: clock, error: null })
+  advance(AUTOSAVE_QUIET_MS * 2)
+  view.unmount()
+  expect(save).toHaveBeenCalledTimes(1)
+})
+
+it('records an external failure without erasing the last successful time', () => {
+  render(<Harness save={ok} />)
+  act(() => api().flush())
+  advance(1_000)
+  act(() => api().recordResult({ ok: false, error: 'Unavailable', conflict: false }))
+  expect(api().health).toEqual({ status: 'failed', lastSavedAt: 0, error: 'Unavailable' })
 })
