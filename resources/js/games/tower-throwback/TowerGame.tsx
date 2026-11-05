@@ -431,7 +431,7 @@ export function TowerGame(): ReactElement {
     if (result.ok) {
       refreshSlots()
       mirrorToCloud(slotId)
-      return { ok: true }
+      return { ok: true, pendingChanges: commandQueueRef.current.some(isStateChangingCommand) }
     }
     if (result.reason === 'slotOwnedByAnotherTab') {
       leaveGameForSlotConflict(slotId)
@@ -564,7 +564,9 @@ export function TowerGame(): ReactElement {
     claimSandboxSlot(slotId, sandboxSessionIdRef.current)
     const result = saveSandbox(state, slotId, sandboxSessionIdRef.current)
     if (slotId === activeSlotRef.current) {
-      recordSaveResult(result.ok ? result : { ok: false, error: storageFailureMessage(result.reason), conflict: false })
+      recordSaveResult(result.ok
+        ? { ok: true, pendingChanges: commandQueueRef.current.some(isStateChangingCommand) }
+        : { ok: false, error: storageFailureMessage(result.reason), conflict: false })
     }
     if (result.ok) {
       refreshSlots()

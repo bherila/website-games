@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { type ComponentProps, useEffect } from 'react'
 
 import type { CloudSlotView } from '../cloudSync'
-import { buildHudSnapshot, createEngineState } from '../engine/engine'
+import { buildHudSnapshot, createEngineState, stepEngine } from '../engine/engine'
 import {
   claimSandboxSlot,
   exportSandbox,
@@ -44,6 +44,12 @@ jest.mock('../TowerScene', () => ({
 function runningScene(): ComponentProps<typeof TowerScene> {
   if (!scene.current) throw new Error('No running scene')
   return scene.current
+}
+
+function drainCommands(): void {
+  const { engineState, commandQueueRef } = runningScene()
+  const queue = commandQueueRef.current
+  stepEngine(engineState, queue.splice(0, queue.length), 0)
 }
 
 function sandboxStorageKey(slot: SandboxSlotId): string {
@@ -474,6 +480,7 @@ it('recovers same-slot manual save health after failure and does not repeat the 
   failure.mockRestore()
   const writes = jest.spyOn(Storage.prototype, 'setItem')
   act(() => runningScene().onPlaceCommand?.({ type: 'setDisastersEnabled', enabled: true }))
+  act(drainCommands)
   fireEvent.click(screen.getByTestId('save-autosave'))
   fireEvent.click(screen.getByRole('button', { name: 'Overwrite save' }))
   expect(screen.getByTestId('save-message')).toHaveTextContent('Saved')
@@ -495,6 +502,7 @@ it('leaves a dirty active slot pending when manually saving a copy to another sl
   expect(screen.getByTestId('save-message')).toHaveTextContent('Saved')
   expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'pending')
   const writes = jest.spyOn(Storage.prototype, 'setItem')
+  act(drainCommands)
   act(() => jest.advanceTimersByTime(5_000))
   expect(writes.mock.calls.filter(([key]) => key === sandboxStorageKey('autosave'))).toHaveLength(1)
   expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'saved')
@@ -506,6 +514,7 @@ it.each(['settlement', 'hide'] as const)('updates health and cancels the debounc
   resume()
   act(() => runningScene().onPlaceCommand?.({ type: 'setDisastersEnabled', enabled: false }))
   const writes = jest.spyOn(Storage.prototype, 'setItem')
+  act(drainCommands)
   if (trigger === 'settlement') {
     act(() => runningScene().onEvents?.([{ type: 'settlement', day: 1, net: 0 }]))
   } else {
@@ -515,4 +524,28 @@ it.each(['settlement', 'hide'] as const)('updates health and cancels the debounc
   expect(writes.mock.calls.filter(([key]) => key === sandboxStorageKey('autosave'))).toHaveLength(1)
   act(() => jest.advanceTimersByTime(10_000))
   expect(writes.mock.calls.filter(([key]) => key === sandboxStorageKey('autosave'))).toHaveLength(1)
+})
+
+it.each(['hide', 'manual', 'debounce'] as const)('keeps an unconsumed command pending after a %s save, then persists it when the scene resumes', (trigger) => {
+  seedSlot('autosave', 4242)
+  render(<TowerGame />)
+  resume()
+  act(() => runningScene().onPlaceCommand?.({ type: 'setDisastersEnabled', enabled: false }))
+  if (trigger === 'hide') {
+    hiddenTab()
+  } else if (trigger === 'manual') {
+    openSaves()
+    fireEvent.click(screen.getByTestId('save-autosave'))
+    fireEvent.click(screen.getByRole('button', { name: 'Overwrite save' }))
+  } else {
+    act(() => jest.advanceTimersByTime(5_000))
+  }
+  expect(loadSandbox()?.options.disastersEnabled).toBe(true)
+  expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'pending')
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+  fireEvent(document, new Event('visibilitychange'))
+  act(drainCommands)
+  act(() => jest.advanceTimersByTime(5_000))
+  expect(loadSandbox()?.options.disastersEnabled).toBe(false)
+  expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'saved')
 })

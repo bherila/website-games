@@ -22,7 +22,7 @@ import {
 } from './saveHealth'
 
 export type AutosaveOutcome =
-  | { ok: true }
+  | { ok: true; pendingChanges?: boolean }
   | { ok: false; error: string; conflict: boolean }
 
 export interface DirtyAutosaveOptions {
@@ -60,10 +60,14 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
   }, [now])
 
   const recordResult = useCallback((result: AutosaveOutcome) => {
-    scheduleRef.current = emptySchedule()
     const at = nowRef.current()
+    // A controller can save before its scene consumes queued commands. The
+    // snapshot is durable, but those commands still need another write after
+    // the scene resumes; do not describe them as saved or lose their debounce.
+    const pending = result.ok && result.pendingChanges
+    scheduleRef.current = pending ? markScheduleDirty(emptySchedule(), at) : emptySchedule()
     if (result.ok) {
-      setHealth({ status: 'saved', lastSavedAt: at, error: null })
+      setHealth({ status: pending ? 'pending' : 'saved', lastSavedAt: at, error: null })
       return
     }
     // A conflict is handled by the caller (it tears the session down), so it is

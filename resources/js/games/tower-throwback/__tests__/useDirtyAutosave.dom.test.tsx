@@ -207,3 +207,14 @@ it('records an external failure without erasing the last successful time', () =>
   act(() => api().recordResult({ ok: false, error: 'Unavailable', conflict: false }))
   expect(api().health).toEqual({ status: 'failed', lastSavedAt: 0, error: 'Unavailable' })
 })
+
+it('keeps a successful partial snapshot pending until queued changes reach a later snapshot', () => {
+  const save = jest.fn((): AutosaveOutcome => ({ ok: true }))
+  render(<Harness save={save} />)
+  act(() => api().markDirty())
+  act(() => api().recordResult({ ok: true, pendingChanges: true }))
+  expect(api().health).toEqual({ status: 'pending', lastSavedAt: 0, error: null })
+  advance(AUTOSAVE_QUIET_MS)
+  expect(save).toHaveBeenCalledTimes(1)
+  expect(api().health).toEqual({ status: 'saved', lastSavedAt: clock, error: null })
+})
