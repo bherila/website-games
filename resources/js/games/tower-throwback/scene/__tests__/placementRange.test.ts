@@ -3,7 +3,8 @@ import * as THREE from 'three'
 import { injectUnit, makeTestState, placeSlabRow } from '../../engine/__tests__/testState'
 import { itemDef } from '../../engine/catalog'
 import { noiseExposureAt } from '../../engine/heatmaps'
-import { FLOOR_MAX, FLOOR_MIN, GRID_WIDTH, TUNING } from '../../gameTypes'
+import { CITY_TOWER, NIAGARA_FALLS } from '../../engine/maps'
+import { GRID_WIDTH, TUNING } from '../../gameTypes'
 import { PLACEMENT_RANGE_TILE_CAP, placementRangeTiles } from '../placementRange'
 import { createPlacementRangeLayer, disposePlacementRangeLayer, setPlacementRange } from '../placementRangeLayer'
 
@@ -55,13 +56,14 @@ describe('placementRangeTiles', () => {
     expect(JSON.stringify(state)).toBe(before)
   })
 
-  it('clips vertical impact to map bounds and caps bulk previews', () => {
-    const state = makeTestState()
-    const commands = [FLOOR_MIN, FLOOR_MAX].flatMap((floor) => [0, GRID_WIDTH - 12].map((x) => ({ type: 'place' as const, kind: 'fastfood' as const, floor, x })))
+  it.each([CITY_TOWER, NIAGARA_FALLS])('clips vertical impact to $name bounds and caps bulk previews', (map) => {
+    const state = makeTestState({ mapId: map.id })
+    const { min, max } = map.floorRange
+    const commands = [min, max].flatMap((floor) => [0, GRID_WIDTH - 12].map((x) => ({ type: 'place' as const, kind: 'fastfood' as const, floor, x })))
     const edgeTiles = placementRangeTiles(state, commands)
-    expect(edgeTiles.every((tile) => tile.floor >= FLOOR_MIN && tile.floor <= FLOOR_MAX && tile.x >= 0 && tile.x < GRID_WIDTH)).toBe(true)
-    expect(edgeTiles.some((tile) => tile.floor === FLOOR_MIN + 1 && tile.x === 0)).toBe(true)
-    expect(edgeTiles.some((tile) => tile.floor === FLOOR_MAX - 1 && tile.x === GRID_WIDTH - 1)).toBe(true)
+    expect(edgeTiles.every((tile) => tile.floor >= min && tile.floor <= max && tile.x >= 0 && tile.x < GRID_WIDTH)).toBe(true)
+    expect(edgeTiles.some((tile) => tile.floor === min + 1 && tile.x === 0)).toBe(true)
+    expect(edgeTiles.some((tile) => tile.floor === max - 1 && tile.x === GRID_WIDTH - 1)).toBe(true)
     const bulk = Array.from({ length: 200 }, (_, index) => ({ type: 'place' as const, kind: 'fastfood' as const, floor: Math.floor(index / 10), x: (index % 10) * 30 }))
     expect(placementRangeTiles(state, bulk)).toHaveLength(PLACEMENT_RANGE_TILE_CAP)
   })
