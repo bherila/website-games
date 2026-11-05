@@ -97,6 +97,45 @@ test.describe('Tower Throwback real player journey', () => {
     await page.screenshot({ path: test.info().outputPath('phone-inspector.png') })
   })
 
+  test('opening help cancels a captured build gesture even after help closes', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-desktop', 'native mouse capture journey; touch and pen cancellation have DOM coverage')
+    const state = createEngineState({ seed: 250, mapId: 'city-tower', lobbyHeight: 1 })
+    stepEngine(state, [
+      { type: 'place', kind: 'lobby', floor: 0, x: 180, widthTiles: 60 },
+      { type: 'place', kind: 'slab', floor: 1, x: 180, widthTiles: 60 },
+      { type: 'setSpeed', speed: 0 },
+    ], 0)
+    const saved = migrateSandboxPayload({ ...state, version: 1, rngState: state.rng.state() })
+    expect(saved).not.toBeNull()
+    await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: SANDBOX_STORAGE_KEY, value: JSON.stringify(saved) })
+    await page.goto('/tower-throwback')
+    await page.getByTestId('resume-autosave').click()
+    await page.getByRole('button', { name: /^Build/ }).click()
+    await page.getByTestId('family-offices').click()
+    await page.getByTestId('tool-officeS').click()
+    const canvas = page.locator('canvas').first()
+    await canvas.focus()
+    await moveToTile(page, canvas, { floor: 1, x: 200 })
+    const funds = await page.getByTestId('funds').innerText()
+    await canvas.evaluate((element) => element.addEventListener('pointerdown', (event) => {
+      element.setAttribute('data-captured-test-pointer', String((event as PointerEvent).pointerId))
+    }, { once: true }))
+    await page.mouse.down()
+    await expect.poll(() => canvas.evaluate((element) => element.hasPointerCapture(Number(element.getAttribute('data-captured-test-pointer'))))).toBe(true)
+    await page.keyboard.press('?')
+    await expect(page.getByRole('dialog', { name: /keyboard shortcuts/i })).toBeVisible()
+    await expect.poll(() => canvas.evaluate((element) => element.hasPointerCapture(Number(element.getAttribute('data-captured-test-pointer'))))).toBe(false)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: /keyboard shortcuts/i })).toHaveCount(0)
+    await page.mouse.up()
+    await expect(page.getByTestId('funds')).toHaveText(funds)
+    // The paused camera and pointer are still over the same target. Start a
+    // fresh native gesture without repeating the coordinate calibration.
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect(page.getByTestId('funds')).not.toHaveText(funds)
+  })
+
   test('starts, builds, saves locally, reloads, and resumes the same tower', async ({ page }, testInfo) => {
     test.setTimeout(360_000)
     const mobile = testInfo.project.name === 'chromium-mobile-375'
