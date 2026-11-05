@@ -66,9 +66,14 @@ export function getMasterGain(): GainNode | null {
 /** Browsers keep the context suspended until a user gesture; call this from a
  * pointer handler to unlock playback. */
 export function ensureAudioRunning(): void {
+  if (muted || level === 0) {
+    return
+  }
   const context = getAudioContext()
   if (context && context.state === 'suspended') {
-    void context.resume()
+    void context.resume().catch(() => {
+      // A browser may still reject this gesture. Retry on the next one.
+    })
   }
 }
 
