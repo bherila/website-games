@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
+
 import { type CDPSession, expect, type Locator, type Page, test } from '@playwright/test'
 
 import { encodeChallengeCode } from '../../resources/js/games/tower-throwback/challengeCode'
+import { SANDBOX_STORAGE_KEY } from '../../resources/js/games/tower-throwback/gameTypes'
 
 interface TowerTile {
   floor: number
@@ -32,6 +35,53 @@ test.describe('Tower Throwback real player journey', () => {
       expect(hit, `speed ${speed} is not covered`).toBe(true)
     }
     await expect(page.getByTestId('fast-mode-toggle')).toBeInViewport({ ratio: 1 })
+  })
+
+  test('phone inspector controls stay tappable and inside the viewport', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
+    const saved = JSON.parse(readFileSync(new URL('../../resources/js/games/tower-throwback/__tests__/fixtures/completed-tower.v2.json', import.meta.url), 'utf8')) as {
+      speed: number
+      units: Array<{ id: number; kind: string; offline: boolean; damageKind: string | null }>
+    }
+    saved.speed = 0
+    const office = saved.units.find((unit) => unit.kind === 'officeS')!
+    office.offline = true
+    office.damageKind = 'fire'
+    await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: SANDBOX_STORAGE_KEY, value: JSON.stringify(saved) })
+    await page.goto('/tower-throwback')
+    await page.getByTestId('resume-autosave').tap()
+    await expect(page.getByTestId('speed-0')).toHaveAttribute('aria-pressed', 'true')
+    const activate = async (locator: Locator): Promise<void> => { await locator.tap() }
+    await openTowerAction(page, 'Inventory', activate)
+    await page.getByRole('button', { name: /^1 \d+ items$/ }).tap()
+    await page.getByRole('button', { name: /Select Office \(S\) on 1$/ }).first().tap()
+    const inspector = page.getByLabel('Item inspector', { exact: true })
+    const assertTargets = async (controls: Locator): Promise<void> => {
+      for (const control of await controls.all()) {
+        await control.scrollIntoViewIfNeeded()
+        await expectTouchTargets(control)
+        const bounds = (await control.boundingBox())!
+        expect(bounds.x).toBeGreaterThanOrEqual(0)
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(375)
+      }
+      expect(await inspector.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    }
+    await assertTargets(inspector.getByRole('button'))
+    await inspector.getByTestId('demolish').tap()
+    await assertTargets(inspector.getByRole('alertdialog').getByRole('button'))
+    await inspector.getByTestId('cancel-destructive-action').tap()
+    await openTowerAction(page, 'Inventory', activate)
+    await page.getByRole('button', { name: /^0 \d+ items$/ }).tap()
+    await page.getByRole('button', { name: 'Select Elevator on 0', exact: true }).first().tap()
+    await assertTargets(inspector.getByRole('button'))
+    await assertTargets(inspector.locator('label').filter({ has: page.getByRole('checkbox') }))
+    await assertTargets(inspector.locator('select, input[type="number"]'))
+    const stop = inspector.getByTestId('stop-1')
+    await stop.scrollIntoViewIfNeeded()
+    await stop.focus()
+    await page.keyboard.press('Space')
+    await expect(stop).not.toBeChecked()
+    await page.screenshot({ path: test.info().outputPath('phone-inspector.png') })
   })
 
   test('starts, builds, saves locally, reloads, and resumes the same tower', async ({ page }, testInfo) => {
