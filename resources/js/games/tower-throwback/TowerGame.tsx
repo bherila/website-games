@@ -304,6 +304,9 @@ export function TowerGame(): ReactElement {
     [slotSummaries],
   )
   const cloud = useCloudSaveSync(localSavedSlots)
+  const otherTabSlots = slotSummaries
+    .filter((slot) => isSandboxSlotOwnedByAnotherTab(slot.id, sandboxSessionIdRef.current))
+    .map((slot) => slot.id)
 
   const refusePendingRestore = useCallback((slotId: SandboxSlotId): SaveMessage | null => {
     if (!restoringSlotsRef.current.has(slotId)) {
@@ -313,6 +316,19 @@ export function TowerGame(): ReactElement {
     setSaveMessage(message)
     return message
   }, [])
+
+  const takeOverLocalSlot = useCallback((slotId: SandboxSlotId) => {
+    if (refusePendingRestore(slotId)) {
+      return
+    }
+    const result = claimSandboxSlot(slotId, sandboxSessionIdRef.current)
+    if (!result.ok) {
+      setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
+      return
+    }
+    refreshSlots()
+    setSaveMessage({ kind: 'success', text: `Took over ${slotLabel(slotId)} in this browser. The saved tower is unchanged.` })
+  }, [refreshSlots, refusePendingRestore])
 
   // A running tower remains the writer for its slot until another tower loads.
   // Refuse storage-only replacements rather than reporting success and letting
@@ -797,6 +813,8 @@ export function TowerGame(): ReactElement {
           onResume={resumeGame}
           onImport={importToSlot}
           startError={saveMessage?.kind === 'error' ? saveMessage.text : undefined}
+          otherTabSlots={otherTabSlots}
+          onTakeOverSlot={takeOverLocalSlot}
         />
       </div>
     )
@@ -1177,6 +1195,8 @@ export function TowerGame(): ReactElement {
           onClear={clearSlot}
           onSetDisastersEnabled={setDisastersEnabled}
           onRestoreFocus={restoreSaveLoadFocus}
+          otherTabSlots={otherTabSlots}
+          onTakeOverSlot={takeOverLocalSlot}
           cloudEnabled={cloud.enabled}
           cloudSlots={cloud.slots}
           onCloudRestore={restoreFromCloud}
