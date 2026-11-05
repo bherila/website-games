@@ -321,6 +321,8 @@ export interface SandboxSlotSummary {
   id: SandboxSlotId
   label: string
   saved: boolean
+  /** Ownership may remain after a partial clear and must stay clearable. */
+  hasOwner?: boolean
   loadFailure: 'unknownMap' | null
   day: number | null
   star: StarLevel | null
@@ -583,14 +585,24 @@ export function clearSandbox(slotId: SandboxSlotId = 'autosave', sessionId?: str
   }
 }
 
+function sandboxSlotHasOwner(slotId: SandboxSlotId): boolean {
+  try {
+    return safeLocalStorage()?.getItem(sandboxOwnerStorageKey(slotId)) != null
+  } catch {
+    return false
+  }
+}
+
 export function loadSandboxSlotSummaries(): SandboxSlotSummary[] {
   return SANDBOX_SLOT_IDS.map((slotId) => {
     const saved = loadSandbox(slotId)
+    const hasOwner = sandboxSlotHasOwner(slotId)
     if (!saved) {
       return {
         id: slotId,
         label: SANDBOX_SLOT_LABELS[slotId],
         saved: false,
+        hasOwner,
         loadFailure: sandboxLoadFailure(slotId),
         day: null,
         star: null,
@@ -603,6 +615,7 @@ export function loadSandboxSlotSummaries(): SandboxSlotSummary[] {
       id: slotId,
       label: SANDBOX_SLOT_LABELS[slotId],
       saved: true,
+      hasOwner,
       loadFailure: null,
       day: saved.clock.day,
       star: saved.star,

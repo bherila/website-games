@@ -549,3 +549,40 @@ it.each(['hide', 'manual', 'debounce'] as const)('keeps an unconsumed command pe
   expect(loadSandbox()?.options.disastersEnabled).toBe(false)
   expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'saved')
 })
+
+it.each(['refresh', 'remount'] as const)('can finish a partial clear after a %s discovers the missing local tower', (recovery) => {
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  const owner = getOrCreateTabSessionId()
+  claimSandboxSlot('slot-a', owner)
+  const view = render(<TowerGame />)
+  resume()
+  openSaves()
+  fireEvent.click(screen.getByTestId('clear-slot-a'))
+  const removeItem = Storage.prototype.removeItem
+  const failure = jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(function (this: Storage, key) {
+    if (key === sandboxOwnerStorageKey('slot-a')) throw new DOMException('Denied', 'SecurityError')
+    removeItem.call(this, key)
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
+  failure.mockRestore()
+  expect(loadSandbox('slot-a')).toBeNull()
+  expect(screen.getByTestId('slot-summary-slot-a')).toHaveTextContent('Empty')
+  expect(cloud.remove).not.toHaveBeenCalled()
+  if (recovery === 'refresh') {
+    fireEvent.click(screen.getByTestId('save-slot-b'))
+  } else {
+    view.unmount()
+    render(<TowerGame />)
+    resume()
+    openSaves()
+  }
+  expect(screen.getByTestId('clear-slot-a')).toBeEnabled()
+  expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe(owner)
+  fireEvent.click(screen.getByTestId('clear-slot-a'))
+  fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
+  expect(screen.getByTestId('save-message')).toHaveTextContent('Cleared')
+  expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBeNull()
+  expect(cloud.remove).toHaveBeenCalledWith('slot-a')
+  expect(screen.getByTestId('clear-slot-a')).toBeDisabled()
+})

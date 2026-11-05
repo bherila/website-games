@@ -459,7 +459,7 @@ export function SaveLoadOverlay({
                 <button
                   type="button"
                   data-testid={`clear-${slot.id}`}
-                  disabled={!slotHasStoredData(slot)}
+                  disabled={!slotHasStoredData(slot) && !slot.hasOwner}
                   onClick={(event) => requestAction({ type: 'clear', slotId: slot.id }, event)}
                   className="rounded bg-red-500/20 px-2 py-1 text-[12px] font-bold text-red-100 hover:bg-red-500/35 disabled:cursor-not-allowed disabled:opacity-40"
                 >

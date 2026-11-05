@@ -643,6 +643,9 @@ export function TowerGame(): ReactElement {
           ? 'The local tower was removed, but this browser could not finish clearing the slot. The cloud copy is retained. Retry Clear to finish.'
           : 'Could not clear this browser slot. Its saved tower and cloud copy are retained. Retry Clear.'
         : storageFailureMessage(result.reason)
+      if (result.reason === 'removalFailed' && result.saveRemoved) {
+        refreshSlots()
+      }
       setSaveMessage({ kind: 'error', text })
       return
     }
