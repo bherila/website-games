@@ -60,16 +60,16 @@ export interface GameApi {
   posterSlotId: string
   reducedMotion: boolean
   eventContext: EventContext
-  navigate(route: Route): void
-  setOverlay(overlay: Overlay): void
+  navigate: (route: Route) => void
+  setOverlay: (overlay: Overlay) => void
   /** Publishes the mounted question; returns the matching unregister. */
-  registerAssessment(entry: ActiveAssessment): () => void
-  setBeat(beat: DioramaBeat): void
-  updateProgress(update: (progress: PreviewProgress) => PreviewProgress): void
-  updateSettings(patch: Partial<MandarinSettings>): void
-  resetPreview(): void
-  appendEvents(events: PracticeEvent[]): void
-  refreshProjection(): Promise<void>
+  registerAssessment: (entry: ActiveAssessment) => () => void
+  setBeat: (beat: DioramaBeat) => void
+  updateProgress: (update: (progress: PreviewProgress) => PreviewProgress) => void
+  updateSettings: (patch: Partial<MandarinSettings>) => void
+  resetPreview: () => void
+  appendEvents: (events: PracticeEvent[]) => void
+  refreshProjection: () => Promise<void>
 }
 
 export const GameContext = createContext<GameApi | null>(null)
