@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 
 import { defaultShaftProgram, type Shaft, type Unit } from '../../gameTypes'
 import { deriveTowerIssueEntries, TowerIssuesNavigator } from '../TowerIssuesNavigator'
@@ -82,6 +82,56 @@ describe('TowerIssuesNavigator', () => {
     expect(result.total).toBe(4_096)
     expect(result.entries).toHaveLength(100)
     expect(result.hidden).toBe(3_996)
+  })
+
+  it.each([101, 1_400])('reaches every issue in a %i-entity tower without growing the DOM', (count) => {
+    const units = Array.from({ length: count }, (_, index) => unit({ id: index + 1, floor: 1, offline: true }))
+    const onSelectUnit = jest.fn()
+    render(<TowerIssuesNavigator units={units} shafts={[]} onSelectUnit={onSelectUnit} onSelectShaft={jest.fn()} onViewFloor={jest.fn()} />)
+    fireEvent.click(screen.getByTestId('tower-issues-summary'))
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+    const pages = Math.ceil(count / 100)
+    for (let page = 1; page < pages; page += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+      expect(within(screen.getByRole('list', { name: 'Tower issues' })).getAllByRole('button').length).toBeLessThanOrEqual(100)
+      expect(screen.getByTestId(`tower-issue-unit-${page * 100 + 1}`)).toHaveFocus()
+    }
+    expect(screen.getByText(`Page ${pages} of ${pages}`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+    fireEvent.click(screen.getByTestId(`tower-issue-unit-${count}`))
+    expect(onSelectUnit).toHaveBeenCalledWith(count)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }))
+    expect(screen.getByTestId(`tower-issue-unit-${(pages - 2) * 100 + 1}`)).toHaveFocus()
+  })
+
+  it('clamps a disappearing last page and keeps keyboard focus on a remaining issue', () => {
+    const units = Array.from({ length: 101 }, (_, index) => unit({ id: index + 1, floor: 1, offline: true }))
+    const props = { shafts: [], onSelectUnit: jest.fn(), onSelectShaft: jest.fn(), onViewFloor: jest.fn() }
+    const view = render(<TowerIssuesNavigator units={units} {...props} />)
+    fireEvent.click(screen.getByTestId('tower-issues-summary'))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByTestId('tower-issue-unit-101')).toHaveFocus()
+    view.rerender(<TowerIssuesNavigator units={units.slice(0, 99)} {...props} />)
+    expect(screen.getByTestId('tower-issue-unit-1')).toHaveFocus()
+    expect(screen.queryByRole('navigation', { name: 'Tower issue pages' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('tower-issues-summary')).toHaveTextContent('99')
+    view.rerender(<TowerIssuesNavigator units={units} {...props} />)
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument()
+    view.rerender(<TowerIssuesNavigator units={[]} {...props} />)
+    expect(screen.queryByTestId('tower-issues-summary')).not.toBeInTheDocument()
+  })
+
+  it('does not steal body focus on HUD updates while the previously focused issue still exists', () => {
+    const units = [unit({ id: 7, offline: true })]
+    const props = { shafts: [], onSelectUnit: jest.fn(), onSelectShaft: jest.fn(), onViewFloor: jest.fn() }
+    const view = render(<TowerIssuesNavigator units={units} {...props} />)
+    fireEvent.click(screen.getByTestId('tower-issues-summary'))
+    const issue = screen.getByTestId('tower-issue-unit-7')
+    issue.focus()
+    issue.blur() // Clicking empty space blurs with no relatedTarget.
+    expect(document.body).toHaveFocus()
+    view.rerender(<TowerIssuesNavigator units={[...units]} {...props} />)
+    expect(document.body).toHaveFocus()
   })
 
   it('selects and views the chosen issue floor', () => {

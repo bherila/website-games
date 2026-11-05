@@ -36,6 +36,7 @@ interface InspectPanelProps {
   selection: InspectSelection | null
   overlaySample?: HeatmapTileSample | null
   maxStarReached: StarLevel
+  currentDay?: number
   vipRecords?: readonly VipRecord[]
   /** Live desirability factor breakdown for the selected unit (recomputed each frame). */
   evalBreakdown?: EvalBreakdown | undefined
@@ -83,7 +84,7 @@ const RENT_TIER_NAMES: Record<RentTier, string> = { low: 'Low', avg: 'Average', 
  * `routed` is the live route to the lobby: the unit's flag is only refreshed
  * at that 08:00 pass, so it is stale for a unit placed or connected since.
  */
-export function leaseOutlook(unit: Unit, desirability: number, routed = !unit.flags.noRoute): string | null {
+export function leaseOutlook(unit: Unit, desirability: number, routed = !unit.flags.noRoute, currentDay = 0): string | null {
   const category = itemDef(unit.kind).category
   if (unit.occupied || (category !== 'office' && category !== 'residential')) {
     return null
@@ -96,6 +97,9 @@ export function leaseOutlook(unit: Unit, desirability: number, routed = !unit.fl
   }
   const when = category === 'office' ? '08:00 on a weekday' : '08:00'
   const needed = TUNING.rent.leasabilityThreshold[unit.rentTier]
+  if (unit.relistOnDay != null && unit.relistOnDay > currentDay) {
+    return `Back on market on day ${unit.relistOnDay}; tenants look at ${when}${desirability < needed ? `; needs desirability ${needed} at ${RENT_TIER_NAMES[unit.rentTier]} rent (now ${Math.floor(desirability)})` : ''}`
+  }
   // Lease against the exact score, as the 08:00 pass does. Shown short of the bar, it rounds down,
   // so a 49.8 never reads as the 50 it needs.
   if (desirability >= needed) {
@@ -206,6 +210,7 @@ function UnitInspect({
   vipRecords,
   evalBreakdown,
   routedToLobby,
+  currentDay,
   onSetRentTier,
   onApplyUpgrade,
   onPestControl,
@@ -219,6 +224,7 @@ function UnitInspect({
   vipRecords: readonly VipRecord[]
   evalBreakdown?: EvalBreakdown | undefined
   routedToLobby?: boolean | undefined
+  currentDay: number
   onSetRentTier: InspectPanelProps['onSetRentTier']
   onApplyUpgrade: InspectPanelProps['onApplyUpgrade']
   onPestControl: InspectPanelProps['onPestControl']
@@ -238,7 +244,7 @@ function UnitInspect({
   const factorLines = evalBreakdown ? evalFactorLines(evalBreakdown) : []
   // The live score: a new unit's cached evalScore is 0 until its first 08:00 pass.
   const desirability = evalBreakdown?.score ?? unit.evalScore
-  const outlook = leaseOutlook(unit, desirability, routedToLobby ?? !unit.flags.noRoute)
+  const outlook = leaseOutlook(unit, desirability, routedToLobby ?? !unit.flags.noRoute, currentDay)
   const vipRecord = vipRecords.find((record) => record.state === 'resident' && record.unitId === unit.id)
   const vipReport = vipRecord?.lastReport[0]
 
@@ -519,7 +525,7 @@ function ShaftInspect({
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[12px]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] sm:flex-nowrap sm:gap-0">
         <span>
           Cars: <span className="tabular-nums">{shaft.cars.length}</span>/{def.maxCars} · avg wait{' '}
           <span className="tabular-nums">{shaft.stats.avgWaitGameMin.toFixed(1)}</span> min
@@ -565,7 +571,7 @@ function ShaftInspect({
           {shaft.stops.map((floor) => {
             const enabled = shaft.enabledStops.includes(floor)
             return (
-              <label key={floor} className="flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[11px]">
+              <label key={floor} className="flex min-h-11 min-w-11 items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[11px] sm:min-h-0 sm:min-w-0">
                 <input
                   type="checkbox"
                   data-testid={`stop-${floor}`}
@@ -655,7 +661,7 @@ function ShaftInspect({
             max={TUNING.elevators.idleAnswerMax}
             value={shaft.program.idleAnswerThreshold}
             onChange={(e) => patchProgram({ idleAnswerThreshold: Number(e.target.value) })}
-            className="rounded bg-white/10 px-1 py-0.5 text-white"
+            className="w-full min-w-0 rounded bg-white/10 px-1 py-0.5 text-white"
           />
         </label>
         <label className="flex flex-col gap-0.5">
@@ -668,7 +674,7 @@ function ShaftInspect({
             max={TUNING.elevators.doorDwellMaxSec}
             value={shaft.program.doorDwellSec}
             onChange={(e) => patchProgram({ doorDwellSec: Number(e.target.value) })}
-            className="rounded bg-white/10 px-1 py-0.5 text-white"
+            className="w-full min-w-0 rounded bg-white/10 px-1 py-0.5 text-white"
           />
         </label>
       </div>
@@ -736,7 +742,7 @@ function ShaftInspect({
 export function InspectPanel(props: InspectPanelProps): ReactElement {
   const { selection } = props
   return (
-    <div className="flex w-full flex-col gap-2 rounded-xl bg-slate-950/80 p-3 text-sm shadow-lg backdrop-blur-sm sm:w-64">
+    <div className="flex w-full min-w-0 flex-col gap-2 rounded-xl bg-slate-950/80 p-3 text-sm shadow-lg backdrop-blur-sm max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_button]:max-w-full max-sm:[&_select]:min-h-11 max-sm:[&_select]:min-w-11 max-sm:[&_input[type=number]]:min-h-11 sm:w-64">
       {props.overlaySample && (
         <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-2 py-1.5" data-testid="overlay-tile-sample">
           <div className="text-[10px] font-bold uppercase text-sky-100/70">
@@ -755,6 +761,7 @@ export function InspectPanel(props: InspectPanelProps): ReactElement {
           vipRecords={props.vipRecords ?? []}
           evalBreakdown={props.evalBreakdown}
           routedToLobby={props.routedToLobby}
+          currentDay={props.currentDay ?? 0}
           onSetRentTier={props.onSetRentTier}
           onApplyUpgrade={props.onApplyUpgrade}
           onPestControl={props.onPestControl}

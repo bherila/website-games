@@ -983,6 +983,7 @@ export function TowerGame(): ReactElement {
         >
           <InspectPanel
             selection={selection}
+            currentDay={engineState.clock.day}
             overlaySample={overlaySample}
             maxStarReached={engineState.maxStarReached}
             vipRecords={engineState.vips}
