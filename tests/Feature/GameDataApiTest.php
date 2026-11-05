@@ -387,6 +387,22 @@ class GameDataApiTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_tower_defense_accepts_only_its_autosave_run_slot(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->putJson('/api/games/tower-defense/data/save/autosave', [
+                'data' => ['version' => 1, 'levelId' => 1],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.game', GameSlug::TowerDefense->value)
+            ->assertJsonPath('data.scope', 'save')
+            ->assertJsonPath('data.slot', 'autosave');
+
+        $this->putJson('/api/games/tower-defense/data/save/other', [
+            'data' => ['version' => 1],
+        ])->assertUnprocessable();
+    }
+
     public function test_marble_works_accepts_its_final_campaign_level(): void
     {
         $this->actingAs(User::factory()->create())

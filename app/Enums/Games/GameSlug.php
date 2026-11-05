@@ -29,7 +29,7 @@ enum GameSlug: string
             GameDataScope::Level => $this->supportsLevelSlot($slot),
             GameDataScope::Save => $this === self::Tower2
                 ? $slot === self::TOWER_2_SLOT
-                : in_array($this, [self::MarbleSort, self::ParkingPickup, self::TwentyFortyEight], true) && $slot === 'autosave',
+                : in_array($this, [self::MarbleSort, self::ParkingPickup, self::TwentyFortyEight, self::TowerDefense], true) && $slot === 'autosave',
         };
     }
 

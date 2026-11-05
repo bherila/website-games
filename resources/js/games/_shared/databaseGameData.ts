@@ -8,6 +8,7 @@ import { MARBLE_WORKS_GAME_DATA } from '../marble-works/gameProgress'
 import { MATH_HORDE_GAME_DATA } from '../math-horde/gameProgress'
 import { PLATE_ESCAPE_GAME_DATA } from '../plate-escape/gameProgress'
 import { TOWER_DEFENSE_GAME_DATA } from '../tower-defense/gameProgress'
+import { TOWER_DEFENSE_SAVE_DATA } from '../tower-defense/runProgress'
 
 export const DATABASE_GAME_PROGRESS_DATA = [
   CHICKS_GAME_DATA,
@@ -34,4 +35,5 @@ export const DATABASE_GAME_DATA = [
   TWENTY48_SAVE_DATA,
   MARBLE_WORKS_GAME_DATA,
   TOWER_DEFENSE_GAME_DATA,
+  TOWER_DEFENSE_SAVE_DATA,
 ] as const

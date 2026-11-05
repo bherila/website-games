@@ -3,6 +3,7 @@ import type { FieldRules } from './pathfinding'
 export const COLS = 13
 export const ROWS = 21
 export const TOWER_DEFENSE_PROGRESS_STORAGE_KEY = 'bwh.tower-defense.progress.v1'
+export const TOWER_DEFENSE_SAVE_STORAGE_KEY = 'bwh.tower-defense.run.v1'
 
 export type ElementId = 'fire' | 'water' | 'nature' | 'earth' | 'light' | 'dark'
 export type TowerId = 'wall' | 'arrow' | 'ember' | 'frost' | 'thorn' | 'boulder' | 'sun' | 'hex'
@@ -182,6 +183,11 @@ export interface WaveSpawn {
   spawnIndex: number
 }
 
+export interface RandomSource {
+  (): number
+  state: () => number
+}
+
 export interface GameState {
   level: LevelDef
   waves: readonly WaveDef[]
@@ -201,7 +207,7 @@ export interface GameState {
   coins: Coin[]
   hero: Hero
   events: GameEvent[]
-  random: () => number
+  random: RandomSource
   nextId: number
   /** Bumped whenever the walkable grid changes. */
   gridVersion: number

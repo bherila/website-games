@@ -53,8 +53,23 @@ card, N sends the next wave, Space pauses, Escape clears the selection. A hidden
 ## Progress
 
 `_shared/levelStarsProgress.ts`, in `bwh.tower-defense.progress.v1`. `GameSlug::TowerDefense`
-allows levels 1-8 and profile `default`. A run in progress is not saved; reloading returns to
-level select, as in Math Horde.
+allows levels 1-8, profile `default`, and `save/autosave`. `runProgress.ts` registers a separate
+`bwh.tower-defense.run.v1` key through the shared persistence facade: anonymous runs stay in the
+browser, and signed-in runs use the account save with its offline shadow and revision guards.
+
+The level select offers the last run; resuming always opens paused. Starting another level asks
+before replacing it, and a failed replacement keeps the previous bytes. First-time play can proceed
+without storage, with a visible warning. Changes debounce for 750 ms, simulation checkpoints every
+10 seconds, and pause, level select, tab hide, pagehide and unmount flush immediately. A completed
+run clears its snapshot independently of the best-star progress.
+
+`runSnapshot.ts` stores version 1, the level definition signature, the exact Mulberry32 state, all
+runtime entities/jobs/wave queues and the bounded flow-field caches. Infinity is encoded as null.
+Those caches must survive: damage and repairs change HP between structural field rebuilds, so
+recomputing breach costs on load would change paths. Rules and building references are rebuilt,
+snapshot objects are copied/validated, presentation events are discarded, and physical key input
+is cleared by the UI after reload. Bump `RUN_VERSION` if future simulation changes cannot continue
+old runs safely; a changed level signature also refuses an incompatible run without erasing stars.
 
 ## Art
 
@@ -217,18 +232,14 @@ this game yet, so its tests run at an estimate until durations are refreshed (se
 
 Roughly in the order they seem worth doing. None of these are decided.
 
-1. **Saving a run.** Long levels take over ten minutes, and a reload or an iPad evicting the tab
-   loses the run. It needs a `save` slot in `GameSlug::supports` and a snapshot of the state. The
-   hard parts are not serializable as they stand: `random` and `rules` are closures, and
-   `buildingAt` and the fields are derived.
-2. **Tutorial beyond level 1.** Mazing, element matching, sappers and flyers are explained only in
+1. **Tutorial beyond level 1.** Mazing, element matching, sappers and flyers are explained only in
    the opening dialog and the HUD.
-3. **Dual-element towers,** combining two elements into a stronger tower. This is the main piece of
+2. **Dual-element towers,** combining two elements into a stronger tower. This is the main piece of
    the Element TD formula left out on purpose. It would fit as new `TOWERS` entries gated on two
    unlocked elements, and needs a way to show them in the tray.
-4. **An endless mode,** which `buildWaves` could already generate, with a best-wave score.
-5. **Placing towers by keyboard.** Hero movement and menus work from the keyboard; choosing a cell
+3. **An endless mode,** which `buildWaves` could already generate, with a best-wave score.
+4. **Placing towers by keyboard.** Hero movement and menus work from the keyboard; choosing a cell
    needs a pointer.
-6. **Device polish.** Measure the frame rate with a full board on a real iPad. If it struggles, the
+5. **Device polish.** Measure the frame rate with a full board on a real iPad. If it struggles, the
    shadow map in `TowerDefenseScene.tsx` is the first thing to try turning down, then one mesh per
    wall, which `scene/buildingView.ts` could instance.

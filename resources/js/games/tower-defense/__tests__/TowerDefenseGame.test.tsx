@@ -1,9 +1,12 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import type { ReactElement } from 'react'
+import { type ReactElement, StrictMode } from 'react'
 
-import { orderBuild } from '../gameEngine'
+import { createGameState, orderBuild, tickGame } from '../gameEngine'
 import { loadProgress } from '../gameProgress'
-import type { GameState, HudSnapshot } from '../gameTypes'
+import { type GameState, type HudSnapshot, TOWER_DEFENSE_SAVE_STORAGE_KEY } from '../gameTypes'
+import { LEVELS } from '../levels'
+import { loadRun, saveRun } from '../runProgress'
+import { snapshotRun } from '../runSnapshot'
 import { TowerDefenseGame } from '../TowerDefenseGame'
 import type { BoardPointer } from '../TowerDefenseScene'
 
@@ -212,5 +215,100 @@ describe('TowerDefenseGame', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(scene?.state).not.toBe(state)
     expect(scene?.state.status).toBe('playing')
+  })
+})
+
+
+describe('saved run recovery', () => {
+  beforeEach(() => { localStorage.clear(); scene = null })
+  afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers() })
+
+  it('restores a saved level paused, preserves queued work, and survives another unmount/reload', () => {
+    localStorage.setItem('bwh.tower-defense.tutorial.v1', 'seen')
+    const original = createGameState(LEVELS[0]!, 123)
+    orderBuild(original, 'arrow', 2, 8)
+    for (let i = 0; i < 25; i += 1) tickGame(original, 1 / 60)
+    expect(saveRun(original).ok).toBe(true)
+    const view = render(<StrictMode><TowerDefenseGame /></StrictMode>)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+    expect(scene?.active).toBe(false)
+    expect(scene?.state.plans).toEqual(original.plans)
+    expect(snapshotRun(scene!.state)).toEqual(snapshotRun(original))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Game paused' })).getByRole('button', { name: 'Resume' }))
+    expect(scene?.active).toBe(true)
+    const running = scene!.state
+    for (let i = 0; i < 60; i += 1) tickGame(running, 1 / 60)
+    view.unmount()
+    expect(loadRun().snapshot?.clock).toBe(running.clock)
+    const current = render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(scene?.state.clock).toBe(running.clock)
+    expect(scene?.active).toBe(false)
+    current.unmount()
+  })
+
+  it('confirms replacing a saved run and keeps its bytes when replacement fails or is cancelled', () => {
+    saveRun(createGameState(LEVELS[0]!, 123))
+    const previous = localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    expect(screen.getByRole('dialog', { name: 'Replace saved run' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep saved run' }))
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const realSetItem = Storage.prototype.setItem
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === TOWER_DEFENSE_SAVE_STORAGE_KEY) throw new DOMException('Full', 'QuotaExceededError')
+      realSetItem.call(this, key, value)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start new run' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('previous saved run is unchanged')
+    expect(screen.queryByTestId('tower-defense-scene')).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    jest.restoreAllMocks()
+    fireEvent.click(screen.getByRole('button', { name: 'Start new run' }))
+    expect(screen.getByTestId('tower-defense-scene')).toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).not.toBe(previous)
+  })
+
+  it('saves changes after bounded debounce, periodically, and immediately on tab hide', () => {
+    jest.useFakeTimers()
+    const state = startFirstLevel()
+    fireEvent.click(screen.getByTestId('tray-wall'))
+    tap(2, 8)
+    tap(3, 8)
+    expect(loadRun().snapshot?.plans).toHaveLength(0)
+    act(() => jest.advanceTimersByTime(750))
+    expect(loadRun().snapshot?.plans).toHaveLength(2)
+    state.clock = 10
+    act(() => jest.advanceTimersByTime(10_000))
+    expect(loadRun().snapshot?.clock).toBe(10)
+    state.gold = 50
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    expect(loadRun().snapshot?.gold).toBe(50)
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+  })
+
+  it('keeps first-time play available if storage fails, with a visible warning', () => {
+    const realSetItem = Storage.prototype.setItem
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === TOWER_DEFENSE_SAVE_STORAGE_KEY) throw new Error('Blocked')
+      realSetItem.call(this, key, value)
+    })
+    startFirstLevel()
+    expect(scene?.active).toBe(true)
+    expect(screen.getByRole('alert')).toHaveTextContent('Saving is unavailable')
+  })
+
+  it('explains a damaged snapshot without touching earned stars or its old bytes', () => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    render(<TowerDefenseGame />)
+    expect(screen.getByRole('alert')).toHaveTextContent('damaged or from an incompatible version')
+    expect(screen.queryByTestId('resume-run')).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(loadProgress().unlockedLevel).toBe(1)
   })
 })
