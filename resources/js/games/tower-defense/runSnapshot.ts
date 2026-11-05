@@ -76,6 +76,7 @@ export function snapshotRun(state: GameState): RunSnapshot {
   return {
     ...runtime,
     version: RUN_VERSION,
+    maxLives: 20,
     levelId: level.id,
     levelSignature: JSON.stringify(level),
     randomState: random.state(),

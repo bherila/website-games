@@ -1,10 +1,10 @@
 import { ELEMENT_IDS } from '../catalog'
-import { callNextWave, createGameState, drainEvents, orderBuild, orderUpgrade, pickElement, tickGame } from '../gameEngine'
+import { callNextWave, createGameState, drainEvents, orderBuild, orderUpgrade, pickElement, placementProblem, tickGame } from '../gameEngine'
 import type { GameEvent, GameState } from '../gameTypes'
-import { COLS } from '../gameTypes'
+import { COLS, ROWS } from '../gameTypes'
 import { LEVELS } from '../levels'
 import { computeField } from '../pathfinding'
-import { parseRunSnapshot, restoreRun, snapshotRun } from '../runSnapshot'
+import { MAX_RUN_BYTES, parseRunSnapshot, restoreRun, snapshotRun } from '../runSnapshot'
 
 function advance(state: GameState, ticks: number): void {
   for (let tick = 0; tick < ticks; tick += 1) tickGame(state, 1 / 60)
@@ -125,4 +125,32 @@ it('ignores untrusted extra fields and never aliases a restored snapshot', () =>
   expect(restored.hero.x).not.toBe(0)
   expect(typeof restored.rules.open.cost).toBe('function')
   expect(restored.buildingAt.every((entry) => entry === null)).toBe(true)
+})
+
+
+it('fits the account-save budget with every campaign enemy alive and a full wall board', () => {
+  const state = createGameState(LEVELS[7]!, 77)
+  state.gold = 100_000
+  state.hero.speedLevel = 3
+  while (state.waveNumber < state.waves.length || state.spawnQueue.length) {
+    if (state.pendingPicks) {
+      const element = ELEMENT_IDS.find((entry) => !state.unlocked.includes(entry))
+      if (element) pickElement(state, element)
+    }
+    if (state.nextWaveIn !== null) callNextWave(state)
+    tickGame(state, 1 / 60)
+    // Hold every spawn alive to bound the densest possible campaign snapshot.
+    for (const enemy of state.enemies) enemy.speed = 0
+  }
+  for (let row = 0; row < ROWS; row += 1) for (let col = 0; col < COLS; col += 1) {
+    if (placementProblem(state, 'wall', col, row)) continue
+    state.hero.x = col + 0.5; state.hero.y = row + 0.5
+    orderBuild(state, 'wall', col, row)
+    advance(state, 20)
+  }
+  const snapshot = snapshotRun(state)
+  expect(state.enemies.length).toBeGreaterThan(200)
+  expect(state.buildings.length).toBeGreaterThan(180)
+  expect(JSON.stringify(snapshot).length).toBeLessThan(MAX_RUN_BYTES)
+  expect(parseRunSnapshot(snapshot)).not.toBeNull()
 })
