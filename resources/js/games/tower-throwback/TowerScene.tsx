@@ -292,6 +292,7 @@ export function TowerScene({
   const [contextRecovering, setContextRecovering] = useState(false)
   // Read inside the rAF loop, which is created once and must not be torn down
   // and rebuilt every time a modal opens.
+  const cancelInputRef = useRef<(() => void) | null>(null)
   const pausedRef = useRef(paused)
   const rendererUnavailableRef = useRef(false)
   // Non-null once renderer construction has failed; bumping `initAttempt`
@@ -354,10 +355,12 @@ export function TowerScene({
   }, [onController])
   useEffect(() => {
     pausedRef.current = paused
+    if (paused) cancelInputRef.current?.()
   }, [paused])
 
   useEffect(() => {
     rendererUnavailableRef.current = rendererError !== null
+    if (rendererError !== null) cancelInputRef.current?.()
   }, [rendererError])
 
   useEffect(() => {
@@ -529,12 +532,13 @@ export function TowerScene({
         wake()
       }
     }
+    const inputBlocked = (): boolean => towerSceneKeyboardBlocked(
+      pausedRef.current,
+      rendererUnavailableRef.current || renderPaused,
+      document.querySelector('[aria-modal="true"]') !== null,
+    )
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (towerSceneKeyboardBlocked(
-        pausedRef.current,
-        rendererUnavailableRef.current,
-        document.querySelector('[aria-modal="true"]') !== null,
-      )) {
+      if (inputBlocked()) {
         return
       }
       const action = keyboardActionForKey(event.key, event.shiftKey)
@@ -631,6 +635,7 @@ export function TowerScene({
     let lastPointer = { x: 0, y: 0 }
 
     // Active touch/pen pointers for pinch + two-finger pan (mouse stays single-pointer).
+    const capturedPointers = new Set<number>()
     const touchPointers = new Map<number, { x: number; y: number }>()
     let pinch: PinchSnapshot | null = null
 
@@ -657,6 +662,33 @@ export function TowerScene({
       }
     }
 
+    const releasePointer = (pointerId: number): void => {
+      capturedPointers.delete(pointerId)
+      if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId)
+    }
+    const capturePointer = (pointerId: number): void => {
+      capturedPointers.add(pointerId)
+      canvas.setPointerCapture(pointerId)
+    }
+    const cancelInput = (): void => {
+      cancelSinglePointerAction()
+      touchPointers.clear()
+      pinch = null
+      shiftPressed = false
+      for (const pointerId of capturedPointers) releasePointer(pointerId)
+      clearCanvasPlacementTarget(canvas)
+    }
+    cancelInputRef.current = cancelInput
+    const cancelBlockedInput = (): boolean => {
+      if (!inputBlocked()) return false
+      cancelInput()
+      return true
+    }
+    // Semantic dialogs can be portaled independently of the paused prop. Once
+    // interrupted, a captured gesture stays cancelled even after the dialog closes.
+    const modalObserver = new MutationObserver(() => { cancelBlockedInput() })
+    modalObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-modal'] })
+
     const beginOrRebaselinePinch = (): void => {
       const pair = firstTwoPointers()
       if (pair) {
@@ -665,9 +697,10 @@ export function TowerScene({
     }
 
     const onPointerDown = (e: PointerEvent): void => {
+      if (cancelBlockedInput()) return
       if (e.pointerType !== 'mouse') {
         touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-        canvas.setPointerCapture(e.pointerId)
+        capturePointer(e.pointerId)
         if (touchPointers.size >= 2) {
           cancelSinglePointerAction() // a second finger arrived → switch to pinch/two-finger pan
           beginOrRebaselinePinch()
@@ -692,9 +725,10 @@ export function TowerScene({
       } else {
         panning = true
       }
-      canvas.setPointerCapture(e.pointerId)
+      capturePointer(e.pointerId)
     }
     const onPointerMove = (e: PointerEvent): void => {
+      if (cancelBlockedInput()) return
       if (touchPointers.has(e.pointerId)) {
         touchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       }
@@ -742,11 +776,10 @@ export function TowerScene({
       }
     }
     const onPointerUp = (e: PointerEvent): void => {
+      if (cancelBlockedInput()) return
       if (touchPointers.has(e.pointerId)) {
         touchPointers.delete(e.pointerId)
-        if (canvas.hasPointerCapture(e.pointerId)) {
-          canvas.releasePointerCapture(e.pointerId)
-        }
+        releasePointer(e.pointerId)
         if (pinch) {
           if (touchPointers.size >= 2) {
             beginOrRebaselinePinch() // 3+ fingers: re-anchor on the remaining pair
@@ -765,9 +798,7 @@ export function TowerScene({
           return
         }
       }
-      if (canvas.hasPointerCapture(e.pointerId)) {
-        canvas.releasePointerCapture(e.pointerId)
-      }
+      releasePointer(e.pointerId)
       const tool = buildToolRef.current
       if (resizeDrag) {
         const tile = tileAt(e)
@@ -815,20 +846,13 @@ export function TowerScene({
       }
       panning = false
     }
-    const onPointerCancel = (e: PointerEvent): void => {
-      if (touchPointers.has(e.pointerId)) {
-        touchPointers.delete(e.pointerId)
-        if (canvas.hasPointerCapture(e.pointerId)) {
-          canvas.releasePointerCapture(e.pointerId)
-        }
-      }
-      if (touchPointers.size < 2) {
-        pinch = null
-      }
-      cancelSinglePointerAction()
+    const onPointerCancel = (): void => { cancelInput() }
+    const onLostPointerCapture = (e: PointerEvent): void => {
+      if (capturedPointers.has(e.pointerId)) cancelInput()
     }
     const onContextMenu = (e: MouseEvent): void => {
       e.preventDefault()
+      if (cancelBlockedInput()) return
       placementDrag = null
       resizeDrag = null
       hoverPreviewToolIdentity = null
@@ -840,6 +864,7 @@ export function TowerScene({
     }
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault()
+      if (cancelBlockedInput()) return
       const rect = canvas.getBoundingClientRect()
       if (e.ctrlKey) {
         // Trackpad pinch (or ctrl+wheel) → zoom anchored at the cursor.
@@ -864,14 +889,12 @@ export function TowerScene({
         shiftPressed = false
       }
     }
-    const onWindowBlur = (): void => {
-      shiftPressed = false
-      cancelSinglePointerAction()
-    }
+    const onWindowBlur = (): void => { cancelInput() }
     canvas.addEventListener('pointerdown', onPointerDown)
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerup', onPointerUp)
     canvas.addEventListener('pointercancel', onPointerCancel)
+    canvas.addEventListener('lostpointercapture', onLostPointerCapture)
     canvas.addEventListener('contextmenu', onContextMenu)
     canvas.addEventListener('wheel', onWheel, { passive: false })
     canvas.addEventListener('keydown', onKeyDown)
@@ -884,6 +907,7 @@ export function TowerScene({
     controller.setContextLossHandlers({
       onLost: () => {
         renderPaused = true
+        cancelInput()
         setContextRecovering(true)
       },
       onRestored: () => {
@@ -896,12 +920,16 @@ export function TowerScene({
     rafId = requestAnimationFrame(frame)
 
     return () => {
+      modalObserver.disconnect()
+      cancelInputRef.current = null
+      cancelInput()
       cancelAnimationFrame(rafId)
       document.removeEventListener('visibilitychange', onVisibility)
       canvas.removeEventListener('pointerdown', onPointerDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', onPointerUp)
       canvas.removeEventListener('pointercancel', onPointerCancel)
+      canvas.removeEventListener('lostpointercapture', onLostPointerCapture)
       canvas.removeEventListener('contextmenu', onContextMenu)
       canvas.removeEventListener('wheel', onWheel)
       canvas.removeEventListener('keydown', onKeyDown)

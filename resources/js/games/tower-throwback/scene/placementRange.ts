@@ -69,7 +69,7 @@ function noiseRangeTiles(command: PlaceItemCmd): PlacementRangeTile[] {
       const x1 = Math.min(GRID_WIDTH - 1, hi + noise.radiusTiles - 1)
       for (let x = x0; x <= x1; x += 1) {
         const distance = spanGap(x, lo, hi)
-        if (distance === 0 || distance >= noise.radiusTiles) {
+        if ((floorDelta === 0 && distance === 0) || distance >= noise.radiusTiles) {
           continue
         }
         tiles.push({
