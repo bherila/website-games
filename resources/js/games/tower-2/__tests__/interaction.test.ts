@@ -32,10 +32,30 @@ describe('tool actions', () => {
     expect(corridor.hint).toBe('Corridors go on open floor plate')
     expect(corridor.preview).toMatchObject({ kind: 'rect', x: 1, y: 1, width: 3, depth: 3, valid: false })
     const paint = toolAction(building, 'plate', 0, { x: 3, y: 3 }, { x: 1, y: 1 }, 'south')
-    expect(paint.hint).toBeNull()
+    expect(paint.hint).toBe('Shell estimate +$900')
     expect(paint.commit!(building)).toEqual({ ok: true })
     expect(building.plateArea(0)).toBe(9)
     expect(toolAction(building, 'erase', 0, { x: 2, y: 2 }, null, 'south').preview).toMatchObject({ tone: 'erase', valid: true })
+  })
+
+  test('floor previews quote overhangs and share reach checks with paint, clear and atrium commits', () => {
+    const building = new Building()
+    building.paintPlate(0, [{ x: 10, y: 10 }])
+    const paint = toolAction(building, 'plate', 1, { x: 13, y: 10 }, { x: 10, y: 10 }, 'south')
+    expect(paint.hint).toBe('Shell estimate +$1,100 · 3 overhang tiles at 3× price')
+    expect(paint.preview?.valid).toBe(true)
+    expect(paint.commit!(building)).toEqual({ ok: true })
+    const tooFar = toolAction(building, 'plate', 1, { x: 14, y: 10 }, null, 'south')
+    expect(tooFar.preview?.valid).toBe(false)
+    expect(tooFar.commit!(building)).toEqual({ ok: false, reason: tooFar.hint })
+    for (const tool of ['erase', 'atrium'] as const) {
+      const action = toolAction(building, tool, 1, { x: 11, y: 10 }, null, 'south')
+      expect(action.preview?.valid).toBe(false)
+      expect(action.commit!(building)).toEqual({ ok: false, reason: action.hint })
+    }
+    const clearSupport = toolAction(building, 'erase', 0, { x: 10, y: 10 }, null, 'south')
+    expect(clearSupport.preview?.valid).toBe(false)
+    expect(clearSupport.commit!(building)).toEqual({ ok: false, reason: clearSupport.hint })
   })
 
   test('core and room tools preview their footprint, range and door', () => {

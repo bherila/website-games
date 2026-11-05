@@ -9,6 +9,7 @@ import { clearGroup, disposeObject } from '../../_shared/three/threeUtils'
 import storefrontSignsUrl from '../assets/storefront-signs.webp'
 import { type BuildingAnalysis, lightLevel } from '../engine/analysis'
 import { type Building, DOOR_STEP, type Facing } from '../engine/building'
+import { OVERHANG_REACH } from '../engine/construction'
 import type { Car, Visitor } from '../engine/people'
 import { type UseKind, USES } from '../engine/uses'
 import { loadAtlas } from './atlasMaterials'
@@ -20,7 +21,7 @@ import { applyCamera, cameraSides, FLOOR_HEIGHT, type IsoView, type Viewport } f
 import { type FloorVisibility, floorVisibility, type QuarterTurn } from './isoProjection'
 import { LIGHT_RAMP, PALETTE, rampColor, WALK_NONE, WALK_RAMP } from './palette'
 
-export type OverlayKind = 'none' | 'light' | 'walk'
+export type OverlayKind = 'none' | 'light' | 'walk' | 'structure'
 
 export type Preview =
   | { kind: 'rect', floor: number, x: number, y: number, width: number, depth: number, valid: boolean, tone: 'paint' | 'erase' }
@@ -236,6 +237,14 @@ export class Tower2Renderer {
         tiles.push(index)
         colors.push(rampColor(LIGHT_RAMP, lightLevel(daylight[index]!)))
       }
+    } else if (inputs.overlay === 'structure') {
+      const { distances } = building.construction(floor)
+      const plate = building.plateMask(floor)
+      for (let index = 0; index < plate.length; index++) {
+        if (plate[index] !== 1) continue
+        tiles.push(index)
+        colors.push(distances[index]! > OVERHANG_REACH ? PALETTE.invalid : distances[index] === 0 ? PALETTE.valid : PALETTE.overhang)
+      }
     } else {
       const walk = analysis.walkField(floor)
       const plate = building.plateMask(floor)
@@ -281,7 +290,7 @@ export class Tower2Renderer {
     }
     const base = preview.floor * FLOOR_HEIGHT
     if (preview.kind === 'rect') {
-      const hex = preview.valid ? (preview.tone === 'erase' ? PALETTE.invalid : PALETTE.valid) : 0x9ca3af
+      const hex = preview.valid ? (preview.tone === 'erase' ? PALETTE.invalid : PALETTE.valid) : PALETTE.invalid
       box(preview.x, base - 0.02, preview.y, preview.x + preview.width, base + 0.12, preview.y + preview.depth, hex, 0.4)
     } else if (preview.kind === 'room') {
       const hex = preview.valid ? USES[preview.use].color : PALETTE.invalid

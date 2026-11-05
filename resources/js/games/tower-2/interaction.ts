@@ -4,6 +4,7 @@
  * press and the pointer; room and core tools act on a click.
  */
 import { type Building, type EditResult, type Facing, floorLabel, nextFacing, type Room, roomFootprint } from './engine/building'
+import { formatCost, OVERHANG_REACH } from './engine/construction'
 import type { PlateTile } from './engine/floorPlate'
 import { CORE_DEPTH, coreWidth, USE_KINDS, type UseKind, USES } from './engine/uses'
 import type { Preview } from './scene/Tower2Renderer'
@@ -20,7 +21,7 @@ export interface ToolDef {
 
 export const TOOLS: readonly ToolDef[] = [
   { id: 'select', label: 'Select', key: '1', hint: 'Tap a room or core to inspect it; drag a room to move it' },
-  { id: 'plate', label: 'Floor', key: '2', hint: 'Drag to paint floor plate' },
+  { id: 'plate', label: 'Floor', key: '2', hint: `Drag to paint floor plate. Overhangs reach ${OVERHANG_REACH} tiles; Structure shows shell cost.` },
   { id: 'erase', label: 'Clear', key: '3', hint: 'Drag to clear plate, corridors and rooms' },
   { id: 'atrium', label: 'Atrium', key: '4', hint: 'Drag to cut a void from this floor up' },
   { id: 'corridor', label: 'Corridor', key: '5', hint: 'Drag to draw corridors on open plate' },
@@ -108,16 +109,18 @@ export function toolAction(building: Building, tool: ToolId, floor: number, hove
     const inside = rect.tiles.filter(({ x, y }) => building.inBounds(x, y))
     const uses = inside.map(({ x, y }) => building.tileUse(floor, x, y))
     let hint: string | null = null
-    if (tool === 'plate') hint = inside.length === 0 ? 'Paint inside the site' : null
+    const check = tool === 'corridor' ? null : building.checkPlateEdit(tool === 'plate' ? 'paint' : tool as 'erase' | 'atrium', floor, inside)
+    if (check && !check.ok) hint = check.reason
     if (tool === 'corridor' && !uses.includes('plate')) hint = 'Corridors go on open floor plate'
-    if ((tool === 'erase' || tool === 'atrium') && uses.every((use) => use === 'empty')) hint = 'Nothing to clear here'
-    if ((tool === 'erase' || tool === 'atrium') && uses.includes('core')) hint = 'A core stands here. Select it to shorten or remove it first.'
     const preview: Preview = { kind: 'rect', floor, x: rect.x, y: rect.y, width: rect.width, depth: rect.depth, valid: hint === null, tone: tool === 'erase' || tool === 'atrium' ? 'erase' : 'paint' }
     const commit = (target: Building): EditResult => {
       if (tool === 'plate') return target.paintPlate(floor, inside)
       if (tool === 'corridor') return target.paintCorridor(floor, inside)
       if (tool === 'atrium') return target.carveAtrium(floor, inside)
       return target.erase(floor, inside)
+    }
+    if (check?.ok && check.costDelta !== 0) {
+      hint = `Shell estimate ${check.costDelta > 0 ? '+' : '−'}${formatCost(Math.abs(check.costDelta))}${check.overhangAdded > 0 ? ` · ${check.overhangAdded} overhang ${check.overhangAdded === 1 ? 'tile' : 'tiles'} at 3× price` : ''}`
     }
     return { preview, hint, commit }
   }

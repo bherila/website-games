@@ -327,7 +327,7 @@ describe('floors', () => {
     expect(building.room(1)).toMatchObject({ floor: -1, storefront: false })
     expect(building.checkRoom('shop', -1, 3, 5, 'south').ok).toBe(false)
     // A building can rise to the limit and no further.
-    building.paintPlate(HEIGHT_LIMIT - 1, rect(0, 0, 2, 2))
+    for (let floor = 1; floor < HEIGHT_LIMIT; floor++) expect(building.paintPlate(floor, rect(0, 0, 2, 2))).toEqual({ ok: true })
     expect(building.paintPlate(HEIGHT_LIMIT, rect(0, 0, 2, 2)).ok).toBe(false)
     const copy = Building.fromSnapshot(JSON.parse(JSON.stringify(building.snapshot())))
     expect(copy.snapshot()).toEqual(building.snapshot())
