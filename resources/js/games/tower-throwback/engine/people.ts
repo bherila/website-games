@@ -24,8 +24,9 @@ import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { postImmediate } from './economy'
 import { slabAt } from './grid'
+import { hotelReceptionExists, hotelRoomAvailable } from './hotelAvailability'
 import { getMap } from './maps'
-import { findRoute, type RouteOpts, spreadElevatorLegs } from './routing'
+import { findRoute, hasRouteToLobby, type RouteOpts, spreadElevatorLegs } from './routing'
 import { geometryFor } from './towerGeometry'
 
 /**
@@ -399,7 +400,12 @@ function applyArrivalEffects(state: EngineState, person: Person): void {
   if (!unit) {
     return
   }
-  if (person.purpose === 'hotelCheckIn' && !unit.occupied) {
+  if (person.purpose === 'hotelCheckIn') {
+    // Booking precedes travel: room status and topology may have changed
+    // since departure. Consult live reception/routes rather than cached flags.
+    if (!hotelRoomAvailable(unit) || !hotelReceptionExists(state) || !hasRouteToLobby(state, unit)) {
+      return
+    }
     unit.occupied = true
     unit.vacancyReason = null
     unit.dirty = false
