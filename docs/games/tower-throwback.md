@@ -340,8 +340,12 @@ Visit score starts at 100; success threshold **≥ 70**.
 
 Success → star-up + cash bonus + golden move-in (studio / 1BR / 2BR / 2BR / penthouse per level).
 Fail → complaint report (top deductions listed) + 3-game-day cooldown, then the visit re-arms.
+Required stops recheck live availability and routes on departure/arrival and during the stay.
+Suite check-in also needs live reception and vacancy; checkout only clears the visit's own guest.
 **Resident VIP satisfaction**: starts 80; weekly delta = +5 if their unit's eval ≥ 70 else −10;
 additional −5 in any week their unit takes ≥2 stress marks. Below 40 → move-out → star loss.
+Evacuated residents keep their earned star and satisfaction, defer move-in until a suitable home
+is available, and receive no weekly home score while unhoused.
 
 ## Incidents
 

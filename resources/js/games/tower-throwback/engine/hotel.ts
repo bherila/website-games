@@ -27,6 +27,7 @@ import { TUNING } from '../gameTypes'
 import { hotelReceptionExists, hotelRoomAvailable, isHotelRoom } from './hotelAvailability'
 import { spawnPerson, streetEntrance } from './people'
 import { pickWeighted } from './rng'
+import { isActiveVipSuite } from './vip'
 
 export { HOTEL_ROOM_KINDS, hotelReceptionExists, isHotelRoom } from './hotelAvailability'
 
@@ -129,7 +130,7 @@ function planCheckIns(state: EngineState): void {
 
 /** 07:00 — plan checkouts for every room that hosted a guest overnight. */
 function planCheckOuts(state: EngineState): void {
-  const occupied = hotelRooms(state).filter((room) => room.occupied)
+  const occupied = hotelRooms(state).filter((room) => room.occupied && !isActiveVipSuite(state, room))
   occupied.forEach((room, i) => {
     const pop = room.population
     const tier: IncomeTier = pop.vip > 0 ? 'vip' : pop.high > 0 ? 'high' : pop.med > 0 ? 'med' : 'low'
@@ -159,7 +160,7 @@ function spawnGuest(state: EngineState, guest: PendingGuest): void {
     })
     return
   }
-  if (!room.occupied) {
+  if (!room.occupied || isActiveVipSuite(state, room)) {
     return
   }
   // Tenancy ends as the guest leaves the room; it turns dirty behind them.
