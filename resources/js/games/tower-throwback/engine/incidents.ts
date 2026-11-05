@@ -32,8 +32,9 @@ import { TUNING } from '../gameTypes'
 import { itemDef } from './catalog'
 import { accrue, postImmediate, requestSpend } from './economy'
 import { isSlabFamily } from './grid'
-import { vacateUnit } from './occupancy'
-import { parkingShortfall } from './parking'
+import { vacateUnit, vacateUnroutableUnits } from './occupancy'
+import { parkingShortfall, rampServedFloors, refreshParkingFlags } from './parking'
+import { replanAfterConnectorRemoval } from './people'
 import { randomInt } from './rng'
 import { populationOf } from './stars'
 import { geometryFor } from './towerGeometry'
@@ -91,6 +92,22 @@ export function restoreIncidentRuntime(state: EngineState, snapshot: IncidentRun
 
 function unitsInIdOrder(state: EngineState): Unit[] {
   return state.units // id-ascending by EngineState invariant — no sort needed
+}
+
+/** Apply service changes after the whole damage batch is offline (or a repair is online). */
+function refreshInfrastructure(state: EngineState, changed: readonly Unit[], events: EngineEvent[]): void {
+  const connectors = changed.filter((unit) => unit.kind === 'stairs' || unit.kind === 'escalator')
+  if (connectors.length > 0) {
+    state.structureVersion += 1 // discard both cached paths and the connector graph
+    for (const unit of connectors) {
+      if (unit.offline) replanAfterConnectorRemoval(state, unit)
+    }
+    if (connectors.some((unit) => unit.offline)) vacateUnroutableUnits(state, events)
+  }
+  if (changed.some((unit) => unit.kind === 'parkingRamp' || unit.kind === 'parkingSpace')) {
+    const served = rampServedFloors(state)
+    for (const unit of state.units) refreshParkingFlags(state, unit, served)
+  }
 }
 
 // ── Bomb threats ─────────────────────────────────────────────────────────────
@@ -152,17 +169,20 @@ function explode(state: EngineState, events: EngineEvent[]): void {
   const lo = threat.x - Math.floor(span / 2)
   const hi = lo + span - 1
   const damagedUnitIds: number[] = []
+  const changed: Unit[] = []
   for (const unit of unitsInIdOrder(state)) {
     if (unit.floor !== threat.floor || isSlabFamily(unit.kind)) {
       continue
     }
     if (unit.x + unit.width - 1 >= lo && unit.x <= hi) {
+      if (!unit.offline) changed.push(unit)
       unit.offline = true
       unit.damageKind = 'explosion'
       unit.incidentPenaltyUntilDay = null
       damagedUnitIds.push(unit.id)
     }
   }
+  refreshInfrastructure(state, changed, events)
   events.push({ type: 'explosion', floor: threat.floor, damagedUnitIds })
   events.push({ type: 'incidentResolved', kind: 'bombThreat', outcome: 'explosion' })
   state.activeBombThreat = null
@@ -216,10 +236,12 @@ function fireTarget(state: EngineState, totalWeight: number): Unit | null {
 
 function applyFireDamage(state: EngineState, unitIds: readonly number[], events: EngineEvent[]): void {
   const damaged = new Set(unitIds)
+  const changed: Unit[] = []
   for (const unit of unitsInIdOrder(state)) {
     if (!damaged.has(unit.id)) {
       continue
     }
+    if (!unit.offline) changed.push(unit)
     unit.offline = true
     unit.damageKind = 'fire'
     unit.incidentPenaltyUntilDay = null
@@ -227,6 +249,7 @@ function applyFireDamage(state: EngineState, unitIds: readonly number[], events:
       vacateUnit(unit, 'incidentDamage', events)
     }
   }
+  refreshInfrastructure(state, changed, events)
 }
 
 function resolveFire(state: EngineState, events: EngineEvent[], outcome: string): void {
@@ -452,6 +475,7 @@ export function repairUnit(state: EngineState, unitId: number, events: EngineEve
   unit.offline = false
   unit.damageKind = null
   unit.incidentPenaltyUntilDay = state.clock.day + TUNING.evalWeights.incidentPenaltyDays
+  refreshInfrastructure(state, [unit], events)
 }
 
 /** Flat neighbor penalty when any infested unit is roach-adjacent (eval hook). */

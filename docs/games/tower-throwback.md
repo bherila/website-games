@@ -132,6 +132,11 @@ single source of truth at runtime; this table is normative for its values.
 | Cathedral | 30×2 | $1,000,000 | — | — | New York TOWER structure at floor 99; locks building above |
 | Observation Deck | 24×2 | $1,000,000 | — | — | Niagara TOWER structure at B30 or 15; 18 tiles supported on a bank, 6 cantilevered into the Falls void |
 
+Parking access requires an online ramp on every basement floor from B1 to the stall's floor.
+A damaged ramp interrupts its floor and all deeper floors; stall route flags update immediately,
+and new arrivals use the remaining functional stalls. Existing parked cars retain their owners
+through the interruption and repair, then clear on evening departure or the 03:00 safety reset.
+
 **Upgrade paths** (`upgradePaths {from, to|grade, cost, starRequired}`, footprint preserved,
 applied from the inspect panel): fastfood → restaurant ($40k, 2★) → fancy restaurant ($80k, 4★);
 hotel room standard → luxury grade ($30k 1p / $50k 2p / $80k suite, 4★; +60% nightly rate,
@@ -421,6 +426,9 @@ consumes zero disaster rng draws. Legacy saves default this option to on.
   until a skybridge merges them.
 - Edges: shaft stops, stairs (people willing ≤4 floors), escalators (commercial floors),
   skybridges.
+- Damaged stairs and escalators provide no route edges. Damage and repair invalidate cached
+  routes; damage replans affected journeys using the same rules as connector removal, preserving
+  intact current legs and abandoning journeys with no remaining route.
 - **Max 2 elevator legs per journey** (one transfer — the classic manual rule); stairs/escalator
   legs don't count. Route cache keyed by segment pair, invalidated on `structureVersion`.
 - Units with no route to a ground lobby get `flags.noRoute` and cannot lease.
