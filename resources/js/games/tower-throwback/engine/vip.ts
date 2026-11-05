@@ -389,6 +389,13 @@ function releaseSuite(state: EngineState, visit: ActiveVisit): void {
   visit.suiteId = null
 }
 
+/** Ordinary hotel checkout must leave the active VIP's overnight tenancy alone. */
+export function isActiveVipSuite(state: EngineState, unit: Unit): boolean {
+  const visit = getAux(state).visit
+  return visit !== null && visit.atStop && visit.suiteId === unit.id
+    && visit.stops[visit.stopIndex]?.suite === true && isVipTenancy(unit)
+}
+
 function startVisit(state: EngineState, target: VipTarget, events: EngineEvent[]): void {
   const aux = getAux(state)
   const record = findRecord(state, target)

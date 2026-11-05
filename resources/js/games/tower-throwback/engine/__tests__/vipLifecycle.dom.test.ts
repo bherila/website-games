@@ -1,6 +1,7 @@
 import { loadSandbox, restoreSandbox, saveSandbox } from '../../gameProgress'
 import type { EngineEvent, EngineState, Unit, VipRecord } from '../../gameTypes'
 import { stepEngine } from '../engine'
+import { restoreHotelRuntime, stepHotelMinute } from '../hotel'
 import { repairUnit, respondToFire } from '../incidents'
 import { stepPeople } from '../people'
 import { snapshotVipRuntime, stepVipMinute, stepVips, vipWeeklyPass } from '../vip'
@@ -13,6 +14,7 @@ function drive(state: EngineState, events: EngineEvent[], done: () => boolean, l
       state.clock.minute = 0
       state.clock.day++
     }
+    stepHotelMinute(state, state.clock.minute)
     stepVipMinute(state, state.clock.minute, events)
     stepPeople(state, 1, events)
   }
@@ -39,6 +41,8 @@ function suiteArrival(floor = 0) {
   const suite = injectUnit(state, { kind: 'hotelSuite', floor, x: 40, width: 10, storeys: 1 })
   const events: EngineEvent[] = []
   stepVips(state, events)
+  // Start just before the scheduled arrival with a prepared clean suite.
+  state.clock = { day: 2, minute: 10 * 60 - 1 }
   drive(state, events, () => events.some((event) => event.type === 'vipArrived'))
   expect(suite.occupied).toBe(false)
   return { state, suite, reception, connector, events }
@@ -120,6 +124,16 @@ describe('live VIP destinations and suite ownership', () => {
     expect(finish(state)).toEqual(finish(resumed))
     expect(state.star).toBe(4)
     expect(suite).toMatchObject({ occupied: false, dirty: true, population: { vip: 0 } })
+  })
+
+  it('ignores an ordinary checkout already queued in a legacy overnight save', () => {
+    const { state, suite, events } = suiteArrival()
+    drive(state, events, () => suite.population.vip === 1)
+    state.clock = { day: state.clock.day + 1, minute: 7 * 60 + 30 }
+    restoreHotelRuntime(state, { pending: [[state.clock.minute + 1, [{ roomId: suite.id, tier: 'vip', direction: 'out' }]]] })
+    const resumed = resume(state)
+    expect(finish(state)).toEqual(finish(resumed))
+    expect(state.star).toBe(4)
   })
 })
 
