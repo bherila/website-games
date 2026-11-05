@@ -1,14 +1,25 @@
-import { defineGameData, definitionRowKey, gameDataStorage, isSaveSlotBlocked } from '../_shared/gameDataPersistence'
+import { defineGameData, definitionRowKey, flushGameDataWrites, gameDataStorage, isSaveSlotBlocked } from '../_shared/gameDataPersistence'
+import { isRecord, safeLocalStorage } from '../_shared/progressParsers'
 import type { GameState } from './gameTypes'
 import { TOWER_DEFENSE_SAVE_STORAGE_KEY } from './gameTypes'
 import { MAX_RUN_BYTES, parseRunSnapshot, type RunSnapshot, snapshotRun } from './runSnapshot'
 
-export const TOWER_DEFENSE_SAVE_DATA = defineGameData<RunSnapshot>({
+// A cloud row may belong to a newer client. Retain a recovery signal without
+// rewriting or exposing that unrecognized payload as a runnable state.
+type StoredRun = RunSnapshot | { unavailableRun: true }
+const UNAVAILABLE_RUN: StoredRun = Object.freeze({ unavailableRun: true })
+
+export const TOWER_DEFENSE_SAVE_DATA = defineGameData<StoredRun>({
   game: 'tower-defense',
   localStorageKey: TOWER_DEFENSE_SAVE_STORAGE_KEY,
-  parse: parseRunSnapshot,
-  encode: (snapshot) => [{ scope: 'save', slot: 'autosave', data: snapshot as unknown as Record<string, unknown> }],
-  decode: (rows) => parseRunSnapshot(rows.get(definitionRowKey('save', 'autosave'))?.data),
+  preserveInvalidLocal: true,
+  parse: (value) => isRecord(value) && value.unavailableRun === true ? UNAVAILABLE_RUN : parseRunSnapshot(value),
+  encode: (snapshot) => 'unavailableRun' in snapshot ? [] : [{ scope: 'save', slot: 'autosave', data: snapshot as unknown as Record<string, unknown> }],
+  decode: (rows) => {
+    const row = rows.get(definitionRowKey('save', 'autosave'))
+    if (!row || row.isDeleted) return null
+    return parseRunSnapshot(row.data) ?? UNAVAILABLE_RUN
+  },
   clearSlots: [{ scope: 'save', slot: 'autosave' }],
 })
 
@@ -58,5 +69,34 @@ export function clearRun(storage: Pick<Storage, 'removeItem'> | null = gameDataS
     return true
   } catch {
     return false
+  }
+}
+
+/** Called only after an explicitly chosen new run has committed successfully. */
+export function discardInvalidBrowserRun(): void {
+  const storage = safeLocalStorage()
+  if (!storage) return
+  try {
+    const raw = storage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+    if (raw === null) return
+    let valid = false
+    if (raw.length <= MAX_RUN_BYTES) {
+      try { valid = parseRunSnapshot(JSON.parse(raw)) !== null } catch { /* Keep the recovery copy until consent. */ }
+    }
+    if (valid) return
+    const discard = (): void => {
+      // A later writer or a failed account replacement keeps its recovery copy.
+      if (isSaveSlotBlocked('tower-defense', 'autosave') || storage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY) !== raw) return
+      storage.removeItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+    }
+    if (gameDataStorage() === storage) discard()
+    else {
+      // An account write is asynchronous. Keep the browser's unreadable copy
+      // until the confirmed replacement reaches the server; offline/failure
+      // leaves it available even when the shadow store also cannot persist.
+      void flushGameDataWrites().then(discard).catch(() => {})
+    }
+  } catch {
+    // Declining cleanup must not turn a successful new run into a failed write.
   }
 }

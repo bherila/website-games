@@ -58,10 +58,14 @@ allows levels 1-8, profile `default`, and `save/autosave`. `runProgress.ts` regi
 browser, and signed-in runs use the account save with its offline shadow and revision guards.
 
 The level select offers the last run; resuming always opens paused. Starting another level asks
-before replacing it, and a failed replacement keeps the previous bytes. First-time play can proceed
+before replacing it, and a failed replacement keeps the previous bytes. Unreadable browser data
+and unsupported account snapshots also require explicit replacement consent; account hydration
+keeps their recovery signal, including when offline, and a valid account run remains authoritative. First-time play can proceed
 without storage, with a visible warning. Changes debounce for 750 ms, simulation checkpoints every
 10 seconds, and pause, level select, tab hide, pagehide and unmount flush immediately. A completed
-run clears its snapshot independently of the best-star progress.
+run clears its snapshot after committing/queuing its victory stars; a failed progress write
+retains the previous run. The replacement confirmation uses the shared modal keyboard lifecycle
+(initial safe focus, trapped Tab navigation, Escape and return to its opener).
 
 `runSnapshot.ts` stores version 1, the level definition signature, the exact Mulberry32 state, all
 runtime entities/jobs/wave queues and the bounded flow-field caches. Infinity is encoded as null.

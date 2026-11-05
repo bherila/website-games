@@ -1,6 +1,8 @@
 import { FastForward, Grid3x3, Pause, Play, SkipForward } from 'lucide-react'
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+
 import { createMuteStorage } from '../_shared/audio/muteStorage'
 import { SoundBottomControlButton } from '../_shared/audio/SoundToggle'
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
@@ -27,7 +29,7 @@ import {
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
 import type { ElementId, GameState, HeroUpgrade, HudSnapshot, TowerId } from './gameTypes'
 import { levelById, LEVELS, TOTAL_LEVELS } from './levels'
-import { clearRun, loadRun, saveRun } from './runProgress'
+import { clearRun, discardInvalidBrowserRun, loadRun, saveRun } from './runProgress'
 import { restoreRun } from './runSnapshot'
 import type { BoardOverlay } from './scene/buildingView'
 import { type BoardPointer, TowerDefenseScene } from './TowerDefenseScene'
@@ -86,6 +88,8 @@ export function TowerDefenseGame(): ReactElement {
   const activeRunRef = useRef<GameState | null>(null)
   const checkpointTimerRef = useRef<number | undefined>(undefined)
   const savedWaveRef = useRef(0)
+  const replacementOriginRef = useRef<HTMLElement | null>(null)
+  const keepRunRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => () => {
     sfx.dispose()
@@ -147,11 +151,12 @@ export function TowerDefenseGame(): ReactElement {
     sfx.unlock()
     const next = createGameState(level)
     const result = saveRun(next)
-    if (!result.ok && recovery.snapshot) {
+    if (!result.ok && (recovery.snapshot || recovery.problem === 'invalid')) {
       setSaveError('The new run could not be saved. Your previous saved run is unchanged.')
       return false
     }
     if (result.ok) {
+      discardInvalidBrowserRun()
       setRecovery({ snapshot: result.snapshot, problem: null })
       setSaveError(null)
     } else {
@@ -170,12 +175,14 @@ export function TowerDefenseGame(): ReactElement {
     setShowTutorial(!tutorialSeen())
     setPendingLevel(null)
     return true
-  }, [clearSelections, recovery.snapshot, sfx])
+  }, [clearSelections, recovery.problem, recovery.snapshot, sfx])
 
   const requestLevel = useCallback((id: number): void => {
-    if (recovery.snapshot) setPendingLevel(id)
-    else startLevel(id)
-  }, [recovery.snapshot, startLevel])
+    if (recovery.snapshot || recovery.problem === 'invalid') {
+      replacementOriginRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setPendingLevel(id)
+    } else startLevel(id)
+  }, [recovery.problem, recovery.snapshot, startLevel])
 
   const resumeRun = useCallback((): void => {
     const current = loadRun()
@@ -218,14 +225,17 @@ export function TowerDefenseGame(): ReactElement {
   const handleFinish = useCallback((finished: GameState): void => {
     activeRunRef.current = null
     window.clearTimeout(checkpointTimerRef.current)
-    if (clearRun()) {
-      setRecovery({ snapshot: null, problem: null })
-      setSaveError(null)
-    } else {
-      setSaveError('The completed run could not be removed from saved games.')
+    const removeFinishedRun = (): void => {
+      if (clearRun()) {
+        setRecovery({ snapshot: null, problem: null })
+        setSaveError(null)
+      } else {
+        setSaveError('The completed run could not be removed from saved games.')
+      }
     }
     clearSelections()
     if (finished.status === 'lost') {
+      removeFinishedRun()
       playSfx('lose')
       setPhase('lost')
 
@@ -235,12 +245,12 @@ export function TowerDefenseGame(): ReactElement {
     const stars = computeStars(finished)
     setEarned(stars)
     setPhase('won')
-    setProgress((current) => {
-      const next = recordWin(current, finished.level.id, stars)
-      saveProgress(next)
-
-      return next
-    })
+    const next = recordWin(loadProgress(), finished.level.id, stars)
+    setProgress(next)
+    // Queue/commit the victory first. Deleting its recovery point before the
+    // progress write would lose both if the write fails or the page exits.
+    if (saveProgress(next)) removeFinishedRun()
+    else setSaveError('Your stars could not be saved. The previous saved run was kept so you can try again.')
   }, [clearSelections, playSfx])
 
   const refreshHud = useCallback((state: GameState): void => {
@@ -467,19 +477,22 @@ export function TowerDefenseGame(): ReactElement {
         />
           </div>
         </div>
-        {pendingLevel !== null && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/90 p-4" role="dialog" aria-modal="true" aria-label="Replace saved run">
-            <div className="max-w-sm rounded-3xl bg-slate-900 p-5 text-white">
-              <h2 className="text-xl font-black">Start a new run?</h2>
-              <p className="mt-2 text-sm">This replaces your saved run. Your earned stars stay safe.</p>
-              {saveError && <p role="alert" className="mt-2 text-sm text-amber-200">{saveError}</p>}
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button type="button" className="min-h-12 rounded-full bg-amber-400 px-4 font-black text-amber-950" onClick={() => startLevel(pendingLevel)}>Start new run</button>
-                <button type="button" className="min-h-12 rounded-full bg-white/10 px-4 font-bold" onClick={() => setPendingLevel(null)}>Keep saved run</button>
-              </div>
+        <Dialog open={pendingLevel !== null} onOpenChange={(open) => { if (!open) setPendingLevel(null) }}>
+          <DialogContent
+            className="dark max-w-sm rounded-3xl border-white/15 bg-slate-900 p-5 text-white"
+            showCloseButton={false}
+            finalFocus={replacementOriginRef}
+            onOpenAutoFocus={(event) => { event.preventDefault(); keepRunRef.current?.focus() }}
+          >
+            <DialogTitle className="text-xl font-black">Replace saved run</DialogTitle>
+            <DialogDescription className="text-sm text-slate-200">{recovery.problem === 'invalid' ? 'This saved run cannot be loaded by this version. Starting a new run permanently replaces it.' : 'Starting a new run replaces your saved run. Your earned stars stay safe.'}</DialogDescription>
+            {saveError && <p role="alert" className="text-sm text-amber-200">{saveError}</p>}
+            <div className="flex flex-wrap gap-3">
+              <button type="button" className="min-h-12 rounded-full bg-amber-400 px-4 font-black text-amber-950" onClick={() => { if (pendingLevel !== null) startLevel(pendingLevel) }}>Start new run</button>
+              <button ref={keepRunRef} type="button" className="min-h-12 rounded-full bg-white/10 px-4 font-bold" onClick={() => setPendingLevel(null)}>Keep saved run</button>
             </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
       </PortraitGameShell>
     )
   }
