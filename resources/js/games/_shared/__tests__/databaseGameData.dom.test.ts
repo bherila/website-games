@@ -84,8 +84,8 @@ describe('database-backed game definitions', () => {
       row('parking-pickup', 'level', '4', { version: 3, stars: 2, score: 350 }),
       row('hover', 'profile', 'default', { version: 1, best_score: 900, best_round_index: 2 }),
       row('hover', 'level', FIRST_MAP, { version: 1, map: FIRST_MAP, clears: 2 }),
-      row('marble-works', 'profile', 'default', { version: 1, unlocked_level: 3 }),
-      row('marble-works', 'level', '2', { version: 1, stars: 3 }),
+      row('marble-works', 'profile', 'default', { version: 1, unlocked_level: 3, campaign_revision: 2 }),
+      row('marble-works', 'level', '2', { version: 1, stars: 3, campaign_revision: 2 }),
     ] })
 
     await initializeGameDataPersistence(DATABASE_GAME_DATA)

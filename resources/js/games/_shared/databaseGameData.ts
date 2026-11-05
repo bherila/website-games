@@ -7,6 +7,7 @@ import { MARBLE_SORT_CATALOG_GAME_DATA, MARBLE_SORT_GAME_DATA } from '../marble-
 import { MARBLE_WORKS_GAME_DATA } from '../marble-works/gameProgress'
 import { MATH_HORDE_GAME_DATA } from '../math-horde/gameProgress'
 import { PLATE_ESCAPE_GAME_DATA } from '../plate-escape/gameProgress'
+import { TOWER_DEFENSE_GAME_DATA } from '../tower-defense/gameProgress'
 
 export const DATABASE_GAME_PROGRESS_DATA = [
   CHICKS_GAME_DATA,
@@ -18,6 +19,7 @@ export const DATABASE_GAME_PROGRESS_DATA = [
   MATH_HORDE_GAME_DATA,
   TWENTY48_GAME_DATA,
   MARBLE_WORKS_GAME_DATA,
+  TOWER_DEFENSE_GAME_DATA,
 ] as const
 
 export const DATABASE_GAME_DATA = [
@@ -31,4 +33,5 @@ export const DATABASE_GAME_DATA = [
   TWENTY48_GAME_DATA,
   TWENTY48_SAVE_DATA,
   MARBLE_WORKS_GAME_DATA,
+  TOWER_DEFENSE_GAME_DATA,
 ] as const

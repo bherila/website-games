@@ -30,7 +30,7 @@ import { pestControl, repairUnit, resolveBombThreat, respondToFire } from './inc
 import { endgamePlacementFloors, floorLabelFor } from './mapGeometry'
 import { getMap } from './maps'
 import { occupancyPass, vacateUnroutableUnits } from './occupancy'
-import { stepPeople } from './people'
+import { replanShaftAfterResize, stepPeople } from './people'
 import {
   applyDemolish,
   applyPlacement,
@@ -326,6 +326,7 @@ function dispatch(state: EngineState, cmd: EngineCommand, events: EngineEvent[])
       }
       state.structureVersion += 1
       if (!cmd.enabled) {
+        replanShaftAfterResize(state, shaft, [cmd.floor], { preserveBoardedOrigin: true })
         vacateUnroutableUnits(state, events) // severed floors evict immediately
       }
       return
@@ -459,7 +460,8 @@ function planRemainingPlacements(state: EngineState, commands: PlacementCommand[
   return { commands: planned, totalCost }
 }
 
-function clonePlacementState(state: EngineState): EngineState {
+/** Isolate all mutable placement data while preserving the active geometry. */
+export function clonePlacementState(state: EngineState): EngineState {
   const clone: EngineState = {
     ...state,
     units: state.units.map((unit) => ({ ...unit, population: { ...unit.population }, flags: { ...unit.flags } })),

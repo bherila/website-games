@@ -1,7 +1,12 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, fireEvent, renderHook } from '@testing-library/react'
 
 import { type EngineEvent, type HudSnapshot } from '../../gameTypes'
 import { AUDIO_IGNORED_EVENT_TYPES, useGameSounds } from '../useGameSounds'
+
+jest.mock('../audioEngine', () => ({
+  ...jest.requireActual('../audioEngine'),
+  ensureAudioRunning: jest.fn(),
+}))
 
 jest.mock('../sfx', () => ({
   placeThunk: jest.fn(),
@@ -23,6 +28,7 @@ jest.mock('../sfx', () => ({
   stopNightCrickets: jest.fn(),
 }))
 
+import { ensureAudioRunning } from '../audioEngine'
 import * as sfx from '../sfx'
 
 const MUTE_STORAGE_KEY = 'bwh.tower-throwback.audio-muted.v1'
@@ -72,6 +78,25 @@ describe('useGameSounds', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     window.localStorage.clear()
+  })
+
+  it('unlocks audio from pointer and keyboard gestures, keeps one listener after rerender, and cleans up', () => {
+    const { rerender, unmount } = renderHook(() => useGameSounds(null))
+    fireEvent.pointerDown(document.body)
+    expect(ensureAudioRunning).toHaveBeenCalledTimes(1)
+
+    rerender()
+    fireEvent.keyDown(document.body, { key: 'Enter' })
+    expect(ensureAudioRunning).toHaveBeenCalledTimes(2)
+
+    // A second pointer gesture can also recover a later suspended context.
+    fireEvent.pointerDown(document.body)
+    expect(ensureAudioRunning).toHaveBeenCalledTimes(3)
+
+    unmount()
+    fireEvent.pointerDown(document.body)
+    fireEvent.keyDown(document.body, { key: 'Enter' })
+    expect(ensureAudioRunning).toHaveBeenCalledTimes(3)
   })
 
   it('fires the matching recipe for each event type', () => {

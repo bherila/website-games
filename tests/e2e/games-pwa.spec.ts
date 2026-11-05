@@ -6,6 +6,7 @@ const ALL_GAMES = [
   ['/parking-pickup', '#cars-game-root'],
   ['/marble-sort', '#marble-sort-root'],
   ['/marble-works', '#marble-works-root'],
+  ['/tower-defense', '#tower-defense-root'],
   ['/block-blaster', '#block-blaster-root'],
   ['/hover', '#hover-game-root'],
   ['/chicks-challenge', '#chicks-game-root'],
@@ -100,7 +101,8 @@ test.describe('BWH Games PWA offline reload', () => {
 
     await page.goto('/')
     await page.evaluate(() => {
-      const nativeSubmit = HTMLFormElement.prototype.submit
+      const formPrototype: { submit: (this: HTMLFormElement) => void } = HTMLFormElement.prototype
+      const nativeSubmit = formPrototype.submit
       HTMLFormElement.prototype.submit = function (this: HTMLFormElement): void {
         void caches.keys()
           .then((keys) => sessionStorage.setItem(

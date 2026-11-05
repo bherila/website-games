@@ -24,6 +24,7 @@ export const GAME_SHELL_ROUTES = [
   '/math-horde',
   '/parking-pickup',
   '/plate-escape',
+  '/tower-defense',
   '/tower-throwback',
 ] as const
 

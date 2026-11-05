@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { type ReactElement, useEffect, useRef, useState } from 'react'
 
 import { itemDef, shaftDef } from '../engine/catalog'
 import { shaftIssues } from '../engine/shaftIssues'
@@ -23,6 +23,8 @@ export interface TowerIssueResult {
   entries: TowerIssueEntry[]
   total: number
   hidden: number
+  page: number
+  pageCount: number
 }
 
 const SEVERITY_RANK: Record<IssueSeverity, number> = {
@@ -30,7 +32,7 @@ const SEVERITY_RANK: Record<IssueSeverity, number> = {
   warning: 1,
 }
 
-export function deriveTowerIssueEntries(units: readonly Unit[], shafts: readonly Shaft[] = []): TowerIssueResult {
+export function deriveTowerIssueEntries(units: readonly Unit[], shafts: readonly Shaft[] = [], page = 0): TowerIssueResult {
   const allEntries: TowerIssueEntry[] = []
 
   for (const unit of units) {
@@ -74,8 +76,12 @@ export function deriveTowerIssueEntries(units: readonly Unit[], shafts: readonly
       || left.id - right.id,
   )
 
+  const pageCount = Math.max(1, Math.ceil(allEntries.length / MAX_VISIBLE_ISSUES))
+  const visiblePage = Math.max(0, Math.min(page, pageCount - 1))
   return {
-    entries: allEntries.slice(0, MAX_VISIBLE_ISSUES),
+    entries: allEntries.slice(visiblePage * MAX_VISIBLE_ISSUES, (visiblePage + 1) * MAX_VISIBLE_ISSUES),
+    page: visiblePage,
+    pageCount,
     total: allEntries.length,
     hidden: Math.max(0, allEntries.length - MAX_VISIBLE_ISSUES),
   }
@@ -90,7 +96,26 @@ interface TowerIssuesNavigatorProps {
 }
 
 export function TowerIssuesNavigator({ units, shafts, onSelectUnit, onSelectShaft, onViewFloor }: TowerIssuesNavigatorProps): ReactElement | null {
-  const result = deriveTowerIssueEntries(units, shafts)
+  const [page, setPage] = useState(0)
+  const listRef = useRef<HTMLUListElement>(null)
+  const focusPageRef = useRef(false)
+  const focusedIssueRef = useRef<string | null>(null)
+  const result = deriveTowerIssueEntries(units, shafts, page)
+  if (page !== result.page) {
+    setPage(result.page)
+  }
+  useEffect(() => {
+    const focusedIssueRemoved = focusedIssueRef.current !== null
+      && !listRef.current?.querySelector(`[data-testid="${focusedIssueRef.current}"]`)
+    if (focusPageRef.current || (focusedIssueRemoved && document.activeElement === document.body)) {
+      focusPageRef.current = false
+      listRef.current?.querySelector('button')?.focus()
+    }
+  }, [page, result.page, result.entries])
+  const changePage = (nextPage: number): void => {
+    focusPageRef.current = true
+    setPage(nextPage)
+  }
   if (result.total === 0) {
     return null
   }
@@ -104,7 +129,15 @@ export function TowerIssuesNavigator({ units, shafts, onSelectUnit, onSelectShaf
         Tower issues · {result.total}
       </summary>
       <div className="max-h-64 overflow-y-auto border-t border-white/10 p-2">
-        <ul className="flex flex-col gap-1" aria-label="Tower issues">
+        <ul
+          ref={listRef}
+          className="flex flex-col gap-1"
+          aria-label="Tower issues"
+          onFocusCapture={(event) => { focusedIssueRef.current = (event.target as HTMLElement).dataset.testid ?? null }}
+          onBlurCapture={(event) => {
+            if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) focusedIssueRef.current = null
+          }}
+        >
           {result.entries.map((entry) => (
             <li key={`${entry.type}-${entry.id}`}>
               <button
@@ -118,7 +151,7 @@ export function TowerIssuesNavigator({ units, shafts, onSelectUnit, onSelectShaf
                   }
                   onViewFloor(entry.floor)
                 }}
-                className={`w-full rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/10 ${
+                className={`w-full min-w-0 break-words rounded px-2 py-1.5 text-left text-[11px] hover:bg-white/10 ${
                   entry.severity === 'critical' ? 'text-red-200' : 'text-amber-200'
                 }`}
               >
@@ -135,7 +168,27 @@ export function TowerIssuesNavigator({ units, shafts, onSelectUnit, onSelectShaf
             </li>
           ))}
         </ul>
-        {result.hidden > 0 && <p className="pt-2 text-[10px] text-white/50">+{result.hidden.toLocaleString()} more issues</p>}
+        {result.pageCount > 1 && (
+          <nav aria-label="Tower issue pages" className="flex flex-wrap items-center justify-between gap-1 pt-2 text-[11px] text-white/70">
+            <button
+              type="button"
+              disabled={result.page === 0}
+              onClick={() => changePage(result.page - 1)}
+              className="min-h-11 min-w-11 rounded bg-white/10 px-2 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span aria-live="polite">Page {result.page + 1} of {result.pageCount}</span>
+            <button
+              type="button"
+              disabled={result.page === result.pageCount - 1}
+              onClick={() => changePage(result.page + 1)}
+              className="min-h-11 min-w-11 rounded bg-white/10 px-2 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </nav>
+        )}
       </div>
     </details>
   )

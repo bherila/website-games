@@ -46,17 +46,35 @@ export function PieceIcon({ pieceId, variant = 0, flipped = false, className, mu
           points={[...(shape.walls[0]?.points ?? []), ...[...(shape.walls[1]?.points ?? [])].reverse()].map(toSvg).join(' ')}
         />
       )}
+      {piece.behavior?.kind === 'toggle' && shape.walls.map((wall) => (
+        // The switch's other position, faint, so the icon reads as a flapper.
+        <polyline
+          fill="none"
+          key={`mirror-${wall.points.map((point) => point.join(',')).join(' ')}`}
+          opacity={0.3}
+          points={wall.points.map(([x, y]) => toSvg([shape.w - x, y])).join(' ')}
+          stroke={color}
+          strokeDasharray={`${size * 0.08} ${size * 0.06}`}
+          strokeLinecap="round"
+          strokeWidth={strokeWidth * 0.7}
+        />
+      ))}
       {shape.walls.map((wall) => (
         <polyline
           fill="none"
           key={wall.points.map((point) => point.join(',')).join(' ')}
           points={wall.points.map(toSvg).join(' ')}
           stroke={piece.id === 'trampoline' && !muted ? '#1f2937' : color}
-          strokeLinecap="round"
+          // A sieve is a grate: dashes are the bars, the gaps are its holes.
+          strokeDasharray={piece.behavior?.kind === 'sieve' ? `${size * 0.09} ${size * 0.06}` : undefined}
+          strokeLinecap={piece.behavior?.kind === 'sieve' ? 'butt' : 'round'}
           strokeLinejoin="round"
           strokeWidth={strokeWidth * ((wall.thickness ?? 0.1) / 0.1)}
         />
       ))}
+      {piece.behavior?.kind === 'toggle' && (
+        <circle cx={offsetX + 0.5} cy={size - offsetY - 0.55} fill={muted ? '#cbd5e1' : '#e2e8f0'} r={size * 0.07} stroke={color} strokeWidth={size * 0.025} />
+      )}
       {piece.id === 'trampoline' && (
         <g stroke={color} strokeLinecap="round" strokeWidth={strokeWidth}>
           <line x1={offsetX + 0.08} x2={offsetX + 0.08} y1={size - offsetY - 0.22} y2={size - offsetY} />

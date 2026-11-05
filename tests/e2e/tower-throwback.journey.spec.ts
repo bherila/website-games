@@ -1,6 +1,9 @@
 import { type CDPSession, expect, type Locator, type Page, test } from '@playwright/test'
 
 import { encodeChallengeCode } from '../../resources/js/games/tower-throwback/challengeCode'
+import { createEngineState, stepEngine } from '../../resources/js/games/tower-throwback/engine/engine'
+import { migrateSandboxPayload } from '../../resources/js/games/tower-throwback/gameProgress'
+import { SANDBOX_STORAGE_KEY } from '../../resources/js/games/tower-throwback/gameTypes'
 
 interface TowerTile {
   floor: number
@@ -32,6 +35,66 @@ test.describe('Tower Throwback real player journey', () => {
       expect(hit, `speed ${speed} is not covered`).toBe(true)
     }
     await expect(page.getByTestId('fast-mode-toggle')).toBeInViewport({ ratio: 1 })
+  })
+
+  test('phone inspector controls stay tappable and inside the viewport', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
+    const state = createEngineState({ seed: 220, mapId: 'city-tower', lobbyHeight: 1 })
+    stepEngine(state, [
+      { type: 'place', kind: 'lobby', floor: 0, x: 100, widthTiles: 40 },
+      { type: 'place', kind: 'slab', floor: 1, x: 100, widthTiles: 40 },
+      { type: 'placeShaft', kind: 'standard', x: 118, bottomFloor: 0, topFloor: 1 },
+      { type: 'place', kind: 'officeS', floor: 1, x: 100 },
+      { type: 'setSpeed', speed: 0 },
+    ], 0)
+    const office = state.units.find((unit) => unit.kind === 'officeS')!
+    office.offline = true
+    office.damageKind = 'fire'
+    const saved = migrateSandboxPayload({ ...state, version: 1, rngState: state.rng.state() })
+    expect(saved).not.toBeNull()
+    await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: SANDBOX_STORAGE_KEY, value: JSON.stringify(saved) })
+    await page.goto('/tower-throwback')
+    await page.getByTestId('resume-autosave').tap()
+    await expect(page.getByTestId('speed-0')).toHaveAttribute('aria-pressed', 'true')
+    const activate = async (locator: Locator): Promise<void> => { await locator.tap() }
+    await openTowerAction(page, 'Inventory', activate)
+    const floorOne = page.getByRole('button', { name: /^1 \d+ items$/ })
+    if (await floorOne.getAttribute('aria-expanded') !== 'true') await floorOne.tap()
+    await page.getByRole('button', { name: /Select Office \(S\) on 1$/ }).first().tap()
+    const inspector = page.getByLabel('Item inspector', { exact: true })
+    const assertTargets = async (controls: Locator): Promise<void> => {
+      for (const control of await controls.all()) {
+        const bounds = await control.evaluate((element) => {
+          element.scrollIntoView({ block: 'center' })
+          const { x, y, width, height } = element.getBoundingClientRect()
+          return { x, y, width, height, label: element.getAttribute('aria-label') ?? element.textContent }
+        })
+        expect(bounds.width, bounds.label ?? 'target width').toBeGreaterThanOrEqual(44)
+        expect(bounds.height, bounds.label ?? 'target height').toBeGreaterThanOrEqual(44)
+        expect(bounds.x).toBeGreaterThanOrEqual(0)
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(375)
+        expect(bounds.y).toBeGreaterThanOrEqual(0)
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(812)
+      }
+      expect(await inspector.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    }
+    await assertTargets(inspector.getByRole('button'))
+    await inspector.getByTestId('demolish').tap()
+    await assertTargets(inspector.getByRole('alertdialog').getByRole('button'))
+    await inspector.getByTestId('cancel-destructive-action').tap()
+    await openTowerAction(page, 'Inventory', activate)
+    const floorZero = page.getByRole('button', { name: /^0 \d+ items$/ })
+    if (await floorZero.getAttribute('aria-expanded') !== 'true') await floorZero.tap()
+    await page.getByRole('button', { name: 'Select Elevator on 0', exact: true }).first().tap()
+    await assertTargets(inspector.getByRole('button'))
+    await assertTargets(inspector.locator('label').filter({ has: page.getByRole('checkbox') }))
+    await assertTargets(inspector.locator('select, input[type="number"]'))
+    const stop = inspector.getByTestId('stop-1')
+    await stop.scrollIntoViewIfNeeded()
+    await stop.focus()
+    await page.keyboard.press('Space')
+    await expect(stop).not.toBeChecked()
+    await page.screenshot({ path: test.info().outputPath('phone-inspector.png') })
   })
 
   test('starts, builds, saves locally, reloads, and resumes the same tower', async ({ page }, testInfo) => {

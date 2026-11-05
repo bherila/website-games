@@ -17,6 +17,7 @@ export const GAMEPLAY_GAMES = [
   { game: 'plate-escape', ui: ['PlateEscapeGame.tsx', 'PlateEscapeScene.tsx'], specs: ['plate-escape.spec.ts', 'plate-escape-harbor.spec.ts', 'plate-escape-railway.spec.ts', 'plate-escape-clockworks.spec.ts', 'plate-escape-fair.spec.ts'] },
   { game: 'math-horde', ui: ['MathHordeGame.tsx', 'MathHordeScene.tsx'], specs: ['math-horde.spec.ts'] },
   { game: 'tower-2', ui: ['Tower2Game.tsx', 'Tower2Scene.tsx'], specs: ['tower-2.spec.ts'] },
+  { game: 'tower-defense', ui: ['TowerDefenseGame.tsx', 'TowerDefenseScene.tsx'], specs: ['tower-defense.spec.ts'] },
   {
     game: 'tower-throwback',
     ui: ['TowerGame.tsx', 'TowerScene.tsx', 'useTowerKeyboardShortcuts.ts'],
@@ -141,7 +142,7 @@ export function planShards(tests, durations, { target = TARGET_SHARD_SECONDS, ma
     shards: count,
     unknown: estimated.filter((test) => !test.known).map((test) => test.key),
     estimates: shards.map((shard) => Math.round(shard.seconds)),
-    matrix: { include: shards.map((shard) => ({ shard: shard.shard, tests: shard.keys.sort().join('\n') })) },
+    matrix: { include: shards.map((shard) => ({ shard: shard.shard, tests: shard.keys.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join('\n') })) },
   }
 }
 

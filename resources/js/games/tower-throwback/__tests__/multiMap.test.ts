@@ -75,7 +75,7 @@ describe('challenge codes carry the map', () => {
     // Better a clean rejection than silently starting a different map's tower.
     const code = encodeChallengeCode({ seed: 1, lobbyHeight: 1, mapId: CITY_TOWER.id })
     const body = `${code.slice(0, 8)}Q`
-    const sum = [...body.toLowerCase()].reduce((acc, char) => acc + Number.parseInt(char, 36), 0)
+    const sum = Array.from(body.toLowerCase()).reduce((acc, char) => acc + Number.parseInt(char, 36), 0)
     const forged = `${body}${(sum % 36).toString(36)}`.toUpperCase()
 
     expect(decodeChallengeCode(forged)).toBeNull()

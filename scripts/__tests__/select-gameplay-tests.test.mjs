@@ -106,8 +106,8 @@ test('unmeasured tests take their file median, or the default for a new file, an
 test('Playwright’s own discovery of the gameplay script is scheduled once each within the cap', () => {
   const tests = listGameplayTests()
   const expectedFiles = GAMEPLAY_GAMES.flatMap((entry) => entry.specs)
-  assert.deepEqual([...new Set(tests.map((test) => test.file))].sort(), [...expectedFiles].sort())
-  assert.deepEqual([...new Set(tests.map((test) => test.key.slice(1, test.key.indexOf(']'))))].sort(), [...GAMEPLAY_PROJECTS].sort())
+  assert.deepEqual([...new Set(tests.map((test) => test.file))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)), [...expectedFiles].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
+  assert.deepEqual([...new Set(tests.map((test) => test.key.slice(1, test.key.indexOf(']'))))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)), [...GAMEPLAY_PROJECTS].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)))
   const plan = planShards(tests, readDurations())
   assert.ok(plan.shards <= MAX_SHARDS)
   const assigned = plan.matrix.include.flatMap((shard) => shard.tests.split('\n'))

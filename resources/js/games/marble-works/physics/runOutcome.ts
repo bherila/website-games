@@ -1,53 +1,84 @@
-import { GOAL_SETTLE_S, OUT_OF_BOUNDS_MARGIN, RUN_TIMEOUT_S, STUCK_S, STUCK_SPEED } from './constants'
+import { GOAL_SETTLE_S, OUT_OF_BOUNDS_MARGIN, STUCK_S, STUCK_SPEED } from './constants'
 
-export type RunStatus = 'running' | 'won' | 'out' | 'stuck' | 'timeout'
+/**
+ * How a whole run ended. `wrong` = a marble settled in a basket that does not accept its
+ * kind; `full` = it settled in a basket that already held all the marbles it takes.
+ */
+export type RunStatus = 'running' | 'won' | 'out' | 'stuck' | 'timeout' | 'wrong' | 'full'
+export type FailStatus = Exclude<RunStatus, 'running' | 'won'>
 
-export interface RunTracker {
-  elapsed: number
-  inGoalFor: number
+/** One marble's state: waiting in its dropper, rolling, safely home, or failed. */
+export type MarbleStatus = 'waiting' | 'rolling' | 'home' | 'out' | 'stuck' | 'wrong' | 'full'
+
+export interface MarbleTracker {
+  status: MarbleStatus
+  /** Index of the basket the marble is settling in (or settled in), else -1. */
+  basket: number
+  inBasketFor: number
   stillFor: number
-  status: RunStatus
 }
 
 export interface MarbleSample {
   x: number
   y: number
   speed: number
-  inGoal: boolean
+  /** Basket whose interior holds the marble centre, or -1. */
+  basket: number
+  /** Why that basket would refuse this marble, or null when it accepts it. */
+  refusal: 'wrong' | 'full' | null
 }
 
-export function createRunTracker(): RunTracker {
-  return { elapsed: 0, inGoalFor: 0, stillFor: 0, status: 'running' }
+export function createMarbleTracker(): MarbleTracker {
+  return { status: 'waiting', basket: -1, inBasketFor: 0, stillFor: 0 }
 }
 
 export function isOutOfBounds(board: { cols: number; rows: number }, x: number, y: number): boolean {
   return x < -OUT_OF_BOUNDS_MARGIN || x > board.cols + OUT_OF_BOUNDS_MARGIN || y < -OUT_OF_BOUNDS_MARGIN
 }
 
-/** Pure per-step run judge. Once a run leaves `running` its status never changes. */
-export function updateRunTracker(
-  tracker: RunTracker,
+/** Pure per-step judge for one released marble. Once it leaves `rolling` its status never changes. */
+export function updateMarbleTracker(
+  tracker: MarbleTracker,
   board: { cols: number; rows: number },
   sample: MarbleSample,
   dt: number,
-): RunStatus {
-  if (tracker.status !== 'running') {
+): MarbleStatus {
+  if (tracker.status !== 'rolling') {
     return tracker.status
   }
 
-  tracker.elapsed += dt
-  tracker.inGoalFor = sample.inGoal ? tracker.inGoalFor + dt : 0
+  if (sample.basket >= 0 && sample.basket === tracker.basket) {
+    tracker.inBasketFor += dt
+  } else {
+    tracker.basket = sample.basket
+    tracker.inBasketFor = sample.basket >= 0 ? dt : 0
+  }
   tracker.stillFor = sample.speed < STUCK_SPEED ? tracker.stillFor + dt : 0
 
-  if (tracker.inGoalFor >= GOAL_SETTLE_S) {
-    tracker.status = 'won'
+  if (tracker.basket >= 0 && tracker.inBasketFor >= GOAL_SETTLE_S) {
+    tracker.status = sample.refusal ?? 'home'
   } else if (isOutOfBounds(board, sample.x, sample.y)) {
     tracker.status = 'out'
-  } else if (!sample.inGoal && tracker.stillFor >= STUCK_S) {
+  } else if (tracker.basket < 0 && tracker.stillFor >= STUCK_S) {
     tracker.status = 'stuck'
-  } else if (tracker.elapsed >= RUN_TIMEOUT_S) {
-    tracker.status = 'timeout'
   }
 
   return tracker.status
+}
+
+/**
+ * The run's verdict from every marble: the first failure ends it, all marbles home wins it,
+ * and running past `timeoutAt` seconds times it out.
+ */
+export function judgeRun(statuses: readonly MarbleStatus[], elapsed: number, timeoutAt: number): RunStatus {
+  for (const status of statuses) {
+    if (status === 'out' || status === 'stuck' || status === 'wrong' || status === 'full') {
+      return status
+    }
+  }
+  if (statuses.length > 0 && statuses.every((status) => status === 'home')) {
+    return 'won'
+  }
+
+  return elapsed >= timeoutAt ? 'timeout' : 'running'
 }

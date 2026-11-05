@@ -16,6 +16,7 @@ export const DATABASE_GAME_SLUGS = [
   '2048',
   'marble-works',
   'tower-2',
+  'tower-defense',
 ] as const
 
 export type DatabaseGameSlug = (typeof DATABASE_GAME_SLUGS)[number]
@@ -52,9 +53,9 @@ export interface GameDataDefinition {
   game: DatabaseGameSlug
   localStorageKey: string
   promoteLocal: boolean
-  parse: (value: unknown) => unknown | null
+  parse: (value: unknown) => unknown
   encode: (value: unknown) => readonly GameDataSlotInput[]
-  decode: (rows: ReadonlyMap<string, GameDataRow>) => unknown | null
+  decode: (rows: ReadonlyMap<string, GameDataRow>) => unknown
   clearSlots: readonly GameDataSlotAddress[]
 }
 
@@ -105,7 +106,7 @@ interface SlotWriteQueue {
   running: Promise<void> | null
   detached: Set<Promise<void>>
   forceDrainRequested: boolean
-  lastError: unknown | null
+  lastError: unknown
   retryDelayMs: number
 }
 
@@ -1203,7 +1204,7 @@ function refreshCsrfToken(response: Response): void {
     ?.setAttribute('content', token)
 }
 
-function parseRawValue(definition: GameDataDefinition, rawValue: string | null): unknown | null {
+function parseRawValue(definition: GameDataDefinition, rawValue: string | null): unknown {
   if (rawValue === null) {
     return null
   }

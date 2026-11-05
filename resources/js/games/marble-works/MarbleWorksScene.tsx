@@ -4,7 +4,7 @@ import { canvasSizeForContainer } from '../_shared/three/viewport'
 import { worldToCell } from './board/grid'
 import { type BoardLayout, screenToWorld } from './board/layout'
 import type { Cell, LevelDef, PiecePlacement, PlacedPiece } from './levels/levelTypes'
-import type { RunStatus } from './physics/runOutcome'
+import type { RunResult } from './physics/runWorld'
 import type { Vec2 } from './pieces/pieceCatalog'
 import { MarbleWorksSceneController } from './scene/sceneController'
 
@@ -27,10 +27,13 @@ export interface MarbleWorksSceneProps {
   editing: boolean
   freeCells: readonly Cell[]
   tutorialCell: Cell | null
-  ghostPath: readonly Vec2[] | null
-  /** A new number starts a run with the current placements; null resets the marble. */
+  /** The last failed run's paths, one per marble. */
+  ghostPaths: readonly (readonly Vec2[])[] | null
+  /** A new number starts a run with the current placements; null resets the marbles. */
   runToken: number | null
-  onRunEnd: (status: Exclude<RunStatus, 'running'>, path: Vec2[]) => void
+  onRunEnd: (result: RunResult) => void
+  /** Live gem count during a run. */
+  onGem?: (collected: number) => void
   onLayout: (layout: BoardLayout) => void
   onBoardPointer: (event: BoardPointerEvent) => void
 }
@@ -44,18 +47,18 @@ function prefersReducedMotion(): boolean {
  * each level gets a fresh renderer and physics world.
  */
 export function MarbleWorksScene(props: MarbleWorksSceneProps): ReactElement {
-  const { level, placements, ghost, selected, editing, freeCells, tutorialCell, ghostPath, runToken } = props
+  const { level, placements, ghost, selected, editing, freeCells, tutorialCell, ghostPaths, runToken } = props
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const controllerRef = useRef<MarbleWorksSceneController | null>(null)
   const layoutRef = useRef<BoardLayout | null>(null)
   const pressedRef = useRef(false)
   const placementsRef = useRef(placements)
-  const callbacksRef = useRef({ onRunEnd: props.onRunEnd, onLayout: props.onLayout, onBoardPointer: props.onBoardPointer })
+  const callbacksRef = useRef({ onRunEnd: props.onRunEnd, onGem: props.onGem, onLayout: props.onLayout, onBoardPointer: props.onBoardPointer })
 
   useEffect(() => {
     placementsRef.current = placements
-    callbacksRef.current = { onRunEnd: props.onRunEnd, onLayout: props.onLayout, onBoardPointer: props.onBoardPointer }
+    callbacksRef.current = { onRunEnd: props.onRunEnd, onGem: props.onGem, onLayout: props.onLayout, onBoardPointer: props.onBoardPointer }
   })
 
   useEffect(() => {
@@ -103,8 +106,8 @@ export function MarbleWorksScene(props: MarbleWorksSceneProps): ReactElement {
   }, [editing, freeCells, tutorialCell])
 
   useEffect(() => {
-    controllerRef.current?.setGhostPath(ghostPath)
-  }, [ghostPath])
+    controllerRef.current?.setGhostPaths(ghostPaths)
+  }, [ghostPaths])
 
   useEffect(() => {
     const controller = controllerRef.current
@@ -116,7 +119,8 @@ export function MarbleWorksScene(props: MarbleWorksSceneProps): ReactElement {
       return
     }
     controller.startRun(placementsRef.current, {
-      onEnd: (status, path) => callbacksRef.current.onRunEnd(status, path),
+      onEnd: (result) => callbacksRef.current.onRunEnd(result),
+      onGem: (collected) => callbacksRef.current.onGem?.(collected),
     })
   }, [runToken])
 

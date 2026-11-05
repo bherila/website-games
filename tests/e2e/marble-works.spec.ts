@@ -36,7 +36,7 @@ test.describe('Marble Works', () => {
     await expect(page.getByRole('dialog', { name: 'Level complete' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByTestId('level-complete-stars')).toHaveAttribute('data-stars', '3')
 
-    const saved = await page.evaluate(() => window.localStorage.getItem('bwh.marble-works.progress.v1'))
+    const saved = await page.evaluate(() => window.localStorage.getItem('bwh.marble-works.progress.v2'))
     expect(JSON.parse(saved ?? '{}')).toMatchObject({ unlockedLevel: 2, stars: { 1: 3 } })
 
     await page.reload()
@@ -48,7 +48,7 @@ test.describe('Marble Works', () => {
   })
 
   test('the board stays inside the viewport without page overflow', async ({ page }) => {
-    await page.goto('/marble-works?level=12')
+    await page.goto('/marble-works?level=19')
     await expect(page.getByTestId('marble-works-canvas')).toBeVisible()
     const viewport = page.viewportSize()
     const box = await page.locator(BOARD).boundingBox()
@@ -60,5 +60,24 @@ test.describe('Marble Works', () => {
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect(overflow).toBeLessThanOrEqual(1)
+  })
+
+  test.describe('on an iPad', () => {
+    test.use({ viewport: { width: 1180, height: 820 }, hasTouch: true })
+
+    test('the tray cards are big, clear of the screen edge, and all fit in landscape', async ({ page }) => {
+      await page.goto('/marble-works?level=19')
+      await expect(page.getByTestId('marble-works-canvas')).toBeVisible()
+      const tray = page.getByTestId('piece-tray')
+      expect(await tray.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(0)
+      const cards = tray.getByRole('button')
+      expect(await cards.count()).toBeGreaterThan(0)
+      for (const card of await cards.all()) {
+        const box = await card.boundingBox()
+        expect(box?.x).toBeGreaterThanOrEqual(16)
+        expect(box?.width).toBeGreaterThanOrEqual(88)
+        expect(box?.height).toBeGreaterThanOrEqual(96)
+      }
+    })
   })
 })

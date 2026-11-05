@@ -2,6 +2,85 @@
 // scopes the fresh-module require to this jsdom test.
 declare const require: (id: '../audioEngine') => typeof import('../audioEngine')
 
+describe('audioEngine — gesture recovery', () => {
+  const originalContext = Object.getOwnPropertyDescriptor(window, 'AudioContext')
+  const originalWebkitContext = Object.getOwnPropertyDescriptor(window, 'webkitAudioContext')
+
+  afterEach(() => {
+    window.localStorage.clear()
+    for (const [name, descriptor] of [
+      ['AudioContext', originalContext],
+      ['webkitAudioContext', originalWebkitContext],
+    ] as const) {
+      if (descriptor) Object.defineProperty(window, name, descriptor)
+      else Reflect.deleteProperty(window, name)
+    }
+  })
+
+  function installContext(context: { state: AudioContextState; resume: () => Promise<void> }): jest.Mock {
+    const constructor = jest.fn(() => context)
+    Object.defineProperty(window, 'AudioContext', { configurable: true, value: constructor })
+    return constructor
+  }
+
+  it('resumes a suspended context and recovers again after a later suspension', async () => {
+    const context = {
+      state: 'suspended' as AudioContextState,
+      resume: jest.fn(async () => { context.state = 'running' }),
+    }
+    const constructor = installContext(context)
+    let engine!: typeof import('../audioEngine')
+    jest.isolateModules(() => { engine = require('../audioEngine') })
+
+    engine.ensureAudioRunning()
+    await Promise.resolve()
+    expect(context.resume).toHaveBeenCalledTimes(1)
+    engine.ensureAudioRunning()
+    expect(context.resume).toHaveBeenCalledTimes(1)
+
+    context.state = 'suspended'
+    engine.ensureAudioRunning()
+    await Promise.resolve()
+    expect(context.resume).toHaveBeenCalledTimes(2)
+    expect(constructor).toHaveBeenCalledTimes(1)
+  })
+
+  it('handles a rejected resume and retries on the next gesture', async () => {
+    const context = { state: 'suspended' as const, resume: jest.fn().mockRejectedValue(new Error('NotAllowedError')) }
+    installContext(context)
+    let engine!: typeof import('../audioEngine')
+    jest.isolateModules(() => { engine = require('../audioEngine') })
+
+    engine.ensureAudioRunning()
+    await Promise.resolve()
+    engine.ensureAudioRunning()
+    await Promise.resolve()
+    expect(context.resume).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['bwh.tower-throwback.audio-muted.v1', '1'],
+    ['bwh.tower-throwback.audio-level.v1', '0'],
+  ])('does not create or resume audio when %s is %s', (key, value) => {
+    window.localStorage.setItem(key, value)
+    const resume = jest.fn(async () => {})
+    const constructor = installContext({ state: 'suspended', resume })
+    jest.isolateModules(() => {
+      require('../audioEngine').ensureAudioRunning()
+    })
+    expect(constructor).not.toHaveBeenCalled()
+    expect(resume).not.toHaveBeenCalled()
+  })
+
+  it('safely ignores gestures when Web Audio is unavailable', () => {
+    Object.defineProperty(window, 'AudioContext', { configurable: true, value: undefined })
+    Object.defineProperty(window, 'webkitAudioContext', { configurable: true, value: undefined })
+    jest.isolateModules(() => {
+      expect(() => require('../audioEngine').ensureAudioRunning()).not.toThrow()
+    })
+  })
+})
+
 describe('audioEngine — blocked localStorage', () => {
   it('imports and works when the localStorage getter throws (SecurityError)', () => {
     jest.isolateModules(() => {

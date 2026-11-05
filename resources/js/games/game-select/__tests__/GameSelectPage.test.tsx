@@ -15,7 +15,7 @@ import { registerGames } from '../registerGames'
 
 registerGames()
 
-function setInitialData(data: unknown | null): void {
+function setInitialData(data: unknown): void {
   const existing = document.getElementById('app-initial-data')
   if (existing) {
     existing.remove()

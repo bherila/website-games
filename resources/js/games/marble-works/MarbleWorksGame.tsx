@@ -1,5 +1,6 @@
 import { Eraser, Grid3x3, Play, Square } from 'lucide-react'
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent as ReactPointerEvent, type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
 import { BottomControlButton, GAME_TOOLBAR_PADDING_CLASS, GameBottomToolbar } from '../_shared/GameControlPrimitives'
@@ -26,15 +27,17 @@ import { LEVELS } from './levels/levels'
 import type { Cell, LevelDef, PiecePlacement, PlacedPiece } from './levels/levelTypes'
 import { LevelSelect } from './LevelSelect'
 import { type BoardPointerEvent, MarbleWorksScene } from './MarbleWorksScene'
-import type { RunStatus } from './physics/runOutcome'
+import type { MarbleKind } from './physics/marbles'
+import type { FailStatus } from './physics/runOutcome'
+import { marbleSchedule, type RunResult } from './physics/runWorld'
 import { PIECE_IDS, type PieceId, type Vec2 } from './pieces/pieceCatalog'
 import { GameHud } from './ui/GameHud'
-import { HintBubble, LevelCompleteOverlay, RunFailedToast } from './ui/Overlays'
+import { HintBubble, LevelCompleteOverlay, RunFailedToast, type WinSummary } from './ui/Overlays'
 import { PieceActionBar } from './ui/PieceActionBar'
+import { PieceIcon } from './ui/PieceIcon'
 import { PieceTray } from './ui/PieceTray'
 
 type Phase = 'edit' | 'running' | 'won'
-type FailStatus = Exclude<RunStatus, 'running' | 'won'>
 
 interface Armed {
   pieceId: PieceId
@@ -50,7 +53,23 @@ interface Drag {
   moved: boolean
 }
 
+/**
+ * A mouse or pen press on a tray card. It becomes a drag (one piece carried to the board)
+ * once the pointer travels `TRAY_DRAG_THRESHOLD_PX`; released before that, it is a click.
+ */
+interface TrayDrag {
+  pieceId: PieceId
+  pointerId: number
+  x: number
+  y: number
+  moved: boolean
+}
+
 type TutorialStep = 'pick' | 'place' | 'fix' | 'flip' | 'go'
+
+const TRAY_DRAG_THRESHOLD_PX = 6
+/** A click this soon after a tray drag ends is the drag's own release, not a pick. */
+const TRAY_CLICK_AFTER_DRAG_MS = 250
 
 const FAIL_RESET_DELAY_MS = 650
 
@@ -86,13 +105,17 @@ export function MarbleWorksGame(): ReactElement {
   const [hover, setHover] = useState<PiecePlacement | null>(null)
   const [phase, setPhase] = useState<Phase>('edit')
   const [runToken, setRunToken] = useState<number | null>(null)
-  const [failed, setFailed] = useState<FailStatus | null>(null)
-  const [ghostPath, setGhostPath] = useState<Vec2[] | null>(null)
+  const [failed, setFailed] = useState<{ status: FailStatus; kind: MarbleKind | null } | null>(null)
+  const [ghostPaths, setGhostPaths] = useState<Vec2[][] | null>(null)
+  const [liveGems, setLiveGems] = useState(0)
   const [layout, setLayout] = useState<BoardLayout | null>(null)
   const [hintOpen, setHintOpen] = useState(false)
-  const [lastWin, setLastWin] = useState<{ stars: 1 | 2 | 3; pieces: number } | null>(null)
+  const [lastWin, setLastWin] = useState<WinSummary | null>(null)
   const [trayShake, setTrayShake] = useState<{ pieceId: PieceId; key: number } | null>(null)
   const [tutorialHint, setTutorialHint] = useState<TapHintPosition | null>(null)
+  const [trayDragIcon, setTrayDragIcon] = useState<{ pieceId: PieceId; x: number; y: number } | null>(null)
+  const trayDragRef = useRef<TrayDrag | null>(null)
+  const trayDragEndedAtRef = useRef(Number.NEGATIVE_INFINITY)
 
   const placementsByLevelRef = useRef(new Map<number, PlacedPiece[]>())
   const orientationsRef = useRef(new Map<PieceId, { variant: number; flipped: boolean }>())
@@ -121,7 +144,7 @@ export function MarbleWorksGame(): ReactElement {
 
   const updatePlacements = useCallback((next: PlacedPiece[]): void => {
     setPlacements(next)
-    setGhostPath(null)
+    setGhostPaths(null)
     setFailed(null)
     if (levelId !== null) {
       placementsByLevelRef.current.set(levelId, next)
@@ -143,9 +166,10 @@ export function MarbleWorksGame(): ReactElement {
     setPhase('edit')
     setRunToken(null)
     setFailed(null)
-    setGhostPath(null)
+    setGhostPaths(null)
+    setLiveGems(0)
     setLastWin(null)
-    setHintOpen(Boolean(target.hint) && !target.tutorial && progress.stars[id] === undefined)
+    setHintOpen(Boolean(target.hint) && target.autoHint === true && !target.tutorial && progress.stars[id] === undefined)
   }, [progress.stars])
 
   const goToSelect = useCallback((): void => {
@@ -217,7 +241,7 @@ export function MarbleWorksGame(): ReactElement {
   const shakeTray = (pieceId: PieceId): void => setTrayShake((current) => ({ pieceId, key: (current?.key ?? 0) + 1 }))
 
   const handleArm = (pieceId: PieceId): void => {
-    if (!level || !editing) {
+    if (!level || !editing || performance.now() - trayDragEndedAtRef.current < TRAY_CLICK_AFTER_DRAG_MS) {
       return
     }
     if (armed?.pieceId === pieceId) {
@@ -235,6 +259,61 @@ export function MarbleWorksGame(): ReactElement {
     setHintOpen(false)
   }
 
+  /** Starts a possible tray drag. Touch keeps tap-to-pick, so the tray strip still scrolls. */
+  const handleTrayPointerDown = (pieceId: PieceId, event: ReactPointerEvent<HTMLButtonElement>): void => {
+    if (event.pointerType === 'touch' || event.button !== 0 || !level || !editing || (remaining[pieceId] ?? 0) <= 0) {
+      return
+    }
+    trayDragRef.current = { pieceId, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
+  }
+
+  // A tray drag follows the pointer across the page. The board's own pointer events (no
+  // capture, since the press began on the tray) show the ghost and drop the piece; the window
+  // listener runs after them and ends the drag wherever the button is released.
+  useEffect(() => {
+    const onMove = (event: PointerEvent): void => {
+      const current = trayDragRef.current
+      if (!current || event.pointerId !== current.pointerId) {
+        return
+      }
+      if (!current.moved) {
+        if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < TRAY_DRAG_THRESHOLD_PX) {
+          return
+        }
+        current.moved = true
+        const orientation = orientationsRef.current.get(current.pieceId) ?? { variant: 0, flipped: false }
+        setArmed({ pieceId: current.pieceId, ...orientation })
+        setSelectedUid(null)
+        setHintOpen(false)
+      }
+      setTrayDragIcon({ pieceId: current.pieceId, x: event.clientX, y: event.clientY })
+    }
+    const onEnd = (event: PointerEvent): void => {
+      const current = trayDragRef.current
+      if (!current || event.pointerId !== current.pointerId) {
+        return
+      }
+      trayDragRef.current = null
+      if (!current.moved) {
+        return
+      }
+      setTrayDragIcon(null)
+      setArmed(null)
+      setHover(null)
+      // Releasing over the card it came from would also click it; that is not a pick.
+      trayDragEndedAtRef.current = performance.now()
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+    }
+  }, [])
+
   const placeArmed = (placement: PiecePlacement): void => {
     if (!level) {
       return
@@ -246,6 +325,8 @@ export function MarbleWorksGame(): ReactElement {
     nextUidRef.current += 1
     const next = [...placements, { ...placement, uid }]
     updatePlacements(next)
+    // Select what just landed, so Rotate / Flip are one tap away while it is still in mind.
+    setSelectedUid(uid)
     if (remainingCount(level, next, placement.pieceId) <= 0) {
       setArmed(null)
       setHover(null)
@@ -333,7 +414,7 @@ export function MarbleWorksGame(): ReactElement {
             }
           }
         }
-      } else if (!drag && armed && event.pointerType === 'mouse') {
+      } else if (!drag && armed && event.pointerType !== 'touch') {
         const next = cell ? anchoredPlacement(armed, cell) : null
         if (next?.col !== hover?.col || next?.row !== hover?.row || next?.variant !== hover?.variant || next?.flipped !== hover?.flipped) {
           setHover(next)
@@ -355,14 +436,20 @@ export function MarbleWorksGame(): ReactElement {
     // Pointer up.
     const current = drag
     setDrag(null)
-    if (!current) {
+    const fromTray = !current && trayDragRef.current?.moved === true
+    if (!current && !fromTray) {
       return
     }
-    if (current.kind === 'place') {
+    if (!current || current.kind === 'place') {
       if (cell && armed) {
         const placement = anchoredPlacement(armed, cell)
         if (placementProblem(level, placements, placement) === null) {
           placeArmed(placement)
+          // With a mouse or pen a pick places one piece; touch keeps it for the next tap.
+          if (event.pointerType !== 'touch') {
+            setArmed(null)
+            setHover(null)
+          }
         } else {
           shakeTray(armed.pieceId)
         }
@@ -399,7 +486,8 @@ export function MarbleWorksGame(): ReactElement {
       setSelectedUid(null)
       setDrag(null)
       setFailed(null)
-      setGhostPath(null)
+      setGhostPaths(null)
+      setLiveGems(0)
       setHintOpen(false)
       setPhase('running')
       setRunToken((current) => (current ?? 0) + 1)
@@ -410,21 +498,25 @@ export function MarbleWorksGame(): ReactElement {
     }
   }
 
-  const handleRunEnd = useCallback((status: Exclude<RunStatus, 'running'>, path: Vec2[]): void => {
+  const handleRunEnd = useCallback((result: RunResult): void => {
     if (!level) {
       return
     }
-    if (status === 'won') {
-      const stars = computeStars(placements.length, level.par)
-      setLastWin({ stars, pieces: placements.length })
+    setLiveGems(result.gems)
+    if (result.status === 'won') {
+      const breakdown = computeStars(placements.length, level, result.gems)
+      setLastWin({ ...breakdown, pieces: placements.length, parPieces: level.par, gemsCollected: result.gems, gemsTotal: level.gems.length })
       setPhase('won')
-      const next = recordWin(loadProgress(), level.id, stars)
+      const next = recordWin(loadProgress(), level.id, breakdown.stars)
       saveProgress(next)
       setProgress(next)
       return
     }
-    setFailed(status)
-    setGhostPath(path)
+    if (result.status === 'running') {
+      return
+    }
+    setFailed({ status: result.status, kind: marbleSchedule(level)[result.failedMarble]?.kind ?? null })
+    setGhostPaths(result.paths)
     clearFailTimer()
     failTimerRef.current = window.setTimeout(() => {
       failTimerRef.current = null
@@ -525,8 +617,15 @@ export function MarbleWorksGame(): ReactElement {
     )
   }
 
-  const actionBarAnchor = selected && layout && editing && !drag
-    ? worldToScreen(level, layout, selected.col + (placementSize(selected).w / 2), level.rows - selected.row)
+  const actionBar = selected && layout && editing && !drag
+    ? (() => {
+        const { w, h } = placementSize(selected)
+        const [x, pieceTop] = worldToScreen(level, layout, selected.col + (w / 2), level.rows - selected.row)
+        const [, pieceBottom] = worldToScreen(level, layout, selected.col + (w / 2), level.rows - selected.row - h)
+        const fits = (candidate: PiecePlacement): boolean => placementProblem(level, placements, candidate, selectedIndex) === null
+
+        return { x, pieceTop, pieceBottom, rotateFits: fits(rotatePlacement(selected)), flipFits: fits(flipPlacement(selected)) }
+      })()
     : null
 
   const tutorialMessage = tutorialStep === 'pick'
@@ -549,7 +648,7 @@ export function MarbleWorksGame(): ReactElement {
             editing={editing}
             freeCells={freeCells}
             ghost={ghost}
-            ghostPath={ghostPath}
+            ghostPaths={ghostPaths}
             key={level.id}
             level={level}
             placements={placements}
@@ -557,11 +656,12 @@ export function MarbleWorksGame(): ReactElement {
             selected={editing ? selected : null}
             tutorialCell={tutorialStep === 'place' || tutorialStep === 'fix' || tutorialStep === 'flip' ? tutorial?.cell ?? null : null}
             onBoardPointer={handleBoardPointer}
+            onGem={setLiveGems}
             onLayout={setLayout}
             onRunEnd={handleRunEnd}
           />
 
-          <GameHud hintOpen={hintOpen} level={level} piecesUsed={placements.length} onToggleHint={() => setHintOpen((open) => !open)} />
+          <GameHud gemsCollected={liveGems} hintOpen={hintOpen} level={level} piecesUsed={placements.length} onToggleHint={() => setHintOpen((open) => !open)} />
 
           {hintOpen && level.hint && <HintBubble text={level.hint} onClose={() => setHintOpen(false)} />}
 
@@ -573,15 +673,22 @@ export function MarbleWorksGame(): ReactElement {
             </div>
           )}
 
-          {failed && <RunFailedToast status={failed} />}
+          {failed && <RunFailedToast kind={failed.kind} status={failed.status} />}
 
-          {actionBarAnchor && selected && (
+          {actionBar && selected && (
             <PieceActionBar
               canFlip={canFlip(selected.pieceId)}
               canRotate={canRotate(selected.pieceId)}
+              containerHeight={layout?.height ?? 0}
               containerWidth={layout?.width ?? 0}
-              x={actionBarAnchor[0]}
-              y={actionBarAnchor[1]}
+              flipFits={actionBar.flipFits}
+              flipped={selected.flipped}
+              pieceBottom={actionBar.pieceBottom}
+              pieceId={selected.pieceId}
+              pieceTop={actionBar.pieceTop}
+              rotateFits={actionBar.rotateFits}
+              variant={selected.variant}
+              x={actionBar.x}
               onFlip={() => replaceSelected(flipPlacement)}
               onRemove={removeSelected}
               onRotate={() => replaceSelected(rotatePlacement)}
@@ -591,8 +698,7 @@ export function MarbleWorksGame(): ReactElement {
           {phase === 'won' && lastWin && (
             <LevelCompleteOverlay
               isFinalLevel={level.id >= LEVELS.length}
-              piecesUsed={lastWin.pieces}
-              stars={lastWin.stars}
+              summary={lastWin}
               onLevels={goToSelect}
               onNext={() => startLevel(level.id + 1)}
               onReplay={handleReplay}
@@ -609,7 +715,20 @@ export function MarbleWorksGame(): ReactElement {
           shakePiece={trayShake}
           trayRef={trayRef}
           onArm={handleArm}
+          onPiecePointerDown={handleTrayPointerDown}
         />
+
+        {trayDragIcon && !hover && createPortal(
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 opacity-90 drop-shadow-lg"
+            data-testid="tray-drag-icon"
+            style={{ left: trayDragIcon.x, top: trayDragIcon.y }}
+          >
+            <PieceIcon className="size-12" pieceId={trayDragIcon.pieceId} />
+          </div>,
+          document.body,
+        )}
 
         <div className="pointer-events-none absolute inset-0 z-30">
           <TapHint position={tutorialStep ? tutorialHint : null} />

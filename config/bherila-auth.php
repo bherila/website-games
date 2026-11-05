@@ -1,5 +1,7 @@
 <?php
 
+use App\Auth\OAuthAccounts;
+
 return [
     'routes' => [
         'enabled' => false,
@@ -39,5 +41,11 @@ return [
         // The operation receipts table's connection; the nonce connection unless set. Durable and
         // shared by every worker: a lost receipt lets a repeated write run again.
         'receipt_connection' => env('GAMES_DELEGATED_ACCESS_RECEIPT_CONNECTION', env('GAMES_DELEGATED_ACCESS_NONCE_CONNECTION')),
+    ],
+
+    // Account rules for sign-in through the identity provider: no verified email at creation,
+    // and a confirmed address is kept at sign-in. See App\Auth\OAuthAccounts.
+    'oauth_login' => [
+        'accounts' => OAuthAccounts::class,
     ],
 ];

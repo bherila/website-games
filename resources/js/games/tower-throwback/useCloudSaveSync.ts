@@ -22,7 +22,7 @@ import {
   pushCloudSlot,
   releaseLease,
 } from './cloudSync'
-import { importSandbox, loadSandbox, migrateSandboxPayload, type SavedSandbox } from './gameProgress'
+import { getOrCreateTabSessionId, importSandbox, loadSandbox, migrateSandboxPayload, type SavedSandbox } from './gameProgress'
 import { SANDBOX_SLOT_IDS, type SandboxSlotId } from './gameTypes'
 import { fitsCloudBudget } from './saveBudget'
 
@@ -363,7 +363,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
     if (decoded === null || migrateSandboxPayload(decoded) === null) {
       return null
     }
-    const result = importSandbox(JSON.stringify(decoded), slotId)
+    // The fetch may outlive a tab ownership change. Check ownership and claim
+    // the restored slot in the synchronous local write, after the fetch ends.
+    const result = importSandbox(JSON.stringify(decoded), slotId, getOrCreateTabSessionId())
     if (!result.ok) {
       return null
     }

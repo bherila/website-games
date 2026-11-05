@@ -16,14 +16,15 @@ const LEVEL: LevelDef = {
   title: 'Test',
   cols: 6,
   rows: 5,
-  start: { col: 0, row: 0 },
-  goal: { col: 5, row: 4 },
+  droppers: [{ cell: { col: 0, row: 0 }, marbles: ['glass'] }],
+  baskets: [{ cell: { col: 5, row: 4 } }],
+  gems: [{ col: 3, row: 3 }, { col: 4, row: 4 }],
   blocks: [{ col: 2, row: 2, w: 2, h: 1 }],
   pegs: [{ col: 4, row: 0 }],
   fixed: [{ pieceId: 'track-short', col: 1, row: 1, variant: 0, flipped: false }],
   noBuild: [{ col: 0, row: 4 }],
   inventory: { 'ramp-steep': 2, uturn: 1, funnel: 1 },
-  par: { two: 3, three: 2 },
+  par: 2,
   solution: [],
 }
 
@@ -54,6 +55,8 @@ describe('board grid', () => {
     expect(placementProblem(LEVEL, [], P('ramp-steep', 0, 4))).toBe('blocked')
     expect(placementProblem(LEVEL, [P('uturn', 5, 1)], P('ramp-steep', 5, 2))).toBe('overlap')
     expect(placementProblem(LEVEL, [], P('ramp-steep', 3, 3))).toBeNull()
+    // Gems never block building.
+    expect(placementProblem(LEVEL, [], P('ramp-steep', 4, 4))).toBeNull()
   })
 
   it('enforces the level inventory, except when moving an existing piece', () => {
@@ -80,9 +83,12 @@ describe('board grid', () => {
     expect(flipPlacement(curve).flipped).toBe(true)
   })
 
-  it('awards stars by pieces used against par', () => {
-    expect(computeStars(2, LEVEL.par)).toBe(3)
-    expect(computeStars(3, LEVEL.par)).toBe(2)
-    expect(computeStars(9, LEVEL.par)).toBe(1)
+  it('awards a star for the solve, one for every gem, and one for staying within par', () => {
+    expect(computeStars(2, LEVEL, 2)).toEqual({ stars: 3, gems: true, par: true })
+    expect(computeStars(3, LEVEL, 2)).toEqual({ stars: 2, gems: true, par: false })
+    expect(computeStars(2, LEVEL, 1)).toEqual({ stars: 2, gems: false, par: true })
+    expect(computeStars(9, LEVEL, 0)).toEqual({ stars: 1, gems: false, par: false })
+    // A level without gems grants the gem star with the solve.
+    expect(computeStars(2, { ...LEVEL, gems: [] }, 0).stars).toBe(3)
   })
 })

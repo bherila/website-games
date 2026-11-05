@@ -17,10 +17,9 @@ import {
   wheelZoomFactor,
 } from '../_shared/three/touchGestures'
 import { itemDef, shaftDef } from './engine/catalog'
-import { buildHudSnapshot, stepEngine } from './engine/engine'
+import { buildHudSnapshot, clonePlacementState, stepEngine } from './engine/engine'
 import { congestionField, noiseField } from './engine/heatmaps'
 import { applyPlacement, validatePlacement } from './engine/placement'
-import { geometryFor, setTowerGeometry } from './engine/towerGeometry'
 import type { EngineCommand, EngineEvent, EngineState, HudSnapshot, ItemKind, ShaftKind } from './gameTypes'
 import { TUNING } from './gameTypes'
 import type { SelectedTool } from './hud/BuildPalette'
@@ -257,17 +256,7 @@ function ghostForCommand(cmd: PlacementCmd, state: EngineState, valid: boolean):
  * state, allowing each stacked slab to support the next preview cell.
  */
 export function bulkGhostsForCommands(state: EngineState, commands: PlaceItemCmd[]): PlacementGhost[] {
-  const scratchState: EngineState = {
-    ...state,
-    units: [...state.units],
-    shafts: [...state.shafts],
-    grid: {
-      slab: new Uint8Array(state.grid.slab),
-      unit: new Int32Array(state.grid.unit),
-      shaft: new Int32Array(state.grid.shaft),
-    },
-  }
-  setTowerGeometry(scratchState, geometryFor(state))
+  const scratchState = clonePlacementState(state)
 
   return commands.map((cmd) => {
     const verdict = validatePlacement(scratchState, cmd)

@@ -1,44 +1,61 @@
-import { GOAL_SETTLE_S, RUN_TIMEOUT_S, STUCK_S } from '../physics/constants'
-import { createRunTracker, isOutOfBounds, updateRunTracker } from '../physics/runOutcome'
+import { GOAL_SETTLE_S, STUCK_S } from '../physics/constants'
+import { createMarbleTracker, isOutOfBounds, judgeRun, type MarbleSample, type MarbleStatus, updateMarbleTracker } from '../physics/runOutcome'
 
 const BOARD = { cols: 6, rows: 6 }
 const STEP = 1 / 240
+const ROLLING: MarbleSample = { x: 3, y: 3, speed: 2, basket: -1, refusal: null }
 
-function runFor(seconds: number, sample: Parameters<typeof updateRunTracker>[2]) {
-  const tracker = createRunTracker()
-  let status = tracker.status
-  for (let t = 0; t < seconds && status === 'running'; t += STEP) {
-    status = updateRunTracker(tracker, BOARD, sample, STEP)
+function rollFor(seconds: number, sample: MarbleSample): MarbleStatus {
+  const tracker = createMarbleTracker()
+  tracker.status = 'rolling'
+  let status: MarbleStatus = tracker.status
+  for (let t = 0; t < seconds && status === 'rolling'; t += STEP) {
+    status = updateMarbleTracker(tracker, BOARD, sample, STEP)
   }
 
-  return { tracker, status }
+  return status
 }
 
 describe('run outcome judge', () => {
-  it('wins once the marble has settled in the basket', () => {
-    expect(runFor(GOAL_SETTLE_S - 0.05, { x: 1, y: 1, speed: 0, inGoal: true }).status).toBe('running')
-    expect(runFor(GOAL_SETTLE_S + 0.05, { x: 1, y: 1, speed: 0, inGoal: true }).status).toBe('won')
+  it('brings a marble home once it has settled in an accepting basket', () => {
+    const inBasket = { ...ROLLING, speed: 0, basket: 0 }
+
+    expect(rollFor(GOAL_SETTLE_S - 0.05, inBasket)).toBe('rolling')
+    expect(rollFor(GOAL_SETTLE_S + 0.05, inBasket)).toBe('home')
   })
 
-  it('loses when the marble leaves the board', () => {
+  it('fails a marble that settles in a basket that refuses it', () => {
+    expect(rollFor(GOAL_SETTLE_S + 0.05, { ...ROLLING, speed: 0, basket: 1, refusal: 'wrong' })).toBe('wrong')
+    expect(rollFor(GOAL_SETTLE_S + 0.05, { ...ROLLING, speed: 0, basket: 1, refusal: 'full' })).toBe('full')
+  })
+
+  it('loses a marble that leaves the board', () => {
     expect(isOutOfBounds(BOARD, 3, -1.5)).toBe(true)
     expect(isOutOfBounds(BOARD, -1.5, 3)).toBe(true)
     expect(isOutOfBounds(BOARD, 7.5, 3)).toBe(true)
     expect(isOutOfBounds(BOARD, 3, 9)).toBe(false)
-    expect(runFor(0.1, { x: 3, y: -2, speed: 3, inGoal: false }).status).toBe('out')
+    expect(rollFor(0.1, { ...ROLLING, y: -2 })).toBe('out')
   })
 
-  it('loses when the marble stops outside the basket', () => {
-    expect(runFor(STUCK_S + 0.1, { x: 3, y: 3, speed: 0, inGoal: false }).status).toBe('stuck')
+  it('calls a marble stuck when it stops outside a basket', () => {
+    expect(rollFor(STUCK_S + 0.1, { ...ROLLING, speed: 0 })).toBe('stuck')
+    expect(rollFor(STUCK_S + 0.1, ROLLING)).toBe('rolling')
   })
 
-  it('times out a marble that never settles', () => {
-    expect(runFor(RUN_TIMEOUT_S + 1, { x: 3, y: 3, speed: 2, inGoal: false }).status).toBe('timeout')
+  it('never changes a finished marble', () => {
+    const tracker = createMarbleTracker()
+    tracker.status = 'out'
+
+    expect(updateMarbleTracker(tracker, BOARD, { ...ROLLING, basket: 0, speed: 0 }, 1)).toBe('out')
   })
 
-  it('never changes a finished verdict', () => {
-    const { tracker } = runFor(1, { x: 3, y: -2, speed: 3, inGoal: false })
-
-    expect(updateRunTracker(tracker, BOARD, { x: 1, y: 1, speed: 0, inGoal: true }, 1)).toBe('out')
+  it('wins only when every marble is home, and fails on the first failed marble', () => {
+    expect(judgeRun(['home', 'home'], 3, 25)).toBe('won')
+    expect(judgeRun(['home', 'rolling'], 3, 25)).toBe('running')
+    expect(judgeRun(['home', 'waiting'], 3, 25)).toBe('running')
+    expect(judgeRun(['rolling', 'wrong'], 3, 25)).toBe('wrong')
+    expect(judgeRun(['out', 'stuck'], 3, 25)).toBe('out')
+    expect(judgeRun(['home', 'rolling'], 25, 25)).toBe('timeout')
+    expect(judgeRun([], 1, 25)).toBe('running')
   })
 })

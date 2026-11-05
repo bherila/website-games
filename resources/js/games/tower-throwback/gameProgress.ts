@@ -334,7 +334,7 @@ export type SandboxWriteResult =
 
 export type SandboxImportResult =
   | { ok: true; saved: SavedSandbox }
-  | { ok: false; reason: 'invalidJson' | 'invalidPayload' | 'storageUnavailable' | 'quotaExceeded' }
+  | { ok: false; reason: 'invalidJson' | 'invalidPayload' | 'storageUnavailable' | 'quotaExceeded' | 'slotOwnedByAnotherTab' }
 
 function sandboxStorageKey(slotId: SandboxSlotId): string {
   return slotId === 'autosave' ? SANDBOX_STORAGE_KEY : `${SANDBOX_STORAGE_KEY}.${slotId}`
@@ -479,9 +479,25 @@ function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: st
     if (serialized.length > MAX_SANDBOX_JSON_CHARS) {
       return { ok: false, reason: 'quotaExceeded' }
     }
-    storage.setItem(sandboxStorageKey(slotId), serialized)
+    // Claim before committing the bytes: a failed owner-marker write must not
+    // replace a durable save while reporting that the save failed. Roll back
+    // only a newly acquired claim if the atomic save-key write itself fails.
+    const ownerKey = sandboxOwnerStorageKey(slotId)
+    const previousOwner = sessionId ? storage.getItem(ownerKey) : null
     if (sessionId) {
-      storage.setItem(sandboxOwnerStorageKey(slotId), sessionId)
+      storage.setItem(ownerKey, sessionId)
+    }
+    try {
+      storage.setItem(sandboxStorageKey(slotId), serialized)
+    } catch (error) {
+      if (sessionId && previousOwner !== sessionId) {
+        if (previousOwner === null) {
+          storage.removeItem(ownerKey)
+        } else {
+          storage.setItem(ownerKey, previousOwner)
+        }
+      }
+      throw error
     }
     return { ok: true }
   } catch {
@@ -577,7 +593,7 @@ export function exportSandbox(saved: SavedSandbox): string {
   return JSON.stringify(saved, null, 2)
 }
 
-export function importSandbox(raw: string, slotId: SandboxSlotId): SandboxImportResult {
+export function importSandbox(raw: string, slotId: SandboxSlotId, sessionId?: string): SandboxImportResult {
   if (raw.length > MAX_SANDBOX_JSON_CHARS) {
     return { ok: false, reason: 'invalidPayload' }
   }
@@ -594,16 +610,9 @@ export function importSandbox(raw: string, slotId: SandboxSlotId): SandboxImport
     return { ok: false, reason: 'invalidPayload' }
   }
 
-  const writeResult = writeSandbox(saved, slotId)
+  const writeResult = writeSandbox(saved, slotId, sessionId)
   if (!writeResult.ok) {
-    switch (writeResult.reason) {
-      case 'storageUnavailable':
-        return { ok: false, reason: 'storageUnavailable' }
-      case 'quotaExceeded':
-        return { ok: false, reason: 'quotaExceeded' }
-      case 'slotOwnedByAnotherTab':
-        return { ok: false, reason: 'storageUnavailable' }
-    }
+    return writeResult
   }
 
   return { ok: true, saved }

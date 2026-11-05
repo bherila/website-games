@@ -22,12 +22,13 @@
  * deterministic save snapshots.
  */
 
-import type { EngineState, IncomeTier, ItemKind, Unit } from '../gameTypes'
+import type { EngineState, IncomeTier, Unit } from '../gameTypes'
 import { TUNING } from '../gameTypes'
+import { hotelReceptionExists, hotelRoomAvailable, isHotelRoom } from './hotelAvailability'
 import { spawnPerson, streetEntrance } from './people'
 import { pickWeighted } from './rng'
 
-export const HOTEL_ROOM_KINDS: ReadonlySet<ItemKind> = new Set<ItemKind>(['hotel1p', 'hotel2p', 'hotelSuite'])
+export { HOTEL_ROOM_KINDS, hotelReceptionExists, isHotelRoom } from './hotelAvailability'
 
 const CHECKIN = { start: 18 * 60, end: 22 * 60 }
 const CHECKOUT = { start: 7 * 60, end: 9 * 60 }
@@ -83,21 +84,13 @@ function unitsInIdOrder(state: EngineState): Unit[] {
   return state.units // id-ascending by EngineState invariant — no sort needed
 }
 
-export function hotelReceptionExists(state: EngineState): boolean {
-  return state.units.some((u) => u.kind === 'hotelReception' && !u.offline)
-}
-
-export function isHotelRoom(unit: Unit): boolean {
-  return HOTEL_ROOM_KINDS.has(unit.kind)
-}
-
 function hotelRooms(state: EngineState): Unit[] {
   return unitsInIdOrder(state).filter(isHotelRoom)
 }
 
 /** A room a guest can check into tonight. */
 function isBookable(unit: Unit): boolean {
-  return !unit.occupied && !unit.dirty && !unit.offline && !unit.infested && !unit.flags.noRoute && !unit.flags.noReception
+  return hotelRoomAvailable(unit) && !unit.flags.noRoute && !unit.flags.noReception
 }
 
 /** Nightly demand per the spec formula (rooms, not people). */

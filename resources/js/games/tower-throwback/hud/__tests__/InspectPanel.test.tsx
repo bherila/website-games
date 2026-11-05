@@ -132,6 +132,28 @@ describe('InspectPanel — unit', () => {
     expect(screen.queryByTestId('lease-outlook')).toBeNull()
   })
 
+  it('shows a persisted future relisting date, updates after a failed viewing, and restores due-day guidance', () => {
+    const vacant = makeUnit({ occupied: false, relistOnDay: 14 })
+    const h = handlers()
+    const { unmount } = render(
+      <InspectPanel selection={{ type: 'unit', unit: vacant }} currentDay={10} maxStarReached={1} {...h} />,
+    )
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Back on market on day 14; tenants look at 08:00 on a weekday')
+    expect(screen.getByTestId('lease-outlook')).not.toHaveTextContent('Tenants move in at the next')
+    unmount()
+    const restored = JSON.parse(JSON.stringify(vacant)) as Unit
+    const view = render(<InspectPanel selection={{ type: 'unit', unit: restored }} currentDay={12} maxStarReached={1} {...h} />)
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Back on market on day 14')
+    view.rerender(<InspectPanel selection={{ type: 'unit', unit: { ...restored, relistOnDay: 18, evalScore: 40 } }} currentDay={14} maxStarReached={1} {...h} />)
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Back on market on day 18')
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('needs desirability 50 at Average rent (now 40)')
+    view.rerender(<InspectPanel selection={{ type: 'unit', unit: restored }} currentDay={14} maxStarReached={1} {...h} />)
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Tenants move in at the next 08:00 on a weekday')
+    view.rerender(<InspectPanel selection={{ type: 'unit', unit: { ...restored, kind: 'aptStudio' } }} currentDay={14} maxStarReached={1} {...h} />)
+    expect(screen.getByTestId('lease-outlook')).toHaveTextContent('Tenants move in at the next 08:00')
+    expect(screen.getByTestId('lease-outlook')).not.toHaveTextContent('weekday')
+  })
+
   it('does not round a score just under the bar up to a lease', () => {
     const vacant = makeUnit({ occupied: false, population: { low: 0, med: 0, high: 0, vip: 0 }, evalScore: 0 })
     render(<InspectPanel selection={{ type: 'unit', unit: vacant }} evalBreakdown={{ ...zeroBreakdown(), score: 49.8 }} maxStarReached={1} {...handlers()} />)

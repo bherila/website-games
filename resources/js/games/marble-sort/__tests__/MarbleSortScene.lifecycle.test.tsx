@@ -114,7 +114,7 @@ it('rebuilds an idle shadow map after context restoration and removes the listen
   advanceFrame()
   expect(updates).toEqual([true, false])
 
-  act(() => current.domElement.dispatchEvent(new Event('webglcontextrestored')))
+  void act(() => current.domElement.dispatchEvent(new Event('webglcontextrestored')))
   advanceFrame()
   advanceFrame()
   expect(updates.slice(-2)).toEqual([true, false])

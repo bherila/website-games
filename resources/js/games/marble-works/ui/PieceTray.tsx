@@ -1,4 +1,4 @@
-import type { ReactElement, Ref } from 'react'
+import type { PointerEvent as ReactPointerEvent, ReactElement, Ref } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -14,6 +14,8 @@ interface PieceTrayProps {
   disabled: boolean
   shakePiece: { pieceId: PieceId; key: number } | null
   onArm: (pieceId: PieceId) => void
+  /** A press on a card; with a mouse or pen it can turn into dragging the piece out. */
+  onPiecePointerDown?: (pieceId: PieceId, event: ReactPointerEvent<HTMLButtonElement>) => void
   trayRef?: Ref<HTMLDivElement>
   className?: string
 }
@@ -21,8 +23,9 @@ interface PieceTrayProps {
 /**
  * The piece picker: one card per piece type in this level's inventory, grouped by
  * family, with a live count badge. Bottom strip in portrait, left column on wide screens.
+ * Tap or click a card to pick it, or drag a card onto the board with a mouse or pen.
  */
-export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm, trayRef, className }: PieceTrayProps): ReactElement {
+export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm, onPiecePointerDown, trayRef, className }: PieceTrayProps): ReactElement {
   const pieceIds = (Object.keys(level.inventory) as PieceId[])
     .filter((pieceId) => (level.inventory[pieceId] ?? 0) > 0)
     .sort((a, b) => FAMILY_ORDER.indexOf(PIECES[a].family) - FAMILY_ORDER.indexOf(PIECES[b].family))
@@ -32,8 +35,11 @@ export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm
     <div
       aria-label="Piece tray"
       className={cn(
-        'z-10 shrink-0 border-white/60 bg-white/80 shadow-lg shadow-slate-950/10 backdrop-blur-md transition-opacity dark:border-white/10 dark:bg-slate-900/80',
-        'flex gap-1 overflow-x-auto border-t px-2 py-1.5 md:flex-col md:overflow-x-visible md:overflow-y-auto md:border-r md:border-t-0 md:px-1.5 md:py-3',
+        'z-10 shrink-0 select-none border-white/60 bg-white/80 shadow-lg shadow-slate-950/10 backdrop-blur-md transition-opacity dark:border-white/10 dark:bg-slate-900/80',
+        // The insets keep every card clear of the screen edge, where a tablet's edge swipes,
+        // case lip and rounded corners swallow touches.
+        'flex gap-1.5 overflow-x-auto border-t py-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+        'md:flex-col md:gap-2 md:overflow-x-visible md:overflow-y-auto md:border-r md:border-t-0 md:py-3 md:pl-[max(1.25rem,env(safe-area-inset-left))] md:pr-4',
         disabled && 'pointer-events-none opacity-45',
         className,
       )}
@@ -52,9 +58,10 @@ export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm
       `}
       </style>
       {families.map((family, familyIndex) => (
-        <div className={cn('flex shrink-0 items-end gap-1 md:flex-col md:items-stretch', familyIndex > 0 && 'border-l border-slate-200 pl-1 md:border-l-0 md:border-t md:pl-0 md:pt-1 dark:border-white/10')} key={family}>
+        <div className={cn('flex shrink-0 items-end gap-1.5 md:flex-col md:items-stretch md:gap-2', familyIndex > 0 && 'border-l border-slate-200 pl-1.5 md:border-l-0 md:border-t md:pl-0 md:pt-2 dark:border-white/10')} key={family}>
           <span className="sr-only">{FAMILY_LABELS[family]}</span>
-          <span aria-hidden="true" className="hidden text-center text-[9px] font-black uppercase tracking-wide text-slate-400 md:block">{FAMILY_LABELS[family]}</span>
+          {/* Dropped on short screens so a full tray fits an iPad in landscape without scrolling. */}
+          <span aria-hidden="true" className="hidden text-center text-[10px] font-black uppercase tracking-wide text-slate-400 [@media(min-width:768px)_and_(min-height:900px)]:block">{FAMILY_LABELS[family]}</span>
           {pieceIds.filter((pieceId) => PIECES[pieceId].family === family).map((pieceId) => {
             const count = remaining[pieceId] ?? 0
             const selected = armed === pieceId
@@ -65,9 +72,10 @@ export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm
                 aria-label={`${PIECES[pieceId].name}, ${count} left`}
                 aria-pressed={selected}
                 className={cn(
-                  'relative flex h-[76px] w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 pb-1 pt-1.5 text-slate-700 shadow-sm transition-transform active:scale-95 dark:bg-slate-800 dark:text-slate-100',
+                  'relative flex h-20 w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border bg-white px-1 pb-1 pt-1.5 text-slate-700 shadow-sm transition-transform active:scale-95 md:h-24 md:w-[5.75rem] dark:bg-slate-800 dark:text-slate-100',
                   selected ? '-translate-y-1 border-transparent shadow-md ring-2' : 'border-slate-200 dark:border-white/10',
                   used && !selected && 'bg-slate-100 text-slate-400 dark:bg-slate-800/60',
+                  !used && 'cursor-grab active:cursor-grabbing',
                   shakePiece?.pieceId === pieceId && 'marble-works-shake',
                 )}
                 data-piece={pieceId}
@@ -76,9 +84,10 @@ export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm
                 style={selected ? { ['--tw-ring-color' as string]: FAMILY_COLORS[PIECES[pieceId].family] } : undefined}
                 type="button"
                 onClick={() => onArm(pieceId)}
+                onPointerDown={(event) => onPiecePointerDown?.(pieceId, event)}
               >
-                <PieceIcon className="size-10" muted={used} pieceId={pieceId} />
-                <span className="w-full truncate text-center text-[10px] font-bold leading-tight">{PIECES[pieceId].name}</span>
+                <PieceIcon className="size-11 md:size-14" muted={used} pieceId={pieceId} />
+                <span className="w-full truncate text-center text-[10px] font-bold leading-tight md:text-xs">{PIECES[pieceId].name}</span>
                 <span
                   className={cn(
                     'absolute -right-1 -top-1 flex min-w-6 items-center justify-center rounded-full border-2 border-white px-1 text-[11px] font-black leading-5 text-white shadow-sm dark:border-slate-900',
