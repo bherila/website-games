@@ -19,6 +19,7 @@ interface NewGameOverlayProps {
   onStart: (lobbyHeight: 1 | 2 | 3, seed?: number, mapId?: string) => void
   onResume: (slotId: SandboxSlotId) => void
   onImport: (slotId: SandboxSlotId, raw: string) => ImportFeedback
+  startError?: string
 }
 
 const LOBBY_CHOICES: Array<{ height: 1 | 2 | 3; name: string; note: string }> = [
@@ -41,7 +42,7 @@ function slotSummary(slot: SandboxSlotSummary): string {
 }
 
 /** Title card: pick the permanent lobby height, or resume the saved tower. */
-export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOverlayProps): ReactElement {
+export function NewGameOverlay({ slots, onStart, onResume, onImport, startError }: NewGameOverlayProps): ReactElement {
   const [lobbyHeight, setLobbyHeight] = useState<1 | 2 | 3>(1)
   const [confirming, setConfirming] = useState(false)
   const [importSlotId, setImportSlotId] = useState<SandboxSlotId>('slot-a')
@@ -290,6 +291,7 @@ export function NewGameOverlay({ slots, onStart, onResume, onImport }: NewGameOv
         </div>
 
         <div className="mt-5 flex flex-col gap-2">
+          {startError && <p role="alert" className="rounded bg-red-500/15 px-3 py-2 text-sm text-red-100">{startError}</p>}
           <button
             type="button"
             ref={startButtonRef}

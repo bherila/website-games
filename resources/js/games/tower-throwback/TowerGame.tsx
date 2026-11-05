@@ -194,6 +194,7 @@ export function TowerGame(): ReactElement {
   const engineStateRef = useRef<EngineState | null>(engineState)
   const activeSlotRef = useRef<SandboxSlotId>('autosave')
   const sandboxSessionIdRef = useRef(getOrCreateTabSessionId())
+  const restoringSlotsRef = useRef(new Set<SandboxSlotId>())
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
   const saveLoadButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -303,6 +304,34 @@ export function TowerGame(): ReactElement {
   )
   const cloud = useCloudSaveSync(localSavedSlots)
 
+  const refusePendingRestore = useCallback((slotId: SandboxSlotId): SaveMessage | null => {
+    if (!restoringSlotsRef.current.has(slotId)) {
+      return null
+    }
+    const message = { kind: 'error' as const, text: `Wait for the cloud restore of ${slotLabel(slotId)} to finish.` }
+    setSaveMessage(message)
+    return message
+  }, [])
+
+  // A running tower remains the writer for its slot until another tower loads.
+  // Refuse storage-only replacements rather than reporting success and letting
+  // a later settlement, dirty autosave or tab-hide overwrite the replacement.
+  const refuseActiveSlotReplacement = useCallback((slotId: SandboxSlotId): SaveMessage | null => {
+    const pending = refusePendingRestore(slotId)
+    if (pending) {
+      return pending
+    }
+    if (!engineStateRef.current || activeSlotRef.current !== slotId) {
+      return null
+    }
+    const message = {
+      kind: 'error' as const,
+      text: `Load a different slot before replacing or clearing ${slotLabel(slotId)}; its tower is currently running.`,
+    }
+    setSaveMessage(message)
+    return message
+  }, [refusePendingRestore])
+
   // Mirror the just-written local slot to the cloud (best-effort; never blocks).
   const mirrorToCloud = useCallback((slotId: SandboxSlotId) => {
     if (!cloud.enabled) {
@@ -315,16 +344,26 @@ export function TowerGame(): ReactElement {
   }, [cloud])
 
   const restoreFromCloud = useCallback((slotId: SandboxSlotId) => {
+    if (refuseActiveSlotReplacement(slotId)) {
+      return
+    }
+    restoringSlotsRef.current.add(slotId)
     void (async () => {
-      const restored = await cloud.restore(slotId)
-      refreshSlots()
-      setSaveMessage(
-        restored
-          ? { kind: 'success', text: `Restored ${slotLabel(slotId)} from the cloud.` }
-          : { kind: 'error', text: `Could not restore ${slotLabel(slotId)} from the cloud.` },
-      )
+      try {
+        const restored = await cloud.restore(slotId)
+        refreshSlots()
+        setSaveMessage(
+          restored
+            ? { kind: 'success', text: `Restored ${slotLabel(slotId)} from the cloud.` }
+            : { kind: 'error', text: `Could not restore ${slotLabel(slotId)} from the cloud.` },
+        )
+      } catch {
+        setSaveMessage({ kind: 'error', text: `Could not restore ${slotLabel(slotId)} from the cloud.` })
+      } finally {
+        restoringSlotsRef.current.delete(slotId)
+      }
     })()
-  }, [cloud, refreshSlots])
+  }, [cloud, refreshSlots, refuseActiveSlotReplacement])
 
   const takeOverCloudSlot = useCallback((slotId: SandboxSlotId) => {
     void (async () => {
@@ -355,19 +394,20 @@ export function TowerGame(): ReactElement {
   }, [refreshSlots, selectTool])
 
   const startGame = useCallback((lobbyHeight: 1 | 2 | 3, seed?: number, mapId: string = CITY_TOWER.id) => {
-    clearSandbox('autosave')
+    if (refusePendingRestore('autosave')) {
+      return
+    }
     // A supplied seed replays a shared challenge; it selects a different point
     // in the same rng stream and changes no draw counts or ordering.
     const state = createEngineState({ seed: seed ?? randomSeed(), mapId, lobbyHeight })
-    recordMilestone('started')
     const result = saveSandbox(state, 'autosave', sandboxSessionIdRef.current)
     if (!result.ok) {
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
+      return
     }
-    if (result.ok) {
-      claimSandboxSlot('autosave', sandboxSessionIdRef.current)
-      mirrorToCloud('autosave')
-    }
+    recordMilestone('started')
+    mirrorToCloud('autosave')
+    setSaveMessage(null)
     setActiveSlotId('autosave')
     refreshSlots()
     setEngineState(state)
@@ -376,9 +416,12 @@ export function TowerGame(): ReactElement {
     setOverlaySample(null)
     selectTool(null)
     setMode('run')
-  }, [mirrorToCloud, refreshSlots, selectTool])
+  }, [mirrorToCloud, refreshSlots, refusePendingRestore, selectTool])
 
   const resumeGame = useCallback((slotId: SandboxSlotId) => {
+    if (refusePendingRestore(slotId)) {
+      return
+    }
     const saved = loadSandbox(slotId)
     if (saved) {
       claimSandboxSlot(slotId, sandboxSessionIdRef.current)
@@ -391,7 +434,7 @@ export function TowerGame(): ReactElement {
       selectTool(null)
       setMode('run')
     }
-  }, [cloud, selectTool])
+  }, [cloud, refusePendingRestore, selectTool])
 
   const onSnapshot = useCallback((snap: HudSnapshot) => setSnapshot(snap), [])
 
@@ -460,6 +503,9 @@ export function TowerGame(): ReactElement {
   )
 
   const saveToSlot = useCallback((slotId: SandboxSlotId) => {
+    if (refusePendingRestore(slotId)) {
+      return
+    }
     const state = engineStateRef.current
     if (!state) {
       return
@@ -477,9 +523,12 @@ export function TowerGame(): ReactElement {
     }
 
     setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
-  }, [mirrorToCloud, refreshSlots])
+  }, [mirrorToCloud, refreshSlots, refusePendingRestore])
 
   const loadFromSlot = useCallback((slotId: SandboxSlotId) => {
+    if (refusePendingRestore(slotId)) {
+      return
+    }
     const saved = loadSandbox(slotId)
     if (!saved) {
       setSaveMessage({ kind: 'error', text: slotFailureMessage(slotId) })
@@ -497,7 +546,7 @@ export function TowerGame(): ReactElement {
     setMode('run')
     setShowSaveLoad(false)
     setSaveMessage({ kind: 'success', text: `Loaded ${slotLabel(slotId)}.` })
-  }, [cloud, selectTool])
+  }, [cloud, refusePendingRestore, selectTool])
 
   const exportSlot = useCallback((slotId: SandboxSlotId) => {
     const saved = loadSandbox(slotId)
@@ -512,6 +561,10 @@ export function TowerGame(): ReactElement {
   }, [])
 
   const importToSlot = useCallback((slotId: SandboxSlotId, raw: string): SaveMessage => {
+    const refusal = refuseActiveSlotReplacement(slotId)
+    if (refusal) {
+      return refusal
+    }
     const result = importSandbox(raw, slotId)
     if (!result.ok) {
       const message = { kind: 'error' as const, text: importFailureMessage(result.reason) }
@@ -525,15 +578,18 @@ export function TowerGame(): ReactElement {
     const message = { kind: 'success' as const, text: `Imported to ${slotLabel(slotId)}.` }
     setSaveMessage(message)
     return message
-  }, [mirrorToCloud, refreshSlots])
+  }, [mirrorToCloud, refreshSlots, refuseActiveSlotReplacement])
 
   const clearSlot = useCallback((slotId: SandboxSlotId) => {
+    if (refuseActiveSlotReplacement(slotId)) {
+      return
+    }
     clearSandbox(slotId)
     refreshSlots()
     cloud.remove(slotId)
     setExportText('')
     setSaveMessage({ kind: 'success', text: `Cleared ${slotLabel(slotId)}.` })
-  }, [cloud, refreshSlots])
+  }, [cloud, refreshSlots, refuseActiveSlotReplacement])
 
   /**
    * The dirty-autosave write. Shares the ownership gate with every other save
@@ -730,7 +786,13 @@ export function TowerGame(): ReactElement {
   if (!engineState) {
     return (
       <div className="fixed inset-0 touch-none overflow-hidden bg-slate-950 text-white">
-        <NewGameOverlay slots={slotSummaries} onStart={startGame} onResume={resumeGame} onImport={importToSlot} />
+        <NewGameOverlay
+          slots={slotSummaries}
+          onStart={startGame}
+          onResume={resumeGame}
+          onImport={importToSlot}
+          startError={saveMessage?.kind === 'error' ? saveMessage.text : undefined}
+        />
       </div>
     )
   }

@@ -479,9 +479,25 @@ function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: st
     if (serialized.length > MAX_SANDBOX_JSON_CHARS) {
       return { ok: false, reason: 'quotaExceeded' }
     }
-    storage.setItem(sandboxStorageKey(slotId), serialized)
+    // Claim before committing the bytes: a failed owner-marker write must not
+    // replace a durable save while reporting that the save failed. Roll back
+    // only a newly acquired claim if the atomic save-key write itself fails.
+    const ownerKey = sandboxOwnerStorageKey(slotId)
+    const previousOwner = sessionId ? storage.getItem(ownerKey) : null
     if (sessionId) {
-      storage.setItem(sandboxOwnerStorageKey(slotId), sessionId)
+      storage.setItem(ownerKey, sessionId)
+    }
+    try {
+      storage.setItem(sandboxStorageKey(slotId), serialized)
+    } catch (error) {
+      if (sessionId && previousOwner !== sessionId) {
+        if (previousOwner === null) {
+          storage.removeItem(ownerKey)
+        } else {
+          storage.setItem(ownerKey, previousOwner)
+        }
+      }
+      throw error
     }
     return { ok: true }
   } catch {
