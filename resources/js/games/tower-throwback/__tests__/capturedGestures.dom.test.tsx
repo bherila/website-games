@@ -29,7 +29,7 @@ function stubController() {
     getRenderMetrics: jest.fn(() => ({ drawCalls: 0, frameMs: 0, triangles: 0 })),
     zoomBy: jest.fn(),
     resize: jest.fn(),
-    setContextLossHandlers: jest.fn<(handlers: { onLost: () => void; onRestored: () => void }) => void>(),
+    setContextLossHandlers: jest.fn<void, [{ onLost: () => void; onRestored: () => void }]>(),
     isReady: jest.fn(() => true),
     dispose: jest.fn(),
   }
