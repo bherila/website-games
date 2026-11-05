@@ -1,7 +1,7 @@
 import type { EngineState, Unit } from '../../gameTypes'
 import { stepElevators } from '../elevators'
 import { evalUnit, occupancyPass } from '../occupancy'
-import { clearAllStalls, functionalStalls, parkingDemand, parkingShortfall, rampServedFloors } from '../parking'
+import { claimStall, clearAllStalls, functionalStalls, parkingDemand, parkingShortfall, rampServedFloors, refreshParkingFlags, takeParkedStall } from '../parking'
 import { stepPeople } from '../people'
 import { stepSchedules } from '../schedules'
 import { injectUnit, makeTestState, placeShaft, placeSlabRow, setStars } from './testState'
@@ -28,6 +28,40 @@ function basementTower(state: EngineState): { stalls: Unit[]; office: Unit } {
 }
 
 describe('ramp chain', () => {
+  it('interrupts a damaged link and deeper floors while preserving existing parked ownership', () => {
+    const state = makeTestState()
+    const { stalls, office } = basementTower(state)
+    const shallow = injectUnit(state, { kind: 'parkingSpace', floor: -1, x: 20, width: 2, storeys: 1 })
+    const parked = claimStall(state, office.id, 'med')!
+    expect(parked).toBe(stalls[0])
+    const ramp = state.units.find((unit) => unit.kind === 'parkingRamp' && unit.floor === -2)!
+    ramp.offline = true
+
+    expect([...rampServedFloors(state)]).toEqual([-1])
+    expect(functionalStalls(state)).toEqual([shallow])
+    refreshParkingFlags(state, parked)
+    expect(parked.flags.noRoute).toBe(true)
+    expect(parked.population.med).toBe(1)
+    expect(claimStall(state, office.id, 'high')).toBe(shallow)
+    expect(claimStall(state, office.id, 'high')).toBeNull()
+
+    ramp.offline = false
+    refreshParkingFlags(state, parked)
+    expect(parked.flags.noRoute).toBe(false)
+    expect(claimStall(state, office.id, 'high')).toBe(stalls[1])
+    expect(takeParkedStall(state, office.id)).toBe(parked)
+  })
+
+  it('keeps a floor served when another online ramp supplies the damaged link', () => {
+    const state = makeTestState()
+    basementTower(state)
+    const ramp = state.units.find((unit) => unit.kind === 'parkingRamp' && unit.floor === -1)!
+    ramp.offline = true
+    expect(rampServedFloors(state).size).toBe(0)
+    injectUnit(state, { kind: 'parkingRamp', floor: -1, x: 50, width: 6, storeys: 1 })
+    expect([...rampServedFloors(state)]).toEqual([-1, -2])
+  })
+
   it('serves basement floors only through a contiguous ramp chain from −1', () => {
     const state = makeTestState()
     setStars(state, 3, 3)

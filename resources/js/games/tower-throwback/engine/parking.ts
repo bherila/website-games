@@ -2,9 +2,10 @@
  * Parking — ramp-served basement floors, stall assignment for car commuters,
  * and the office shortfall penalty.
  *
- * A basement floor is ramp-served when parkingRamp units exist on EVERY floor
+ * A basement floor is ramp-served when online parkingRamp units exist on EVERY floor
  * from −1 down to it (surface access assumed at the −1 ramp head). Stalls on
- * unserved floors are nonfunctional (flags.noRoute, occupied=false). Demand =
+ * unserved floors are nonfunctional (flags.noRoute); existing cars remain
+ * reserved for their owners until departure or the overnight reset. Demand =
  * suites × spacesPerSuite + floor(occupiedOffices / officesPerSpace); the
  * med/high car-commuter share emerges from first-come stall filling in id
  * order (stalls run out exactly when share < 1). A parked car is the stall's
@@ -61,7 +62,7 @@ function unitsInIdOrder(state: EngineState): Unit[] {
 
 /** Basement floors reachable through a contiguous ramp chain from −1. */
 export function rampServedFloors(state: EngineState): Set<number> {
-  const rampFloors = new Set(state.units.filter((u) => u.kind === 'parkingRamp').map((u) => u.floor))
+  const rampFloors = new Set(state.units.filter((u) => u.kind === 'parkingRamp' && !u.offline).map((u) => u.floor))
   const served = new Set<number>()
   for (let floor = -1; rampFloors.has(floor); floor--) {
     served.add(floor)
@@ -104,7 +105,7 @@ export function refreshParkingFlags(state: EngineState, unit: Unit, served: Read
   }
   const functional = served.has(unit.floor) && !unit.offline
   unit.flags.noRoute = !functional
-  if (!functional) {
+  if (unit.offline) {
     unit.population = { low: 0, med: 0, high: 0, vip: 0 }
     unit.occupied = false
   }

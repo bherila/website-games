@@ -121,7 +121,7 @@ function buildGraph(state: EngineState, staff: boolean): RouteGraph {
   }
 
   for (const unit of state.units) {
-    if (unit.kind !== 'stairs' && unit.kind !== 'escalator') {
+    if (unit.offline || (unit.kind !== 'stairs' && unit.kind !== 'escalator')) {
       continue
     }
     const below = geometry.segmentOf(state, unit.floor, unit.x)
