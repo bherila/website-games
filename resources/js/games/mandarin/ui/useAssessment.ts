@@ -2,7 +2,7 @@
  * Owns one opportunity's assessment state and emits the matching practice
  * events. A new exercise/opportunity remounts the hook via the caller's key.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { type AssessmentAction, type AssessmentMode, type AssessmentState, createAssessment, reduceAssessment } from '../domain/assessment'
 import type { ChoiceExercise } from '../domain/courseSchema'
@@ -18,23 +18,32 @@ export interface AssessmentHandle {
 export function useAssessment(exercise: ChoiceExercise, mode: AssessmentMode, location: { sceneId: string | null; nodeId: string | null }, sessionKind?: 'scheduled' | 'continuation' | 'extra'): AssessmentHandle {
   const game = useGame()
   const [state, setState] = useState<AssessmentState>(() => createAssessment(exercise, randomId('opp'), mode))
+  const stateRef = useRef(state)
+  const activeRef = useRef(true)
+  useEffect(() => {
+    activeRef.current = true
+    return () => { activeRef.current = false }
+  }, [])
   const source = useMemo(() => {
     const first = exercise.promptAudio[0]
     return first ? { sourceKind: first.sourceKind, sourceId: first.sourceId, variant: first.variant } : null
   }, [exercise])
 
   const dispatch = useCallback((action: AssessmentAction) => {
-    setState((current) => {
-      const next = reduceAssessment(current, action, exercise.correctOptionId)
-      if (next === current) return current
-      if (action.type === 'reveal') {
-        game.appendEvents([helpRevealedEvent(game.eventContext, next, location)])
-      }
-      if (action.type === 'submit' || action.type === 'dontKnow' || action.type === 'skip') {
-        game.appendEvents([responseEvent({ ...game.eventContext, ...(sessionKind ? { sessionKind } : {}) }, next, location, source)])
-      }
-      return next
-    })
+    if (!activeRef.current) return
+    // Serialize input here, outside React's replayable state updater. The ref
+    // also preserves transitions dispatched together before the next render.
+    const current = stateRef.current
+    const next = reduceAssessment(current, action, exercise.correctOptionId)
+    if (next === current) return
+    stateRef.current = next
+    setState(next)
+    if (action.type === 'reveal') {
+      game.appendEvents([helpRevealedEvent(game.eventContext, next, location)])
+    }
+    if (action.type === 'submit' || action.type === 'dontKnow' || action.type === 'skip') {
+      game.appendEvents([responseEvent({ ...game.eventContext, ...(sessionKind ? { sessionKind } : {}) }, next, location, source)])
+    }
     // location is a plain object recreated by callers; its two ids are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise.correctOptionId, game.appendEvents, game.eventContext, location.sceneId, location.nodeId, source, sessionKind])
