@@ -25,6 +25,7 @@ import {
   type LevelDef,
   type Plan,
   type Projectile,
+  type RandomSource,
   ROWS,
   type Terrain,
   type TowerId,
@@ -189,10 +190,10 @@ function createRules(state: GameState): GameState['rules'] {
 }
 
 /** mulberry32: a whole game replays exactly from its seed, which the tests rely on. */
-function createRandom(seed: number): () => number {
+export function createRandom(seed: number): RandomSource {
   let a = seed >>> 0
 
-  return () => {
+  const next = (): number => {
     a = (a + 0x6d2b79f5) >>> 0
     let t = a
     t = Math.imul(t ^ (t >>> 15), t | 1)
@@ -200,6 +201,8 @@ function createRandom(seed: number): () => number {
 
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
+
+  return Object.assign(next, { state: () => a })
 }
 
 function isTerrainBlocked(terrain: Terrain | undefined): boolean {

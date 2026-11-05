@@ -1,9 +1,15 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import type { ReactElement } from 'react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { type ReactElement, StrictMode } from 'react'
 
-import { orderBuild } from '../gameEngine'
-import { loadProgress } from '../gameProgress'
-import type { GameState, HudSnapshot } from '../gameTypes'
+import { fetchWrapper } from '@/fetchWrapper'
+
+import { defineGameData, flushGameDataWrites, gameDataStorage, initializeGameDataPersistence, isSaveSlotBlocked, resetGameDataPersistenceForTests } from '../../_shared/gameDataPersistence'
+import { createGameState, orderBuild, tickGame } from '../gameEngine'
+import { loadProgress, recordWin, saveProgress, TOWER_DEFENSE_GAME_DATA } from '../gameProgress'
+import { type GameState, type HudSnapshot, TOWER_DEFENSE_PROGRESS_STORAGE_KEY, TOWER_DEFENSE_SAVE_STORAGE_KEY } from '../gameTypes'
+import { LEVELS } from '../levels'
+import { loadRun, saveRun, TOWER_DEFENSE_SAVE_DATA } from '../runProgress'
+import { snapshotRun } from '../runSnapshot'
 import { TowerDefenseGame } from '../TowerDefenseGame'
 import type { BoardPointer } from '../TowerDefenseScene'
 
@@ -17,6 +23,8 @@ interface SceneProps {
 }
 
 let scene: SceneProps | null = null
+
+jest.mock('@/fetchWrapper', () => ({ fetchWrapper: { getRaw: jest.fn(), put: jest.fn(), delete: jest.fn() } }))
 
 jest.mock('../TowerDefenseScene', () => ({
   TowerDefenseScene: (props: SceneProps): ReactElement => {
@@ -213,4 +221,331 @@ describe('TowerDefenseGame', () => {
     expect(scene?.state).not.toBe(state)
     expect(scene?.state.status).toBe('playing')
   })
+})
+
+
+describe('saved run recovery', () => {
+  beforeEach(() => { localStorage.clear(); scene = null })
+  afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers() })
+
+  it('restores a saved level paused, preserves queued work, and survives another unmount/reload', () => {
+    localStorage.setItem('bwh.tower-defense.tutorial.v1', 'seen')
+    const original = createGameState(LEVELS[0]!, 123)
+    orderBuild(original, 'arrow', 2, 8)
+    for (let i = 0; i < 25; i += 1) tickGame(original, 1 / 60)
+    expect(saveRun(original).ok).toBe(true)
+    const view = render(<StrictMode><TowerDefenseGame /></StrictMode>)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+    expect(scene?.active).toBe(false)
+    expect(scene?.state.plans).toEqual(original.plans)
+    expect(snapshotRun(scene!.state)).toEqual(snapshotRun(original))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Game paused' })).getByRole('button', { name: 'Resume' }))
+    expect(scene?.active).toBe(true)
+    const running = scene!.state
+    for (let i = 0; i < 60; i += 1) tickGame(running, 1 / 60)
+    view.unmount()
+    expect(loadRun().snapshot?.clock).toBe(running.clock)
+    const current = render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(scene?.state.clock).toBe(running.clock)
+    expect(scene?.active).toBe(false)
+    current.unmount()
+  })
+
+  it('confirms replacing a saved run and keeps its bytes when replacement fails or is cancelled', () => {
+    saveRun(createGameState(LEVELS[0]!, 123))
+    const previous = localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    expect(screen.getByRole('dialog', { name: 'Replace saved run' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep saved run' }))
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const realSetItem = Storage.prototype.setItem
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === TOWER_DEFENSE_SAVE_STORAGE_KEY) throw new DOMException('Full', 'QuotaExceededError')
+      realSetItem.call(this, key, value)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start new run' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('previous saved run is unchanged')
+    expect(screen.queryByTestId('tower-defense-scene')).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    jest.restoreAllMocks()
+    fireEvent.click(screen.getByRole('button', { name: 'Start new run' }))
+    expect(screen.getByTestId('tower-defense-scene')).toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).not.toBe(previous)
+  })
+
+  it('saves changes after bounded debounce, periodically, and immediately on tab hide', () => {
+    jest.useFakeTimers()
+    const state = startFirstLevel()
+    fireEvent.click(screen.getByTestId('tray-wall'))
+    tap(2, 8)
+    tap(3, 8)
+    expect(loadRun().snapshot?.plans).toHaveLength(0)
+    act(() => jest.advanceTimersByTime(750))
+    expect(loadRun().snapshot?.plans).toHaveLength(2)
+    state.clock = 10
+    act(() => jest.advanceTimersByTime(10_000))
+    expect(loadRun().snapshot?.clock).toBe(10)
+    state.gold = 50
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    expect(loadRun().snapshot?.gold).toBe(50)
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+  })
+
+  it('keeps first-time play available if storage fails, with a visible warning', () => {
+    const realSetItem = Storage.prototype.setItem
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === TOWER_DEFENSE_SAVE_STORAGE_KEY) throw new Error('Blocked')
+      realSetItem.call(this, key, value)
+    })
+    startFirstLevel()
+    expect(scene?.active).toBe(true)
+    expect(screen.getByRole('alert')).toHaveTextContent('Saving is unavailable')
+  })
+
+  it('explains a damaged snapshot without touching earned stars or its old bytes', () => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    render(<TowerDefenseGame />)
+    expect(screen.getByRole('alert')).toHaveTextContent('damaged or from an incompatible version')
+    expect(screen.queryByTestId('resume-run')).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(loadProgress().unlockedLevel).toBe(1)
+  })
+})
+
+
+it('retains the run when victory stars cannot be committed', () => {
+  localStorage.clear()
+  const state = startFirstLevel()
+  const previous = localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+  const realSetItem = Storage.prototype.setItem
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    if (key === TOWER_DEFENSE_PROGRESS_STORAGE_KEY) throw new Error('Full')
+    realSetItem.call(this, key, value)
+  })
+  act(() => {
+    state.status = 'won'; state.lives = 18
+    scene?.onFinish(state)
+  })
+  expect(screen.getByRole('alert')).toHaveTextContent('stars could not be saved')
+  expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+  expect(loadProgress().unlockedLevel).toBe(1)
+  jest.restoreAllMocks()
+})
+
+interface AccountOperation {
+  action: 'put' | 'delete'
+  scope: 'profile' | 'level' | 'save'
+  slot: string
+  revision: number | null
+  data?: Record<string, unknown>
+}
+function accountRow(scope: AccountOperation['scope'], slot: string, data: Record<string, unknown>) {
+  return { game: 'tower-defense', scope, slot, data, revision: 1, updated_at: '2026-01-01T00:00:00Z' }
+}
+
+async function accountPersistence(rows: ReturnType<typeof accountRow>[], offline = false): Promise<void> {
+  const script = document.createElement('script')
+  script.id = 'app-initial-data'
+  script.type = 'application/json'
+  script.textContent = JSON.stringify({ authenticated: true, currentUser: { id: 'test-account' } })
+  document.body.appendChild(script)
+  ;(fetchWrapper.getRaw as jest.Mock).mockResolvedValue({ ok: true, status: 200, headers: new Headers(), json: async () => ({ data: rows }) })
+  ;(fetchWrapper.put as jest.Mock).mockImplementation(async (_url: string, body: { operations: AccountOperation[] }) => ({
+    data: body.operations.map((operation) => ({
+      action: operation.action, scope: operation.scope, slot: operation.slot,
+      status: operation.action === 'put' ? 'saved' : 'deleted',
+      row: {
+        ...accountRow(operation.scope, operation.slot, operation.data ?? {}),
+        revision: (operation.revision ?? 0) + 1,
+        is_deleted: operation.action === 'delete',
+      },
+    })),
+  }))
+  if (offline) (fetchWrapper.getRaw as jest.Mock).mockRejectedValueOnce(new Error('Offline'))
+  await initializeGameDataPersistence([TOWER_DEFENSE_GAME_DATA, TOWER_DEFENSE_SAVE_DATA])
+}
+
+describe('account persistence and replacement consent', () => {
+  beforeEach(() => {
+    localStorage.clear(); scene = null
+    resetGameDataPersistenceForTests()
+    jest.clearAllMocks()
+    document.getElementById('app-initial-data')?.remove()
+  })
+  afterEach(() => {
+    jest.restoreAllMocks()
+    resetGameDataPersistenceForTests()
+    document.getElementById('app-initial-data')?.remove()
+  })
+
+  it.each(['future-account', 'malformed-browser'] as const)('retains a %s save through hydration, cancellation and failed replacement, then permits consent', async (source) => {
+    const future = { version: 99, futureData: 'retain until consent' }
+    if (source === 'malformed-browser') localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    await accountPersistence(source === 'future-account' ? [accountRow('save', 'autosave', future)] : [])
+    expect(loadRun().problem).toBe('invalid')
+    if (source === 'malformed-browser') expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    const previous = gameDataStorage()!.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+    render(<TowerDefenseGame />)
+    expect(screen.getByRole('alert')).toHaveTextContent('incompatible version')
+    const opener = screen.getByTestId('level-tile-1')
+    opener.focus()
+    fireEvent.click(opener)
+    const cancel = await screen.findByRole('button', { name: 'Keep saved run' })
+    await waitFor(() => expect(cancel).toHaveFocus())
+    const dialog = screen.getByRole('dialog', { name: 'Replace saved run' })
+    expect(dialog).toHaveTextContent('permanently replaces it')
+    fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' })
+    await waitFor(() => expect(opener).toHaveFocus())
+    expect(gameDataStorage()!.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    expect(fetchWrapper.put).not.toHaveBeenCalled()
+    fireEvent.click(opener)
+    const start = await screen.findByRole('button', { name: 'Start new run' })
+    start.focus()
+    const storage = gameDataStorage()!
+    const failWrite = jest.spyOn(storage, 'setItem').mockImplementation(() => { throw new Error('Full') })
+    fireEvent.click(start)
+    expect(screen.getByRole('dialog', { name: 'Replace saved run' })).toContainElement(document.activeElement as HTMLElement)
+    expect(gameDataStorage()!.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    expect(screen.queryByTestId('tower-defense-scene')).not.toBeInTheDocument()
+    if (source === 'malformed-browser') expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    failWrite.mockRestore()
+    fireEvent.click(start)
+    expect(screen.getByTestId('tower-defense-scene')).toBeInTheDocument()
+    await flushGameDataWrites()
+    if (source === 'malformed-browser') await waitFor(() => expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBeNull())
+    const calls = (fetchWrapper.put as jest.Mock).mock.calls as [string, { operations: AccountOperation[] }][]
+    const written = calls.flatMap(([, body]) => body.operations)
+    expect(written).toHaveLength(1)
+    expect(written[0]).toMatchObject({ action: 'put', scope: 'save', slot: 'autosave', data: { version: 1 } })
+    if (source === 'future-account') expect(written[0]!.revision).toBe(1)
+  })
+
+  it('lets a valid account run win while retaining the unreadable browser copy', async () => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    const saved = snapshotRun(createGameState(LEVELS[0]!, 84))
+    await accountPersistence([accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)])
+    expect(loadRun()).toEqual({ snapshot: saved, problem: null })
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(fetchWrapper.put).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('retains unreadable browser bytes after an unrelated progress checkpoint (account run: %s)', async (hasAccountRun) => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    const saved = snapshotRun(createGameState(LEVELS[0]!, 84))
+    await accountPersistence(hasAccountRun ? [accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)] : [])
+    expect(saveProgress(recordWin(loadProgress(), 1, 3))).toBe(true)
+    await flushGameDataWrites()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(loadRun()).toEqual(hasAccountRun ? { snapshot: saved, problem: null } : { snapshot: null, problem: 'invalid' })
+  })
+
+  it('queues earned profile and level stars before deleting the completed account run', async () => {
+    const saved = snapshotRun(createGameState(LEVELS[0]!))
+    await accountPersistence([accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)])
+    render(<StrictMode><TowerDefenseGame /></StrictMode>)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    const state = scene!.state
+    act(() => { state.status = 'won'; state.lives = 18; scene?.onFinish(state) })
+    await flushGameDataWrites()
+    const calls = (fetchWrapper.put as jest.Mock).mock.calls as [string, { operations: AccountOperation[] }][]
+    expect(calls.flatMap(([, body]) => body.operations).map((operation) => [operation.action, operation.scope, operation.slot])).toEqual([
+      ['put', 'profile', 'default'], ['put', 'level', '1'], ['delete', 'save', 'autosave'],
+    ])
+    expect(loadProgress()).toMatchObject({ unlockedLevel: 2, stars: { 1: 3 } })
+  })
+
+  it.each(['malformed-browser', 'future-account'] as const)('keeps %s recovery available after an offline account reload', async (source) => {
+    if (source === 'malformed-browser') localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    await accountPersistence(source === 'future-account' ? [accountRow('save', 'autosave', { version: 99 })] : [])
+    expect(loadRun().problem).toBe('invalid')
+    resetGameDataPersistenceForTests()
+    document.getElementById('app-initial-data')?.remove()
+    await accountPersistence([], true)
+    expect(loadRun().problem).toBe('invalid')
+    if (source === 'malformed-browser') expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(fetchWrapper.put).not.toHaveBeenCalled()
+  })
+
+  it('keeps the unreadable browser copy while a confirmed account replacement is offline', async () => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    await accountPersistence([], true)
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start new run' }))
+    expect(screen.getByTestId('tower-defense-scene')).toBeInTheDocument()
+    await act(async () => { await Promise.resolve() })
+    expect(loadRun().snapshot?.levelId).toBe(1)
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(fetchWrapper.put).not.toHaveBeenCalled()
+  })
+
+  it('keeps unreadable browser bytes when a confirmed replacement is rejected by another writer', async () => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    await accountPersistence([])
+    ;(fetchWrapper.put as jest.Mock).mockResolvedValueOnce({ data: [{
+      action: 'put', scope: 'save', slot: 'autosave', status: 'stale',
+      row: { ...accountRow('save', 'autosave', { version: 99 }), revision: 2 },
+    }] })
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start new run' }))
+    await act(async () => { await flushGameDataWrites() })
+    expect(isSaveSlotBlocked('tower-defense', 'autosave')).toBe(true)
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(fetchWrapper.put).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses replacing a run after the real account queue detects another writer', async () => {
+    const saved = snapshotRun(createGameState(LEVELS[0]!))
+    await accountPersistence([accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)])
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('resume-run'))
+    scene!.state.clock = 1
+    ;(fetchWrapper.put as jest.Mock).mockResolvedValueOnce({ data: [{
+      action: 'put', scope: 'save', slot: 'autosave', status: 'stale',
+      row: { ...accountRow('save', 'autosave', saved as unknown as Record<string, unknown>), revision: 2 },
+    }] })
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Game paused' })).getByRole('button', { name: 'Resume' }))
+    await act(async () => { await flushGameDataWrites() })
+    const previous = gameDataStorage()!.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
+    fireEvent.click(screen.getByRole('button', { name: /^Level select$/ }))
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start new run' }))
+    expect(screen.getByRole('dialog', { name: 'Replace saved run' })).toBeInTheDocument()
+    expect(gameDataStorage()!.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(previous)
+    expect(fetchWrapper.put).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the default invalid-local cleanup policy for other definitions', async () => {
+    await accountPersistence([])
+    localStorage.setItem('test.default-save', '{')
+    const definition = defineGameData({ game: '2048', localStorageKey: 'test.default-save', parse: () => null, encode: () => [], decode: () => null })
+    await initializeGameDataPersistence([definition])
+    expect(localStorage.getItem('test.default-save')).toBeNull()
+  })
+})
+
+
+it('requires consent before replacing unreadable anonymous bytes', async () => {
+  localStorage.clear()
+  resetGameDataPersistenceForTests()
+  localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+  render(<TowerDefenseGame />)
+  fireEvent.click(screen.getByTestId('level-tile-1'))
+  const cancel = await screen.findByRole('button', { name: 'Keep saved run' })
+  await waitFor(() => expect(cancel).toHaveFocus())
+  fireEvent.click(cancel)
+  expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+  fireEvent.click(screen.getByTestId('level-tile-1'))
+  fireEvent.click(await screen.findByRole('button', { name: 'Start new run' }))
+  expect(loadRun().snapshot?.levelId).toBe(1)
 })

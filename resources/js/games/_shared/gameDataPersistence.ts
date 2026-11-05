@@ -43,6 +43,8 @@ interface TypedGameDataDefinition<T> {
   game: DatabaseGameSlug
   localStorageKey: string
   promoteLocal?: boolean
+  /** Keep unrecognized browser bytes available for explicit recovery/replacement. */
+  preserveInvalidLocal?: boolean
   parse: (value: unknown) => T | null
   encode: (value: T) => readonly GameDataSlotInput[]
   decode: (rows: ReadonlyMap<string, GameDataRow>) => T | null
@@ -53,6 +55,7 @@ export interface GameDataDefinition {
   game: DatabaseGameSlug
   localStorageKey: string
   promoteLocal: boolean
+  preserveInvalidLocal?: boolean
   parse: (value: unknown) => unknown
   encode: (value: unknown) => readonly GameDataSlotInput[]
   decode: (rows: ReadonlyMap<string, GameDataRow>) => unknown
@@ -405,6 +408,15 @@ async function hydrateGameDefinitions(gameDefinitions: readonly GameDataDefiniti
     }
   }
 
+  const invalidLocalValues = new Map<string, string>()
+  for (const definition of gameDefinitions) {
+    if (!definition.preserveInvalidLocal) continue
+    const raw = readStorageValue(localStorage, definition.localStorageKey)
+    if (raw !== null && parseRawValue(definition, raw) === null) {
+      invalidLocalValues.set(definition.localStorageKey, raw)
+    }
+  }
+
   const localDefinitions: Array<{ definition: GameDataDefinition, value: unknown }> = []
   if (!hasDurableWrites) {
     for (const definition of gameDefinitions) {
@@ -416,7 +428,7 @@ async function hydrateGameDefinitions(gameDefinitions: readonly GameDataDefiniti
       const localValue = parseRawValue(definition, localRaw)
 
       if (localRaw !== null && localValue === null) {
-        removeStorageValue(localStorage, definition.localStorageKey)
+        if (!definition.preserveInvalidLocal) removeStorageValue(localStorage, definition.localStorageKey)
       } else if (localValue !== null) {
         localDefinitions.push({ definition, value: localValue })
       }
@@ -453,7 +465,9 @@ async function hydrateGameDefinitions(gameDefinitions: readonly GameDataDefiniti
   for (const definition of gameDefinitions) {
     const hydrated = definition.decode(rows)
     if (hydrated === null) {
-      memoryValues.delete(definition.localStorageKey)
+      const invalidLocal = invalidLocalValues.get(definition.localStorageKey)
+      if (invalidLocal !== undefined) memoryValues.set(definition.localStorageKey, invalidLocal)
+      else memoryValues.delete(definition.localStorageKey)
     } else {
       memoryValues.set(definition.localStorageKey, JSON.stringify(hydrated))
     }
@@ -913,6 +927,11 @@ function refreshMemoryWhenSettled(queue: SlotWriteQueue): void {
     const localStorage = safeLocalStorage()
     for (const definition of definitions.values()) {
       if (definition.game === queue.game) {
+        const raw = readStorageValue(localStorage, definition.localStorageKey)
+        // Unrelated progress or a rejected snapshot write must not discard a
+        // recovery copy that this client cannot read. The game removes it
+        // only after an explicitly confirmed replacement reaches the server.
+        if (definition.preserveInvalidLocal && raw !== null && parseRawValue(definition, raw) === null) continue
         removeStorageValue(localStorage, definition.localStorageKey)
       }
     }
@@ -1040,19 +1059,24 @@ function initializeDegradedDefinitions(requestedDefinitions: readonly GameDataDe
   for (const definition of new Map(
     requestedDefinitions.map((definition) => [definition.localStorageKey, definition]),
   ).values()) {
-    const shadowValue = parseRawValue(definition, memoryValues.get(definition.localStorageKey) ?? null)
+    const shadowRaw = memoryValues.get(definition.localStorageKey) ?? null
+    const shadowValue = parseRawValue(definition, shadowRaw)
+    if (shadowRaw !== null && shadowValue === null && definition.preserveInvalidLocal) {
+      initializedDefinitions.set(definition.localStorageKey, Promise.resolve())
+      continue
+    }
     if (shadowValue !== null) {
       memoryValues.set(definition.localStorageKey, JSON.stringify(shadowValue))
       initializedDefinitions.set(definition.localStorageKey, Promise.resolve())
       continue
     }
 
-    const localValue = parseRawValue(
-      definition,
-      readStorageValue(localStorage, definition.localStorageKey),
-    )
+    const localRaw = readStorageValue(localStorage, definition.localStorageKey)
+    const localValue = parseRawValue(definition, localRaw)
     if (localValue !== null) {
       memoryValues.set(definition.localStorageKey, JSON.stringify(localValue))
+    } else if (definition.preserveInvalidLocal && localRaw !== null) {
+      memoryValues.set(definition.localStorageKey, localRaw)
     }
     initializedDefinitions.set(definition.localStorageKey, Promise.resolve())
   }
@@ -1298,6 +1322,8 @@ function refreshMemoryForGame(game: DatabaseGameSlug): void {
 
     const value = definition.decode(rows)
     if (value === null) {
+      const previous = memoryValues.get(definition.localStorageKey)
+      if (definition.preserveInvalidLocal && previous !== undefined && parseRawValue(definition, previous) === null) continue
       memoryValues.delete(definition.localStorageKey)
     } else {
       memoryValues.set(definition.localStorageKey, JSON.stringify(value))

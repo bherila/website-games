@@ -1,6 +1,8 @@
 import { FastForward, Grid3x3, Pause, Play, SkipForward } from 'lucide-react'
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+
 import { createMuteStorage } from '../_shared/audio/muteStorage'
 import { SoundBottomControlButton } from '../_shared/audio/SoundToggle'
 import { FullscreenBottomControlButton } from '../_shared/FullscreenButton'
@@ -27,6 +29,8 @@ import {
 import { loadProgress, recordWin, saveProgress } from './gameProgress'
 import type { ElementId, GameState, HeroUpgrade, HudSnapshot, TowerId } from './gameTypes'
 import { levelById, LEVELS, TOTAL_LEVELS } from './levels'
+import { clearRun, discardInvalidBrowserRun, loadRun, saveRun } from './runProgress'
+import { restoreRun } from './runSnapshot'
 import type { BoardOverlay } from './scene/buildingView'
 import { type BoardPointer, TowerDefenseScene } from './TowerDefenseScene'
 import { BuildTray } from './ui/BuildTray'
@@ -59,6 +63,9 @@ const SHORTCUT_TARGETS = 'button, a[href], input, select, textarea, summary, [ro
 
 export function TowerDefenseGame(): ReactElement {
   const [progress, setProgress] = useState(loadProgress)
+  const [recovery, setRecovery] = useState(loadRun)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [pendingLevel, setPendingLevel] = useState<number | null>(null)
   const [phase, setPhase] = useState<Phase>('select')
   const [game, setGame] = useState<GameState | null>(null)
   const [hud, setHud] = useState<HudSnapshot | null>(null)
@@ -78,6 +85,11 @@ export function TowerDefenseGame(): ReactElement {
   const paintedCellRef = useRef<string | null>(null)
   const noticeTimerRef = useRef<number | undefined>(undefined)
   const heldKeysRef = useRef(new Set<string>())
+  const activeRunRef = useRef<GameState | null>(null)
+  const checkpointTimerRef = useRef<number | undefined>(undefined)
+  const savedWaveRef = useRef(0)
+  const replacementOriginRef = useRef<HTMLElement | null>(null)
+  const keepRunRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => () => {
     sfx.dispose()
@@ -112,13 +124,47 @@ export function TowerDefenseGame(): ReactElement {
     setHeroOpen(false)
   }, [setHeroOpen, setSelectedId, setTool])
 
-  const startLevel = useCallback((id: number): void => {
+  const checkpoint = useCallback((): void => {
+    const current = activeRunRef.current
+    if (!current || current.status !== 'playing') return
+    const result = saveRun(current)
+    if (result.ok) {
+      setRecovery({ snapshot: result.snapshot, problem: null })
+      setSaveError(null)
+    } else {
+      setSaveError(result.reason === 'conflict'
+        ? 'Another tab or device changed this run. Reload before saving.'
+        : 'Your latest changes could not be saved. The previous saved run is unchanged.')
+    }
+  }, [])
+
+  const scheduleCheckpoint = useCallback((): void => {
+    window.clearTimeout(checkpointTimerRef.current)
+    checkpointTimerRef.current = window.setTimeout(checkpoint, 750)
+  }, [checkpoint])
+
+  const startLevel = useCallback((id: number): boolean => {
     const level = levelById(id)
     if (!level) {
-      return
+      return false
     }
     sfx.unlock()
     const next = createGameState(level)
+    const result = saveRun(next)
+    if (!result.ok && (recovery.snapshot || recovery.problem === 'invalid')) {
+      setSaveError('The new run could not be saved. Your previous saved run is unchanged.')
+      return false
+    }
+    if (result.ok) {
+      discardInvalidBrowserRun()
+      setRecovery({ snapshot: result.snapshot, problem: null })
+      setSaveError(null)
+    } else {
+      setSaveError('Saving is unavailable. You can play, but this run may be lost when you leave.')
+    }
+    activeRunRef.current = next
+    savedWaveRef.current = next.waveNumber
+    window.clearTimeout(checkpointTimerRef.current)
     clearSelections()
     setGame(next)
     setHud(buildHudSnapshot(next))
@@ -127,7 +173,35 @@ export function TowerDefenseGame(): ReactElement {
     setNotice(null)
     setAttempt((value) => value + 1)
     setShowTutorial(!tutorialSeen())
-  }, [clearSelections, sfx])
+    setPendingLevel(null)
+    return true
+  }, [clearSelections, recovery.problem, recovery.snapshot, sfx])
+
+  const requestLevel = useCallback((id: number): void => {
+    if (recovery.snapshot || recovery.problem === 'invalid') {
+      replacementOriginRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setPendingLevel(id)
+    } else startLevel(id)
+  }, [recovery.problem, recovery.snapshot, startLevel])
+
+  const resumeRun = useCallback((): void => {
+    const current = loadRun()
+    setRecovery(current)
+    if (!current.snapshot) return
+    const next = restoreRun(current.snapshot)
+    // Physical keys are not held after a reload. Queued movement/jobs still resume.
+    setHeroInput(next, 0, 0)
+    activeRunRef.current = next
+    savedWaveRef.current = next.waveNumber
+    clearSelections()
+    setGame(next)
+    setHud(buildHudSnapshot(next))
+    setPhase('paused')
+    setSpeed(1)
+    setShowTutorial(false)
+    setSaveError(null)
+    setAttempt((value) => value + 1)
+  }, [clearSelections])
 
   const finishTutorial = useCallback((): void => {
     sfx.unlock()
@@ -140,14 +214,28 @@ export function TowerDefenseGame(): ReactElement {
   }, [sfx])
 
   const toSelect = useCallback((): void => {
+    checkpoint()
+    activeRunRef.current = null
+    window.clearTimeout(checkpointTimerRef.current)
     clearSelections()
     setProgress(loadProgress())
     setPhase('select')
-  }, [clearSelections])
+  }, [checkpoint, clearSelections])
 
   const handleFinish = useCallback((finished: GameState): void => {
+    activeRunRef.current = null
+    window.clearTimeout(checkpointTimerRef.current)
+    const removeFinishedRun = (): void => {
+      if (clearRun()) {
+        setRecovery({ snapshot: null, problem: null })
+        setSaveError(null)
+      } else {
+        setSaveError('The completed run could not be removed from saved games.')
+      }
+    }
     clearSelections()
     if (finished.status === 'lost') {
+      removeFinishedRun()
       playSfx('lose')
       setPhase('lost')
 
@@ -157,15 +245,26 @@ export function TowerDefenseGame(): ReactElement {
     const stars = computeStars(finished)
     setEarned(stars)
     setPhase('won')
-    setProgress((current) => {
-      const next = recordWin(current, finished.level.id, stars)
-      saveProgress(next)
-
-      return next
-    })
+    const next = recordWin(loadProgress(), finished.level.id, stars)
+    setProgress(next)
+    // Queue/commit the victory first. Deleting its recovery point before the
+    // progress write would lose both if the write fails or the page exits.
+    if (saveProgress(next)) removeFinishedRun()
+    else setSaveError('Your stars could not be saved. The previous saved run was kept so you can try again.')
   }, [clearSelections, playSfx])
 
-  const refreshHud = useCallback((state: GameState): void => setHud(buildHudSnapshot(state)), [])
+  const refreshHud = useCallback((state: GameState): void => {
+    setHud(buildHudSnapshot(state))
+    scheduleCheckpoint()
+  }, [scheduleCheckpoint])
+
+  const handleHud = useCallback((next: HudSnapshot): void => {
+    setHud(next)
+    if (savedWaveRef.current !== next.waveNumber) {
+      savedWaveRef.current = next.waveNumber
+      scheduleCheckpoint()
+    }
+  }, [scheduleCheckpoint])
 
   const placeTool = useCallback((state: GameState, tower: TowerId, col: number, row: number, quiet: boolean): void => {
     const problem = placementProblem(state, tower, col, row)
@@ -237,8 +336,10 @@ export function TowerDefenseGame(): ReactElement {
   }, [game, phase, placeTool, playSfx, refreshHud, setHeroOpen, setSelectedId, showTutorial])
 
   const togglePause = useCallback((): void => {
+    sfx.unlock()
+    checkpoint()
     setPhase((current) => (current === 'paused' ? 'playing' : current === 'playing' ? 'paused' : current))
-  }, [])
+  }, [checkpoint, sfx])
 
   const chooseTool = useCallback((tower: TowerId): void => {
     sfx.unlock()
@@ -280,12 +381,20 @@ export function TowerDefenseGame(): ReactElement {
     const handleVisibility = (): void => {
       if (document.hidden) {
         setPhase((current) => (current === 'playing' ? 'paused' : current))
+        checkpoint()
       }
     }
+    const interval = window.setInterval(checkpoint, 10_000)
     document.addEventListener('visibilitychange', handleVisibility)
-
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [])
+    window.addEventListener('pagehide', checkpoint)
+    return () => {
+      window.clearInterval(interval)
+      window.clearTimeout(checkpointTimerRef.current)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('pagehide', checkpoint)
+      checkpoint()
+    }
+  }, [checkpoint])
 
   useEffect(() => {
     if (!game || phase === 'select') {
@@ -344,6 +453,19 @@ export function TowerDefenseGame(): ReactElement {
   if (phase === 'select' || !game || !hud) {
     return (
       <PortraitGameShell className="dark bg-[radial-gradient(circle_at_top,#14532d,#020617_70%)]">
+        <div className="flex min-h-0 flex-1 flex-col">
+          {pendingLevel === null && (saveError || recovery.problem) && (
+            <p className="mx-auto mt-3 max-w-md px-4 text-center text-sm font-bold text-amber-200" role="alert">
+              {saveError ?? (recovery.problem === 'invalid' ? 'The saved run is damaged or from an incompatible version. You can start a new level; your stars are safe.' : 'Saving is unavailable in this browser.')}
+            </p>
+          )}
+          {recovery.snapshot && (
+            <div className="mx-auto mt-3 flex max-w-md flex-wrap items-center justify-center gap-3 px-4 text-sm text-white">
+              <span>Level {recovery.snapshot.levelId} · wave {recovery.snapshot.waveNumber}/{levelById(recovery.snapshot.levelId)?.waves}</span>
+              <button type="button" data-testid="resume-run" className="min-h-12 rounded-full bg-amber-400 px-5 font-black text-amber-950" onClick={resumeRun}>Resume saved run</button>
+            </div>
+          )}
+          <div className="min-h-0 flex-1">
         <LevelSelectGrid
           emoji="🏰"
           exitHref="/"
@@ -351,8 +473,26 @@ export function TowerDefenseGame(): ReactElement {
           levelIds={LEVELS.map((level) => level.id)}
           progress={progress}
           title="Tower Defense"
-          onSelectLevel={startLevel}
+          onSelectLevel={requestLevel}
         />
+          </div>
+        </div>
+        <Dialog open={pendingLevel !== null} onOpenChange={(open) => { if (!open) setPendingLevel(null) }}>
+          <DialogContent
+            className="dark max-w-sm rounded-3xl border-white/15 bg-slate-900 p-5 text-white"
+            showCloseButton={false}
+            finalFocus={replacementOriginRef}
+            onOpenAutoFocus={(event) => { event.preventDefault(); keepRunRef.current?.focus() }}
+          >
+            <DialogTitle className="text-xl font-black">Replace saved run</DialogTitle>
+            <DialogDescription className="text-sm text-slate-200">{recovery.problem === 'invalid' ? 'This saved run cannot be loaded by this version. Starting a new run permanently replaces it.' : 'Starting a new run replaces your saved run. Your earned stars stay safe.'}</DialogDescription>
+            {saveError && <p role="alert" className="text-sm text-amber-200">{saveError}</p>}
+            <div className="flex flex-wrap gap-3">
+              <button type="button" className="min-h-12 rounded-full bg-amber-400 px-4 font-black text-amber-950" onClick={() => { if (pendingLevel !== null) startLevel(pendingLevel) }}>Start new run</button>
+              <button ref={keepRunRef} type="button" className="min-h-12 rounded-full bg-white/10 px-4 font-bold" onClick={() => setPendingLevel(null)}>Keep saved run</button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </PortraitGameShell>
     )
   }
@@ -371,6 +511,7 @@ export function TowerDefenseGame(): ReactElement {
         data-phase={phase}
         data-testid="tower-defense-play"
       >
+        {saveError && <p className="absolute inset-x-3 top-16 z-40 rounded-xl bg-amber-950/95 p-2 text-center text-xs font-bold text-amber-100" role="alert">{saveError}</p>}
         <GameHud hud={hud} title={`${level.id}. ${level.title}`} />
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <section aria-label="Battlefield" className="relative min-h-0 flex-1 overflow-hidden md:order-2">
@@ -382,7 +523,7 @@ export function TowerDefenseGame(): ReactElement {
               speed={speed}
               state={game}
               onFinish={handleFinish}
-              onHud={setHud}
+              onHud={handleHud}
               onPointer={handlePointer}
             />
 
