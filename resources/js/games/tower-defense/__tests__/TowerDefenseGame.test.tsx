@@ -3,9 +3,9 @@ import { type ReactElement, StrictMode } from 'react'
 
 import { fetchWrapper } from '@/fetchWrapper'
 
-import { defineGameData, flushGameDataWrites, gameDataStorage, initializeGameDataPersistence, resetGameDataPersistenceForTests } from '../../_shared/gameDataPersistence'
+import { defineGameData, flushGameDataWrites, gameDataStorage, initializeGameDataPersistence, isSaveSlotBlocked, resetGameDataPersistenceForTests } from '../../_shared/gameDataPersistence'
 import { createGameState, orderBuild, tickGame } from '../gameEngine'
-import { loadProgress, TOWER_DEFENSE_GAME_DATA } from '../gameProgress'
+import { loadProgress, recordWin, saveProgress, TOWER_DEFENSE_GAME_DATA } from '../gameProgress'
 import { type GameState, type HudSnapshot, TOWER_DEFENSE_PROGRESS_STORAGE_KEY, TOWER_DEFENSE_SAVE_STORAGE_KEY } from '../gameTypes'
 import { LEVELS } from '../levels'
 import { loadRun, saveRun, TOWER_DEFENSE_SAVE_DATA } from '../runProgress'
@@ -438,6 +438,16 @@ describe('account persistence and replacement consent', () => {
     expect(fetchWrapper.put).not.toHaveBeenCalled()
   })
 
+  it.each([false, true])('retains unreadable browser bytes after an unrelated progress checkpoint (account run: %s)', async (hasAccountRun) => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    const saved = snapshotRun(createGameState(LEVELS[0]!, 84))
+    await accountPersistence(hasAccountRun ? [accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)] : [])
+    expect(saveProgress(recordWin(loadProgress(), 1, 3))).toBe(true)
+    await flushGameDataWrites()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(loadRun()).toEqual(hasAccountRun ? { snapshot: saved, problem: null } : { snapshot: null, problem: 'invalid' })
+  })
+
   it('queues earned profile and level stars before deleting the completed account run', async () => {
     const saved = snapshotRun(createGameState(LEVELS[0]!))
     await accountPersistence([accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)])
@@ -478,6 +488,22 @@ describe('account persistence and replacement consent', () => {
     expect(fetchWrapper.put).not.toHaveBeenCalled()
   })
 
+  it('keeps unreadable browser bytes when a confirmed replacement is rejected by another writer', async () => {
+    localStorage.setItem(TOWER_DEFENSE_SAVE_STORAGE_KEY, '{')
+    await accountPersistence([])
+    ;(fetchWrapper.put as jest.Mock).mockResolvedValueOnce({ data: [{
+      action: 'put', scope: 'save', slot: 'autosave', status: 'stale',
+      row: { ...accountRow('save', 'autosave', { version: 99 }), revision: 2 },
+    }] })
+    render(<TowerDefenseGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start new run' }))
+    await act(async () => { await flushGameDataWrites() })
+    expect(isSaveSlotBlocked('tower-defense', 'autosave')).toBe(true)
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe('{')
+    expect(fetchWrapper.put).toHaveBeenCalledTimes(1)
+  })
+
   it('refuses replacing a run after the real account queue detects another writer', async () => {
     const saved = snapshotRun(createGameState(LEVELS[0]!))
     await accountPersistence([accountRow('save', 'autosave', saved as unknown as Record<string, unknown>)])
@@ -491,7 +517,7 @@ describe('account persistence and replacement consent', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Game paused' })).getByRole('button', { name: 'Resume' }))
     await act(async () => { await flushGameDataWrites() })
     const previous = gameDataStorage()!.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
-    fireEvent.click(screen.getByRole('button', { name: 'Level select', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: /^Level select$/ }))
     fireEvent.click(screen.getByTestId('level-tile-1'))
     fireEvent.click(await screen.findByRole('button', { name: 'Start new run' }))
     expect(screen.getByRole('dialog', { name: 'Replace saved run' })).toBeInTheDocument()

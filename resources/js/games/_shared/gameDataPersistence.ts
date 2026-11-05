@@ -927,6 +927,11 @@ function refreshMemoryWhenSettled(queue: SlotWriteQueue): void {
     const localStorage = safeLocalStorage()
     for (const definition of definitions.values()) {
       if (definition.game === queue.game) {
+        const raw = readStorageValue(localStorage, definition.localStorageKey)
+        // Unrelated progress or a rejected snapshot write must not discard a
+        // recovery copy that this client cannot read. The game removes it
+        // only after an explicitly confirmed replacement reaches the server.
+        if (definition.preserveInvalidLocal && raw !== null && parseRawValue(definition, raw) === null) continue
         removeStorageValue(localStorage, definition.localStorageKey)
       }
     }
@@ -1317,6 +1322,8 @@ function refreshMemoryForGame(game: DatabaseGameSlug): void {
 
     const value = definition.decode(rows)
     if (value === null) {
+      const previous = memoryValues.get(definition.localStorageKey)
+      if (definition.preserveInvalidLocal && previous !== undefined && parseRawValue(definition, previous) === null) continue
       memoryValues.delete(definition.localStorageKey)
     } else {
       memoryValues.set(definition.localStorageKey, JSON.stringify(value))
