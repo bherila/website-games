@@ -121,6 +121,19 @@ describe('TowerIssuesNavigator', () => {
     expect(screen.queryByTestId('tower-issues-summary')).not.toBeInTheDocument()
   })
 
+  it('does not steal body focus on HUD updates while the previously focused issue still exists', () => {
+    const units = [unit({ id: 7, offline: true })]
+    const props = { shafts: [], onSelectUnit: jest.fn(), onSelectShaft: jest.fn(), onViewFloor: jest.fn() }
+    const view = render(<TowerIssuesNavigator units={units} {...props} />)
+    fireEvent.click(screen.getByTestId('tower-issues-summary'))
+    const issue = screen.getByTestId('tower-issue-unit-7')
+    issue.focus()
+    issue.blur() // Clicking empty space blurs with no relatedTarget.
+    expect(document.body).toHaveFocus()
+    view.rerender(<TowerIssuesNavigator units={[...units]} {...props} />)
+    expect(document.body).toHaveFocus()
+  })
+
   it('selects and views the chosen issue floor', () => {
     const onSelectUnit = jest.fn()
     const onSelectShaft = jest.fn()

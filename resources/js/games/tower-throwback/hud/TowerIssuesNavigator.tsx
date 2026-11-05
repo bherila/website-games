@@ -105,7 +105,9 @@ export function TowerIssuesNavigator({ units, shafts, onSelectUnit, onSelectShaf
     setPage(result.page)
   }
   useEffect(() => {
-    if (focusPageRef.current || (focusedIssueRef.current !== null && document.activeElement === document.body)) {
+    const focusedIssueRemoved = focusedIssueRef.current !== null
+      && !listRef.current?.querySelector(`[data-testid="${focusedIssueRef.current}"]`)
+    if (focusPageRef.current || (focusedIssueRemoved && document.activeElement === document.body)) {
       focusPageRef.current = false
       listRef.current?.querySelector('button')?.focus()
     }
