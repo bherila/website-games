@@ -121,7 +121,7 @@
     "eslint-react-naming-convention/ref-name": "warn",
     "react/no-children-prop": "warn",
     "react/jsx-no-comment-textnodes": "warn",
-    "typescript/unbound-method": "warn"
+    "typescript/unbound-method": "error"
   },
   "overrides": [
     {
