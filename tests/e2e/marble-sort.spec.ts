@@ -108,7 +108,7 @@ test.describe('Marble Sort', () => {
     await page.addInitScript(() => {
       window.sessionStorage.setItem('marble-sort-block-webgl', '1')
       const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
-      HTMLCanvasElement.prototype.getContext = function (...args: Parameters<typeof original>) {
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
         if (['webgl', 'webgl2', 'experimental-webgl'].includes(args[0])
           && window.sessionStorage.getItem('marble-sort-block-webgl') === '1') {
           return null
