@@ -470,6 +470,11 @@ place, and if another tab or device saved more recently Reset changes nothing an
   Ctrl+scroll to zoom, Q/E rotate, Page Up/Down change floor, 1–0 pick tools, R turns a room, O cycles
   overlays, X toggles the exterior, I copies the floor below, Ctrl+Z/Ctrl+Shift+Z undo and redo. Phone:
   a Draw/Move toggle for one finger, and two fingers pan and zoom.
+  Keyboard building: Tab to the building plan, then arrows move the visible target by column and row
+  within the lot. Enter or Space sets and completes a rectangle for Floor, Clear, Atrium and Corridor;
+  it places rooms and cores or inspects with Select. Escape cancels the rectangle. Changing floors,
+  tools or focus cancels pending work. The target announces its floor, coordinates, preview and result;
+  it uses the same placement rules, undo and saves as drawing. Reset's dialog blocks building shortcuts.
 - **Code:** `engine/` holds `floorPlate` (plates and cores), `building` (corridors, rooms, cores, edits
   that validate first and explain refusals), `analysis` (walkable tiles, daylight, street service, ratings),
   `floorPaths` and `people` (seeded visitors). `scene/` holds the projection, the camera derived from it,

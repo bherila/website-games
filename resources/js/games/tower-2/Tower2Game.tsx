@@ -128,10 +128,11 @@ export function Tower2Game(): ReactElement {
   useEffect(() => () => window.clearTimeout(messageTimerRef.current), [])
 
   const apply = useCallback((commit: (building: BuildingModel) => EditResult) => {
+    if (confirmingReset) return { ok: false as const, reason: 'Close Reset to edit the plan.' }
     const result = history.apply(commit)
     if (!result.ok) say(result.reason)
     return result
-  }, [history, say])
+  }, [history, say, confirmingReset])
 
   // Derived HUD numbers; `world` gets a new identity on every change to the building.
   const summary = useMemo(() => {
@@ -197,7 +198,15 @@ export function Tower2Game(): ReactElement {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return
+      if (event.defaultPrevented) return
+      if (confirmingReset) {
+        if (event.key === 'Escape') {
+          setConfirmingReset(false)
+          event.preventDefault()
+        }
+        return
+      }
+      if (event.target instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) || event.target.isContentEditable)) return
       const key = event.key.toLowerCase()
       if ((event.metaKey || event.ctrlKey) && key === 'z') {
         event.preventDefault()
@@ -231,7 +240,7 @@ export function Tower2Game(): ReactElement {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [history, chooseTool, stepFloor, inherit, removeSelected, selection, turn])
+  }, [history, chooseTool, stepFloor, inherit, removeSelected, selection, turn, confirmingReset])
 
   // The tutorial follows the building, so undo steps back through it too.
   const tutorialStep = useMemo(() => (tutorialOn ? tutorialProgress(world.building, world.analysis) : -1), [tutorialOn, world])
@@ -296,6 +305,7 @@ export function Tower2Game(): ReactElement {
         guide={tutorialGuide}
         overlay={overlay}
         exterior={exterior}
+        blocked={confirmingReset}
         selection={selection}
         touchMode={touchMode}
         onApply={apply}
@@ -334,8 +344,8 @@ export function Tower2Game(): ReactElement {
           )}
         </div>
         <div className={`${PANEL} pointer-events-auto flex items-center gap-0.5 p-1`}>
-          <button type="button" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" className={ICON_BUTTON} disabled={!history.canUndo} onClick={history.undo}><Undo2 size={18} aria-hidden="true" /></button>
-          <button type="button" aria-label="Redo (Ctrl+Shift+Z)" title="Redo (Ctrl+Shift+Z)" className={ICON_BUTTON} disabled={!history.canRedo} onClick={history.redo}><Redo2 size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" className={ICON_BUTTON} disabled={confirmingReset || !history.canUndo} onClick={history.undo}><Undo2 size={18} aria-hidden="true" /></button>
+          <button type="button" aria-label="Redo (Ctrl+Shift+Z)" title="Redo (Ctrl+Shift+Z)" className={ICON_BUTTON} disabled={confirmingReset || !history.canRedo} onClick={history.redo}><Redo2 size={18} aria-hidden="true" /></button>
         </div>
         <div className={`${PANEL} pointer-events-auto p-1`}>
           <Segmented
@@ -357,7 +367,7 @@ export function Tower2Game(): ReactElement {
           <button type="button" aria-label="Zoom out" title="Zoom out (Ctrl+scroll)" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => controlsRef.current?.zoom(0.8)}><ZoomOut size={18} aria-hidden="true" /></button>
           <button type="button" aria-label="Frame the building" title="Frame the building" className={ICON_BUTTON} onClick={() => controlsRef.current?.frame()}><Maximize size={18} aria-hidden="true" /></button>
           <button type="button" aria-label="Exterior view (X)" title="Exterior view (X)" aria-pressed={exterior} className={exterior ? ICON_BUTTON_ON : ICON_BUTTON} onClick={() => setExterior((value) => !value)}><Building size={18} aria-hidden="true" /></button>
-          <button type="button" aria-label="Start over on an empty site with the tutorial" title="Start over on an empty site" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => startOver('empty')}><RefreshCcw size={18} aria-hidden="true" /></button>
+          <button type="button" disabled={confirmingReset} aria-label="Start over on an empty site with the tutorial" title="Start over on an empty site" className={`${ICON_BUTTON} hidden sm:grid`} onClick={() => startOver('empty')}><RefreshCcw size={18} aria-hidden="true" /></button>
         </div>
       </header>
 
@@ -381,7 +391,7 @@ export function Tower2Game(): ReactElement {
             activeFloor={activeFloor}
             onGoToFloor={setActiveFloor}
             onSkip={() => setTutorial(false)}
-            onExample={() => startOver('example')}
+            onExample={() => { if (!confirmingReset) startOver('example') }}
           />
         )}
       </div>
@@ -454,7 +464,7 @@ export function Tower2Game(): ReactElement {
         </div>
         <button type="button" aria-label="Floor down (Page Down)" title="Floor down (Page Down)" className={ICON_BUTTON} disabled={activeFloor <= bottomOffered} onClick={() => stepFloor(-1)}><ChevronDown size={18} aria-hidden="true" /></button>
         <div className="my-0.5 h-px w-8 shrink-0 bg-white/15" />
-        <button type="button" aria-label="Copy the floor below's outline (I)" title="Copy the floor below's outline (I)" className={ICON_BUTTON} disabled={activeFloor <= world.building.lowestFloor || !built.has(activeFloor - 1)} onClick={inherit}><Copy size={18} aria-hidden="true" /></button>
+        <button type="button" aria-label="Copy the floor below's outline (I)" title="Copy the floor below's outline (I)" className={ICON_BUTTON} disabled={confirmingReset || activeFloor <= world.building.lowestFloor || !built.has(activeFloor - 1)} onClick={inherit}><Copy size={18} aria-hidden="true" /></button>
       </nav>
 
       {/* Stats */}
