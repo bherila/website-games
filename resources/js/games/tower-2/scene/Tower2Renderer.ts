@@ -96,32 +96,38 @@ export class Tower2Renderer {
   private readonly scratchColor = new THREE.Color()
   private readonly dusk = new THREE.Color(0x1b1446)
   private readonly lotMaterials: THREE.MeshBasicMaterial[] = []
-  private readonly releaseFloorAtlas: () => void
-  private readonly releaseSignAtlas: () => void
-  private readonly releaseBackdrop: () => void
+  private readonly releaseFloorAtlas: () => void = () => {}
+  private readonly releaseSignAtlas: () => void = () => {}
+  private readonly releaseBackdrop: () => void = () => {}
 
   constructor(canvas: HTMLCanvasElement, private readonly site: { width: number, depth: number }) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
-    this.renderer.setClearColor(0x000000, 0)
-    this.releaseBackdrop = attachBackdrop(canvas)
-    this.releaseFloorAtlas = loadFloorAtlas([this.solidMaterial, this.ghostMaterial])
-    this.releaseSignAtlas = loadAtlas([this.signMaterial, this.ghostSignMaterial], storefrontSignsUrl, { hideUntilLoaded: true })
-    this.scene.add(this.cityGroup, this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
-    this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: PALETTE.lotGrid, transparent: true, opacity: 0.22, depthWrite: false }))
-    this.grid.renderOrder = 2
-    this.scene.add(this.grid)
-    const body = new THREE.CylinderGeometry(0.15, 0.19, 0.55, 8)
-    body.translate(0, 0.28, 0)
-    this.visitors = new THREE.InstancedMesh(body, new THREE.MeshBasicMaterial(), MAX_VISITORS)
-    this.visitors.count = 0
-    this.visitors.frustumCulled = false
-    this.scene.add(this.visitors)
-    const car = new THREE.BoxGeometry(0.72, 0.9, 0.72)
-    car.translate(0, 0.47, 0)
-    this.cars = new THREE.InstancedMesh(car, new THREE.MeshBasicMaterial({ color: PALETTE.car }), MAX_CARS_DRAWN)
-    this.cars.count = 0
-    this.cars.frustumCulled = false
-    this.scene.add(this.cars)
+    try {
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
+      this.renderer.setClearColor(0x000000, 0)
+      this.releaseBackdrop = attachBackdrop(canvas)
+      this.releaseFloorAtlas = loadFloorAtlas([this.solidMaterial, this.ghostMaterial])
+      this.releaseSignAtlas = loadAtlas([this.signMaterial, this.ghostSignMaterial], storefrontSignsUrl, { hideUntilLoaded: true })
+      this.scene.add(this.cityGroup, this.floorsGroup, this.overlayGroup, this.previewGroup, this.guideGroup)
+      this.grid = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: PALETTE.lotGrid, transparent: true, opacity: 0.22, depthWrite: false }))
+      this.grid.renderOrder = 2
+      this.scene.add(this.grid)
+      const body = new THREE.CylinderGeometry(0.15, 0.19, 0.55, 8)
+      body.translate(0, 0.28, 0)
+      this.visitors = new THREE.InstancedMesh(body, new THREE.MeshBasicMaterial(), MAX_VISITORS)
+      this.visitors.count = 0
+      this.visitors.frustumCulled = false
+      this.scene.add(this.visitors)
+      const car = new THREE.BoxGeometry(0.72, 0.9, 0.72)
+      car.translate(0, 0.47, 0)
+      this.cars = new THREE.InstancedMesh(car, new THREE.MeshBasicMaterial({ color: PALETTE.car }), MAX_CARS_DRAWN)
+      this.cars.count = 0
+      this.cars.frustumCulled = false
+      this.scene.add(this.cars)
+    } catch (error) {
+      // A failed constructor has no caller-owned instance to dispose.
+      this.dispose()
+      throw error
+    }
   }
 
   setSize(viewport: Viewport, pixelRatio: number): void {
@@ -160,7 +166,7 @@ export class Tower2Renderer {
     this.releaseSignAtlas()
     disposeObject(this.scene)
     for (const material of [this.solidMaterial, this.ghostMaterial, this.glassMaterial, this.ghostGlassMaterial, this.signMaterial, this.ghostSignMaterial]) material.dispose()
-    this.renderer.dispose()
+    this.renderer?.dispose()
   }
 
   private syncCity(inputs: SceneInputs): void {
