@@ -5,6 +5,8 @@ import { CarsGame } from '../CarsGame'
 import { AUDIO_MUTED_STORAGE_KEY } from '../GameControls'
 import { BOARD_HEIGHT, BOARD_WIDTH, type Car, GAME_PROGRESS_STORAGE_KEY, type GameState, LEVEL_SNAPSHOT_STORAGE_KEY, type ParkingSlot } from '../gameEngine'
 
+const COLORBLIND_MODE_STORAGE_KEY = 'bwh.cars-game.colorblind.v1'
+
 jest.mock('../audio/audioManager', () => ({
   playSfx: jest.fn(),
   preloadSfx: jest.fn(() => Promise.resolve()),
@@ -17,6 +19,7 @@ jest.mock('../CarsScene', () => {
 
   return {
     CarsScene: ({
+      colorblindMode,
       hintCarId,
       state,
       vipSelectionActive,
@@ -24,6 +27,7 @@ jest.mock('../CarsScene', () => {
       onHintPosition,
       onPassengerGate,
     }: {
+      colorblindMode: boolean
       hintCarId?: string | null
       state: import('../gameEngine').GameState
       vipSelectionActive: boolean
@@ -40,7 +44,7 @@ jest.mock('../CarsScene', () => {
       const boardablePassengers = state.passengerQueue.filter((passenger) => engine.canBoardPassengerAtParkingGate(state, passenger.id))
 
       return (
-        <div data-queue-length={state.passengerQueue.length} data-testid="cars-scene" data-vip-selection={vipSelectionActive ? 'active' : 'inactive'}>
+        <div data-colorblind-mode={colorblindMode ? 'enabled' : 'disabled'} data-queue-length={state.passengerQueue.length} data-testid="cars-scene" data-vip-selection={vipSelectionActive ? 'active' : 'inactive'}>
           <button disabled={!movableCar} type="button" onClick={() => movableCar && onCarClick(movableCar.id)}>Move mock car</button>
           <button disabled={!blockedCar} type="button" onClick={() => blockedCar && onCarClick(blockedCar.id)}>Blocked mock car</button>
           <button disabled={!boardablePassenger} type="button" onClick={() => boardablePassenger && onPassengerGate(boardablePassenger.id)}>Board mock passenger</button>
@@ -56,6 +60,107 @@ describe('CarsGame', () => {
     window.localStorage.clear()
     window.history.replaceState(null, '', '/')
     jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it.each(['getter', 'getItem'] as const)('keeps colorblind controls usable when the storage %s throws', (failure) => {
+    if (failure === 'getter') {
+      jest.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+        throw new DOMException('Storage blocked', 'SecurityError')
+      })
+    } else {
+      jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('Storage blocked', 'SecurityError')
+      })
+    }
+
+    render(<CarsGame />)
+    enterLevel(1)
+
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', 'disabled')
+    const toggles = screen.getAllByRole('switch', { name: 'Colorblind mode' })
+    for (const enabled of [true, false]) {
+      fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#cars-colorblind-desktop' }))
+
+      expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
+      for (const toggle of toggles) {
+        expect(toggle).toHaveAttribute('aria-checked', String(enabled))
+      }
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByTestId('cars-scene')).toBeInTheDocument()
+  })
+
+  it('keeps a loaded colorblind preference editable when writes exceed the storage quota', () => {
+    window.localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, '1')
+    const write = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage full', 'QuotaExceededError')
+    })
+
+    render(<CarsGame />)
+    enterLevel(1)
+
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
+    const toggles = screen.getAllByRole('switch', { name: 'Colorblind mode' })
+    for (const enabled of [false, true]) {
+      fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#cars-colorblind-desktop' }))
+
+      expect(write).toHaveBeenCalledWith(COLORBLIND_MODE_STORAGE_KEY, enabled ? '1' : '0')
+      expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
+      for (const toggle of toggles) {
+        expect(toggle).toHaveAttribute('aria-checked', String(enabled))
+      }
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByTestId('cars-scene')).toBeInTheDocument()
+  })
+
+  it('restores enabled and disabled colorblind preferences after remounting with working storage', () => {
+    const firstMount = render(<CarsGame />)
+    enterLevel(1)
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#cars-colorblind-desktop' }))
+
+    expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe('1')
+    firstMount.unmount()
+
+    const secondMount = render(<CarsGame />)
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#cars-colorblind-desktop' }))
+
+    expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe('0')
+    secondMount.unmount()
+
+    render(<CarsGame />)
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', 'disabled')
+  })
+
+  it.each([true, false])('gives the visual-test colorblind override (%s) precedence over storage', (enabled) => {
+    const savedValue = enabled ? '0' : '1'
+    window.localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, savedValue)
+    window.history.replaceState(null, '', `/?visualTest=1&colorblind=${enabled ? '1' : '0'}`)
+    const read = jest.spyOn(Storage.prototype, 'getItem')
+
+    render(<CarsGame />)
+
+    expect(read).not.toHaveBeenCalledWith(COLORBLIND_MODE_STORAGE_KEY)
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#cars-colorblind-desktop' }))
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'disabled' : 'enabled')
+    expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe(savedValue)
+  })
+
+  it('loads the saved colorblind preference when visual-test mode has no override', () => {
+    window.localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, '1')
+    window.history.replaceState(null, '', '/?visualTest=1')
+
+    render(<CarsGame />)
+
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
   })
 
   it('boots to the level select with locked tiles past the watermark', () => {
