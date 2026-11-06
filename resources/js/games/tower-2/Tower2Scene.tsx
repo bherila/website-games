@@ -255,6 +255,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       keyboard = false
       anchor = null
       outcome = ''
+      lastFeedback = ''
       setKeyboardFeedback(null)
       if (targetRef.current) targetRef.current.hidden = true
     }
