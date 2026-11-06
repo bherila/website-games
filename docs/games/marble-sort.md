@@ -139,6 +139,11 @@ Each power-up uses a confirmation dialog before spending inventory.
 - Anonymous/legacy progress key: `bwh.marble-sort.progress.v2`
 - Anonymous/legacy level snapshot key: `bwh.marble-sort.snapshot.v4`
 - Rendering uses Three.js through Vite.
+- If graphics initialization fails, the board shows an accessible Retry graphics
+  action and releases partial scene resources. The active board and saved progress
+  stay intact; conveyor ticks and board/power-up actions pause until a retry succeeds.
+  Level select, Reset, tutorial, audio and colorblind controls remain available.
+  Returning to level select retains the resumable snapshot.
 - The scene owns the PMREM environment render target, sun shadow target, and
   cloud meshes. Leaving a level releases them along with the board; the temporary
   `RoomEnvironment` and PMREM generator are released after environment generation.

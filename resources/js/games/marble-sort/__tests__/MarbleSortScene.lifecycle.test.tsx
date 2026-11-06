@@ -1,8 +1,20 @@
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
-import { generateLevel, isBoxOpenable, openBox } from '../gameEngine'
+import {
+  arriveFallingMarble,
+  createInitialProgress,
+  generateLevel,
+  isBoxOpenable,
+  MARBLE_SORT_PROGRESS_STORAGE_KEY,
+  openBox,
+  saveLevelSnapshot,
+  saveProgress,
+} from '../gameEngine'
+import { MARBLE_SORT_SNAPSHOT_STORAGE_KEY } from '../gameProgress'
+import { MarbleSortGame } from '../MarbleSortGame'
 import { MarbleSortScene } from '../MarbleSortScene'
 
 jest.mock('three', () => {
@@ -44,6 +56,8 @@ function advanceFrame(): void {
 }
 
 beforeEach(() => {
+  window.localStorage.clear()
+  jest.clearAllMocks()
   jest.spyOn(window, 'requestAnimationFrame').mockReturnValue(1)
   jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
   jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
@@ -65,6 +79,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  jest.useRealTimers()
   jest.restoreAllMocks()
 })
 
@@ -155,7 +170,142 @@ it('releases the environment, shadow map, and every scene resource when leaving 
   view.unmount()
   for (const disposal of disposals) expect(disposal).toHaveBeenCalled()
   expect(environmentDispose).toHaveBeenCalledTimes(1)
-  expect(shadowDispose).toHaveBeenCalledTimes(1)
+  // Both directional lights own shadow resources, including the rim light.
+  expect(shadowDispose).toHaveBeenCalledTimes(2)
   expect(scene.environment).toBeNull()
+  expect(current.dispose).toHaveBeenCalledTimes(1)
+  const rendererDisposedAt = current.dispose.mock.invocationCallOrder[0]!
+  for (const disposal of [...disposals, environmentDispose, shadowDispose]) {
+    for (const call of disposal.mock.invocationCallOrder) {
+      expect(call).toBeLessThan(rendererDisposedAt)
+    }
+  }
+})
+
+
+it.each(['renderer', 'configuration', 'environment', 'first frame', 'cleanup'] as const)(
+  'cleans up a failed %s initialization and rebuilds the latest state on retry',
+  (failure) => {
+    const rendererMock = jest.mocked(THREE.WebGLRenderer)
+    const rendererImplementation = rendererMock.getMockImplementation()!
+    if (failure === 'renderer') {
+      rendererMock.mockImplementationOnce(() => { throw new Error('WebGL unavailable') })
+    } else if (failure === 'environment') {
+      const pmremMock = jest.mocked(THREE.PMREMGenerator)
+      const implementation = pmremMock.getMockImplementation()!
+      pmremMock.mockImplementationOnce((...args) => {
+        const pmrem = implementation(...args)
+        jest.mocked(pmrem.fromScene).mockImplementationOnce(() => { throw new Error('Environment unavailable') })
+        return pmrem
+      })
+    } else {
+      rendererMock.mockImplementationOnce((...args) => {
+        const current = rendererImplementation(...args)
+        const method = failure === 'configuration' ? current.setPixelRatio : current.render
+        jest.mocked(method).mockImplementationOnce(() => { throw new Error('Graphics unavailable') })
+        if (failure === 'cleanup') {
+          jest.mocked(current.dispose).mockImplementationOnce(() => { throw new Error('Disposal unavailable') })
+        }
+        return current
+      })
+    }
+    const skyDispose = jest.spyOn(THREE.CanvasTexture.prototype, 'dispose')
+    const onReadyChange = jest.fn()
+    const onHintPosition = jest.fn()
+    const state = generateLevel(1, 41_004)
+    const props = { state, colorblindMode: false, onBoxClick: jest.fn(), onMarbleArrived: jest.fn(), onReadyChange, onHintPosition }
+    const view = render(<MarbleSortScene {...props} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Graphics unavailable')
+    expect(view.container.querySelector('canvas')).toBeNull()
+    expect(onReadyChange).toHaveBeenLastCalledWith(false)
+    expect(onHintPosition).toHaveBeenLastCalledWith(null)
+    expect(skyDispose).toHaveBeenCalled()
+    expect(window.requestAnimationFrame).not.toHaveBeenCalled()
+    if (failure !== 'renderer') expect(renderer().dispose).toHaveBeenCalledTimes(1)
+    if (failure === 'environment') {
+      const pmrem = jest.mocked(THREE.PMREMGenerator).mock.results.at(-1)?.value as THREE.PMREMGenerator
+      expect(pmrem.dispose).toHaveBeenCalledTimes(1)
+    }
+
+    // An ordinary state/preference update while failed must not touch stale refs
+    // or retry behind the user's back. The explicit retry uses this latest board.
+    const next = { ...state, boxes: state.boxes.slice(1) }
+    view.rerender(<MarbleSortScene {...props} colorblindMode state={next} />)
+    expect(rendererMock).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(view.container.querySelectorAll('canvas')).toHaveLength(1)
+    expect(onReadyChange).toHaveBeenLastCalledWith(true)
+    advanceFrame()
+    const scene = renderer().render.mock.calls.at(-1)?.[0]
+    const visibleBoxIds: string[] = []
+    scene?.traverse((object) => {
+      if (typeof object.userData.boxId === 'string') visibleBoxIds.push(object.userData.boxId)
+    })
+    expect(new Set(visibleBoxIds)).toEqual(new Set(next.boxes.filter((box) => isBoxOpenable(box, next.boxes)).map((box) => box.id)))
+    view.unmount()
+  },
+)
+
+it('keeps a moving saved board and HUD usable through repeated StrictMode failures, menu, and retry', async () => {
+  jest.useFakeTimers({ doNotFake: ['requestAnimationFrame', 'cancelAnimationFrame'] })
+  const progress = { ...createInitialProgress(), unlockedLevel: 3, highScore: 800, totalScore: 1200, powerUps: { extraBelt: 2, magnet: 2, shuffle: 2 } }
+  saveProgress(progress)
+  const initial = { ...generateLevel(1, 41_004), powerUps: { ...progress.powerUps } }
+  const box = initial.boxes.find((candidate) => isBoxOpenable(candidate, initial.boxes))!
+  let moving = openBox(initial, box.id)
+  for (const marble of [...moving.fallingMarbles]) moving = arriveFallingMarble(moving, marble.id)
+  expect(moving.conveyor.length).toBeGreaterThan(0)
+  saveLevelSnapshot(moving)
+  const savedBoard = window.localStorage.getItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)
+  const savedProgress = window.localStorage.getItem(MARBLE_SORT_PROGRESS_STORAGE_KEY)
+  const constructor = jest.mocked(THREE.WebGLRenderer)
+  const working = constructor.getMockImplementation()!
+  constructor.mockImplementation(() => { throw new Error('WebGL unavailable') })
+  const skyDispose = jest.spyOn(THREE.CanvasTexture.prototype, 'dispose')
+  const view = render(<StrictMode><MarbleSortGame /></StrictMode>)
+
+  expect(screen.getByRole('alert')).toHaveTextContent('Your level is paused')
+  expect(constructor).toHaveBeenCalledTimes(2)
+  expect(skyDispose).toHaveBeenCalledTimes(2)
+  fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+  expect(constructor).toHaveBeenCalledTimes(3)
+  for (const name of ['Magnet', 'Shuffle', 'Extra Belt']) expect(screen.getByRole('button', { name })).toBeDisabled()
+  for (const name of ['Reset', 'Level select', 'Tutorial']) expect(screen.getByRole('button', { name })).toBeEnabled()
+  fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
+  expect(window.localStorage.getItem('bwh.marble-sort.colorblind.v1')).toBe('1')
+  fireEvent.click(screen.getByRole('button', { name: 'Tutorial' }))
+  expect(screen.getByRole('dialog', { name: 'Marble Sort' })).toBeInTheDocument()
+  await act(async () => {
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    jest.advanceTimersByTime(1200)
+  })
+  expect(JSON.parse(window.localStorage.getItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)!)).toEqual(JSON.parse(savedBoard!))
+  expect(JSON.parse(window.localStorage.getItem(MARBLE_SORT_PROGRESS_STORAGE_KEY)!)).toEqual(JSON.parse(savedProgress!))
+
+  fireEvent.click(screen.getByRole('button', { name: 'Level select' }))
+  expect(screen.getByTestId('level-tile-1')).toBeInTheDocument()
+  expect(JSON.parse(window.localStorage.getItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)!)).toEqual(JSON.parse(savedBoard!))
+  fireEvent.click(screen.getByTestId('level-tile-1'))
+  expect(screen.getByRole('alert')).toBeInTheDocument()
+  constructor.mockImplementation(working)
+  fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(view.container.querySelectorAll('canvas')).toHaveLength(1)
+  expect(screen.getByRole('button', { name: 'Magnet' })).toBeEnabled()
+  expect(JSON.parse(window.localStorage.getItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)!)).toEqual(JSON.parse(savedBoard!))
+  advanceFrame()
+  act(() => jest.advanceTimersByTime(200))
+  expect(window.localStorage.getItem(MARBLE_SORT_SNAPSHOT_STORAGE_KEY)).not.toBe(savedBoard)
+
+  const staleFrame = jest.mocked(window.requestAnimationFrame).mock.calls.at(-1)![0]
+  const current = renderer()
+  const renders = current.render.mock.calls.length
+  const frames = jest.mocked(window.requestAnimationFrame).mock.calls.length
+  view.unmount()
+  act(() => staleFrame(performance.now()))
+  expect(current.render).toHaveBeenCalledTimes(renders)
+  expect(window.requestAnimationFrame).toHaveBeenCalledTimes(frames)
   expect(current.dispose).toHaveBeenCalledTimes(1)
 })

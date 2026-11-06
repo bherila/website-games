@@ -102,6 +102,46 @@ test.describe('Marble Sort', () => {
     expect(errors).toEqual([])
   })
 
+  test('graphics can be retried without losing the board or leaving the HUD', async ({ page, isMobile }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('marble-sort-block-webgl', '1')
+      const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
+        if (['webgl', 'webgl2', 'experimental-webgl'].includes(args[0])
+          && window.sessionStorage.getItem('marble-sort-block-webgl') === '1') {
+          return null
+        }
+        return original.apply(this, args)
+      } as typeof original
+    })
+    await page.goto('/marble-sort')
+    await page.getByTestId('level-tile-1').click()
+    await expect(page.getByRole('alert')).toContainText('Your level is paused')
+    const original = await savedState(page)
+    await page.getByRole('button', { name: 'Retry graphics' }).press('Enter')
+    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(page.locator('canvas')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Extra Belt', exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Reset', exact: true })).toBeEnabled()
+    expect(await savedState(page)).toEqual(original)
+
+    await page.getByRole('button', { name: 'Level select', exact: true }).click()
+    await expect(page.getByTestId('level-tile-1')).toBeVisible()
+    expect(await savedState(page)).toEqual(original)
+    await page.getByTestId('level-tile-1').click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await page.evaluate(() => window.sessionStorage.setItem('marble-sort-block-webgl', '0'))
+    await page.getByRole('button', { name: 'Retry graphics' }).press('Enter')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(page.locator('canvas')).toBeVisible()
+    expect(await savedState(page)).toEqual(original)
+    await tapHintedBox(page, isMobile)
+    await expect.poll(async () => (await savedState(page)).moves).toBe(1)
+    expect(errors).toEqual([])
+  })
+
   test('the tutorial can be navigated and reopened without changing the board', async ({ page, isMobile }) => {
     await page.goto('/marble-sort')
     await page.getByTestId('level-tile-1').click()

@@ -49,6 +49,8 @@ export function MarbleSortGame(): ReactElement {
   const [hintPosition, setHintPosition] = useState<TapHintPosition | null>(null)
   const [colorblindMode, setColorblindMode] = useState(() => loadColorblindMode())
   const [soundMuted, setSoundMuted] = useState(() => isAudioMuted())
+  const [graphicsReady, setGraphicsReady] = useState(false)
+  const graphicsReadyRef = useRef(false)
   const recordedWinKeyRef = useRef<string | null>(null)
 
   useGameSounds(state)
@@ -116,8 +118,15 @@ export function MarbleSortGame(): ReactElement {
     }
   }, [commitProgress, state])
 
+  const handleGraphicsReadyChange = useCallback((ready: boolean): void => {
+    graphicsReadyRef.current = ready
+    setGraphicsReady(ready)
+    if (!ready) setHintPosition(null)
+  }, [])
+
   const beltActive = Boolean(
-    state
+    graphicsReady
+    && state
     && !state.completedLevel
     && !state.gameOver
     && (state.conveyor.length > 0 || state.fallingMarbles.length > 0),
@@ -129,7 +138,9 @@ export function MarbleSortGame(): ReactElement {
     }
 
     const interval = window.setInterval(() => {
-      setState((current) => (current ? processBeltTick(current) : current))
+      if (graphicsReadyRef.current) {
+        setState((current) => (current ? processBeltTick(current) : current))
+      }
     }, CONVEYOR_TICK_INTERVAL_MS)
 
     return () => window.clearInterval(interval)
@@ -154,24 +165,29 @@ export function MarbleSortGame(): ReactElement {
     : { boxCount: 0, conveyorCount: 0 }), [state])
 
   const handleBoxClick = useCallback((boxId: string): void => {
+    if (!graphicsReadyRef.current) return
     setState((current) => (current ? openBox(current, boxId) : current))
   }, [])
 
   const handleMarbleArrived = useCallback((marbleId: string): void => {
+    if (!graphicsReadyRef.current) return
     setState((current) => (current ? arriveFallingMarble(current, marbleId) : current))
   }, [])
 
   const handleMagnet = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     playPowerUp()
     setState((current) => (current ? applyMagnetPowerUp(current) : current))
   }, [])
 
   const handleShuffle = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     playPowerUp()
     setState((current) => (current ? applyShufflePowerUp(current) : current))
   }, [])
 
   const handleExtraBelt = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     setState((current) => (current ? applyExtraBeltPowerUp(current) : current))
   }, [])
 
@@ -209,8 +225,9 @@ export function MarbleSortGame(): ReactElement {
 
   const handleBackToMenu = useCallback((): void => {
     recordedWinKeyRef.current = null
+    handleGraphicsReadyChange(false)
     setState(null)
-  }, [])
+  }, [handleGraphicsReadyChange])
 
   if (!state) {
     return (
@@ -236,6 +253,7 @@ export function MarbleSortGame(): ReactElement {
     <div className="bg-sky-100 text-slate-950 dark:bg-slate-950 dark:text-slate-50" onPointerDown={handleAudioUnlock}>
       <PortraitGameShell contentClassName="gap-2 px-2 py-2 sm:gap-2.5 sm:px-4 sm:py-3 lg:px-5">
         <GameControls
+          gameplayPaused={!graphicsReady}
           colorblindMode={colorblindMode}
           soundMuted={soundMuted}
           stats={stats}
@@ -260,9 +278,10 @@ export function MarbleSortGame(): ReactElement {
             onBoxClick={handleBoxClick}
             onHintPosition={setHintPosition}
             onMarbleArrived={handleMarbleArrived}
+            onReadyChange={handleGraphicsReadyChange}
           />
 
-          <TapHint position={hintCell ? hintPosition : null} />
+          <TapHint position={graphicsReady && hintCell ? hintPosition : null} />
 
           <div
             className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-lg shadow-slate-950/10 backdrop-blur-md sm:left-4 sm:top-4 sm:max-w-[calc(100%-2rem)] sm:text-sm dark:border-white/10 dark:bg-slate-950/75 dark:text-slate-100"

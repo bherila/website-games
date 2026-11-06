@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useRef } from 'react'
+import { type ReactElement, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
@@ -88,6 +88,7 @@ interface MarbleSortSceneProps {
   onBoxClick: (boxId: string) => void
   onHintPosition?: (position: TapHintPosition | null) => void
   onMarbleArrived: (marbleId: string) => void
+  onReadyChange?: (ready: boolean) => void
 }
 
 type MarblePhase = 'falling' | 'transit' | 'conveyor' | 'slotDrop'
@@ -113,7 +114,10 @@ export function MarbleSortScene({
   onBoxClick,
   onHintPosition,
   onMarbleArrived,
+  onReadyChange,
 }: MarbleSortSceneProps): ReactElement {
+  const [graphicsFailed, setGraphicsFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
@@ -408,295 +412,18 @@ export function MarbleSortScene({
       return
     }
 
-    const scene = new THREE.Scene()
-    const skyTexture = createCanvasTexture(16, 512, (context, w, h) => {
-      const gradient = context.createLinearGradient(0, 0, 0, h)
-      gradient.addColorStop(0, SKY_TOP_COLOR)
-      gradient.addColorStop(1, SKY_HORIZON_COLOR)
-      context.fillStyle = gradient
-      context.fillRect(0, 0, w, h)
-    })
-    scene.background = skyTexture
-    scene.fog = new THREE.Fog(SKY_FOG_COLOR, 22, 48)
-    sceneRef.current = scene
-
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80)
-    camera.position.set(0, 9.0, 11.4)
-    camera.lookAt(0, -0.1, 1.2)
-    cameraRef.current = camera
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    // Clouds and belt sockets move without casting shadows. Keep the full
-    // resolution shadow map until a box, stack, or marble actually moves.
-    renderer.shadowMap.autoUpdate = false
-    renderer.shadowMap.needsUpdate = true
-    renderer.toneMapping = THREE.NeutralToneMapping
-    renderer.toneMappingExposure = 1.0
-    rendererRef.current = renderer
-    container.appendChild(renderer.domElement)
-
-    // Three restores the shadow update flags, but the old GPU map is lost.
-    const handleContextRestored = (): void => {
-      renderer.shadowMap.needsUpdate = true
-    }
-    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored)
-
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    const room = new RoomEnvironment()
-    const environment = pmrem.fromScene(room, 0.04)
-    scene.environment = environment.texture
-    scene.environmentIntensity = 0.3
-    room.dispose()
-    pmrem.dispose()
-
-    const stackGroups = stackGroupsRef.current
-    const marbleEntries = marbleEntriesRef.current
-    const transitEntries = transitRef.current
-    const marbleSlots = marbleSlotByIdRef.current
-    const slotDropTweens = slotDropTweensRef.current
-    const arrivedAttempts = arrivedAttemptsRef.current
-    const fallingIds = fallingIdsRef.current
-
-    const ambient = new THREE.HemisphereLight('#eaf6ff', '#79b46a', 0.62)
-    scene.add(ambient)
-
-    const sun = new THREE.DirectionalLight('#fff2d8', 1.15)
-    sun.position.set(-5, 12, 3.5)
-    sun.castShadow = true
-    sun.shadow.mapSize.set(2048, 2048)
-    // The shadow frustum must reach from the launch island down to the meadow
-    // (and the collector plinth at z ~6.5) so the floating pieces cast onto
-    // the ground below.
-    sun.shadow.camera.left = -9
-    sun.shadow.camera.right = 9
-    sun.shadow.camera.top = 10
-    sun.shadow.camera.bottom = -10
-    sun.shadow.camera.near = 1
-    sun.shadow.camera.far = 40
-    scene.add(sun)
-
-    const rim = new THREE.DirectionalLight('#9fc8ff', 0.3)
-    rim.position.set(5, 6, -4)
-    scene.add(rim)
-
-    const clouds = createCloudField()
-    cloudFieldRef.current = clouds
-    scene.add(clouds.group)
-
-    const staticGroup = new THREE.Group()
-    staticGroup.add(createPlayfield())
-    staticGroup.add(createConveyorTrack())
-    const initialCapacity = Math.max(1, stateRef.current.conveyorCapacity)
-    const beltMarkers = createConveyorBeltMarkers(initialCapacity)
-    staticGroup.add(beltMarkers.group)
-    beltMarkersRef.current = beltMarkers.markers
-    beltMarkerGroupRef.current = beltMarkers.group
-    beltMarkerCapacityRef.current = initialCapacity
-    conveyorCapacityRef.current = initialCapacity
-    scene.add(staticGroup)
-    staticGroupRef.current = staticGroup
-
-    // The crate board is pitched toward the camera around a pivot at the
-    // funnel throat. Children keep flat physics coordinates as their local
-    // space; the group transform does the rest.
-    const boardGroup = new THREE.Group()
-    boardGroup.rotation.x = BOARD_TILT_RADIANS
-    const pivot = new THREE.Vector3(0, DECK_TOP_Y, BOARD_TILT_PIVOT_Z)
-    boardGroup.position.copy(pivot).sub(pivot.clone().applyEuler(boardGroup.rotation))
-    boardGroup.add(createBoardSurface())
-    scene.add(boardGroup)
-    boardGroup.updateMatrixWorld(true)
-    boardGroupRef.current = boardGroup
-
-    const boardDynamicGroup = new THREE.Group()
-    boardGroup.add(boardDynamicGroup)
-    boardDynamicGroupRef.current = boardDynamicGroup
-
-    const boardMarbleGroup = new THREE.Group()
-    boardGroup.add(boardMarbleGroup)
-    boardMarbleGroupRef.current = boardMarbleGroup
-
-    const boardEffectGroup = new THREE.Group()
-    boardGroup.add(boardEffectGroup)
-    boardEffectGroupRef.current = boardEffectGroup
-
-    const dynamicGroup = new THREE.Group()
-    scene.add(dynamicGroup)
-    dynamicGroupRef.current = dynamicGroup
-    previousStateRef.current = null
-
-    const marbleGroup = new THREE.Group()
-    scene.add(marbleGroup)
-    marbleGroupRef.current = marbleGroup
-
-    const effectGroup = new THREE.Group()
-    scene.add(effectGroup)
-    effectGroupRef.current = effectGroup
-
-    const physics = createPhysicsWorld()
-    physicsRef.current = physics
-    bodiesRef.current = createMarbleBodyManager(physics)
-
-    if (physicsDebugOverlayEnabled()) {
-      // Physics coordinates are board-local, so the overlay belongs there.
-      boardGroup.add(createPhysicsDebugOverlay(physics.containerBody))
-    }
-
-    const raycaster = new THREE.Raycaster()
-    const pointer = new THREE.Vector2()
-
-    const handlePointerDown = (event: PointerEvent): void => {
-      const rect = renderer.domElement.getBoundingClientRect()
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-      raycaster.setFromCamera(pointer, camera)
-
-      const hits = raycaster.intersectObjects(boardDynamicGroup.children, true)
-      for (const hit of hits) {
-        const boxId = findBoxId(hit.object)
-        if (boxId) {
-          onBoxClickRef.current(boxId)
-          return
+    let active = true
+    const disposals: (() => void)[] = []
+    const cleanup = (): void => {
+      if (!active) return
+      active = false
+      for (const dispose of disposals.reverse()) {
+        try {
+          dispose()
+        } catch {
+          // A failed graphics setup must still release its other resources.
         }
       }
-    }
-
-    renderer.domElement.addEventListener('pointerdown', handlePointerDown)
-
-    const viewSize = { width: 160, height: 160 }
-    const resize = (): void => {
-      viewSize.width = Math.max(160, container.clientWidth)
-      viewSize.height = Math.max(160, container.clientHeight)
-      const narrow = viewSize.width < 640
-      renderer.setSize(viewSize.width, viewSize.height)
-      camera.fov = narrow ? 50 : 45
-      camera.position.set(0, narrow ? 9.8 : 9.0, narrow ? 12.2 : 11.4)
-      camera.lookAt(0, narrow ? -0.2 : -0.1, narrow ? 1.4 : 1.2)
-      camera.aspect = viewSize.width / viewSize.height
-      camera.updateProjectionMatrix()
-    }
-
-    const resizeObserver = new ResizeObserver(resize)
-    resizeObserver.observe(container)
-    resize()
-
-    let frameId = 0
-    const timer = new THREE.Timer()
-    timer.connect(document)
-    const animate = (timestamp?: number): void => {
-      timer.update(timestamp)
-      const delta = timer.getDelta()
-      const now = performance.now() / 1000
-      const phase = currentConveyorPhase(now)
-
-      // Test before advancing tweens: their final pose (or a removed marble)
-      // must also replace the previous frame's shadow.
-      if (marbleEntriesRef.current.size > 0
-        || boxPopTweensRef.current.length > 0
-        || stackTweensRef.current.length > 0) {
-        renderer.shadowMap.needsUpdate = true
-      }
-
-      stepPhysics(physics.world, delta)
-      animateConveyorBeltMarkers(beltMarkersRef.current, phase)
-      updateMarbleMeshes(now, delta)
-      if (cloudFieldRef.current) {
-        updateCloudField(cloudFieldRef.current, delta)
-      }
-
-      confettiBurstsRef.current = confettiBurstsRef.current.filter((burst) => {
-        const done = updateConfettiBurst(burst, now)
-        if (done) {
-          effectGroup.remove(burst.group)
-          disposeConfettiBurst(burst)
-        }
-        return !done
-      })
-
-      boxBurstsRef.current = boxBurstsRef.current.filter((burst) => {
-        const done = updateBoxBurst(burst, now)
-        if (done) {
-          burst.group.parent?.remove(burst.group)
-          disposeBoxBurst(burst)
-        }
-        return !done
-      })
-
-      stackTweensRef.current = stackTweensRef.current.filter((tween) => {
-        const done = updateStackRiseTween(tween, now)
-        return !done
-      })
-
-      boxPopTweensRef.current = boxPopTweensRef.current.filter((tween) => {
-        if (!tween.group.parent) {
-          return false
-        }
-        return !updateBoxPopTween(tween, now)
-      })
-
-      reportHintPosition()
-      renderer.render(scene, camera)
-      frameId = window.requestAnimationFrame(animate)
-    }
-
-    const hintProjection = new THREE.Vector3()
-    const hintPositionReporter = createHintPositionReporter()
-    const reportHintPosition = (): void => {
-      let worldPosition: THREE.Vector3 | null = null
-      const cell = hintCellRef.current
-      if (cell) {
-        hintProjection.copy(gridCellPosition(cell))
-        hintProjection.y += 0.3
-        boardGroupRef.current?.localToWorld(hintProjection)
-        worldPosition = hintProjection
-      }
-      hintPositionReporter.report({
-        camera,
-        height: viewSize.height,
-        onChange: onHintPositionRef.current,
-        width: viewSize.width,
-        worldPosition,
-      })
-    }
-
-    animate()
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      timer.dispose()
-      resizeObserver.disconnect()
-      renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
-      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored)
-      bodiesRef.current?.releaseAll()
-      if (physicsRef.current) {
-        disposePhysicsWorld(physicsRef.current)
-      }
-      if (staticGroupRef.current) {
-        clearGroup(staticGroupRef.current)
-      }
-      if (dynamicGroupRef.current) {
-        clearGroup(dynamicGroupRef.current)
-      }
-      if (marbleGroupRef.current) {
-        clearGroup(marbleGroupRef.current)
-      }
-      if (effectGroupRef.current) {
-        clearGroup(effectGroupRef.current)
-      }
-      if (boardGroupRef.current) {
-        clearGroup(boardGroupRef.current)
-      }
-      skyTexture.dispose()
-      disposeObject(clouds.group)
-      scene.environment = null
-      environment.dispose()
-      sun.shadow.dispose()
-      cloudFieldRef.current = null
-      renderer.dispose()
-      renderer.domElement.remove()
       sceneRef.current = null
       cameraRef.current = null
       rendererRef.current = null
@@ -710,9 +437,11 @@ export function MarbleSortScene({
       boardEffectGroupRef.current = null
       physicsRef.current = null
       bodiesRef.current = null
-      marbleEntries.clear()
-      transitEntries.clear()
-      marbleSlots.clear()
+      cloudFieldRef.current = null
+      previousStateRef.current = null
+      marbleEntriesRef.current.clear()
+      transitRef.current.clear()
+      marbleSlotByIdRef.current.clear()
       conveyorCapacityRef.current = 1
       phaseBaseRef.current = 0
       phaseBaseTimeRef.current = 0
@@ -723,12 +452,309 @@ export function MarbleSortScene({
       boxBurstsRef.current = []
       stackTweensRef.current = []
       boxPopTweensRef.current = []
-      slotDropTweens.clear()
-      arrivedAttempts.clear()
-      fallingIds.clear()
-      stackGroups.clear()
+      slotDropTweensRef.current.clear()
+      arrivedAttemptsRef.current.clear()
+      fallingIdsRef.current.clear()
+      stackGroupsRef.current.clear()
     }
-  }, [])
+
+    onReadyChange?.(false)
+    setGraphicsFailed(false)
+    try {
+      const scene = new THREE.Scene()
+      disposals.push(() => {
+        disposeObject(scene)
+        scene.clear()
+      })
+      const skyTexture = createCanvasTexture(16, 512, (context, w, h) => {
+        const gradient = context.createLinearGradient(0, 0, 0, h)
+        gradient.addColorStop(0, SKY_TOP_COLOR)
+        gradient.addColorStop(1, SKY_HORIZON_COLOR)
+        context.fillStyle = gradient
+        context.fillRect(0, 0, w, h)
+      })
+      disposals.push(() => skyTexture.dispose())
+      scene.background = skyTexture
+      scene.fog = new THREE.Fog(SKY_FOG_COLOR, 22, 48)
+      sceneRef.current = scene
+
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80)
+      camera.position.set(0, 9.0, 11.4)
+      camera.lookAt(0, -0.1, 1.2)
+      cameraRef.current = camera
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+      // Renderer teardown clears Three's GPU handles. Release textures and
+      // scene/shadow resources first, including after partial initialization.
+      disposals.unshift(() => {
+        try {
+          renderer.dispose()
+        } finally {
+          renderer.domElement.remove()
+        }
+      })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      renderer.shadowMap.enabled = true
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      // Clouds and belt sockets move without casting shadows. Keep the full
+      // resolution shadow map until a box, stack, or marble actually moves.
+      renderer.shadowMap.autoUpdate = false
+      renderer.shadowMap.needsUpdate = true
+      renderer.toneMapping = THREE.NeutralToneMapping
+      renderer.toneMappingExposure = 1.0
+      rendererRef.current = renderer
+      container.appendChild(renderer.domElement)
+
+      // Three restores the shadow update flags, but the old GPU map is lost.
+      const handleContextRestored = (): void => {
+        if (active) renderer.shadowMap.needsUpdate = true
+      }
+      disposals.push(() => renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored))
+      renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored)
+
+      const pmrem = new THREE.PMREMGenerator(renderer)
+      try {
+        const room = new RoomEnvironment()
+        try {
+          const environment = pmrem.fromScene(room, 0.04)
+          disposals.push(() => {
+            scene.environment = null
+            environment.dispose()
+          })
+          scene.environment = environment.texture
+          scene.environmentIntensity = 0.3
+        } finally {
+          room.dispose()
+        }
+      } finally {
+        pmrem.dispose()
+      }
+
+      const ambient = new THREE.HemisphereLight('#eaf6ff', '#79b46a', 0.62)
+      scene.add(ambient)
+
+      const sun = new THREE.DirectionalLight('#fff2d8', 1.15)
+      sun.position.set(-5, 12, 3.5)
+      sun.castShadow = true
+      sun.shadow.mapSize.set(2048, 2048)
+      // The shadow frustum must reach from the launch island down to the meadow
+      // (and the collector plinth at z ~6.5) so the floating pieces cast onto
+      // the ground below.
+      sun.shadow.camera.left = -9
+      sun.shadow.camera.right = 9
+      sun.shadow.camera.top = 10
+      sun.shadow.camera.bottom = -10
+      sun.shadow.camera.near = 1
+      sun.shadow.camera.far = 40
+      scene.add(sun)
+
+      const rim = new THREE.DirectionalLight('#9fc8ff', 0.3)
+      rim.position.set(5, 6, -4)
+      scene.add(rim)
+
+      const clouds = createCloudField()
+      cloudFieldRef.current = clouds
+      scene.add(clouds.group)
+
+      const staticGroup = new THREE.Group()
+      scene.add(staticGroup)
+      staticGroup.add(createPlayfield())
+      staticGroup.add(createConveyorTrack())
+      const initialCapacity = Math.max(1, stateRef.current.conveyorCapacity)
+      const beltMarkers = createConveyorBeltMarkers(initialCapacity)
+      staticGroup.add(beltMarkers.group)
+      beltMarkersRef.current = beltMarkers.markers
+      beltMarkerGroupRef.current = beltMarkers.group
+      beltMarkerCapacityRef.current = initialCapacity
+      conveyorCapacityRef.current = initialCapacity
+      staticGroupRef.current = staticGroup
+
+      // The crate board is pitched toward the camera around a pivot at the
+      // funnel throat. Children keep flat physics coordinates as their local
+      // space; the group transform does the rest.
+      const boardGroup = new THREE.Group()
+      boardGroup.rotation.x = BOARD_TILT_RADIANS
+      const pivot = new THREE.Vector3(0, DECK_TOP_Y, BOARD_TILT_PIVOT_Z)
+      boardGroup.position.copy(pivot).sub(pivot.clone().applyEuler(boardGroup.rotation))
+      scene.add(boardGroup)
+      boardGroup.add(createBoardSurface())
+      boardGroup.updateMatrixWorld(true)
+      boardGroupRef.current = boardGroup
+
+      const boardDynamicGroup = new THREE.Group()
+      boardGroup.add(boardDynamicGroup)
+      boardDynamicGroupRef.current = boardDynamicGroup
+
+      const boardMarbleGroup = new THREE.Group()
+      boardGroup.add(boardMarbleGroup)
+      boardMarbleGroupRef.current = boardMarbleGroup
+
+      const boardEffectGroup = new THREE.Group()
+      boardGroup.add(boardEffectGroup)
+      boardEffectGroupRef.current = boardEffectGroup
+
+      const dynamicGroup = new THREE.Group()
+      scene.add(dynamicGroup)
+      dynamicGroupRef.current = dynamicGroup
+      previousStateRef.current = null
+
+      const marbleGroup = new THREE.Group()
+      scene.add(marbleGroup)
+      marbleGroupRef.current = marbleGroup
+
+      const effectGroup = new THREE.Group()
+      scene.add(effectGroup)
+      effectGroupRef.current = effectGroup
+
+      const physics = createPhysicsWorld()
+      physicsRef.current = physics
+      disposals.push(() => disposePhysicsWorld(physics))
+      const bodies = createMarbleBodyManager(physics)
+      bodiesRef.current = bodies
+      disposals.push(() => bodies.releaseAll())
+
+      if (physicsDebugOverlayEnabled()) {
+        // Physics coordinates are board-local, so the overlay belongs there.
+        boardGroup.add(createPhysicsDebugOverlay(physics.containerBody))
+      }
+
+      const raycaster = new THREE.Raycaster()
+      const pointer = new THREE.Vector2()
+
+      const handlePointerDown = (event: PointerEvent): void => {
+        if (!active) return
+        const rect = renderer.domElement.getBoundingClientRect()
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+        raycaster.setFromCamera(pointer, camera)
+
+        const hits = raycaster.intersectObjects(boardDynamicGroup.children, true)
+        for (const hit of hits) {
+          const boxId = findBoxId(hit.object)
+          if (boxId) {
+            onBoxClickRef.current(boxId)
+            return
+          }
+        }
+      }
+
+      disposals.push(() => renderer.domElement.removeEventListener('pointerdown', handlePointerDown))
+      renderer.domElement.addEventListener('pointerdown', handlePointerDown)
+
+      const viewSize = { width: 160, height: 160 }
+      const resize = (): void => {
+        if (!active) return
+        viewSize.width = Math.max(160, container.clientWidth)
+        viewSize.height = Math.max(160, container.clientHeight)
+        const narrow = viewSize.width < 640
+        renderer.setSize(viewSize.width, viewSize.height)
+        camera.fov = narrow ? 50 : 45
+        camera.position.set(0, narrow ? 9.8 : 9.0, narrow ? 12.2 : 11.4)
+        camera.lookAt(0, narrow ? -0.2 : -0.1, narrow ? 1.4 : 1.2)
+        camera.aspect = viewSize.width / viewSize.height
+        camera.updateProjectionMatrix()
+      }
+
+      const resizeObserver = new ResizeObserver(resize)
+      disposals.push(() => resizeObserver.disconnect())
+      resizeObserver.observe(container)
+      resize()
+
+      let frameId = 0
+      const timer = new THREE.Timer()
+      disposals.push(() => {
+        window.cancelAnimationFrame(frameId)
+        timer.dispose()
+      })
+      timer.connect(document)
+      const animate = (timestamp?: number): void => {
+        if (!active) return
+        timer.update(timestamp)
+        const delta = timer.getDelta()
+        const now = performance.now() / 1000
+        const phase = currentConveyorPhase(now)
+
+        // Test before advancing tweens: their final pose (or a removed marble)
+        // must also replace the previous frame's shadow.
+        if (marbleEntriesRef.current.size > 0
+          || boxPopTweensRef.current.length > 0
+          || stackTweensRef.current.length > 0) {
+          renderer.shadowMap.needsUpdate = true
+        }
+
+        stepPhysics(physics.world, delta)
+        animateConveyorBeltMarkers(beltMarkersRef.current, phase)
+        updateMarbleMeshes(now, delta)
+        if (cloudFieldRef.current) {
+          updateCloudField(cloudFieldRef.current, delta)
+        }
+
+        confettiBurstsRef.current = confettiBurstsRef.current.filter((burst) => {
+          const done = updateConfettiBurst(burst, now)
+          if (done) {
+            effectGroup.remove(burst.group)
+            disposeConfettiBurst(burst)
+          }
+          return !done
+        })
+
+        boxBurstsRef.current = boxBurstsRef.current.filter((burst) => {
+          const done = updateBoxBurst(burst, now)
+          if (done) {
+            burst.group.parent?.remove(burst.group)
+            disposeBoxBurst(burst)
+          }
+          return !done
+        })
+
+        stackTweensRef.current = stackTweensRef.current.filter((tween) => {
+          const done = updateStackRiseTween(tween, now)
+          return !done
+        })
+
+        boxPopTweensRef.current = boxPopTweensRef.current.filter((tween) => {
+          if (!tween.group.parent) {
+            return false
+          }
+          return !updateBoxPopTween(tween, now)
+        })
+
+        reportHintPosition()
+        renderer.render(scene, camera)
+        frameId = window.requestAnimationFrame(animate)
+      }
+
+      const hintProjection = new THREE.Vector3()
+      const hintPositionReporter = createHintPositionReporter()
+      const reportHintPosition = (): void => {
+        let worldPosition: THREE.Vector3 | null = null
+        const cell = hintCellRef.current
+        if (cell) {
+          hintProjection.copy(gridCellPosition(cell))
+          hintProjection.y += 0.3
+          boardGroupRef.current?.localToWorld(hintProjection)
+          worldPosition = hintProjection
+        }
+        hintPositionReporter.report({
+          camera,
+          height: viewSize.height,
+          onChange: onHintPositionRef.current,
+          width: viewSize.width,
+          worldPosition,
+        })
+      }
+
+      animate()
+
+      onReadyChange?.(true)
+    } catch {
+      cleanup()
+      onHintPositionRef.current?.(null)
+      setGraphicsFailed(true)
+    }
+
+    return cleanup
+  }, [attempt, onReadyChange])
 
   useEffect(() => {
     const dynamicGroup = dynamicGroupRef.current
@@ -820,13 +846,29 @@ export function MarbleSortScene({
 
     previousStateRef.current = state
     previousColorblindModeRef.current = colorblindMode
-  }, [colorblindMode, state])
+  }, [attempt, colorblindMode, onReadyChange, state])
 
   return (
     <div
       ref={containerRef}
       className="h-full min-h-0 w-full overflow-hidden rounded-lg border border-white/70 bg-sky-300 shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-sky-950 dark:shadow-slate-950/35"
-    />
+    >
+      {graphicsFailed && (
+        <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+          <div role="alert">
+            <h2 className="text-xl font-bold">Graphics unavailable</h2>
+            <p>The board could not start. Your level is paused and your progress is kept.</p>
+          </div>
+          <button
+            className="rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            type="button"
+            onClick={() => setAttempt((current) => current + 1)}
+          >
+            Retry graphics
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
