@@ -49,6 +49,56 @@ async function press(page: Page, name: string | RegExp): Promise<void> {
 }
 
 test.describe('Tower 2 prototype', () => {
+  test('recovers graphics startup without replacing the saved plan and resumes keyboard building', async ({ page }) => {
+    await open(page)
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('4')
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('tower-2-prototype'))).not.toBeNull()
+    const saved = await page.evaluate(() => localStorage.getItem('tower-2-prototype'))
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+    await page.addInitScript(() => {
+      // Preserve the method itself so recovery uses the original canvas receiver.
+      // oxlint-disable-next-line typescript/unbound-method
+      const original = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...args: unknown[]) {
+        if (kind.startsWith('webgl')) return null
+        return Reflect.apply(original, this, [kind, ...args])
+      } as typeof original
+      window.addEventListener('restore-test-graphics', () => { HTMLCanvasElement.prototype.getContext = original }, { once: true })
+    })
+    await page.reload()
+    const dialog = page.getByRole('alertdialog', { name: 'Graphics unavailable' })
+    const retry = dialog.getByRole('button', { name: 'Try again' })
+    await expect(dialog).toBeVisible()
+    await expect(retry).toBeFocused()
+    await page.keyboard.press('i')
+    await page.keyboard.press('Control+z')
+    await page.keyboard.press('Enter') // Retry also fails while WebGL remains blocked.
+    await expect(dialog).toBeVisible()
+    await expect(retry).toBeFocused()
+    expect(await page.evaluate(() => localStorage.getItem('tower-2-prototype'))).toBe(saved)
+    await page.keyboard.press('Shift+Tab')
+    await expect(dialog.getByRole('link', { name: 'Back to games' })).toBeFocused()
+    await page.evaluate(() => window.dispatchEvent(new Event('restore-test-graphics')))
+    await retry.click()
+    await expect(dialog).toBeHidden()
+    const plan = page.getByLabel('Building plan', { exact: true })
+    await expect(plan).toBeFocused()
+    await expect(page.getByTestId('tower2-room-count')).toHaveText('4')
+    await expect.poll(() => page.evaluate(() => window.__tower2?.frames() ?? 0)).toBeGreaterThan(0)
+    expect(await page.evaluate(() => localStorage.getItem('tower-2-prototype'))).toBe(saved)
+    await page.getByRole('button', { name: /^Floor up/ }).click()
+    await page.getByRole('button', { name: /^Floor up/ }).click()
+    await plan.focus()
+    await page.keyboard.press('i')
+    await expect(page.getByTestId('tower2-floor-area')).not.toHaveText('0 m²')
+    await page.keyboard.press('Control+z')
+    await expect(page.getByTestId('tower2-floor-area')).toHaveText('0 m²')
+    await page.keyboard.press('Control+Shift+z')
+    await expect(page.getByTestId('tower2-floor-area')).not.toHaveText('0 m²')
+    expect(pageErrors).toEqual([])
+  })
+
   test('builds with a bounded keyboard target, cancels rectangles, and preserves native controls and undo', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-desktop', 'Desktop keyboard journey')
     await open(page, 'tutorial')

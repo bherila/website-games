@@ -39,6 +39,9 @@ export interface SceneControls {
 
 export interface Tower2SceneProps {
   world: World
+  /** Retry graphics without remounting the plan or its history. */
+  initAttempt?: number
+  onGraphicsAvailable?: (available: boolean) => void
   activeFloor: number
   tool: ToolId
   /** The wall new rooms put their door in. */
@@ -149,7 +152,30 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     const canvas = canvasRef.current
     if (!host || !canvas) return undefined
     const world = propsRef.current.world
-    const renderer = new Tower2Renderer(canvas, { width: world.building.width, depth: world.building.depth })
+    let renderer: Tower2Renderer | undefined
+    const resize = () => {
+      const rect = host.getBoundingClientRect()
+      const viewport = { width: Math.max(1, Math.floor(rect.width)), height: Math.max(1, Math.floor(rect.height)) }
+      viewportRef.current = viewport
+      renderer!.setSize(viewport, pixelRatioFor(window.devicePixelRatio))
+      markInput()
+      if (!viewRef.current) viewRef.current = followFloor(frameRect(viewport, plateBounds(propsRef.current.world.building), 0), 0, propsRef.current.activeFloor, viewport)
+    }
+    // Catch startup only. No listeners or animation loop exist until graphics are ready.
+    try {
+      renderer = new Tower2Renderer(canvas, { width: world.building.width, depth: world.building.depth })
+      resize()
+    } catch {
+      try {
+        renderer?.dispose()
+      } catch {
+        // A cleanup failure must not hide the recovery controls.
+      }
+      propsRef.current.onGraphicsAvailable?.(false)
+      return undefined
+    }
+    const readyRenderer = renderer
+    propsRef.current.onGraphicsAvailable?.(true)
     const crowd = new Crowd(7)
     let crowdBuilding = world.building
     let hover: PlateTile | null = null
@@ -175,15 +201,6 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     let rafId = 0
     let lastTime = performance.now()
 
-    const resize = () => {
-      const rect = host.getBoundingClientRect()
-      const viewport = { width: Math.max(1, Math.floor(rect.width)), height: Math.max(1, Math.floor(rect.height)) }
-      viewportRef.current = viewport
-      renderer.setSize(viewport, pixelRatioFor(window.devicePixelRatio))
-      markInput()
-      if (!viewRef.current) viewRef.current = followFloor(frameRect(viewport, plateBounds(propsRef.current.world.building), 0), 0, propsRef.current.activeFloor, viewport)
-    }
-    resize()
     const observer = new ResizeObserver(resize)
     observer.observe(host)
 
@@ -447,9 +464,9 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         const point = projectionFor(viewRef.current!).tileToScreen({ x: x + 0.5, y: y + 0.5, floor })
         return { x: rect.left + point.x, y: rect.top + point.y }
       },
-      drawCalls: () => renderer.drawCalls,
+      drawCalls: () => readyRenderer.drawCalls,
       visitors: () => crowd.visitors.length,
-      frames: () => renderer.renderer.info.render.frame,
+      frames: () => readyRenderer.renderer.info.render.frame,
     }
 
     const frame = (now: number) => {
@@ -490,8 +507,8 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         }
       }
       const preview: Preview | null = act?.preview ?? null
-      if (viewRef.current) renderer.setView(viewRef.current, viewportRef.current)
-      renderer.sync({
+      if (viewRef.current) readyRenderer.setView(viewRef.current, viewportRef.current)
+      readyRenderer.sync({
         building,
         analysis,
         stamp,
@@ -505,7 +522,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         visitors: crowd.visitors,
         cars: crowd.cars(),
       })
-      renderer.render()
+      readyRenderer.render()
       rafId = requestAnimationFrame(frame)
     }
 
@@ -536,9 +553,9 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       canvas.removeEventListener('blur', onBlur)
       canvas.removeEventListener('keydown', onKeyDown)
       delete window.__tower2
-      renderer.dispose()
+      readyRenderer.dispose()
     }
-  }, [])
+  }, [props.initAttempt])
 
   return (
     <div ref={hostRef} className="absolute inset-0">
