@@ -187,6 +187,7 @@ test('2048 preserves an unreadable run until keyboard confirmation replaces it',
   await expect(dialog).not.toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await expect.poll(() => savedRun(page)).toMatchObject({ version: 1, moves: 0 })
-  await page.keyboard.press('ArrowLeft')
+  const replacement = await savedRun(page)
+  await page.keyboard.press(replacement.board.tiles.every((tile) => tile.column === 0) ? 'ArrowRight' : 'ArrowLeft')
   await expect.poll(() => savedRun(page)).toMatchObject({ moves: 1 })
 })
