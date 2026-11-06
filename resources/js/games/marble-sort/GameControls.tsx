@@ -20,6 +20,7 @@ export interface GameStats {
 }
 
 interface GameControlsProps {
+  gameplayPaused?: boolean
   colorblindMode: boolean
   soundMuted: boolean
   stats: GameStats
@@ -55,6 +56,7 @@ const POWER_UP_CONFIRMATIONS = {
 } satisfies Record<string, PowerUpConfirmation>
 
 export function GameControls({
+  gameplayPaused = false,
   colorblindMode,
   soundMuted,
   stats,
@@ -89,6 +91,7 @@ export function GameControls({
         onColorblindModeChange={onColorblindModeChange}
       />
       <BottomControls
+        gameplayPaused={gameplayPaused}
         soundMuted={soundMuted}
         stats={stats}
         state={state}
@@ -173,6 +176,7 @@ function DesktopStatsHeader({ colorblindMode, stats, state, onBackToMenu, onColo
 }
 
 interface BottomControlsProps {
+  gameplayPaused: boolean
   soundMuted: boolean
   stats: GameStats
   state: GameState
@@ -186,6 +190,7 @@ interface BottomControlsProps {
 }
 
 function BottomControls({
+  gameplayPaused,
   soundMuted,
   stats,
   state,
@@ -197,7 +202,7 @@ function BottomControls({
   onSoundMutedChange,
   onTutorialOpen,
 }: BottomControlsProps): ReactElement {
-  const actionDisabled = Boolean(state.completedLevel || state.gameOver)
+  const actionDisabled = Boolean(gameplayPaused || state.completedLevel || state.gameOver)
 
   return (
     <GameBottomToolbar>

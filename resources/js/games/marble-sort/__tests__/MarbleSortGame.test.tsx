@@ -11,11 +11,16 @@ jest.mock('../MarbleSortScene', () => ({
     colorblindMode,
     hintCell,
     onHintPosition,
+    onReadyChange,
   }: {
     colorblindMode: boolean
+    onReadyChange?: (ready: boolean) => void
     hintCell?: GridPosition | null
     onHintPosition?: (position: { x: number, y: number } | null) => void
   }) => {
+    useEffect(() => {
+      onReadyChange?.(true)
+    }, [onReadyChange])
     useEffect(() => {
       onHintPosition?.(hintCell ? { x: 24, y: 42 } : null)
     }, [hintCell, onHintPosition])
