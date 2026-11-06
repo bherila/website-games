@@ -60,7 +60,7 @@ test.describe('Tower 2 prototype', () => {
       // Preserve the method itself so recovery uses the original canvas receiver.
       // oxlint-disable-next-line typescript/unbound-method
       const original = HTMLCanvasElement.prototype.getContext
-      HTMLCanvasElement.prototype.getContext = function (kind: string, ...args: unknown[]) {
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...args: unknown[]) {
         if (kind.startsWith('webgl')) return null
         return Reflect.apply(original, this, [kind, ...args])
       } as typeof original
