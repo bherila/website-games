@@ -103,6 +103,18 @@ test('disposes a renderer whose initial sizing fails before adding listeners or 
   expect(ready.dispose).toHaveBeenCalledTimes(1)
 })
 
+test('still offers recovery when disposing a failed startup also throws', () => {
+  const failed = graphics()
+  jest.mocked(failed.setSize).mockImplementation(() => { throw new Error('Sizing failed') })
+  jest.mocked(failed.dispose).mockImplementation(() => { throw new Error('Cleanup failed') })
+  construct.mockImplementationOnce(() => failed)
+  render(<Tower2Game />)
+  expect(screen.getByRole('alertdialog')).toHaveAccessibleName('Graphics unavailable')
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  expect(construct).toHaveBeenCalledTimes(2)
+})
+
 test('StrictMode replays dispose each successful mount and leave only one keyboard handler', () => {
   const view = render(<StrictMode><Tower2Game /></StrictMode>)
   expect(construct).toHaveBeenCalledTimes(2)

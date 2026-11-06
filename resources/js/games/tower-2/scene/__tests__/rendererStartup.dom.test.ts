@@ -34,3 +34,11 @@ test('releases preallocated materials when WebGL construction itself fails', () 
   expect(() => new Tower2Renderer(document.createElement('canvas'), { width: 40, depth: 40 })).toThrow('WebGL unavailable')
   expect(disposeMaterial).toHaveBeenCalledTimes(6)
 })
+
+test('preserves the initialization error when resource cleanup also fails', () => {
+  const webgl = { setClearColor: jest.fn(), dispose: jest.fn() }
+  jest.mocked(THREE.WebGLRenderer).mockImplementationOnce(() => webgl as unknown as THREE.WebGLRenderer)
+  jest.mocked(attachBackdrop).mockReturnValueOnce(() => { throw new Error('Cleanup failed') })
+  jest.mocked(loadAtlas).mockImplementationOnce(() => { throw new Error('Atlas initialization failed') })
+  expect(() => new Tower2Renderer(document.createElement('canvas'), { width: 40, depth: 40 })).toThrow('Atlas initialization failed')
+})

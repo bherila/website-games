@@ -125,7 +125,11 @@ export class Tower2Renderer {
       this.scene.add(this.cars)
     } catch (error) {
       // A failed constructor has no caller-owned instance to dispose.
-      this.dispose()
+      try {
+        this.dispose()
+      } catch {
+        // Preserve the initialization error even if best-effort cleanup fails.
+      }
       throw error
     }
   }

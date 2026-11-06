@@ -166,7 +166,11 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       renderer = new Tower2Renderer(canvas, { width: world.building.width, depth: world.building.depth })
       resize()
     } catch {
-      renderer?.dispose()
+      try {
+        renderer?.dispose()
+      } catch {
+        // A cleanup failure must not hide the recovery controls.
+      }
       propsRef.current.onGraphicsAvailable?.(false)
       return undefined
     }
