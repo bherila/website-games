@@ -174,6 +174,12 @@ it('releases the environment, shadow map, and every scene resource when leaving 
   expect(shadowDispose).toHaveBeenCalledTimes(2)
   expect(scene.environment).toBeNull()
   expect(current.dispose).toHaveBeenCalledTimes(1)
+  const rendererDisposedAt = current.dispose.mock.invocationCallOrder[0]!
+  for (const disposal of [...disposals, environmentDispose, shadowDispose]) {
+    for (const call of disposal.mock.invocationCallOrder) {
+      expect(call).toBeLessThan(rendererDisposedAt)
+    }
+  }
 })
 
 

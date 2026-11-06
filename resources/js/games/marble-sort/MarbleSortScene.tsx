@@ -484,7 +484,9 @@ export function MarbleSortScene({
       cameraRef.current = camera
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-      disposals.push(() => {
+      // Renderer teardown clears Three's GPU handles. Release textures and
+      // scene/shadow resources first, including after partial initialization.
+      disposals.unshift(() => {
         try {
           renderer.dispose()
         } finally {
