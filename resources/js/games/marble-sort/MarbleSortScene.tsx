@@ -485,8 +485,11 @@ export function MarbleSortScene({
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
       disposals.push(() => {
-        renderer.dispose()
-        renderer.domElement.remove()
+        try {
+          renderer.dispose()
+        } finally {
+          renderer.domElement.remove()
+        }
       })
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
       renderer.shadowMap.enabled = true

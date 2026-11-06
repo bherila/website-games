@@ -177,7 +177,7 @@ it('releases the environment, shadow map, and every scene resource when leaving 
 })
 
 
-it.each(['renderer', 'configuration', 'environment', 'first frame'] as const)(
+it.each(['renderer', 'configuration', 'environment', 'first frame', 'cleanup'] as const)(
   'cleans up a failed %s initialization and rebuilds the latest state on retry',
   (failure) => {
     const rendererMock = jest.mocked(THREE.WebGLRenderer)
@@ -197,6 +197,9 @@ it.each(['renderer', 'configuration', 'environment', 'first frame'] as const)(
         const current = rendererImplementation(...args)
         const method = failure === 'configuration' ? current.setPixelRatio : current.render
         jest.mocked(method).mockImplementationOnce(() => { throw new Error('Graphics unavailable') })
+        if (failure === 'cleanup') {
+          jest.mocked(current.dispose).mockImplementationOnce(() => { throw new Error('Disposal unavailable') })
+        }
         return current
       })
     }
