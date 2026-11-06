@@ -1,6 +1,7 @@
 import { RotateCcw, Undo2 } from 'lucide-react'
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react'
 
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 import { SoundBottomControlButton } from '../_shared/audio/SoundToggle'
@@ -22,9 +23,10 @@ import { createRunSeed } from './engine/rng'
 import {
   clearSavedRun,
   loadProgress,
-  loadSavedRun,
+  loadRunRecovery,
   recordBest,
   recordRunEnd,
+  replaceSavedRun,
   saveProgress,
   saveRun,
 } from './gameProgress'
@@ -56,9 +58,17 @@ export interface Game2048Props {
  */
 export function Game2048({ initialSeed }: Game2048Props): ReactElement {
   const [progress, setProgress] = useState<SavedProgress>(() => loadProgress())
-  const [run, setRun] = useState<GameRun>(() => loadSavedRun() ?? startRun(DEFAULT_BOARD_SIZE, initialSeed ?? createRunSeed()))
+  const [recovery, setRecovery] = useState(loadRunRecovery)
+  const [run, setRun] = useState<GameRun>(() => recovery.run ?? startRun(DEFAULT_BOARD_SIZE, initialSeed ?? createRunSeed()))
   const [animation, setAnimation] = useState<MoveAnimation>(IDLE_ANIMATION)
   const [pendingSize, setPendingSize] = useState<BoardSize | null>(null)
+  const [replacing, setReplacing] = useState(false)
+  const [replacementPending, setReplacementPending] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const replacementOriginRef = useRef<HTMLElement | null>(null)
+  const keepSavedRef = useRef<HTMLButtonElement | null>(null)
+  const replacingRef = useRef(false)
+  const mountedRef = useRef(false)
   const [muted, setMuted] = useState(loadMuted)
   const [sfx] = useState(() => createSfxEngine(loadMuted()))
   const [movementHint] = useState(() => (
@@ -68,7 +78,10 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
   const seedCounterRef = useRef(0)
   const persistedProgressRef = useRef(progress)
 
-  useEffect(() => () => sfx.dispose(), [sfx])
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false; sfx.dispose() }
+  }, [sfx])
 
   const playSfx = useCallback((name: SfxName, intensity?: number): void => {
     sfx.play(name, intensity)
@@ -89,13 +102,14 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
   }, [progress])
 
   useEffect(() => {
+    if (recovery.problem !== null) return
     if (run.status === 'over') {
       clearSavedRun()
 
       return
     }
     saveRun(run)
-  }, [run])
+  }, [recovery.problem, run])
 
   useEffect(() => {
     if (animation === IDLE_ANIMATION) {
@@ -108,7 +122,7 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
   }, [animation])
 
   const handleMove = useCallback((direction: Direction): void => {
-    if (pendingSize !== null || run.status !== 'playing') {
+    if (recovery.problem !== null || pendingSize !== null || run.status !== 'playing') {
       return
     }
     sfx.unlock()
@@ -153,19 +167,19 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
       return
     }
     setRun(moved)
-  }, [pendingSize, playSfx, run, sfx])
+  }, [pendingSize, playSfx, recovery.problem, run, sfx])
 
   const handleUndo = useCallback((): void => {
     // The win overlay owns the run until the player picks "keep going" or "new
     // game": undoing out from under it would dismiss it silently, and the win
     // latch means it would never be offered again.
-    if (!canUndo(run) || pendingSize !== null || run.status === 'won') {
+    if (recovery.problem !== null || !canUndo(run) || pendingSize !== null || run.status === 'won') {
       return
     }
     setAnimation(IDLE_ANIMATION)
     setRun(undoMove(run))
     playSfx('undo')
-  }, [pendingSize, playSfx, run])
+  }, [pendingSize, playSfx, recovery.problem, run])
 
   const startNewRun = useCallback((size: BoardSize): void => {
     sfx.unlock()
@@ -181,15 +195,46 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
     setRun(startRun(size, nextSeed()))
   }, [nextSeed, run, sfx])
 
-  /** Confirms before discarding a game in progress; a fresh or finished run just restarts. */
+  /** Starts play only after the explicitly chosen replacement commits. */
+  const replaceRun = useCallback(async (): Promise<void> => {
+    if (pendingSize === null || replacingRef.current) return
+    replacingRef.current = true
+    setReplacing(true)
+    setSaveError(null)
+    const next = startRun(pendingSize, nextSeed())
+    const result = await replaceSavedRun(next)
+    replacingRef.current = false
+    if (!mountedRef.current) return
+    setReplacing(false)
+    if (!result.ok) {
+      setReplacementPending(result.reason === 'pending')
+      setSaveError(result.reason === 'pending'
+        ? 'The replacement has not reached your account yet. It may still sync when connected. Reload once connected to check the saved game.'
+        : result.reason === 'conflict'
+        ? 'Another tab or device changed this saved game. Reload before replacing it.'
+        : 'The new game could not be saved. Your previous saved game has been kept. Try again when saving is available.')
+      return
+    }
+    setRun(next)
+    setRecovery({ run: next, problem: null })
+    setPendingSize(null)
+  }, [nextSeed, pendingSize])
+
+  /** Confirms before discarding a game in progress or an unreadable save. */
   const requestNewRun = useCallback((size: BoardSize): void => {
+    if (recovery.problem !== null) {
+      replacementOriginRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      setSaveError(null)
+      setPendingSize(size)
+      return
+    }
     if (run.moves > 0 && run.status === 'playing') {
       setPendingSize(size)
 
       return
     }
     startNewRun(size)
-  }, [run, startNewRun])
+  }, [recovery.problem, run, startNewRun])
 
   const handleKeepGoing = useCallback((): void => {
     setRun((current) => continueAfterWin(current))
@@ -207,7 +252,7 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      if (event.metaKey || event.ctrlKey || event.altKey) {
+      if (pendingSize !== null || recovery.problem !== null || event.metaKey || event.ctrlKey || event.altKey) {
         return
       }
       if (event.key === 'z' || event.key === 'Z') {
@@ -228,12 +273,12 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
     window.addEventListener('keydown', handleKeyDown)
 
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleMove, handleUndo])
+  }, [handleMove, handleUndo, pendingSize, recovery.problem])
 
   const size = run.board.size
   const bestScore = Math.max(progress.boards[size]?.bestScore ?? 0, run.bestScore)
   const undosLeft = run.undosRemaining
-  const undoAvailable = canUndo(run) && pendingSize === null && run.status !== 'won'
+  const undoAvailable = recovery.problem === null && canUndo(run) && pendingSize === null && run.status !== 'won'
 
   return (
     <PortraitGameShell className="bg-slate-100 dark:bg-slate-950">
@@ -276,6 +321,16 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
             </button>
           ))}
         </div>
+
+        {recovery.problem !== null && (
+          <p role="alert" className="rounded-xl bg-amber-100 p-3 text-sm text-amber-950">
+            {replacementPending
+              ? 'Your confirmed replacement may still sync to your account. Reload once connected to check the saved game.'
+              : recovery.problem === 'invalid'
+              ? 'Your saved game cannot be loaded by this version. It has been kept. Choose New game or a board size to replace it.'
+              : 'Your saved game could not be read because storage is unavailable. Choose New game to try saving a replacement.'}
+          </p>
+        )}
 
         {/* Centred vertically: on a tall phone the board is width-limited, so the
             slack belongs above and below it rather than all underneath. */}
@@ -360,7 +415,7 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
           </RunOverlay>
         )}
 
-        {pendingSize !== null && (
+        {pendingSize !== null && recovery.problem === null && (
           <RunOverlay label="Start a new game" testId="confirm-new-game-overlay">
             <h2 className="text-xl font-black text-slate-900 dark:text-slate-50">
               Start a new {pendingSize}×{pendingSize} game?
@@ -379,6 +434,23 @@ export function Game2048({ initialSeed }: Game2048Props): ReactElement {
             </div>
           </RunOverlay>
         )}
+        <Dialog open={pendingSize !== null && recovery.problem !== null} onOpenChange={(open) => { if (!open && !replacingRef.current) setPendingSize(null) }}>
+          <DialogContent
+            showCloseButton={false}
+            finalFocus={replacementOriginRef}
+            onOpenAutoFocus={(event) => { event.preventDefault(); keepSavedRef.current?.focus() }}
+          >
+            <DialogTitle>Replace saved game?</DialogTitle>
+            <DialogDescription>
+              Starting a new {pendingSize}×{pendingSize} game permanently replaces the saved game that could not be loaded. Your best scores stay safe.
+            </DialogDescription>
+            {saveError && <p role="alert">{saveError}</p>}
+            <div className="flex gap-3">
+              <button ref={keepSavedRef} className="min-h-12 rounded-full border px-4 font-bold" disabled={replacing} type="button" onClick={() => setPendingSize(null)}>{replacementPending ? 'Close' : 'Keep saved game'}</button>
+              <button className="min-h-12 rounded-full bg-amber-300 px-4 font-bold text-amber-950" disabled={replacing} type="button" onClick={() => { void replaceRun() }}>{replacing ? 'Saving…' : 'Replace and start'}</button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </PortraitGameShell>
   )

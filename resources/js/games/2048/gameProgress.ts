@@ -1,5 +1,5 @@
-import { defineGameData, definitionRowKey, gameDataStorage } from '../_shared/gameDataPersistence'
-import { isRecord, parseArray, parseInteger } from '../_shared/progressParsers'
+import { defineGameData, definitionRowKey, flushGameDataWrites, gameDataStorage, isSaveSlotBlocked } from '../_shared/gameDataPersistence'
+import { isRecord, parseArray, parseInteger, safeLocalStorage } from '../_shared/progressParsers'
 import { hasAvailableMove, highestTileValue } from './engine/board'
 import type {
   Board,
@@ -87,12 +87,19 @@ export const TWENTY48_GAME_DATA = defineGameData<SavedProgress>({
  * `save/autosave` codec: the entire live run, so a reload resumes the exact
  * board, score, win latch, and remaining undo history.
  */
-export const TWENTY48_SAVE_DATA = defineGameData<GameRun>({
+type StoredRun = GameRun | { unavailableRun: true }
+const UNAVAILABLE_RUN: StoredRun = Object.freeze({ unavailableRun: true })
+
+export const TWENTY48_SAVE_DATA = defineGameData<StoredRun>({
   game: '2048',
   localStorageKey: TWENTY48_SAVE_STORAGE_KEY,
+  preserveInvalidLocal: true,
   parse: parseSavedRun,
-  encode: (run) => [{ scope: 'save', slot: 'autosave', data: encodeRun(run) }],
-  decode: (rows) => parseSavedRun(rows.get(definitionRowKey('save', 'autosave'))?.data),
+  encode: (run) => 'unavailableRun' in run ? [] : [{ scope: 'save', slot: 'autosave', data: encodeRun(run) }],
+  decode: (rows) => {
+    const row = rows.get(definitionRowKey('save', 'autosave'))
+    return !row || row.isDeleted ? null : parseSavedRun(row.data) ?? UNAVAILABLE_RUN
+  },
   clearSlots: [{ scope: 'save', slot: 'autosave' }],
 })
 
@@ -167,29 +174,73 @@ export function loadScoreSummary(storage: Pick<Storage, 'getItem'> | null = game
   }
 }
 
-export function saveRun(run: GameRun, storage: Pick<Storage, 'setItem'> | null = gameDataStorage()): void {
+export type RunRecovery = { run: GameRun | null; problem: 'invalid' | 'unavailable' | null }
+export type RunWriteResult = { ok: true } | { ok: false; reason: 'unavailable' | 'conflict' | 'pending' }
+
+export function saveRun(run: GameRun, storage: Pick<Storage, 'setItem'> | null = gameDataStorage()): RunWriteResult {
+  if (!storage) return { ok: false, reason: 'unavailable' }
+  if (isSaveSlotBlocked('2048', 'autosave')) return { ok: false, reason: 'conflict' }
   try {
-    storage?.setItem(TWENTY48_SAVE_STORAGE_KEY, JSON.stringify(run))
+    storage.setItem(TWENTY48_SAVE_STORAGE_KEY, JSON.stringify(run))
+    return { ok: true }
   } catch {
-    // Autosave is best-effort; the run stays playable in memory.
+    return { ok: false, reason: 'unavailable' }
+  }
+}
+
+export function loadRunRecovery(storage: Pick<Storage, 'getItem'> | null = gameDataStorage()): RunRecovery {
+  if (!storage) return { run: null, problem: 'unavailable' }
+  let raw: string | null
+  try {
+    raw = storage.getItem(TWENTY48_SAVE_STORAGE_KEY)
+  } catch {
+    return { run: null, problem: 'unavailable' }
+  }
+  if (raw === null) return { run: null, problem: null }
+  try {
+    const run = parseSavedRun(JSON.parse(raw))
+    return { run, problem: run ? null : 'invalid' }
+  } catch {
+    return { run: null, problem: 'invalid' }
   }
 }
 
 export function loadSavedRun(storage: Pick<Storage, 'getItem'> | null = gameDataStorage()): GameRun | null {
-  try {
-    const raw = storage?.getItem(TWENTY48_SAVE_STORAGE_KEY)
+  return loadRunRecovery(storage).run
+}
 
-    return raw ? parseSavedRun(JSON.parse(raw)) : null
+/** Consent is required by the caller. Never delete the original before writing. */
+export async function replaceSavedRun(run: GameRun): Promise<RunWriteResult> {
+  const storage = gameDataStorage()
+  const browser = safeLocalStorage()
+  let original: string | null = null
+  try { original = browser?.getItem(TWENTY48_SAVE_STORAGE_KEY) ?? null } catch { /* Cleanup is optional. */ }
+  const result = saveRun(run, storage)
+  if (!result.ok) return result
+  try {
+    await flushGameDataWrites()
   } catch {
-    return null
+    return { ok: false, reason: 'pending' }
   }
+  if (isSaveSlotBlocked('2048', 'autosave')) return { ok: false, reason: 'conflict' }
+  // Account writes settle asynchronously. Retain unreadable browser bytes until
+  // the replacement reaches the server, and never remove a later writer's data.
+  if (browser && browser !== storage && original !== null) {
+    try {
+      let valid = false
+      try { valid = parseSavedRun(JSON.parse(original)) !== null } catch { /* Unreadable original. */ }
+      if (!valid && browser.getItem(TWENTY48_SAVE_STORAGE_KEY) === original) browser.removeItem(TWENTY48_SAVE_STORAGE_KEY)
+    } catch { /* A failed cleanup leaves a recoverable copy. */ }
+  }
+  return { ok: true }
 }
 
 export function clearSavedRun(storage: Pick<Storage, 'removeItem'> | null = gameDataStorage()): void {
+  if (isSaveSlotBlocked('2048', 'autosave')) return
   try {
     storage?.removeItem(TWENTY48_SAVE_STORAGE_KEY)
   } catch {
-    // Nothing to recover from: the next successful write replaces the row.
+    // The next successful write replaces the row.
   }
 }
 
@@ -254,7 +305,7 @@ function encodeBoard(board: Board): Record<string, unknown> {
  * Defensive save parser. Anything structurally impossible — a bad size, an
  * off-board or duplicated tile, a non power-of-two value, a finished board, a
  * history snapshot from a different run — is rejected wholesale so a corrupt row
- * starts a clean game instead of rendering an unplayable one.
+ * offers recovery instead of rendering an unplayable one.
  *
  * The run's high-water marks and its counted latch were added after the first
  * saves shipped: a blob without them keeps the same `version: 1` and degrades to
