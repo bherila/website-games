@@ -544,7 +544,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       <canvas ref={canvasRef} role="application" tabIndex={props.blocked ? -1 : 0} className="block h-full w-full touch-none select-none focus-visible:outline-4 focus-visible:-outline-offset-4 focus-visible:outline-cyan-300" aria-label="Building plan" aria-describedby="tower2-keyboard-help" aria-disabled={props.blocked} />
       <div ref={targetRef} hidden aria-hidden="true" data-testid="tower2-keyboard-target" className="pointer-events-none absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-cyan-200 bg-cyan-400/25 shadow-[0_0_0_2px_#0f172a]" />
       <div className={`pointer-events-none absolute bottom-24 left-3 max-w-xs rounded-xl bg-slate-950/90 p-3 text-xs text-white md:bottom-20 ${keyboardFeedback ? '' : 'sr-only'}`}>
-        <p id="tower2-keyboard-help">Keyboard: arrows move columns and rows. Enter or Space anchors and completes a rectangle, places a room or core, or selects. Escape cancels. Page Up/Down changes floor. Tab reaches the tools.</p>
+        <p id="tower2-keyboard-help" className="text-white/85">Keyboard: arrows move columns and rows. Enter or Space anchors and completes a rectangle, places a room or core, or selects. Escape cancels. Page Up/Down changes floor. Tab reaches the tools.</p>
         <p role="status" aria-live="polite" aria-atomic="true" data-testid="tower2-keyboard-status" className="mt-2 font-semibold text-cyan-200">{keyboardFeedback}</p>
       </div>
     </div>

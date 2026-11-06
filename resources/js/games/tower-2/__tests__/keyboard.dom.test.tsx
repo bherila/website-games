@@ -16,7 +16,7 @@ jest.mock('../scene/Tower2Renderer', () => ({
 beforeEach(() => {
   jest.spyOn(window, 'requestAnimationFrame').mockReturnValue(1)
   jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
-  global.ResizeObserver = jest.fn().mockImplementation(() => ({ observe: jest.fn(), disconnect: jest.fn() }))
+  globalThis.ResizeObserver = jest.fn().mockImplementation(() => ({ observe: jest.fn(), disconnect: jest.fn() }))
 })
 afterEach(() => jest.restoreAllMocks())
 

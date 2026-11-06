@@ -111,7 +111,7 @@ test.describe('Tower 2 prototype', () => {
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog', { name: 'Reset' })).toHaveCount(0)
     await plan.focus()
-    for (let i = 0; i < 45; i++) await page.keyboard.press('ArrowRight')
+    for (let i = 0; i < 20; i++) await page.keyboard.press('ArrowRight')
     await expect(status).toContainText('column 40')
   })
 
