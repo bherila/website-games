@@ -29,6 +29,8 @@ The API allowlists every supported game/scope/slot combination. Summary and leve
 
 The database adapter currently covers Chick's Challenge, Block Blaster, Marble Sort, Marble Works, Parking Pickup, Hover, Math Horde, Plate Escape, Tower Defense, and 2048. 2048 is the first score-only game here: it has no `level` rows at all, its `profile/default` row keys best score and highest tile per board size under monotonic metric names, and its `save/autosave` row holds the live board plus the remaining undo history. Tower Throwback is deliberately not registered in this adapter yet. Its existing concurrent-play guard remains the authority; a later integration can map each Tower save slot to a generic `save` row without changing this row model.
 
+2048 preserves unreadable or newer-version active saves and pauses board input and autosaving until the player explicitly confirms a replacement. The recovery dialog keeps cancellation focused and waits for an account replacement to reach the server before starting play; failed or conflicting replacements retain browser recovery bytes. A consented account write may still sync after an offline failure, which the warning explains. Best-score rows and valid saved runs retain their existing behavior.
+
 When adding another game, add its backend slug/slot allowlist, define versioned frontend row codecs, register only the definitions needed by each page, and cover anonymous promotion, malformed data, reconciliation, and concurrent-save behavior with tests.
 
 ## Installed app, offline play, and sign-in
