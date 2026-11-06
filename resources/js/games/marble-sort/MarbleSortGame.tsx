@@ -299,7 +299,11 @@ function loadColorblindMode(): boolean {
     return false
   }
 
-  return window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY) === '1'
+  try {
+    return window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 function saveColorblindMode(enabled: boolean): void {
@@ -307,5 +311,9 @@ function saveColorblindMode(enabled: boolean): void {
     return
   }
 
-  window.localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, enabled ? '1' : '0')
+  try {
+    window.localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, enabled ? '1' : '0')
+  } catch {
+    // Blocked or full storage leaves the preference active for this session.
+  }
 }

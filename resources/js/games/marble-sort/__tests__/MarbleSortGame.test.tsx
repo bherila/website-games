@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { type GridPosition, MARBLE_SORT_PROGRESS_STORAGE_KEY } from '../gameEngine'
 import { MarbleSortGame } from '../MarbleSortGame'
 
+const COLORBLIND_MODE_STORAGE_KEY = 'bwh.marble-sort.colorblind.v1'
+
 jest.mock('../MarbleSortScene', () => ({
   MarbleSortScene: ({
     colorblindMode,
@@ -27,6 +29,83 @@ jest.mock('../MarbleSortScene', () => ({
 describe('MarbleSortGame', () => {
   beforeEach(() => {
     window.localStorage.clear()
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it.each(['getter', 'getItem'] as const)('keeps colorblind controls usable when the storage %s throws', (failure) => {
+    if (failure === 'getter') {
+      jest.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+        throw new DOMException('Storage blocked', 'SecurityError')
+      })
+    } else {
+      jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('Storage blocked', 'SecurityError')
+      })
+    }
+
+    render(<MarbleSortGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+
+    expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'disabled')
+    const toggles = screen.getAllByRole('switch', { name: 'Colorblind mode' })
+    for (const enabled of [true, false]) {
+      fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
+
+      expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
+      for (const toggle of toggles) {
+        expect(toggle).toHaveAttribute('aria-checked', String(enabled))
+      }
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByTestId('marble-sort-scene')).toBeInTheDocument()
+  })
+
+  it('keeps a loaded colorblind preference editable when writes exceed the storage quota', () => {
+    window.localStorage.setItem(COLORBLIND_MODE_STORAGE_KEY, '1')
+    const write = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage full', 'QuotaExceededError')
+    })
+
+    render(<MarbleSortGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+
+    expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
+    const toggles = screen.getAllByRole('switch', { name: 'Colorblind mode' })
+    for (const enabled of [false, true]) {
+      fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
+
+      expect(write).toHaveBeenCalledWith(COLORBLIND_MODE_STORAGE_KEY, enabled ? '1' : '0')
+      expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
+      for (const toggle of toggles) {
+        expect(toggle).toHaveAttribute('aria-checked', String(enabled))
+      }
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(screen.getByTestId('marble-sort-scene')).toBeInTheDocument()
+  })
+
+  it('restores enabled and disabled colorblind preferences after remounting with working storage', () => {
+    const firstMount = render(<MarbleSortGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
+
+    expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe('1')
+    firstMount.unmount()
+
+    const secondMount = render(<MarbleSortGame />)
+    expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
+
+    expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe('0')
+    secondMount.unmount()
+
+    render(<MarbleSortGame />)
+    expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'disabled')
   })
 
   it('boots to the level select and mounts the game shell for a chosen level', () => {
