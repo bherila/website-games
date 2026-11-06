@@ -52,7 +52,7 @@ describe('MarbleSortGame', () => {
     expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'disabled')
     const toggles = screen.getAllByRole('switch', { name: 'Colorblind mode' })
     for (const enabled of [true, false]) {
-      fireEvent.click(toggles[0])
+      fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
 
       expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
       for (const toggle of toggles) {
@@ -76,7 +76,7 @@ describe('MarbleSortGame', () => {
     expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
     const toggles = screen.getAllByRole('switch', { name: 'Colorblind mode' })
     for (const enabled of [false, true]) {
-      fireEvent.click(toggles[0])
+      fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
 
       expect(write).toHaveBeenCalledWith(COLORBLIND_MODE_STORAGE_KEY, enabled ? '1' : '0')
       expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', enabled ? 'enabled' : 'disabled')
@@ -92,14 +92,14 @@ describe('MarbleSortGame', () => {
   it('restores enabled and disabled colorblind preferences after remounting with working storage', () => {
     const firstMount = render(<MarbleSortGame />)
     fireEvent.click(screen.getByTestId('level-tile-1'))
-    fireEvent.click(screen.getAllByRole('switch', { name: 'Colorblind mode' })[0])
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
 
     expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe('1')
     firstMount.unmount()
 
     const secondMount = render(<MarbleSortGame />)
     expect(screen.getByTestId('marble-sort-scene')).toHaveAttribute('data-colorblind-mode', 'enabled')
-    fireEvent.click(screen.getAllByRole('switch', { name: 'Colorblind mode' })[0])
+    fireEvent.click(screen.getByLabelText('Colorblind mode', { selector: '#marble-sort-colorblind-desktop' }))
 
     expect(window.localStorage.getItem(COLORBLIND_MODE_STORAGE_KEY)).toBe('0')
     secondMount.unmount()
