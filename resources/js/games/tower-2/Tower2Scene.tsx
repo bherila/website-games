@@ -3,15 +3,15 @@
  * input translated into tiles on the active floor. Edits go back to the game
  * through onApply, so history and saving live in one place.
  */
-import { type ReactElement, type Ref, useEffect, useImperativeHandle, useRef } from 'react'
+import { type ReactElement, type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
 
 import { attachContextLossHandlers } from '../_shared/three/contextLoss'
 import { normalizeWheelPx, type PinchSnapshot, pinchSnapshot, pinchUpdate, wheelPanDelta, wheelZoomFactor } from '../_shared/three/touchGestures'
 import type { BuildingAnalysis } from './engine/analysis'
-import type { Building, EditResult, Facing } from './engine/building'
+import { type Building, type EditResult, type Facing, floorLabel } from './engine/building'
 import type { PlateTile } from './engine/floorPlate'
 import { Crowd } from './engine/people'
-import { isRectTool, toolAction, type ToolId } from './interaction'
+import { isRectTool, toolAction, type ToolId, TOOLS } from './interaction'
 import { type FrameClock, pixelRatioFor, shouldRender } from './scene/framePacing'
 import { followFloor, frameRect, type IsoView, panView, projectionFor, rotateView, type Viewport, zoomViewAt } from './scene/isoCamera'
 import { type OverlayKind, type Preview, Tower2Renderer } from './scene/Tower2Renderer'
@@ -47,10 +47,12 @@ export interface Tower2SceneProps {
   guide?: Guide | null
   overlay: OverlayKind
   exterior: boolean
+  /** A game dialog is open; neither pointer nor keyboard may edit the plan. */
+  blocked?: boolean
   selection: Selection
   /** On a phone, one finger draws with the tool or pans the view. */
   touchMode: 'draw' | 'move'
-  onApply: (commit: (building: Building) => EditResult) => void
+  onApply: (commit: (building: Building) => EditResult) => EditResult
   onSelect: (selection: Selection) => void
   onHint: (hint: string | null) => void
   onVisitors?: (count: number) => void
@@ -105,6 +107,8 @@ function plateBounds(building: Building): { x: number, y: number, width: number,
 export function Tower2Scene(props: Tower2SceneProps): ReactElement {
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const targetRef = useRef<HTMLDivElement>(null)
+  const [keyboardFeedback, setKeyboardFeedback] = useState<string | null>(null)
   const propsRef = useRef(props)
   useEffect(() => {
     propsRef.current = props
@@ -150,6 +154,17 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     let crowdBuilding = world.building
     let hover: PlateTile | null = null
     let drag: Drag | null = null
+    const bounds = plateBounds(world.building)
+    let cursor: PlateTile = {
+      x: Math.min(world.building.width - 1, Math.max(0, Math.floor(bounds.x + bounds.width / 2))),
+      y: Math.min(world.building.depth - 1, Math.max(0, Math.floor(bounds.y + bounds.depth / 2))),
+    }
+    let keyboard = false
+    let anchor: PlateTile | null = null
+    let context = ''
+    let editStamp = world.stamp
+    let lastFeedback = ''
+    let outcome = ''
     let pan: { pointerId: number, x: number, y: number } | null = null
     const touches = new Map<number, { x: number, y: number }>()
     let pinch: PinchSnapshot | null = null
@@ -183,7 +198,104 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     }
     const action = () => {
       const { world, tool, activeFloor, facing, cars } = propsRef.current
-      return toolAction(world.building, tool, activeFloor, hover, drag?.anchor ?? null, facing, cars)
+      return toolAction(world.building, tool, activeFloor, keyboard ? cursor : hover, keyboard ? anchor : drag?.anchor ?? null, facing, cars)
+    }
+    const syncContext = () => {
+      const current = propsRef.current
+      const next = `${current.activeFloor}:${current.tool}:${current.facing}:${current.cars}:${current.exterior}:${current.blocked}`
+      if (context !== next) {
+        anchor = null
+        drag = null
+        outcome = ''
+        context = next
+      }
+      if (editStamp !== current.world.stamp) {
+        anchor = null
+        drag = null
+        cursor = {
+          x: Math.min(current.world.building.width - 1, cursor.x),
+          y: Math.min(current.world.building.depth - 1, cursor.y),
+        }
+        editStamp = current.world.stamp
+      }
+    }
+    const feedback = () => {
+      if (!keyboard) return
+      const { activeFloor, tool, facing, exterior, blocked } = propsRef.current
+      const label = TOOLS.find((candidate) => candidate.id === tool)!.label
+      const act = action()
+      const instruction = anchor
+        ? `Anchor column ${anchor.x + 1}, row ${anchor.y + 1}. Enter or Space commits.`
+        : isRectTool(tool) ? 'Enter or Space sets the rectangle anchor.' : 'Enter or Space places or selects.'
+      const detail = blocked ? 'Close the dialog to build.' : exterior ? 'Return to plan view (X) to build.'
+        : `${instruction} ${outcome || act.hint || (act.preview ? 'Ready.' : '')}`
+      const text = `${floorLabel(activeFloor)} · column ${cursor.x + 1}, row ${cursor.y + 1} · ${label}${act.preview?.kind === 'room' ? `, door ${facing}` : ''}. ${detail}`
+      if (text !== lastFeedback) {
+        lastFeedback = text
+        setKeyboardFeedback(text)
+      }
+    }
+    const keepCursorVisible = () => {
+      if (!viewRef.current) return
+      const point = projectionFor(viewRef.current).tileToScreen({ x: cursor.x + 0.5, y: cursor.y + 0.5, floor: propsRef.current.activeFloor })
+      const { width, height } = viewportRef.current
+      const x = Math.min(width * 0.8, Math.max(width * 0.2, point.x))
+      const y = Math.min(height * 0.7, Math.max(height * 0.3, point.y))
+      viewRef.current = panView(viewRef.current, x - point.x, y - point.y)
+    }
+    const onFocus = () => {
+      if (drag || pan) return
+      keyboard = true
+      syncContext()
+      keepCursorVisible()
+      feedback()
+      markInput()
+    }
+    const onBlur = () => {
+      keyboard = false
+      anchor = null
+      outcome = ''
+      setKeyboardFeedback(null)
+      if (targetRef.current) targetRef.current.hidden = true
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', ' ', 'Escape'].includes(event.key)) return
+      if (propsRef.current.blocked) return
+      event.preventDefault()
+      syncContext()
+      keyboard = true
+      hover = null
+      drag = null
+      markInput()
+      outcome = ''
+      const { world, tool, activeFloor, onSelect, onApply, exterior } = propsRef.current
+      if (event.key.startsWith('Arrow')) {
+        cursor = {
+          x: Math.min(world.building.width - 1, Math.max(0, cursor.x + (event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0))),
+          y: Math.min(world.building.depth - 1, Math.max(0, cursor.y + (event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0))),
+        }
+        keepCursorVisible()
+      } else if (event.key === 'Escape') {
+        anchor = null
+        outcome = 'Cancelled.'
+      } else if (!event.repeat && !exterior) {
+        if (tool === 'select') {
+          const room = world.building.roomAt(activeFloor, cursor.x, cursor.y)
+          const core = world.building.coreAt(activeFloor, cursor.x, cursor.y)
+          onSelect(room ? { kind: 'room', id: room.id } : core ? { kind: 'core', id: core.id } : null)
+          outcome = room ? 'Room selected.' : core ? 'Core selected.' : 'Nothing to select here.'
+        } else if (isRectTool(tool) && !anchor) anchor = { ...cursor }
+        else {
+          const { commit } = action()
+          if (commit) {
+            const result = onApply(commit)
+            outcome = result.ok ? 'Built.' : result.reason
+          }
+          anchor = null
+        }
+      }
+      feedback()
     }
     const setHint = (hint: string | null) => {
       if (hint !== lastHint) {
@@ -195,6 +307,9 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     const drawsWith = (event: PointerEvent) => event.pointerType !== 'touch' || propsRef.current.touchMode === 'draw'
 
     const onPointerDown = (event: PointerEvent) => {
+      if (propsRef.current.blocked) return
+      syncContext()
+      onBlur()
       markInput()
       canvas.setPointerCapture(event.pointerId)
       if (event.pointerType === 'touch') {
@@ -219,6 +334,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     }
 
     const onPointerMove = (event: PointerEvent) => {
+      if (propsRef.current.blocked || keyboard) return
       markInput()
       if (event.pointerType === 'touch' && touches.has(event.pointerId)) {
         touches.set(event.pointerId, local(event))
@@ -244,6 +360,11 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
       touches.delete(event.pointerId)
       if (touches.size < 2) pinch = null
+      if (propsRef.current.blocked) {
+        drag = null
+        pan = null
+        return
+      }
       if (pan?.pointerId === event.pointerId) {
         pan = null
         return
@@ -307,6 +428,9 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
     canvas.addEventListener('pointerleave', onPointerLeave)
     canvas.addEventListener('wheel', onWheel, { passive: false })
     canvas.addEventListener('contextmenu', onContextMenu)
+    canvas.addEventListener('focus', onFocus)
+    canvas.addEventListener('blur', onBlur)
+    canvas.addEventListener('keydown', onKeyDown)
     const detachContextLoss = attachContextLossHandlers(canvas, {
       onLost: () => { running = false },
       onRestored: () => {
@@ -337,6 +461,7 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       const seconds = Math.min(0.1, (now - lastTime) / 1000)
       lastTime = now
       const current = propsRef.current
+      syncContext()
       const { building, analysis, stamp } = current.world
       // Undo or reset swaps the building; visitors from the old one would walk through walls.
       if (building !== crowdBuilding) {
@@ -352,8 +477,17 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
         lastStatsAt = now
         current.onCoreStats(new Map(building.cores().map((core) => [core.id, { wait: crowd.averageWait(core.id), waiting: crowd.waiting(core.id) }])))
       }
-      const act = pan || pinch ? null : action()
+      const act = pan || pinch || current.blocked || current.exterior ? null : action()
       setHint(act?.hint ?? null)
+      feedback()
+      if (targetRef.current) {
+        targetRef.current.hidden = !keyboard || !!current.blocked || current.exterior
+        if (keyboard && viewRef.current) {
+          const point = projectionFor(viewRef.current).tileToScreen({ x: cursor.x + 0.5, y: cursor.y + 0.5, floor: current.activeFloor })
+          targetRef.current.style.left = `${point.x}px`
+          targetRef.current.style.top = `${point.y}px`
+        }
+      }
       const preview: Preview | null = act?.preview ?? null
       if (viewRef.current) renderer.setView(viewRef.current, viewportRef.current)
       renderer.sync({
@@ -397,6 +531,9 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
       canvas.removeEventListener('pointerleave', onPointerLeave)
       canvas.removeEventListener('wheel', onWheel)
       canvas.removeEventListener('contextmenu', onContextMenu)
+      canvas.removeEventListener('focus', onFocus)
+      canvas.removeEventListener('blur', onBlur)
+      canvas.removeEventListener('keydown', onKeyDown)
       delete window.__tower2
       renderer.dispose()
     }
@@ -404,7 +541,12 @@ export function Tower2Scene(props: Tower2SceneProps): ReactElement {
 
   return (
     <div ref={hostRef} className="absolute inset-0">
-      <canvas ref={canvasRef} className="block h-full w-full touch-none select-none" aria-label="Building plan. Use the tools to draw floors, corridors, cores and rooms." />
+      <canvas ref={canvasRef} role="application" tabIndex={props.blocked ? -1 : 0} className="block h-full w-full touch-none select-none focus-visible:outline-4 focus-visible:-outline-offset-4 focus-visible:outline-cyan-300" aria-label="Building plan" aria-describedby="tower2-keyboard-help" aria-disabled={props.blocked} />
+      <div ref={targetRef} hidden aria-hidden="true" data-testid="tower2-keyboard-target" className="pointer-events-none absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-cyan-200 bg-cyan-400/25 shadow-[0_0_0_2px_#0f172a]" />
+      <div className={`pointer-events-none absolute bottom-24 left-3 max-w-xs rounded-xl bg-slate-950/90 p-3 text-xs text-white md:bottom-20 ${keyboardFeedback ? '' : 'sr-only'}`}>
+        <p id="tower2-keyboard-help">Keyboard: arrows move columns and rows. Enter or Space anchors and completes a rectangle, places a room or core, or selects. Escape cancels. Page Up/Down changes floor. Tab reaches the tools.</p>
+        <p role="status" aria-live="polite" aria-atomic="true" data-testid="tower2-keyboard-status" className="mt-2 font-semibold text-cyan-200">{keyboardFeedback}</p>
+      </div>
     </div>
   )
 }
