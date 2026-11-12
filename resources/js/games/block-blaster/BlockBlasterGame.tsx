@@ -42,6 +42,7 @@ export function BlockBlasterGame(): ReactElement {
   const [levelId, setLevelId] = useState<number | null>(devJumpLevel?.id ?? null)
   const [ballsRemaining, setBallsRemaining] = useState(devJumpLevel?.balls ?? 0)
   const [attempt, setAttempt] = useState(devJumpLevel ? 1 : 0)
+  const [graphicsUnavailable, setGraphicsUnavailable] = useState(false)
   const [hintVisible, setHintVisible] = useState(Boolean(devJumpLevel?.hint))
   const [hintPosition, setHintPosition] = useState<HintScreenPosition | null>(null)
   const [lastWinStars, setLastWinStars] = useState<1 | 2 | 3>(1)
@@ -60,6 +61,7 @@ export function BlockBlasterGame(): ReactElement {
       return
     }
 
+    setGraphicsUnavailable(false)
     endedRef.current = false
     ballsRemainingRef.current = target.balls
     setLevelId(id)
@@ -140,15 +142,17 @@ export function BlockBlasterGame(): ReactElement {
           level={level}
           status={status === 'won' || status === 'lost' ? status : 'playing'}
           onBlocksCleared={handleBlocksCleared}
+          onGraphicsUnavailable={setGraphicsUnavailable}
+          onReturnToMenu={handleGoToSelect}
           onHintPosition={setHintPosition}
           onLose={handleLose}
           onShotFired={handleShotFired}
           onWin={handleWin}
         />
 
-        <GameHud ballsRemaining={ballsRemaining} level={level.id} onLevelSelect={handleGoToSelect} onRetry={handleRetry} />
+        {!graphicsUnavailable && <GameHud ballsRemaining={ballsRemaining} level={level.id} onLevelSelect={handleGoToSelect} onRetry={handleRetry} />}
 
-        <TapHint position={hintVisible ? hintPosition : null} />
+        <TapHint position={!graphicsUnavailable && hintVisible ? hintPosition : null} />
 
         {status === 'won' && (
           <LevelCompleteOverlay

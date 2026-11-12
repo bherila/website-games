@@ -143,6 +143,13 @@ signal taught in level 6.
   the projected screen position of a designated target block, plus a ghost trajectory dot-arc from the
   cannon to that point. The hint disappears permanently after the first shot of the level. No words.
 
+Graphics initialization failures are an exception to the wordless gameplay UI: show an accessible
+text alert with **Retry graphics** and **Level menu** actions. Do not enable input, advance physics,
+or report gameplay callbacks until the first render succeeds. Retrying startup keeps the same level
+attempt and ball budget; it does not record progress. Failed and partially initialized scenes release
+resources before disposing the renderer and always remove their canvas. This recovery covers startup,
+not WebGL context loss during an active level.
+
 ## Stars & progress
 
 - Win = 1★ minimum. `starThresholds: { twoStar, threeStar }` are **minimum balls remaining** at the moment
