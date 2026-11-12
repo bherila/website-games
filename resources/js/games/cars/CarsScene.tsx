@@ -94,6 +94,7 @@ interface CarsSceneProps {
   onCarClick: (carId: string) => void
   onHintPosition?: (position: TapHintPosition | null) => void
   onPassengerGate: (passengerId: string) => void
+  onReadyChange?: (ready: boolean) => void
 }
 
 const VISUAL_TEST_STABLE_FRAME_COUNT = 3
@@ -108,7 +109,12 @@ export function CarsScene({
   onCarClick,
   onHintPosition,
   onPassengerGate,
+  onReadyChange,
 }: CarsSceneProps): ReactElement {
+  const [graphicsFailed, setGraphicsFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const finishStartupRef = useRef<(() => void) | null>(null)
+  const failGraphicsRef = useRef<(() => void) | null>(null)
   const [dynamicSceneRefreshKey, setDynamicSceneRefreshKey] = useState(0)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
@@ -173,186 +179,21 @@ export function CarsScene({
       return
     }
 
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color('#dfe4ee')
-    sceneRef.current = scene
-    const passengerGateCycles = passengerGateCyclesRef.current
-    const passengerGateHolds = passengerGateHoldsRef.current
-    const fieldCarMeshes = fieldCarMeshesRef.current
-
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200)
-    camera.position.set(0, 14.6, 4.2)
-    camera.lookAt(0, 0, -3.6)
-    cameraRef.current = camera
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    renderer.toneMapping = THREE.NeutralToneMapping
-    renderer.toneMappingExposure = 1.0
-    rendererRef.current = renderer
-    container.appendChild(renderer.domElement)
-
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    const environmentTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-    scene.environment = environmentTexture
-    scene.environmentIntensity = 0.35
-    pmrem.dispose()
-
-    const ambient = new THREE.HemisphereLight('#ffffff', '#cdd6e4', 0.72)
-    scene.add(ambient)
-
-    const sun = new THREE.DirectionalLight('#fff6e6', 0.85)
-    sun.position.set(-5, 10, 5)
-    sun.castShadow = true
-    sun.shadow.mapSize.set(2048, 2048)
-    scene.add(sun)
-
-    const rim = new THREE.DirectionalLight('#dbeafe', 0.22)
-    rim.position.set(5, 6, -4)
-    scene.add(rim)
-
-    const content = new THREE.Group()
-    scene.add(content)
-    contentRef.current = content
-
-    const staticGroup = new THREE.Group()
-    content.add(staticGroup)
-    staticGroupRef.current = staticGroup
-
-    const dynamicGroup = new THREE.Group()
-    content.add(dynamicGroup)
-    dynamicGroupRef.current = dynamicGroup
-
-    const effects = new THREE.Group()
-    scene.add(effects)
-    effectsRef.current = effects
-
-    const raycaster = new THREE.Raycaster()
-    const pointer = new THREE.Vector2()
-
-    const handlePointerDown = (event: PointerEvent): void => {
-      const rect = renderer.domElement.getBoundingClientRect()
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-      raycaster.setFromCamera(pointer, camera)
-
-      const hits = raycaster.intersectObjects(content.children, true)
-      for (const hit of hits) {
-        const carId = findCarId(hit.object)
-        if (carId) {
-          onCarClickRef.current(carId)
-          return
+    let active = true
+    let ready = false
+    const disposals: (() => void)[] = []
+    const cleanup = (): void => {
+      if (!active) return
+      active = false
+      ready = false
+      onReadyChange?.(false)
+      for (const dispose of disposals.reverse()) {
+        try {
+          dispose()
+        } catch {
+          // Preserve recovery even if one resource cannot be released.
         }
       }
-    }
-
-    renderer.domElement.addEventListener('pointerdown', handlePointerDown)
-
-    const smViewportQuery = window.matchMedia('(min-width: 640px)')
-    const viewSize = { width: 160, height: 160 }
-    const resize = (): void => {
-      viewSize.width = Math.max(160, container.clientWidth)
-      viewSize.height = Math.max(160, container.clientHeight)
-      renderer.setSize(viewSize.width, viewSize.height)
-      fitCameraToGameplayBounds({
-        camera,
-        width: viewSize.width,
-        height: viewSize.height,
-        bounds: gameplayBoundsForState(stateRef.current, movingCarsRef.current),
-        bottomPaddingPx: gameToolbarReservedHeightPx(smViewportQuery.matches),
-      })
-    }
-
-    rendererResizeRef.current = resize
-    const resizeObserver = new ResizeObserver(resize)
-    resizeObserver.observe(container)
-    resize()
-
-    const visualTestEnabled = visualTestOptionsRef.current?.enabled === true
-    if (visualTestEnabled) {
-      resetParkingPickupVisualReadiness()
-    }
-
-    let frameId = 0
-    let renderedFrameCount = 0
-    let visualReadyMarked = false
-    const visualTestLevel = stateRef.current.level
-    const visualTestSeed = visualTestOptionsRef.current?.seed ?? null
-    const clock = new THREE.Clock()
-
-    const hintProjection = new THREE.Vector3()
-    const hintPositionReporter = createHintPositionReporter()
-    const reportHintPosition = (): void => {
-      let worldPosition: THREE.Vector3 | null = null
-      const car = hintCarIdRef.current
-        ? stateRef.current.cars.find((candidate) => candidate.id === hintCarIdRef.current)
-        : undefined
-      if (car && car.status === 'field') {
-        hintProjection.copy(fieldPositionForCar(car))
-        hintProjection.y += 0.2
-        worldPosition = hintProjection
-      }
-      hintPositionReporter.report({
-        camera,
-        height: viewSize.height,
-        onChange: onHintPositionRef.current,
-        width: viewSize.width,
-        worldPosition,
-      })
-    }
-    const animate = (): void => {
-      const delta = clock.getDelta()
-      const elapsed = clock.elapsedTime
-      const now = performance.now() / 1000
-      passengerPhaseRef.current += delta * PASSENGER_SPEED
-      animatePassengers(passengersRef.current, passengerPhaseRef.current, elapsed)
-      animateBoardingPassengers(boardingPassengersRef.current, now)
-      animateMovingCars(movingCarsRef.current, now)
-      notifyPassengerGate(
-        gatePassengersRef.current,
-        passengerPhaseRef.current,
-        passengerGateCyclesRef.current,
-        stateRef.current,
-        movingCarsRef.current,
-        now,
-        onPassengerGateRef.current,
-        passengerGateHoldsRef.current,
-      )
-      if (passengerQueueRefreshAtRef.current !== null && now > passengerQueueRefreshAtRef.current) {
-        passengerQueueRefreshAtRef.current = null
-        setDynamicSceneRefreshKey((current) => current + 1)
-      }
-      reportHintPosition()
-      renderer.render(scene, camera)
-      renderedFrameCount += 1
-      if (visualTestEnabled && !visualReadyMarked && renderedFrameCount >= VISUAL_TEST_STABLE_FRAME_COUNT) {
-        visualReadyMarked = true
-        markParkingPickupVisualReady({
-          frameCount: renderedFrameCount,
-          level: visualTestLevel,
-          renderedAt: performance.now(),
-          seed: visualTestSeed,
-        })
-      }
-
-      if (visualTestEnabled && visualReadyMarked) {
-        return
-      }
-
-      frameId = window.requestAnimationFrame(animate)
-    }
-    animate()
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      resizeObserver.disconnect()
-      renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
-      clearGroup(content)
-      clearGroup(effects)
-      renderer.dispose()
-      renderer.domElement.remove()
       sceneRef.current = null
       cameraRef.current = null
       rendererRef.current = null
@@ -365,14 +206,244 @@ export function CarsScene({
       gatePassengersRef.current = []
       passengerLoopSlotsRef.current = []
       boardingPassengersRef.current = []
-      passengerGateHolds.clear()
+      passengerGateHoldsRef.current.clear()
       passengerQueueRefreshAtRef.current = null
-      fieldCarMeshes.clear()
-      passengerGateCycles.clear()
+      fieldCarMeshesRef.current.clear()
+      passengerGateCyclesRef.current.clear()
       movingCarsRef.current = []
       rendererResizeRef.current = null
+      previousStateRef.current = null
+      previousLevelRef.current = null
+      previousBlockedAttemptRef.current = null
+      passengerOffsetsRef.current.clear()
+      feederPositionsRef.current.clear()
+      loopEntriesRef.current.clear()
+      passengerPhaseRef.current = 0
+      finishStartupRef.current = null
+      failGraphicsRef.current = null
     }
-  }, [])
+    const failGraphics = (): void => {
+      if (!active) return
+      cleanup()
+      onHintPositionRef.current?.(null)
+      setGraphicsFailed(true)
+    }
+    failGraphicsRef.current = failGraphics
+    onReadyChange?.(false)
+    setGraphicsFailed(false)
+    try {
+      const scene = new THREE.Scene()
+      disposals.push(() => {
+        disposeObject(scene)
+        scene.clear()
+      })
+      scene.background = new THREE.Color('#dfe4ee')
+      sceneRef.current = scene
+
+      const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200)
+      camera.position.set(0, 14.6, 4.2)
+      camera.lookAt(0, 0, -3.6)
+      cameraRef.current = camera
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+      // Release scene, shadow and environment GPU resources before the renderer
+      // clears Three's WebGLProperties, including after partial initialization.
+      disposals.unshift(() => {
+        try {
+          renderer.dispose()
+        } finally {
+          renderer.domElement.remove()
+        }
+      })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      renderer.shadowMap.enabled = true
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      renderer.toneMapping = THREE.NeutralToneMapping
+      renderer.toneMappingExposure = 1.0
+      rendererRef.current = renderer
+      container.appendChild(renderer.domElement)
+
+      const pmrem = new THREE.PMREMGenerator(renderer)
+      try {
+        const room = new RoomEnvironment()
+        try {
+          const environment = pmrem.fromScene(room, 0.04)
+          disposals.push(() => {
+            scene.environment = null
+            environment.dispose()
+          })
+          scene.environment = environment.texture
+          scene.environmentIntensity = 0.35
+        } finally {
+          room.dispose()
+        }
+      } finally {
+        pmrem.dispose()
+      }
+
+      const ambient = new THREE.HemisphereLight('#ffffff', '#cdd6e4', 0.72)
+      scene.add(ambient)
+
+      const sun = new THREE.DirectionalLight('#fff6e6', 0.85)
+      sun.position.set(-5, 10, 5)
+      sun.castShadow = true
+      sun.shadow.mapSize.set(2048, 2048)
+      scene.add(sun)
+
+      const rim = new THREE.DirectionalLight('#dbeafe', 0.22)
+      rim.position.set(5, 6, -4)
+      scene.add(rim)
+
+      const content = new THREE.Group()
+      scene.add(content)
+      contentRef.current = content
+
+      const staticGroup = new THREE.Group()
+      content.add(staticGroup)
+      staticGroupRef.current = staticGroup
+
+      const dynamicGroup = new THREE.Group()
+      content.add(dynamicGroup)
+      dynamicGroupRef.current = dynamicGroup
+
+      const effects = new THREE.Group()
+      scene.add(effects)
+      effectsRef.current = effects
+
+      const raycaster = new THREE.Raycaster()
+      const pointer = new THREE.Vector2()
+
+      const handlePointerDown = (event: PointerEvent): void => {
+        if (!active || !ready) return
+        const rect = renderer.domElement.getBoundingClientRect()
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+        raycaster.setFromCamera(pointer, camera)
+
+        const hits = raycaster.intersectObjects(content.children, true)
+        for (const hit of hits) {
+          const carId = findCarId(hit.object)
+          if (carId) {
+            onCarClickRef.current(carId)
+            return
+          }
+        }
+      }
+
+      disposals.push(() => renderer.domElement.removeEventListener('pointerdown', handlePointerDown))
+      renderer.domElement.addEventListener('pointerdown', handlePointerDown)
+
+      const smViewportQuery = window.matchMedia('(min-width: 640px)')
+      const viewSize = { width: 160, height: 160 }
+      const resize = (): void => {
+        if (!active) return
+        viewSize.width = Math.max(160, container.clientWidth)
+        viewSize.height = Math.max(160, container.clientHeight)
+        renderer.setSize(viewSize.width, viewSize.height)
+        fitCameraToGameplayBounds({
+          camera,
+          width: viewSize.width,
+          height: viewSize.height,
+          bounds: gameplayBoundsForState(stateRef.current, movingCarsRef.current),
+          bottomPaddingPx: gameToolbarReservedHeightPx(smViewportQuery.matches),
+        })
+      }
+
+      rendererResizeRef.current = resize
+      const resizeObserver = new ResizeObserver(resize)
+      disposals.push(() => resizeObserver.disconnect())
+      resizeObserver.observe(container)
+      resize()
+
+      const visualTestEnabled = visualTestOptionsRef.current?.enabled === true
+      if (visualTestEnabled) {
+        resetParkingPickupVisualReadiness()
+      }
+
+      let frameId = 0
+      disposals.push(() => window.cancelAnimationFrame(frameId))
+      let renderedFrameCount = 0
+      let visualReadyMarked = false
+      const visualTestLevel = stateRef.current.level
+      const visualTestSeed = visualTestOptionsRef.current?.seed ?? null
+      const clock = new THREE.Clock()
+
+      const hintProjection = new THREE.Vector3()
+      const hintPositionReporter = createHintPositionReporter()
+      const reportHintPosition = (): void => {
+        let worldPosition: THREE.Vector3 | null = null
+        const car = hintCarIdRef.current
+          ? stateRef.current.cars.find((candidate) => candidate.id === hintCarIdRef.current)
+          : undefined
+        if (car && car.status === 'field') {
+          hintProjection.copy(fieldPositionForCar(car))
+          hintProjection.y += 0.2
+          worldPosition = hintProjection
+        }
+        hintPositionReporter.report({
+          camera,
+          height: viewSize.height,
+          onChange: onHintPositionRef.current,
+          width: viewSize.width,
+          worldPosition,
+        })
+      }
+      const animate = (): void => {
+        if (!active || !ready) return
+        const delta = clock.getDelta()
+        const elapsed = clock.elapsedTime
+        const now = performance.now() / 1000
+        passengerPhaseRef.current += delta * PASSENGER_SPEED
+        animatePassengers(passengersRef.current, passengerPhaseRef.current, elapsed)
+        animateBoardingPassengers(boardingPassengersRef.current, now)
+        animateMovingCars(movingCarsRef.current, now)
+        notifyPassengerGate(
+          gatePassengersRef.current,
+          passengerPhaseRef.current,
+          passengerGateCyclesRef.current,
+          stateRef.current,
+          movingCarsRef.current,
+          now,
+          onPassengerGateRef.current,
+          passengerGateHoldsRef.current,
+        )
+        if (passengerQueueRefreshAtRef.current !== null && now > passengerQueueRefreshAtRef.current) {
+          passengerQueueRefreshAtRef.current = null
+          setDynamicSceneRefreshKey((current) => current + 1)
+        }
+        reportHintPosition()
+        renderer.render(scene, camera)
+        renderedFrameCount += 1
+        if (visualTestEnabled && !visualReadyMarked && renderedFrameCount >= VISUAL_TEST_STABLE_FRAME_COUNT) {
+          visualReadyMarked = true
+          markParkingPickupVisualReady({
+            frameCount: renderedFrameCount,
+            level: visualTestLevel,
+            renderedAt: performance.now(),
+            seed: visualTestSeed,
+          })
+        }
+
+        if (visualTestEnabled && visualReadyMarked) {
+          return
+        }
+
+        frameId = window.requestAnimationFrame(animate)
+      }
+      finishStartupRef.current = () => {
+        if (!active || ready) return
+        // Verify the populated board before allowing gameplay or boarding.
+        renderer.render(scene, camera)
+        ready = true
+        onReadyChange?.(true)
+        frameId = window.requestAnimationFrame(animate)
+      }
+    } catch {
+      failGraphics()
+    }
+
+    return cleanup
+  }, [attempt, onReadyChange])
 
   useEffect(() => {
     const staticGroup = staticGroupRef.current
@@ -381,120 +452,141 @@ export function CarsScene({
       return
     }
 
-    if (previousLevelRef.current !== state.level) {
-      passengerOffsetsRef.current.clear()
-      passengerLoopSlotsRef.current = []
-      passengerGateCyclesRef.current.clear()
-      passengerGateHoldsRef.current.clear()
-      passengerQueueRefreshAtRef.current = null
-      feederPositionsRef.current.clear()
-      loopEntriesRef.current.clear()
-      boardingPassengersRef.current = []
-      if (effectsRef.current) {
-        clearGroup(effectsRef.current)
+    try {
+      if (previousLevelRef.current !== state.level) {
+        passengerOffsetsRef.current.clear()
+        passengerLoopSlotsRef.current = []
+        passengerGateCyclesRef.current.clear()
+        passengerGateHoldsRef.current.clear()
+        passengerQueueRefreshAtRef.current = null
+        feederPositionsRef.current.clear()
+        loopEntriesRef.current.clear()
+        boardingPassengersRef.current = []
+        if (effectsRef.current) {
+          clearGroup(effectsRef.current)
+        }
+        passengerPhaseRef.current = 0
+        previousLevelRef.current = state.level
       }
-      passengerPhaseRef.current = 0
-      previousLevelRef.current = state.level
-    }
 
-    const effects = effectsRef.current
-    movingCarsRef.current = retainSceneMovingCars(movingCarsRef.current, dynamicGroup, effects)
+      const effects = effectsRef.current
+      movingCarsRef.current = retainSceneMovingCars(movingCarsRef.current, dynamicGroup, effects)
 
-    if (previousStateRef.current?.level === state.level && effects) {
-      const departureDelays = startBoardingPassengerAnimations(
-        previousStateRef.current,
+      if (previousStateRef.current?.level === state.level && effects) {
+        const departureDelays = startBoardingPassengerAnimations(
+          previousStateRef.current,
+          state,
+          passengerOffsetsRef.current,
+          passengerPhaseRef.current,
+          effects,
+          boardingPassengersRef.current,
+          colorblindMode,
+        )
+        startDepartingCarAnimations(
+          previousStateRef.current,
+          state,
+          effects,
+          movingCarsRef.current,
+          departureDelays,
+          colorblindMode,
+          departureExitXForViewport(cameraRef.current),
+        )
+      }
+
+      const nextSignature = staticSceneSignature(state)
+      const previousStaticSignature = staticSignatureRef.current
+      if (nextSignature !== previousStaticSignature) {
+        clearGroup(staticGroup)
+        buildStaticScene(staticGroup, state)
+        staticSignatureRef.current = nextSignature
+      }
+
+      const retainedMeshes = new Set<THREE.Object3D>()
+      const retainedFieldCarMeshes = new Map<string, THREE.Group>()
+      for (const moving of movingCarsRef.current) {
+        if (moving.movementKind === 'parking' && moving.mesh.parent === dynamicGroup) {
+          retainedMeshes.add(moving.mesh)
+        }
+        if (moving.movementKind === 'blocked' && moving.carId && moving.mesh.parent === dynamicGroup) {
+          retainedMeshes.add(moving.mesh)
+          retainedFieldCarMeshes.set(moving.carId, moving.mesh as THREE.Group)
+        }
+        if (moving.movementKind === 'blocked-cause' && moving.carId && moving.mesh.parent === dynamicGroup) {
+          retainedMeshes.add(moving.mesh)
+          retainedFieldCarMeshes.set(moving.carId, moving.mesh as THREE.Group)
+        }
+      }
+
+      const dynamicChildren = [...dynamicGroup.children]
+      for (const child of dynamicChildren) {
+        if (!retainedMeshes.has(child)) {
+          dynamicGroup.remove(child)
+          disposeObject(child)
+        }
+      }
+
+      passengersRef.current = []
+      gatePassengersRef.current = []
+      fieldCarMeshesRef.current.clear()
+      for (const [id, mesh] of retainedFieldCarMeshes) {
+        fieldCarMeshesRef.current.set(id, mesh)
+      }
+      passengerQueueRefreshAtRef.current = buildDynamicScene(
+        dynamicGroup,
         state,
+        previousStateRef.current,
+        passengersRef.current,
+        gatePassengersRef.current,
+        passengerLoopSlotsRef.current,
         passengerOffsetsRef.current,
+        passengerGateCyclesRef.current,
+        fieldCarMeshesRef.current,
         passengerPhaseRef.current,
-        effects,
-        boardingPassengersRef.current,
-        colorblindMode,
-      )
-      startDepartingCarAnimations(
-        previousStateRef.current,
-        state,
-        effects,
         movingCarsRef.current,
-        departureDelays,
         colorblindMode,
-        departureExitXForViewport(cameraRef.current),
+        feederPositionsRef.current,
+        loopEntriesRef.current,
       )
-    }
-
-    const nextSignature = staticSceneSignature(state)
-    const previousStaticSignature = staticSignatureRef.current
-    if (nextSignature !== previousStaticSignature) {
-      clearGroup(staticGroup)
-      buildStaticScene(staticGroup, state)
-      staticSignatureRef.current = nextSignature
-    }
-
-    const retainedMeshes = new Set<THREE.Object3D>()
-    const retainedFieldCarMeshes = new Map<string, THREE.Group>()
-    for (const moving of movingCarsRef.current) {
-      if (moving.movementKind === 'parking' && moving.mesh.parent === dynamicGroup) {
-        retainedMeshes.add(moving.mesh)
+      if (blockedCarAttempt && previousBlockedAttemptRef.current !== blockedCarAttempt.nonce) {
+        const car = state.cars.find((candidate) => candidate.id === blockedCarAttempt.carId)
+        const mesh = fieldCarMeshesRef.current.get(blockedCarAttempt.carId)
+        if (car && mesh && effects) {
+          startBlockedCarAnimation(car, state, mesh, movingCarsRef.current, effects)
+        }
+        previousBlockedAttemptRef.current = blockedCarAttempt.nonce
       }
-      if (moving.movementKind === 'blocked' && moving.carId && moving.mesh.parent === dynamicGroup) {
-        retainedMeshes.add(moving.mesh)
-        retainedFieldCarMeshes.set(moving.carId, moving.mesh as THREE.Group)
+      if (nextSignature !== previousStaticSignature) {
+        rendererResizeRef.current?.()
       }
-      if (moving.movementKind === 'blocked-cause' && moving.carId && moving.mesh.parent === dynamicGroup) {
-        retainedMeshes.add(moving.mesh)
-        retainedFieldCarMeshes.set(moving.carId, moving.mesh as THREE.Group)
-      }
+      previousStateRef.current = state
+      finishStartupRef.current?.()
+    } catch {
+      failGraphicsRef.current?.()
     }
-
-    const dynamicChildren = [...dynamicGroup.children]
-    for (const child of dynamicChildren) {
-      if (!retainedMeshes.has(child)) {
-        dynamicGroup.remove(child)
-        disposeObject(child)
-      }
-    }
-
-    passengersRef.current = []
-    gatePassengersRef.current = []
-    fieldCarMeshesRef.current.clear()
-    for (const [id, mesh] of retainedFieldCarMeshes) {
-      fieldCarMeshesRef.current.set(id, mesh)
-    }
-    passengerQueueRefreshAtRef.current = buildDynamicScene(
-      dynamicGroup,
-      state,
-      previousStateRef.current,
-      passengersRef.current,
-      gatePassengersRef.current,
-      passengerLoopSlotsRef.current,
-      passengerOffsetsRef.current,
-      passengerGateCyclesRef.current,
-      fieldCarMeshesRef.current,
-      passengerPhaseRef.current,
-      movingCarsRef.current,
-      colorblindMode,
-      feederPositionsRef.current,
-      loopEntriesRef.current,
-    )
-    if (blockedCarAttempt && previousBlockedAttemptRef.current !== blockedCarAttempt.nonce) {
-      const car = state.cars.find((candidate) => candidate.id === blockedCarAttempt.carId)
-      const mesh = fieldCarMeshesRef.current.get(blockedCarAttempt.carId)
-      if (car && mesh && effects) {
-        startBlockedCarAnimation(car, state, mesh, movingCarsRef.current, effects)
-      }
-      previousBlockedAttemptRef.current = blockedCarAttempt.nonce
-    }
-    if (nextSignature !== previousStaticSignature) {
-      rendererResizeRef.current?.()
-    }
-    previousStateRef.current = state
-  }, [blockedCarAttempt, colorblindMode, dynamicSceneRefreshKey, state])
+  }, [attempt, blockedCarAttempt, colorblindMode, dynamicSceneRefreshKey, onReadyChange, state])
 
   return (
     <div
       ref={containerRef}
       className="h-full min-h-0 w-full overflow-hidden rounded-2xl border border-white/70 bg-slate-200 shadow-2xl shadow-slate-950/15 dark:border-white/10 dark:bg-slate-900 dark:shadow-slate-950/35"
       data-vip-selection={vipSelectionActive}
-    />
+    >
+      {graphicsFailed && (
+        <div className="flex h-full flex-col items-center justify-center gap-4 px-6 pb-28 pt-24 text-center">
+          <div role="alert">
+            <h2 className="text-xl font-bold">Graphics unavailable</h2>
+            <p>The parking lot could not start. Your level is paused and your progress is kept.</p>
+          </div>
+          <button
+            className="rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            type="button"
+            onClick={() => setAttempt((current) => current + 1)}
+          >
+            Retry graphics
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

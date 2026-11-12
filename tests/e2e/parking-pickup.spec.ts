@@ -74,6 +74,63 @@ test.describe('Parking Pickup visual smoke', () => {
     }
   })
 
+  test('retries unavailable graphics while preserving the level and safe controls', async ({ page, isMobile }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await blockGraphics(page)
+    await page.goto('/parking-pickup')
+    await page.getByTestId('level-tile-1').click()
+    await expect(page.getByRole('alert')).toContainText('Your level is paused')
+    const snapshot = await page.evaluate((key) => localStorage.getItem(key), LEVEL_SNAPSHOT_STORAGE_KEY)
+    expect(snapshot).not.toBeNull()
+    await page.getByRole('button', { name: 'Retry graphics' }).press('Enter')
+    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(page.locator('canvas')).toHaveCount(0)
+    for (const name of ['VIP', 'Shuffle', 'Fill', 'Open Spot', 'Reset']) await expect(page.getByRole('button', { name, exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Mute sound' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Level select', exact: true }).click()
+    await expect(page.getByTestId('level-tile-1')).toBeVisible()
+    expect(await page.evaluate((key) => localStorage.getItem(key), LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(snapshot)
+    await page.getByTestId('level-tile-1').click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await page.evaluate(() => sessionStorage.setItem('parking-block-webgl', '0'))
+    await page.getByRole('button', { name: 'Retry graphics' }).press('Enter')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(page.locator('canvas')).toBeVisible()
+    expect(await page.evaluate((key) => localStorage.getItem(key), LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(snapshot)
+    const hint = page.getByTestId('tap-hint')
+    await expect(hint).toBeVisible()
+    const box = await hint.boundingBox()
+    if (!box) throw new Error('Expected a car hint position')
+    if (isMobile) await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+    else await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{}').state?.moves as number | undefined, LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(1)
+    expect(errors).toEqual([])
+  })
+
+  test('keeps graphics retry clickable above a saved failed level', async ({ page }) => {
+    await loadNearCompleteLevel(page)
+    await blockGraphics(page)
+    await page.addInitScript((key) => {
+      const snapshot = JSON.parse(localStorage.getItem(key)!)
+      snapshot.state.failedLevel = { level: 1, reason: 'No matching car can board.' }
+      localStorage.setItem(key, JSON.stringify(snapshot))
+    }, LEVEL_SNAPSHOT_STORAGE_KEY)
+    await page.goto('/parking-pickup')
+    await expect(page.getByRole('alert')).toContainText('Your level is paused')
+    await expect(page.getByRole('dialog', { name: 'Level 1 Failed' })).toHaveCount(0)
+    const saved = await page.evaluate((key) => localStorage.getItem(key), LEVEL_SNAPSHOT_STORAGE_KEY)
+    await page.getByRole('button', { name: 'Retry graphics' }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await page.evaluate(() => sessionStorage.setItem('parking-block-webgl', '0'))
+    await page.getByRole('button', { name: 'Retry graphics' }).click()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(page.getByRole('dialog', { name: 'Level 1 Failed' })).toBeVisible()
+    expect(await page.evaluate((key) => localStorage.getItem(key), LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(saved)
+    await page.getByRole('button', { name: 'Restart Level' }).click()
+    await expect(page.getByRole('dialog', { name: 'Level 1 Failed' })).toHaveCount(0)
+  })
+
   test('keeps playfield framing stable through confirmed Fill completion', async ({ page }, testInfo) => {
     await loadNearCompleteLevel(page)
     await page.goto('/parking-pickup')
@@ -113,6 +170,17 @@ test.describe('Parking Pickup visual smoke', () => {
     expect(Math.abs(afterMetrics.boardRatio - beforeMetrics.boardRatio)).toBeLessThan(0.1)
   })
 })
+
+async function blockGraphics(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('parking-block-webgl', '1')
+    const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
+      if (['webgl', 'webgl2', 'experimental-webgl'].includes(args[0]) && sessionStorage.getItem('parking-block-webgl') === '1') return null
+      return original.apply(this, args)
+    } as typeof original
+  })
+}
 
 async function resetGameStorage(page: Page): Promise<void> {
   await page.addInitScript(

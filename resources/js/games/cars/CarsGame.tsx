@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactElement, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -69,6 +69,8 @@ export function CarsGame(): ReactElement {
 
     return loadColorblindMode()
   })
+  const [graphicsReady, setGraphicsReady] = useState(false)
+  const graphicsReadyRef = useRef(false)
   const stateRef = useRef(state)
   const recordedWinKeyRef = useRef<string | null>(null)
 
@@ -145,7 +147,17 @@ export function CarsGame(): ReactElement {
     }
   }, [state])
 
+  const handleGraphicsReadyChange = useCallback((ready: boolean): void => {
+    graphicsReadyRef.current = ready
+    setGraphicsReady(ready)
+  }, [])
+
+  const handleVipSelectionActiveChange = useCallback((next: SetStateAction<boolean>): void => {
+    if (graphicsReadyRef.current) setVipSelectionActive(next)
+  }, [])
+
   const handleCarClick = useCallback((carId: string): void => {
+    if (!graphicsReadyRef.current) return
     const current = stateRef.current
     if (!current) {
       return
@@ -183,6 +195,7 @@ export function CarsGame(): ReactElement {
   }, [commitState, vipSelectionActive])
 
   const handleShuffle = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     setVipSelectionActive(false)
     if (stateRef.current) {
       commitState(applyShufflePowerUp(stateRef.current))
@@ -190,6 +203,7 @@ export function CarsGame(): ReactElement {
   }, [commitState])
 
   const handleFill = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     setVipSelectionActive(false)
     if (stateRef.current) {
       commitState(applyFillPowerUp(stateRef.current))
@@ -197,6 +211,7 @@ export function CarsGame(): ReactElement {
   }, [commitState])
 
   const handleOpenSlot = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     if (stateRef.current) {
       commitState(openParkingSlot(stateRef.current))
     }
@@ -210,6 +225,7 @@ export function CarsGame(): ReactElement {
   }, [visualTestOptions.enabled])
 
   const handlePassengerGate = useCallback((passengerId: string): void => {
+    if (!graphicsReadyRef.current) return
     const current = stateRef.current
     if (!current) {
       return
@@ -243,6 +259,7 @@ export function CarsGame(): ReactElement {
   }, [commitState, progress, visualTestOptions.enabled])
 
   const handleNextLevel = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     setVipSelectionActive(false)
     recordedWinKeyRef.current = null
     if (!visualTestOptions.enabled) {
@@ -256,6 +273,7 @@ export function CarsGame(): ReactElement {
   }, [commitState, visualTestOptions.enabled])
 
   const handleReset = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     setVipSelectionActive(false)
     recordedWinKeyRef.current = null
     if (!visualTestOptions.enabled) {
@@ -268,11 +286,12 @@ export function CarsGame(): ReactElement {
   }, [commitState, visualTestOptions.enabled])
 
   const handleBackToMenu = useCallback((): void => {
+    handleGraphicsReadyChange(false)
     setVipSelectionActive(false)
     recordedWinKeyRef.current = null
     stateRef.current = null
     setState(null)
-  }, [])
+  }, [handleGraphicsReadyChange])
 
   if (!state) {
     return (
@@ -307,9 +326,10 @@ export function CarsGame(): ReactElement {
             onCarClick={handleCarClick}
             onHintPosition={setHintPosition}
             onPassengerGate={handlePassengerGate}
+            onReadyChange={handleGraphicsReadyChange}
           />
 
-          <TapHint position={hintCarId ? hintPosition : null} />
+          <TapHint position={graphicsReady && hintCarId ? hintPosition : null} />
 
           <MobileStatsOverlay
             colorblindMode={colorblindMode}
@@ -321,6 +341,7 @@ export function CarsGame(): ReactElement {
           />
 
           <BottomControls
+            gameplayPaused={!graphicsReady}
             stats={stats}
             state={state}
             vipSelectionActive={vipSelectionActive}
@@ -330,7 +351,7 @@ export function CarsGame(): ReactElement {
             onReset={handleReset}
             onShuffle={handleShuffle}
             onTutorialOpen={() => setTutorialOpen(true)}
-            onVipSelectionActiveChange={setVipSelectionActive}
+            onVipSelectionActiveChange={handleVipSelectionActiveChange}
           />
 
           <style>{`
@@ -380,12 +401,14 @@ export function CarsGame(): ReactElement {
             <span>{vipSelectionActive ? 'VIP selection active' : state.lastMessage}</span>
           </div>
 
-          <LevelCompleteOverlay
-            state={state}
-            onBackToMenu={handleBackToMenu}
-            onNextLevel={handleNextLevel}
-            onRestart={handleReset}
-          />
+          {graphicsReady && (
+            <LevelCompleteOverlay
+              state={state}
+              onBackToMenu={handleBackToMenu}
+              onNextLevel={handleNextLevel}
+              onRestart={handleReset}
+            />
+          )}
         </section>
       </PortraitGameShell>
 
