@@ -1,4 +1,4 @@
-import { type ReactElement, type SetStateAction,useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactElement, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -401,12 +401,14 @@ export function CarsGame(): ReactElement {
             <span>{vipSelectionActive ? 'VIP selection active' : state.lastMessage}</span>
           </div>
 
-          <LevelCompleteOverlay
-            state={state}
-            onBackToMenu={handleBackToMenu}
-            onNextLevel={handleNextLevel}
-            onRestart={handleReset}
-          />
+          {graphicsReady && (
+            <LevelCompleteOverlay
+              state={state}
+              onBackToMenu={handleBackToMenu}
+              onNextLevel={handleNextLevel}
+              onRestart={handleReset}
+            />
+          )}
         </section>
       </PortraitGameShell>
 

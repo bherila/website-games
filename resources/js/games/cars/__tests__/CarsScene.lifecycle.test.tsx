@@ -179,3 +179,26 @@ it('replays a successful StrictMode setup with one active canvas and loop', () =
   view.unmount()
   expect(second.dispose).toHaveBeenCalledTimes(1)
 })
+
+it('keeps recovery exposed when a failed saved level resumes, then restores its restart action', () => {
+  const failed = { ...generateLevel(1), failedLevel: { level: 1, reason: 'No matching car can board.' } }
+  saveLevelSnapshot(failed)
+  const saved = localStorage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)
+  const constructor = jest.mocked(THREE.WebGLRenderer)
+  const working = constructor.getMockImplementation()!
+  constructor.mockImplementation(() => { throw new Error('No WebGL') })
+  render(<CarsGame />)
+  expect(screen.getByRole('alert')).toHaveTextContent('Graphics unavailable')
+  expect(screen.queryByRole('dialog', { name: 'Level 1 Failed' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+  expect(screen.getByRole('button', { name: 'Retry graphics' })).toBeVisible()
+  expect(localStorage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(saved)
+  constructor.mockImplementation(working)
+  fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: 'Level 1 Failed' })).toBeVisible()
+  expect(localStorage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(saved)
+  fireEvent.click(screen.getByRole('button', { name: 'Restart Level' }))
+  expect(screen.queryByRole('dialog', { name: 'Level 1 Failed' })).not.toBeInTheDocument()
+  expect(JSON.parse(localStorage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)!).state.failedLevel).toBeNull()
+})
