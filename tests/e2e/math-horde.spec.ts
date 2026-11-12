@@ -101,7 +101,7 @@ test.describe('Math Horde gameplay', () => {
     await page.addInitScript(() => {
       Reflect.set(window, '__mathHordeBlockWebgl', true)
       localStorage.setItem('bwh.math-horde.tutorial.v1', 'seen')
-      const original = HTMLCanvasElement.prototype.getContext
+      const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
       Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
         configurable: true,
         value(this: HTMLCanvasElement, type: string, ...args: unknown[]) {
