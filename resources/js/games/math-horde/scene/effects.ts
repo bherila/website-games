@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import type { GameEvent, GameState } from '../gameTypes'
 import { PLAYER_WORLD_Z, toDisplayZ } from './constants'
 import { CanvasLabel } from './labels'
+import type { SceneResources } from './resources'
 
 const TRACER_POOL = 80
 const TRACER_LIFE = 0.07
@@ -47,29 +48,29 @@ export interface EffectsView {
   readonly shakeOffset: THREE.Vector2
 }
 
-export function createEffects(scene: THREE.Scene): EffectsView {
-  const tracerGeometry = new THREE.BoxGeometry(0.045, 0.045, 1)
-  const tracerMaterial = new THREE.MeshBasicMaterial({ color: '#fff36b' })
-  const tracers = new THREE.InstancedMesh(tracerGeometry, tracerMaterial, TRACER_POOL)
+export function createEffects(scene: THREE.Scene, resources: SceneResources): EffectsView {
+  const tracerGeometry = resources.own(new THREE.BoxGeometry(0.045, 0.045, 1))
+  const tracerMaterial = resources.own(new THREE.MeshBasicMaterial({ color: '#fff36b' }))
+  const tracers = resources.own(new THREE.InstancedMesh(tracerGeometry, tracerMaterial, TRACER_POOL))
   tracers.frustumCulled = false
   scene.add(tracers)
 
-  const popGeometry = new THREE.TetrahedronGeometry(0.16, 0)
-  const popMaterial = new THREE.MeshBasicMaterial({ color: '#ff7ba9' })
-  const pops = new THREE.InstancedMesh(popGeometry, popMaterial, POP_POOL)
+  const popGeometry = resources.own(new THREE.TetrahedronGeometry(0.16, 0))
+  const popMaterial = resources.own(new THREE.MeshBasicMaterial({ color: '#ff7ba9' }))
+  const pops = resources.own(new THREE.InstancedMesh(popGeometry, popMaterial, POP_POOL))
   pops.frustumCulled = false
   scene.add(pops)
 
-  const flashTexture = createFlashTexture()
+  const flashTexture = createFlashTexture(resources)
   const flashes: THREE.Sprite[] = []
   for (let index = 0; index < FLASH_POOL; index += 1) {
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    const sprite = new THREE.Sprite(resources.own(new THREE.SpriteMaterial({
       map: flashTexture,
       color: '#ffe58a',
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-    }))
+    })))
     sprite.scale.set(0.5, 0.5, 1)
     sprite.visible = false
     scene.add(sprite)
@@ -96,7 +97,7 @@ export function createEffects(scene: THREE.Scene): EffectsView {
   function spawnFloatingText(text: string, positive: boolean, x: number, worldZ: number): void {
     let entry = floatingTexts[floatCursor]
     if (!entry) {
-      const label = new CanvasLabel({ color: '#ffffff', glow: positive ? '#22d3ee' : '#fb7185', fontPx: 88 })
+      const label = new CanvasLabel({ color: '#ffffff', glow: positive ? '#22d3ee' : '#fb7185', fontPx: 88 }, resources)
       label.sprite.scale.set(1.6, 0.8, 1)
       scene.add(label.sprite)
       entry = { label, x, worldZ, age: 0 }
@@ -265,7 +266,7 @@ export function createEffects(scene: THREE.Scene): EffectsView {
   }
 }
 
-function createFlashTexture(): THREE.CanvasTexture {
+function createFlashTexture(resources: SceneResources): THREE.CanvasTexture {
   const canvas = document.createElement('canvas')
   canvas.width = 64
   canvas.height = 64
@@ -278,7 +279,7 @@ function createFlashTexture(): THREE.CanvasTexture {
     context.fillStyle = gradient
     context.fillRect(0, 0, 64, 64)
   }
-  const texture = new THREE.CanvasTexture(canvas)
+  const texture = resources.own(new THREE.CanvasTexture(canvas))
   texture.colorSpace = THREE.SRGBColorSpace
 
   return texture

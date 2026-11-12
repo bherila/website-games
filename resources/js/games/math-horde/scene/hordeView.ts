@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import type { GameState, RuntimeHorde } from '../gameTypes'
 import { toDisplayZ } from './constants'
 import { createLabelPool } from './labels'
+import type { SceneResources } from './resources'
 
 const MAX_ENEMY_INSTANCES = 360
 const UNITS_PER_HORDE = 48
@@ -13,18 +14,18 @@ export interface HordeView {
   update(state: GameState, dt: number): void
 }
 
-export function createHordeView(scene: THREE.Scene): HordeView {
-  const unitGeometry = new THREE.OctahedronGeometry(0.32, 0)
-  const unitMaterial = new THREE.MeshStandardMaterial({ color: '#ff2d78', emissive: '#b00048', emissiveIntensity: 0.9 })
-  const units = new THREE.InstancedMesh(unitGeometry, unitMaterial, MAX_ENEMY_INSTANCES)
+export function createHordeView(scene: THREE.Scene, resources: SceneResources): HordeView {
+  const unitGeometry = resources.own(new THREE.OctahedronGeometry(0.32, 0))
+  const unitMaterial = resources.own(new THREE.MeshStandardMaterial({ color: '#ff2d78', emissive: '#b00048', emissiveIntensity: 0.9 }))
+  const units = resources.own(new THREE.InstancedMesh(unitGeometry, unitMaterial, MAX_ENEMY_INSTANCES))
   scene.add(units)
 
-  const bossGeometry = new THREE.OctahedronGeometry(0.48, 0)
-  const bossMaterial = new THREE.MeshStandardMaterial({ color: '#ff8a00', emissive: '#a32b00', emissiveIntensity: 1.3, metalness: 0.45 })
-  const bossUnits = new THREE.InstancedMesh(bossGeometry, bossMaterial, MAX_ENEMY_INSTANCES)
+  const bossGeometry = resources.own(new THREE.OctahedronGeometry(0.48, 0))
+  const bossMaterial = resources.own(new THREE.MeshStandardMaterial({ color: '#ff8a00', emissive: '#a32b00', emissiveIntensity: 1.3, metalness: 0.45 }))
+  const bossUnits = resources.own(new THREE.InstancedMesh(bossGeometry, bossMaterial, MAX_ENEMY_INSTANCES))
   scene.add(bossUnits)
 
-  const labels = createLabelPool(scene, LABEL_POOL_SIZE, { color: '#ffd166', glow: '#e11d48', background: '#50122bcc' })
+  const labels = createLabelPool(scene, LABEL_POOL_SIZE, { color: '#ffd166', glow: '#e11d48', background: '#50122bcc' }, resources)
 
   const matrix = new THREE.Matrix4()
   const position = new THREE.Vector3()

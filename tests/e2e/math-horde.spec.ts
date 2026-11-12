@@ -92,4 +92,62 @@ test.describe('Math Horde gameplay', () => {
     await expect(page.getByRole('button', { name: 'Unmute sound', exact: true })).toBeVisible()
     expect(errors).toEqual([])
   })
+  test('graphics failure offers a safe menu and retries the waiting run paused', async ({ page, isMobile }) => {
+    if (!isMobile) {
+      await page.setViewportSize({ width: 1280, height: 720 })
+    }
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await page.addInitScript(() => {
+      Reflect.set(window, '__mathHordeBlockWebgl', true)
+      localStorage.setItem('bwh.math-horde.tutorial.v1', 'seen')
+      const original = HTMLCanvasElement.prototype.getContext
+      Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+        configurable: true,
+        value(this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+          if (/webgl/i.test(type) && Reflect.get(window, '__mathHordeBlockWebgl')) {
+            return null
+          }
+
+          return Reflect.apply(original, this, [type, ...args])
+        },
+      })
+    })
+    await page.goto('/math-horde')
+    await page.getByTestId('level-tile-1').click()
+    const recovery = page.getByRole('dialog', { name: 'Graphics unavailable', exact: true })
+    const retry = recovery.getByRole('button', { name: 'Retry graphics', exact: true })
+    await expect(retry).toBeVisible()
+    await expect(retry).toBeFocused()
+    await expect(page.getByTestId('math-horde-scene').locator('canvas')).toHaveCount(0)
+    await retry.click()
+    await expect(retry).toBeVisible()
+    await recovery.getByRole('button', { name: 'Level select', exact: true }).click()
+    await expect(page.getByTestId('level-tile-2')).toHaveAttribute('data-unlocked', 'false')
+    await page.getByTestId('level-tile-1').click()
+    await expect(retry).toBeVisible()
+    await page.keyboard.press('ArrowRight')
+    await page.evaluate(() => Reflect.set(window, '__mathHordeBlockWebgl', false))
+    await retry.focus()
+    await page.keyboard.press('Space')
+    await expect(recovery).toBeHidden()
+    await expect(page.getByTestId('math-horde-scene').locator('canvas')).toBeVisible()
+    const paused = page.getByRole('dialog', { name: 'Game paused', exact: true })
+    await expect(paused).toBeVisible()
+    const resume = paused.getByRole('button', { name: 'Resume', exact: true })
+    await expect(resume).toBeFocused()
+    await expect(page.getByTestId('army-size')).toHaveText('5')
+    await expect(page.getByText('SECTOR 1 · 0', { exact: true })).toBeVisible()
+    const progressIndicator = page.locator('section div[style^="width:"]').first()
+    await expect(progressIndicator).toHaveAttribute('style', 'width: 0%;')
+    await page.waitForTimeout(350)
+    await expect(progressIndicator).toHaveAttribute('style', 'width: 0%;')
+    await page.keyboard.press('Space')
+    await expect(paused).toBeHidden()
+    await expect(progressIndicator).not.toHaveAttribute('style', 'width: 0%;')
+    await page.getByRole('button', { name: 'Level select', exact: true }).click()
+    await expect(page.getByTestId('level-tile-2')).toHaveAttribute('data-unlocked', 'false')
+    expect(errors).toEqual([])
+  })
+
 })

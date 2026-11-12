@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import { TRACK_HALF_WIDTH } from '../gameEngine'
 import { PLAYER_WORLD_Z } from './constants'
+import type { SceneResources } from './resources'
 
 const GRID_TILE = 2
 const PYLON_SPACING = 8
@@ -15,23 +16,23 @@ export interface EnvironmentView {
  * Static-world illusion: the squad stays near the camera while the floor
  * texture and side pylons scroll past at the level's forward speed.
  */
-export function createEnvironment(scene: THREE.Scene, levelLength: number): EnvironmentView {
+export function createEnvironment(scene: THREE.Scene, levelLength: number, resources: SceneResources): EnvironmentView {
   scene.background = new THREE.Color('#070b21')
   scene.fog = new THREE.Fog('#070b21', 28, 80)
 
   scene.add(new THREE.HemisphereLight('#8be9ff', '#160024', 2.6))
-  const keyLight = new THREE.DirectionalLight('#ffffff', 2.2)
+  const keyLight = resources.own(new THREE.DirectionalLight('#ffffff', 2.2))
   keyLight.position.set(4, 10, 6)
   keyLight.castShadow = true
   scene.add(keyLight)
 
-  const floorTexture = createGridTexture()
+  const floorTexture = createGridTexture(resources)
   floorTexture.wrapS = THREE.RepeatWrapping
   floorTexture.wrapT = THREE.RepeatWrapping
   floorTexture.repeat.set((TRACK_HALF_WIDTH * 2 + 0.8) / GRID_TILE, 120 / GRID_TILE)
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(TRACK_HALF_WIDTH * 2 + 0.8, 120),
-    new THREE.MeshStandardMaterial({ map: floorTexture, color: '#8f9dff', metalness: 0.3, roughness: 0.7 }),
+    resources.own(new THREE.PlaneGeometry(TRACK_HALF_WIDTH * 2 + 0.8, 120)),
+    resources.own(new THREE.MeshStandardMaterial({ map: floorTexture, color: '#8f9dff', metalness: 0.3, roughness: 0.7 })),
   )
   floor.rotation.x = -Math.PI / 2
   floor.position.set(0, -0.02, PLAYER_WORLD_Z - 52)
@@ -39,21 +40,21 @@ export function createEnvironment(scene: THREE.Scene, levelLength: number): Envi
   scene.add(floor)
 
   const voidPlane = new THREE.Mesh(
-    new THREE.PlaneGeometry(60, 140),
-    new THREE.MeshBasicMaterial({ color: '#03040f' }),
+    resources.own(new THREE.PlaneGeometry(60, 140)),
+    resources.own(new THREE.MeshBasicMaterial({ color: '#03040f' })),
   )
   voidPlane.rotation.x = -Math.PI / 2
   voidPlane.position.set(0, -0.35, PLAYER_WORLD_Z - 55)
   scene.add(voidPlane)
 
-  const pylonGeometry = new THREE.BoxGeometry(0.3, 1.6, 0.3)
-  const pylonMaterial = new THREE.MeshStandardMaterial({ color: '#7028e4', emissive: '#4c1d95', emissiveIntensity: 1.4 })
-  const pylons = new THREE.InstancedMesh(pylonGeometry, pylonMaterial, PYLONS_PER_SIDE * 2)
+  const pylonGeometry = resources.own(new THREE.BoxGeometry(0.3, 1.6, 0.3))
+  const pylonMaterial = resources.own(new THREE.MeshStandardMaterial({ color: '#7028e4', emissive: '#4c1d95', emissiveIntensity: 1.4 }))
+  const pylons = resources.own(new THREE.InstancedMesh(pylonGeometry, pylonMaterial, PYLONS_PER_SIDE * 2))
   scene.add(pylons)
 
   const finishLine = new THREE.Mesh(
-    new THREE.BoxGeometry(TRACK_HALF_WIDTH * 2 + 0.8, 0.12, 0.6),
-    new THREE.MeshStandardMaterial({ color: '#fff36b', emissive: '#ca8a04', emissiveIntensity: 2 }),
+    resources.own(new THREE.BoxGeometry(TRACK_HALF_WIDTH * 2 + 0.8, 0.12, 0.6)),
+    resources.own(new THREE.MeshStandardMaterial({ color: '#fff36b', emissive: '#ca8a04', emissiveIntensity: 2 })),
   )
   scene.add(finishLine)
 
@@ -88,7 +89,7 @@ export function createEnvironment(scene: THREE.Scene, levelLength: number): Envi
   }
 }
 
-function createGridTexture(): THREE.CanvasTexture {
+function createGridTexture(resources: SceneResources): THREE.CanvasTexture {
   const canvas = document.createElement('canvas')
   canvas.width = 128
   canvas.height = 128
@@ -108,7 +109,7 @@ function createGridTexture(): THREE.CanvasTexture {
     context.stroke()
     context.globalAlpha = 1
   }
-  const texture = new THREE.CanvasTexture(canvas)
+  const texture = resources.own(new THREE.CanvasTexture(canvas))
   texture.colorSpace = THREE.SRGBColorSpace
 
   return texture

@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 
+import type { SceneResources } from './resources'
+
 const LABEL_REDRAW_INTERVAL = 0.08
 
 export interface LabelStyle {
@@ -24,14 +26,14 @@ export class CanvasLabel {
   private pending: string | null = null
   private cooldown = 0
 
-  constructor(style: LabelStyle) {
+  constructor(style: LabelStyle, resources: SceneResources) {
     this.style = style
     this.canvas = document.createElement('canvas')
     this.canvas.width = 256
     this.canvas.height = 128
-    this.texture = new THREE.CanvasTexture(this.canvas)
+    this.texture = resources.own(new THREE.CanvasTexture(this.canvas))
     this.texture.colorSpace = THREE.SRGBColorSpace
-    this.sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.texture, transparent: true, depthTest: false }))
+    this.sprite = new THREE.Sprite(resources.own(new THREE.SpriteMaterial({ map: this.texture, transparent: true, depthTest: false })))
     this.sprite.renderOrder = 10
   }
 
@@ -106,12 +108,12 @@ export interface LabelPool {
   tick(dt: number): void
 }
 
-export function createLabelPool(scene: THREE.Scene, size: number, style: LabelStyle): LabelPool {
+export function createLabelPool(scene: THREE.Scene, size: number, style: LabelStyle, resources: SceneResources): LabelPool {
   const labels: CanvasLabel[] = []
 
   function ensure(index: number): CanvasLabel {
     while (labels.length <= index) {
-      const label = new CanvasLabel(style)
+      const label = new CanvasLabel(style, resources)
       label.sprite.visible = false
       scene.add(label.sprite)
       labels.push(label)

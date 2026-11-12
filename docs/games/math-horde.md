@@ -47,3 +47,22 @@ live in `tests/e2e/math-horde.spec.ts`; run them with
 The desktop and 375px touch projects also run in the shared gameplay CI shards.
 Functional browser journeys use a 1280 by 720 desktop viewport, a 375 by 812 touch
 viewport, and device scale factor 1 to bound software WebGL cost.
+
+## Graphics recovery
+
+Graphics setup must complete a populated first draw before the run can advance,
+consume queued events, play event sounds, update the HUD, or record a result.
+If WebGL or scene setup fails, an accessible recovery dialog offers **Retry
+graphics** and **Level select**. Retry rebuilds graphics around the same in-memory
+run and leaves it paused for explicit resume; it does not create a new attempt or
+save an active run. Recovery hides tutorial, pause, and result dialogs until the
+graphics are ready. Keyboard, touch, pointer, and wheel steering are gated on
+readiness, and held input must be pressed again after recovery.
+
+Scene resources register when allocated, including partially built views. Cleanup
+stops callbacks and input, disposes GPU resources before the renderer, and removes
+the canvas even when an individual teardown operation throws. Focused lifecycle
+tests inject constructor, configuration, view, resize, update, and first-draw
+faults, cover StrictMode and stale callbacks, and verify same-run recovery. Browser
+coverage blocks WebGL context creation and restores it for retry on desktop and
+the 375px touch viewport.

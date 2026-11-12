@@ -1,9 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 
 import { MathHordeGame } from '../MathHordeGame'
 import { MathHordeScene } from '../MathHordeScene'
 
-jest.mock('../MathHordeScene', () => ({ MathHordeScene: jest.fn(() => <div data-testid="mock-math-horde-scene" />) }))
+let mockGraphicsStatus: 'loading' | 'ready' | 'error' = 'ready'
+jest.mock('../MathHordeScene', () => {
+  const { useLayoutEffect } = jest.requireActual('react')
+
+  return { MathHordeScene: jest.fn(({ onGraphicsStatus, graphicsAttempt }) => {
+    useLayoutEffect(() => onGraphicsStatus(mockGraphicsStatus), [graphicsAttempt, onGraphicsStatus])
+
+    return <div data-testid="mock-math-horde-scene" />
+  }) }
+})
 
 function startPlaying(): void {
   render(<MathHordeGame />)
@@ -16,7 +25,10 @@ function currentGameState() {
 }
 
 describe('MathHordeGame', () => {
-  beforeEach(() => window.localStorage.clear())
+  beforeEach(() => {
+    window.localStorage.clear()
+    mockGraphicsStatus = 'ready'
+  })
 
   it('starts at the campaign level select', () => {
     render(<MathHordeGame />)
@@ -126,4 +138,55 @@ describe('MathHordeGame', () => {
     fireEvent.keyDown(window, { code, repeat: true })
     expect(state.targetX).toBeCloseTo(originalTarget + 1.6 * direction)
   })
+  it('freezes parent shortcuts and callbacks until graphics recover around the same run', () => {
+    startPlaying()
+    const props = jest.mocked(MathHordeScene).mock.calls.at(-1)![0]
+    const state = props.state
+    fireEvent.keyDown(window, { code: 'ArrowRight' })
+    const target = state.targetX
+    act(() => props.onGraphicsStatus('error'))
+    expect(screen.getByRole('dialog', { name: 'Graphics unavailable' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Retry graphics' })).toHaveFocus()
+    expect(screen.queryByRole('dialog', { name: 'Game paused' })).not.toBeInTheDocument()
+    const progress = window.localStorage.getItem('bwh.math-horde.progress.v1')
+    act(() => {
+      props.onHud({ armySize: 99, progress: 1, score: 999, bossCount: null, bossInitialCount: null })
+      props.onFinish({ ...state, status: 'won', score: 999 })
+    })
+    expect(window.localStorage.getItem('bwh.math-horde.progress.v1')).toBe(progress)
+    fireEvent.keyDown(window, { code: 'ArrowRight', repeat: true })
+    fireEvent.keyDown(window, { code: 'Space' })
+    expect(state.targetX).toBe(target)
+    const retry = screen.getByRole('button', { name: 'Retry graphics' })
+    expect(fireEvent.keyDown(retry, { code: 'Space' })).toBe(true)
+    fireEvent.click(retry)
+    expect(currentGameState()).toBe(state)
+    const paused = screen.getByRole('dialog', { name: 'Game paused' })
+    const resume = screen.getAllByRole('button', { name: 'Resume' }).at(-1)!
+    expect(resume).toHaveFocus()
+    expect(screen.getByTestId('army-size')).toHaveTextContent('5')
+    fireEvent.click(resume)
+    expect(paused).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { code: 'ArrowRight', repeat: true })
+    expect(state.targetX).toBe(target)
+    fireEvent.keyUp(window, { code: 'ArrowRight' })
+    fireEvent.keyDown(window, { code: 'ArrowRight' })
+    expect(state.targetX).toBeCloseTo(target + 0.8)
+  })
+
+  it('keeps recovery above the tutorial and offers a safe level menu after repeated failure', () => {
+    mockGraphicsStatus = 'error'
+    render(<MathHordeGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    const state = currentGameState()
+    expect(screen.queryByRole('dialog', { name: 'How to play' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+    expect(currentGameState()).toBe(state)
+    expect(screen.getByRole('button', { name: 'Retry graphics' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Level select' }))
+    expect(screen.getByTestId('level-tile-1')).toHaveAttribute('data-unlocked', 'true')
+    expect(screen.getByTestId('level-tile-2')).toHaveAttribute('data-unlocked', 'false')
+    expect(state.elapsed).toBe(0)
+  })
+
 })
