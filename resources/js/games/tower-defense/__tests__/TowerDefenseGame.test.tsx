@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { type ReactElement, StrictMode } from 'react'
+import { type ReactElement, StrictMode, useEffect } from 'react'
 
 import { fetchWrapper } from '@/fetchWrapper'
 
@@ -19,6 +19,7 @@ interface SceneProps {
   speed: number
   onPointer: (pointer: BoardPointer) => void
   onHud: (hud: HudSnapshot) => void
+  onGraphicsAvailable: (state: GameState, available: boolean) => void
   onFinish: (state: GameState) => void
 }
 
@@ -29,6 +30,8 @@ jest.mock('@/fetchWrapper', () => ({ fetchWrapper: { getRaw: jest.fn(), put: jes
 jest.mock('../TowerDefenseScene', () => ({
   TowerDefenseScene: (props: SceneProps): ReactElement => {
     scene = props
+    const { onGraphicsAvailable, state } = props
+    useEffect(() => { onGraphicsAvailable(state, true) }, [onGraphicsAvailable, state])
 
     return <div data-testid="tower-defense-scene" />
   },
@@ -192,6 +195,28 @@ describe('TowerDefenseGame', () => {
     expect(screen.queryByRole('dialog', { name: 'Game paused' })).not.toBeInTheDocument()
     fireEvent.keyDown(window, { code: 'Space' })
     expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+  })
+
+  it('clears held keys on graphics failure and blocks commands until the same run retries paused', () => {
+    const state = startFirstLevel()
+    orderBuild(state, 'arrow', 3, 3)
+    fireEvent.keyDown(window, { code: 'ArrowRight' })
+    expect(state.hero.input.x).toBe(1)
+    act(() => scene?.onGraphicsAvailable(state, false))
+    expect(state.hero.input).toEqual({ x: 0, y: 0 })
+    const checkpoint = snapshotRun(state)
+    fireEvent.keyDown(window, { code: 'KeyN' })
+    fireEvent.keyDown(window, { code: 'ArrowLeft' })
+    fireEvent.keyDown(window, { code: 'Space' })
+    tap(10, 15)
+    expect(snapshotRun(state)).toEqual(checkpoint)
+    expect(scene?.active).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+    expect(scene?.state).toBe(state)
+    expect(scene?.active).toBe(false)
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+    fireEvent.keyUp(window, { code: 'ArrowRight' })
+    expect(snapshotRun(state)).toEqual(checkpoint)
   })
 
   it('records stars and unlocks the next level on a win', () => {

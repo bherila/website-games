@@ -75,6 +75,12 @@ snapshot objects are copied/validated, presentation events are discarded, and ph
 is cleared by the UI after reload. Bump `RUN_VERSION` if future simulation changes cannot continue
 old runs safely; a changed level signature also refuses an incompatible run without erasing stars.
 
+Graphics startup failures show a keyboard-accessible blocker with retry and level select.
+Retry rebuilds only the scene and keeps the current run paused, with physical keys cleared.
+No simulation or player commands run before the first successful draw. Returning to level select
+checkpoints the run and retains it in memory, so a failed write can still resume the current run
+without replacing the previous saved bytes. Partial graphics startup is cleaned up before retry.
+
 ## Art
 
 `docs/games/tower-defense-concept.webp` is the target look: warm, chunky, toy-like low poly. New models
