@@ -136,6 +136,7 @@ export function DesktopStatsHeader({ colorblindMode, state, onBackToMenu, onColo
 }
 
 interface BottomControlsProps {
+  gameplayPaused?: boolean
   stats: GameStats
   state: GameState
   vipSelectionActive: boolean
@@ -149,6 +150,7 @@ interface BottomControlsProps {
 }
 
 export function BottomControls({
+  gameplayPaused = false,
   stats,
   state,
   vipSelectionActive,
@@ -179,7 +181,7 @@ export function BottomControls({
           active={vipSelectionActive}
           confirmation={vipSelectionActive ? undefined : POWER_UP_CONFIRMATIONS.vip}
           count={state.powerUps.vip}
-          disabled={state.powerUps.vip < 1 || levelEnded}
+          disabled={gameplayPaused || state.powerUps.vip < 1 || levelEnded}
           icon={<Crown />}
           label="VIP"
           onClick={() => onVipSelectionActiveChange((current) => !current)}
@@ -188,7 +190,7 @@ export function BottomControls({
           accentClassName="bg-gradient-to-b from-violet-400 to-violet-600 text-white hover:from-violet-400 hover:to-violet-600"
           confirmation={POWER_UP_CONFIRMATIONS.shuffle}
           count={state.powerUps.shuffle}
-          disabled={state.powerUps.shuffle < 1 || levelEnded}
+          disabled={gameplayPaused || state.powerUps.shuffle < 1 || levelEnded}
           icon={<Shuffle />}
           label="Shuffle"
           onClick={onShuffle}
@@ -197,21 +199,21 @@ export function BottomControls({
           accentClassName="bg-gradient-to-b from-sky-400 to-sky-600 text-white hover:from-sky-400 hover:to-sky-600"
           confirmation={POWER_UP_CONFIRMATIONS.fill}
           count={state.powerUps.fill}
-          disabled={state.powerUps.fill < 1 || stats.parkedCars < 1 || levelEnded}
+          disabled={gameplayPaused || state.powerUps.fill < 1 || stats.parkedCars < 1 || levelEnded}
           icon={<Users />}
           label="Fill"
           onClick={onFill}
         />
         <span className="mx-0.5 h-9 w-px shrink-0 bg-slate-300/70 dark:bg-white/10" />
         <BottomControlButton
-          disabled={!stats.hasLockedRegularSlot || levelEnded}
+          disabled={gameplayPaused || !stats.hasLockedRegularSlot || levelEnded}
           icon={<Plus />}
           label="Open Spot"
           variant="outline"
           onClick={onOpenSlot}
         />
         <BottomControlButton
-          disabled={false}
+          disabled={gameplayPaused}
           icon={<RotateCcw />}
           label="Reset"
           variant="ghost"

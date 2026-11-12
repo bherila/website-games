@@ -170,7 +170,7 @@ The Fill button opens a confirmation dialog before passengers are pulled from th
 - Progress persistence: `resources/js/games/cars/gameProgress.ts` (board-state parsing), on the shared `_shared/campaignProgress.ts` factory for progress, inventory, database rows and the level snapshot. `_shared/__tests__/campaignProgress.dom.test.ts` pins every saved byte to fixtures captured before the factory existed.
 - Anonymous/legacy progress key: `bwh.cars-game.progress.v3`
 - Anonymous/legacy level snapshot key: `bwh.cars-game.snapshot.v3`
-- Rendering uses Three.js through Vite.
+- Rendering uses Three.js through Vite. Graphics initialization failures keep the level mounted with an accessible Retry graphics action and the existing level-select controls. Gameplay and boarding pause until the populated board renders successfully; retry and menu resume preserve the snapshot, progress, and preferences. Partial initialization teardown releases scene/shadow/environment resources before the renderer and always removes its canvas.
 - The active loop capacity is intentionally capped in the game engine; remaining visible passengers render on feeder lanes and are not eligible to board until they enter the loop.
 - The interface should be playable on a smartphone in portrait orientation, with compact controls and a camera framing that keeps the queue, parking row, and board visible without horizontal scrolling. Landscape support is best-effort with wider aspect ratios.
 - Scene rebuilds are split into a static group (ground, queue track, parking row, field) keyed by a signature, and a dynamic group rebuilt every state update. Moving cars (parking and blocked animations) are retained across rebuilds so animations are never cut short when other state changes.

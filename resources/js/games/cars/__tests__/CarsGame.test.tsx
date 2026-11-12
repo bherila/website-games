@@ -26,6 +26,7 @@ jest.mock('../CarsScene', () => {
       onCarClick,
       onHintPosition,
       onPassengerGate,
+      onReadyChange,
     }: {
       colorblindMode: boolean
       hintCarId?: string | null
@@ -34,7 +35,12 @@ jest.mock('../CarsScene', () => {
       onCarClick: (carId: string) => void
       onHintPosition?: (position: { x: number, y: number } | null) => void
       onPassengerGate: (passengerId: string) => void
+      onReadyChange?: (ready: boolean) => void
     }) => {
+      useEffect(() => {
+        onReadyChange?.(true)
+        return () => onReadyChange?.(false)
+      }, [onReadyChange])
       useEffect(() => {
         onHintPosition?.(hintCarId ? { x: 32, y: 64 } : null)
       }, [hintCarId, onHintPosition])
@@ -45,6 +51,8 @@ jest.mock('../CarsScene', () => {
 
       return (
         <div data-colorblind-mode={colorblindMode ? 'enabled' : 'disabled'} data-queue-length={state.passengerQueue.length} data-testid="cars-scene" data-vip-selection={vipSelectionActive ? 'active' : 'inactive'}>
+          <button type="button" onClick={() => onReadyChange?.(false)}>Pause mock graphics</button>
+          <button type="button" onClick={() => onReadyChange?.(true)}>Resume mock graphics</button>
           <button disabled={!movableCar} type="button" onClick={() => movableCar && onCarClick(movableCar.id)}>Move mock car</button>
           <button disabled={!blockedCar} type="button" onClick={() => blockedCar && onCarClick(blockedCar.id)}>Blocked mock car</button>
           <button disabled={!boardablePassenger} type="button" onClick={() => boardablePassenger && onPassengerGate(boardablePassenger.id)}>Board mock passenger</button>
@@ -321,6 +329,27 @@ describe('CarsGame', () => {
 
     expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeInTheDocument()
     expect(setMuted).toHaveBeenLastCalledWith(true)
+  })
+
+  it('rejects car and boarding callbacks while graphics are paused and enables them after recovery', () => {
+    saveAudioTestSnapshot(makeAudioTestState({
+      cars: [makeAudioTestCar({ id: 'red-car', status: 'parked', parkingSlotId: 'slot-1' }), makeAudioTestCar({ id: 'blue-car', color: 'blue', position: { x: 22, y: 5 } })],
+      parkingSlots: makeAudioTestParkingSlots().map((slot) => slot.id === 'slot-1' ? { ...slot, occupiedCarId: 'red-car' } : slot),
+      passengerQueue: [{ id: 'p1', color: 'red' }, { id: 'p2', color: 'red' }],
+      powerUps: { vip: 2, shuffle: 2, fill: 2 },
+    }))
+    render(<CarsGame />)
+    const saved = localStorage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)
+    fireEvent.click(screen.getByRole('button', { name: 'Pause mock graphics' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Move mock car' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Board all mock passengers' }))
+    for (const name of ['VIP', 'Shuffle', 'Fill', 'Open Spot', 'Reset']) expect(screen.getByRole('button', { name })).toBeDisabled()
+    expect(localStorage.getItem(LEVEL_SNAPSHOT_STORAGE_KEY)).toBe(saved)
+    expect(playSfx).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume mock graphics' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Board mock passenger' }))
+    expect(screen.getByTestId('cars-scene')).toHaveAttribute('data-queue-length', '1')
+    expect(playSfx).toHaveBeenCalledWith('passenger-board')
   })
 
   it('plays parking, boarding, and completion sound effects at game transitions', async () => {
