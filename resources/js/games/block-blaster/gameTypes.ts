@@ -26,6 +26,9 @@ export interface SceneProps {
   status: 'playing' | 'won' | 'lost'
   /** True until the player fires the first shot of a hinted tutorial level. */
   hintVisible: boolean
+  /** Startup failures retry graphics without beginning a new level attempt. */
+  onGraphicsUnavailable?: (unavailable: boolean) => void
+  onReturnToMenu: () => void
   onShotFired: () => void
   onBlocksCleared: (cleared: number, total: number) => void
   onWin: () => void

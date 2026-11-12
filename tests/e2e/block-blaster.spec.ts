@@ -43,6 +43,48 @@ test.describe('Block Blaster gameplay', () => {
   // Leave room for real physics and scene remounts on software WebGL runners.
   test.setTimeout(60_000)
 
+  test('unavailable WebGL offers retry and the level menu, then recovers with the same shot budget', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await page.addInitScript(() => {
+      let unavailable = true
+      window.addEventListener('enable-block-blaster-webgl', () => { unavailable = false })
+      // Reflect.apply below forwards the original canvas as the receiver.
+      // oxlint-disable-next-line typescript/unbound-method
+      const original = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, ...args: unknown[]) {
+        if (unavailable && contextId.startsWith('webgl')) return null
+        return Reflect.apply(original, this, [contextId, ...args])
+      } as typeof original
+    })
+    await page.goto('/block-blaster')
+    await page.getByTestId('level-tile-1').click()
+    const recovery = page.getByRole('alert')
+    await expect(recovery).toContainText('Graphics unavailable')
+    await expect(page.getByTestId('block-blaster-scene').locator('canvas')).toHaveCount(0)
+    await expect(page.getByTestId('tap-hint')).toHaveCount(0)
+    await recovery.getByRole('button', { name: 'Retry graphics' }).click()
+    await expect(recovery).toBeVisible()
+    await recovery.getByRole('button', { name: 'Level menu' }).click()
+    await expect(page.getByTestId('level-tile-1')).toHaveAttribute('aria-label', 'Level 1, 0 stars')
+    await expect(page.getByTestId('level-tile-2')).toHaveAttribute('data-unlocked', 'false')
+    await page.getByTestId('level-tile-1').click()
+    await expect(recovery).toBeVisible()
+    await page.evaluate(() => window.dispatchEvent(new Event('enable-block-blaster-webgl')))
+    await recovery.getByRole('button', { name: 'Retry graphics' }).click()
+    await expect(recovery).toHaveCount(0)
+    await expect(page.getByLabel('Level 1', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Balls remaining 5', { exact: true })).toBeVisible()
+    await expect(page.getByTestId('block-blaster-scene').locator('canvas')).toHaveCount(1)
+    await expect(page.getByTestId('tap-hint')).toBeVisible()
+    await shootWide(page)
+    await expect(page.getByLabel('Balls remaining 4', { exact: true })).toBeVisible()
+    await page.waitForTimeout(350)
+    await shootWide(page)
+    await expect(page.getByLabel('Balls remaining 3', { exact: true })).toBeVisible()
+    expect(errors).toEqual([])
+  })
+
   test('the tutorial shot earns stars, unlocks the next level, and keeps progress after reload', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(String(error)))
