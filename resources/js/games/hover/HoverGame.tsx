@@ -361,13 +361,13 @@ export function HoverGame(): ReactElement {
             <h1 className="mb-3 text-2xl font-bold">{graphicsStatus === 'failed' ? 'Graphics could not start' : 'Starting graphics…'}</h1>
             {graphicsStatus === 'failed' ? <>
               <p className="mb-6 text-slate-300">Your round is on hold. Try starting the graphics again to continue.</p>
-              <button ref={retryRef} type="button" className="rounded-lg bg-cyan-600 px-5 py-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" onClick={() => {
+              <button ref={retryRef} type="button" className="rounded-lg bg-cyan-800 px-5 py-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" onClick={() => {
                 retryingRef.current = true
                 handleGraphicsStatus('starting')
                 setGraphicsAttempt((attempt) => attempt + 1)
               }}>Retry graphics</button>
             </> : null}
-            <a href="/" className="mt-6 block rounded py-2 underline">← All Games</a>
+            <a href="/" className="mt-6 block rounded py-2 text-cyan-200 underline hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">← All Games</a>
           </div>
         </div>
       ) : null}

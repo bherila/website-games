@@ -350,7 +350,9 @@ export function HoverScene({
           weather?.update(dt, state.player.pos.x, state.player.pos.z)
 
           frameToggle = !frameToggle
-          if (frameToggle) {
+          // Retry remounts the HUD after the first draw. Paint each idle
+          // settle frame so the new minimap is filled before parking.
+          if (frameToggle || idleRef.current) {
             const minimapCanvas = minimapCanvasRef.current
             const ctx = minimapCanvas?.getContext('2d')
             if (minimapCanvas && ctx) {

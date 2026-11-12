@@ -7,6 +7,7 @@ import { createRng } from '../engine/rng'
 import type { EngineState } from '../gameTypes'
 import { HoverScene } from '../HoverScene'
 import { neutralInput } from '../input/inputState'
+import { drawMinimap } from '../scene/minimap'
 import { renderMirror } from '../scene/mirror'
 import { buildMapScene } from '../scene/sceneBuilder'
 
@@ -17,6 +18,7 @@ jest.mock('three', () => {
     getDelta() { this.elapsedTime += 0.1; return 0.1 }
   } }
 })
+jest.mock('../scene/minimap', () => ({ drawMinimap: jest.fn() }))
 jest.mock('../scene/sceneBuilder', () => ({ buildMapScene: jest.fn() }))
 jest.mock('../scene/craftMeshes', () => {
   const three = jest.requireActual<typeof import('three')>('three')
@@ -76,7 +78,7 @@ describe('Hover graphics startup', () => {
   afterEach(() => jest.restoreAllMocks())
 
   function props(state: EngineState | null = round()) {
-    return { engineRef: { current: state }, graphicsAttempt: 0, onGraphicsStatus: jest.fn(), running: true, idle: false, readInput: neutralInput, onEvents: jest.fn(), onHudSnapshot: jest.fn(), minimapCanvasRef: { current: null } }
+    return { engineRef: { current: state }, graphicsAttempt: 0, onGraphicsStatus: jest.fn(), running: true, idle: false, readInput: neutralInput, onEvents: jest.fn(), onHudSnapshot: jest.fn(), minimapCanvasRef: { current: null as HTMLCanvasElement | null } }
   }
 
   test.each(['constructor', 'setup', 'clear', 'build', 'main', 'mirror'])('%s failure is contained and retry draws the unchanged engine before stepping', (fault) => {
@@ -160,6 +162,24 @@ describe('Hover graphics startup', () => {
     expect(order).toEqual(['geometry', 'texture', 'material', 'shadow', 'background', 'renderer'])
     expect(view.container.querySelector('canvas')).toBeNull()
     expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(frames.size).toBe(0)
+  })
+
+  test('a paused retry paints its remounted minimap before parking', () => {
+    const options = props()
+    render(<HoverScene {...options} idle />)
+    // The first synchronous populated frame reports ready before the parent
+    // remounts its HUD canvas. The remaining settle frame must paint it.
+    expect(drawMinimap).not.toHaveBeenCalled()
+    const canvas = document.createElement('canvas')
+    canvas.width = 200
+    canvas.height = 200
+    const context = { save: jest.fn(), scale: jest.fn(), restore: jest.fn() } as unknown as CanvasRenderingContext2D
+    jest.spyOn(canvas, 'getContext').mockReturnValue(context)
+    options.minimapCanvasRef.current = canvas
+    frame()
+    expect(drawMinimap).toHaveBeenCalledWith(context, options.engineRef.current, 200, 200)
+    frame()
     expect(frames.size).toBe(0)
   })
 

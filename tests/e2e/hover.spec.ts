@@ -207,7 +207,7 @@ test.describe('Hover gameplay', () => {
       const errors: string[] = []
       page.on('pageerror', (error) => errors.push(String(error)))
       await page.addInitScript(() => {
-        const original = HTMLCanvasElement.prototype.getContext
+        const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
         HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, ...args: unknown[]) {
           if (contextId.includes('webgl')) return null
           return Reflect.apply(original, this, [contextId, ...args])
