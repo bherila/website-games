@@ -4,6 +4,7 @@ import type { GameState } from '../gameTypes'
 import { MAX_ARMY_SIZE } from '../gameTypes'
 import { PLAYER_WORLD_Z } from './constants'
 import { CanvasLabel } from './labels'
+import type { SceneResources } from './resources'
 
 const COLUMNS = 8
 const COLUMN_SPACING = 0.42
@@ -14,17 +15,17 @@ export interface SquadView {
   update(state: GameState, dt: number): void
 }
 
-export function createSquadView(scene: THREE.Scene): SquadView {
-  const bodyGeometry = new THREE.CapsuleGeometry(0.18, 0.42, 3, 8)
-  const gunGeometry = new THREE.BoxGeometry(0.09, 0.09, 0.5)
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: '#3cf5ff', emissive: '#007c90', emissiveIntensity: 0.7 })
-  const gunMaterial = new THREE.MeshStandardMaterial({ color: '#d4d4d8', metalness: 0.8, roughness: 0.25 })
-  const bodies = new THREE.InstancedMesh(bodyGeometry, bodyMaterial, MAX_ARMY_SIZE)
-  const guns = new THREE.InstancedMesh(gunGeometry, gunMaterial, MAX_ARMY_SIZE)
+export function createSquadView(scene: THREE.Scene, resources: SceneResources): SquadView {
+  const bodyGeometry = resources.own(new THREE.CapsuleGeometry(0.18, 0.42, 3, 8))
+  const gunGeometry = resources.own(new THREE.BoxGeometry(0.09, 0.09, 0.5))
+  const bodyMaterial = resources.own(new THREE.MeshStandardMaterial({ color: '#3cf5ff', emissive: '#007c90', emissiveIntensity: 0.7 }))
+  const gunMaterial = resources.own(new THREE.MeshStandardMaterial({ color: '#d4d4d8', metalness: 0.8, roughness: 0.25 }))
+  const bodies = resources.own(new THREE.InstancedMesh(bodyGeometry, bodyMaterial, MAX_ARMY_SIZE))
+  const guns = resources.own(new THREE.InstancedMesh(gunGeometry, gunMaterial, MAX_ARMY_SIZE))
   bodies.castShadow = true
   scene.add(bodies, guns)
 
-  const countLabel = new CanvasLabel({ color: '#7dfbff', glow: '#0891b2', background: '#0b355088' })
+  const countLabel = new CanvasLabel({ color: '#7dfbff', glow: '#0891b2', background: '#0b355088' }, resources)
   countLabel.sprite.scale.set(1.9, 0.95, 1)
   scene.add(countLabel.sprite)
 
@@ -34,14 +35,14 @@ export function createSquadView(scene: THREE.Scene): SquadView {
   const scale = new THREE.Vector3(1, 1, 1)
   const spawnAt = new Float32Array(MAX_ARMY_SIZE).fill(-POP_IN_SECONDS)
   let clock = 0
-  let previousCount = 0
+  let previousCount = -1
 
   return {
     update(state: GameState, dt: number): void {
       clock += dt
       const count = Math.min(MAX_ARMY_SIZE, state.armySize)
-      for (let index = previousCount; index < count; index += 1) {
-        spawnAt[index] = clock
+      for (let index = Math.max(0, previousCount); index < count; index += 1) {
+        spawnAt[index] = previousCount < 0 ? clock - POP_IN_SECONDS : clock
       }
       previousCount = count
       for (let index = 0; index < count; index += 1) {

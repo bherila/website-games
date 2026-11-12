@@ -4,6 +4,7 @@ import { GATE_SIDE_X } from '../gameEngine'
 import type { GameState, RuntimeGateSide } from '../gameTypes'
 import { toDisplayZ } from './constants'
 import { CanvasLabel } from './labels'
+import type { SceneResources } from './resources'
 
 const PANEL_WIDTH = 2.4
 const PANEL_HEIGHT = 2.6
@@ -31,29 +32,29 @@ export function sideLabelText(side: RuntimeGateSide): string {
   return `${symbol}${side.value}`
 }
 
-function createGateSideView(scene: THREE.Scene, side: RuntimeGateSide, x: number): GateSideView {
+function createGateSideView(scene: THREE.Scene, side: RuntimeGateSide, x: number, resources: SceneResources): GateSideView {
   const positive = isPositiveSide(side)
   const group = new THREE.Group()
 
-  const panelMaterial = new THREE.MeshBasicMaterial({
+  const panelMaterial = resources.own(new THREE.MeshBasicMaterial({
     color: positive ? '#1d9bff' : '#ff2d5e',
     transparent: true,
     opacity: 0.28,
     blending: THREE.AdditiveBlending,
     side: THREE.DoubleSide,
     depthWrite: false,
-  })
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(PANEL_WIDTH, PANEL_HEIGHT), panelMaterial)
+  }))
+  const panel = new THREE.Mesh(resources.own(new THREE.PlaneGeometry(PANEL_WIDTH, PANEL_HEIGHT)), panelMaterial)
   panel.position.y = PANEL_HEIGHT / 2
   group.add(panel)
 
-  const frameMaterial = new THREE.MeshStandardMaterial({
+  const frameMaterial = resources.own(new THREE.MeshStandardMaterial({
     color: positive ? '#1dd3ff' : '#ff2d78',
     emissive: positive ? '#0891b2' : '#be123c',
     emissiveIntensity: 1.6,
-  })
-  const postGeometry = new THREE.BoxGeometry(0.1, PANEL_HEIGHT, 0.1)
-  const barGeometry = new THREE.BoxGeometry(PANEL_WIDTH + 0.1, 0.1, 0.1)
+  }))
+  const postGeometry = resources.own(new THREE.BoxGeometry(0.1, PANEL_HEIGHT, 0.1))
+  const barGeometry = resources.own(new THREE.BoxGeometry(PANEL_WIDTH + 0.1, 0.1, 0.1))
   const leftPost = new THREE.Mesh(postGeometry, frameMaterial)
   const rightPost = new THREE.Mesh(postGeometry, frameMaterial)
   const topBar = new THREE.Mesh(barGeometry, frameMaterial)
@@ -66,7 +67,7 @@ function createGateSideView(scene: THREE.Scene, side: RuntimeGateSide, x: number
     color: '#ffffff',
     glow: positive ? '#22d3ee' : '#fb7185',
     fontPx: 96,
-  })
+  }, resources)
   label.setTextNow(sideLabelText(side))
   label.sprite.position.set(0, PANEL_HEIGHT / 2 + 0.25, 0.06)
   label.sprite.scale.set(2.1, 1.05, 1)
@@ -78,10 +79,10 @@ function createGateSideView(scene: THREE.Scene, side: RuntimeGateSide, x: number
   return { group, panelMaterial, frameMaterial, label, positive }
 }
 
-export function createGateView(scene: THREE.Scene, state: GameState): GateView {
+export function createGateView(scene: THREE.Scene, state: GameState, resources: SceneResources): GateView {
   const views = state.gatePairs.map((gatePair) => ({
-    left: createGateSideView(scene, gatePair.left, -GATE_SIDE_X),
-    right: createGateSideView(scene, gatePair.right, GATE_SIDE_X),
+    left: createGateSideView(scene, gatePair.left, -GATE_SIDE_X, resources),
+    right: createGateSideView(scene, gatePair.right, GATE_SIDE_X, resources),
     fadeAge: 0,
   }))
 
