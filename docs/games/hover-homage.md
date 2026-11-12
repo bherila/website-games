@@ -241,6 +241,21 @@ speedUp 40 / jump 35 / slowDown 25.
 - **Drone:** squashed sphere body, dark canopy dome, two emissive blue torus rings (counter-rotating),
   hover skirt cone, blue point light.
 
+### Graphics startup recovery
+
+`HoverScene` reports `starting | ready | failed` to the parent. Startup includes renderer construction,
+configuration, the attract-screen clear, each new round build, and its first populated **main and mirror**
+draw. A failure releases the partially built scene (including textures, shadow targets, weather and
+cockpit), renderer and canvas, cancels RAF/resize work, and shows a focused **Retry graphics** button and
+**All Games** link. Disposal failures do not prevent the remaining cleanup or canvas removal.
+
+Retry creates only graphics resources. The parent's exact `EngineState` object, score, losses, flags and
+RNG stay in place. Simulation cannot run before that round's first good populated draw; input, touch and
+engine hum are held while graphics are unavailable. Parent intro/result deadlines retain their remaining
+time during the hold. The attract screen can become ready after a successful clear, but starting a round
+holds its intro until the populated scene has drawn. The parked idle loop and full-rate mirror remain.
+This recovery handles startup failures; it does not add runtime context-loss recovery or saved checkpoints.
+
 ### Performance decisions (as of #1475)
 
 1. **Static-only shadow map:** dynamic meshes don't cast; `renderer.shadowMap.autoUpdate = false` and

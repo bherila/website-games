@@ -1,13 +1,23 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { useEffect } from 'react'
 
+import type { EngineState } from '../gameTypes'
 import { HOVER_SETTINGS_STORAGE_KEY } from '../gameTypes'
 import { HoverGame } from '../HoverGame'
+import type { GraphicsStatus } from '../HoverScene'
+
+let mockSceneProps: { engineRef: { current: EngineState | null }; onGraphicsStatus: (status: GraphicsStatus) => void; onEvents: (events: Array<{ kind: 'win' | 'lose' }>) => void; running: boolean; graphicsAttempt: number; readInput: () => { thrust: number } }
+let mockGraphicsReady = true
 
 jest.mock('../HoverScene', () => {
   const actual = jest.requireActual<typeof import('../HoverScene')>('../HoverScene')
   return {
     buildHudSnapshot: actual.buildHudSnapshot,
-    HoverScene: function MockHoverScene() {
+    HoverScene: function MockHoverScene(props: typeof mockSceneProps) {
+      mockSceneProps = props
+      useEffect(() => {
+        if (mockGraphicsReady) props.onGraphicsStatus('ready')
+      })
       return null
     },
   }
@@ -15,6 +25,7 @@ jest.mock('../HoverScene', () => {
 
 describe('HoverGame', () => {
   beforeEach(() => {
+    mockGraphicsReady = true
     jest.useFakeTimers()
     window.localStorage.clear()
   })
@@ -91,4 +102,57 @@ describe('HoverGame', () => {
     expect(raw).not.toBeNull()
     expect(JSON.parse(raw ?? '{}')).toEqual({ version: 1, muted: true })
   })
+
+  test('graphics failure holds the intro and retry preserves the same round and native controls', () => {
+    render(<HoverGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start Engine' }))
+    const state = mockSceneProps.engineRef.current!
+    state.score = 1234
+    state.lossesOnMap = 2
+    const before = JSON.stringify(state)
+    fireEvent.keyDown(window, { code: 'KeyW' })
+    act(() => {
+      mockGraphicsReady = false
+      mockSceneProps.onGraphicsStatus('failed')
+    })
+    expect(screen.getByRole('button', { name: 'Retry graphics' })).toHaveFocus()
+    expect(screen.getByRole('link', { name: /All Games/ })).toHaveAttribute('href', '/')
+    expect(screen.queryByText(/CYCLE 1/)).not.toBeInTheDocument()
+    expect(mockSceneProps.running).toBe(false)
+    expect(mockSceneProps.readInput().thrust).toBe(0)
+    fireEvent.keyDown(window, { code: 'Escape' })
+    act(() => jest.advanceTimersByTime(10_000))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+    expect(mockSceneProps.graphicsAttempt).toBe(1)
+    expect(mockSceneProps.engineRef.current).toBe(state)
+    expect(JSON.stringify(state)).toBe(before)
+    act(() => mockSceneProps.onGraphicsStatus('ready'))
+    expect(mockSceneProps.readInput().thrust).toBe(0)
+    expect(screen.getByText(/CYCLE 1/)).toBeInTheDocument()
+    act(() => jest.advanceTimersByTime(2500))
+    expect(mockSceneProps.running).toBe(true)
+  })
+
+  test.each(['win', 'lose'] as const)('graphics hold suspends the %s transition deadline', (kind) => {
+    render(<HoverGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start Engine' }))
+    act(() => jest.advanceTimersByTime(2500))
+    const state = mockSceneProps.engineRef.current!
+    act(() => mockSceneProps.onEvents([{ kind }]))
+    act(() => jest.advanceTimersByTime(500))
+    act(() => {
+      mockGraphicsReady = false
+      mockSceneProps.onGraphicsStatus('failed')
+    })
+    act(() => jest.advanceTimersByTime(10_000))
+    expect(mockSceneProps.engineRef.current).toBe(state)
+    act(() => mockSceneProps.onGraphicsStatus('ready'))
+    act(() => jest.advanceTimersByTime(2000))
+    expect(mockSceneProps.engineRef.current).toBe(state)
+    act(() => jest.advanceTimersByTime(501))
+    expect(mockSceneProps.engineRef.current).not.toBe(state)
+    expect(mockSceneProps.engineRef.current?.roundIndex).toBe(kind === 'win' ? 1 : 0)
+    expect(mockSceneProps.engineRef.current?.lossesOnMap).toBe(kind === 'win' ? 0 : 1)
+  })
+
 })
