@@ -349,12 +349,6 @@ export function HoverScene({
 
           weather?.update(dt, state.player.pos.x, state.player.pos.z)
 
-          hudTimer += dt
-          if (hudTimer >= HUD_SNAPSHOT_INTERVAL_SEC) {
-            hudTimer = 0
-            onHudSnapshotRef.current(buildHudSnapshot(state))
-          }
-
           frameToggle = !frameToggle
           if (frameToggle) {
             const minimapCanvas = minimapCanvasRef.current
@@ -383,6 +377,12 @@ export function HoverScene({
             clock.getDelta()
             onGraphicsStatusRef.current('ready')
           }
+          hudTimer += dt
+          if (hudTimer >= HUD_SNAPSHOT_INTERVAL_SEC) {
+            hudTimer = 0
+            onHudSnapshotRef.current(buildHudSnapshot(state))
+          }
+
           renderedFrames += 1
           if (visualOptions.enabled && renderedFrames === 3) {
             markHoverVisualReady({

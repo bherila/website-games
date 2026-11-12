@@ -23,6 +23,7 @@ const MAP_LOST_MS = 2600
 export function HoverGame(): ReactElement {
   const [graphicsStatus, setGraphicsStatus] = useState<GraphicsStatus>('starting')
   const [graphicsAttempt, setGraphicsAttempt] = useState(0)
+  const graphicsStatusRef = useRef<GraphicsStatus>('starting')
   const graphicsReadyRef = useRef(false)
   const shellRef = useRef<HTMLDivElement | null>(null)
   const retryingRef = useRef(false)
@@ -62,14 +63,19 @@ export function HoverGame(): ReactElement {
     if (status !== 'ready') {
       inputRef.current?.detach()
       touchHandle?.reset()
+    } else {
+      // Starting and ready may be batched into one commit. Reconnect the
+      // existing source even when React sees no final status change.
+      inputRef.current?.attach()
     }
+    graphicsStatusRef.current = status
     graphicsReadyRef.current = status === 'ready'
     setGraphicsStatus(status)
   }, [touchHandle])
 
   const beginRound = useCallback(
     (roundIndex: number, score: number, lossesOnMap: number): void => {
-      handleGraphicsStatus('starting')
+      if (graphicsStatusRef.current !== 'failed') handleGraphicsStatus('starting')
       const visual = readHoverVisualTestOptions()
       const seed =
         visual.enabled && visual.seed !== null ? (visual.seed + roundIndex) >>> 0 : (Date.now() ^ (roundIndex * 0x9e3779b9)) >>> 0

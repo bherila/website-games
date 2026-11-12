@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useEffect } from 'react'
 
+import { createEngineState } from '../engine/engine'
 import type { EngineState } from '../gameTypes'
 import { HOVER_SETTINGS_STORAGE_KEY } from '../gameTypes'
 import { HoverGame } from '../HoverGame'
@@ -8,6 +9,7 @@ import type { GraphicsStatus } from '../HoverScene'
 
 let mockSceneProps: { engineRef: { current: EngineState | null }; onGraphicsStatus: (status: GraphicsStatus) => void; onEvents: (events: Array<{ kind: 'win' | 'lose' }>) => void; running: boolean; graphicsAttempt: number; readInput: () => { thrust: number } }
 let mockGraphicsReady = true
+let mockInitialGraphicsFailure = false
 
 jest.mock('../HoverScene', () => {
   const actual = jest.requireActual<typeof import('../HoverScene')>('../HoverScene')
@@ -17,21 +19,30 @@ jest.mock('../HoverScene', () => {
       mockSceneProps = props
       useEffect(() => {
         if (mockGraphicsReady) props.onGraphicsStatus('ready')
+        else if (mockInitialGraphicsFailure) props.onGraphicsStatus('failed')
       })
       return null
     },
   }
 })
 
+jest.mock('../engine/engine', () => {
+  const actual = jest.requireActual<typeof import('../engine/engine')>('../engine/engine')
+  return { ...actual, createEngineState: jest.fn(actual.createEngineState) }
+})
+
 describe('HoverGame', () => {
   beforeEach(() => {
+    jest.clearAllMocks()
     mockGraphicsReady = true
+    mockInitialGraphicsFailure = false
     jest.useFakeTimers()
     window.localStorage.clear()
   })
 
   afterEach(() => {
     jest.useRealTimers()
+    window.history.replaceState({}, '', '/')
   })
 
   test('shows the attract screen with controls and start button', () => {
@@ -103,6 +114,24 @@ describe('HoverGame', () => {
     expect(JSON.parse(raw ?? '{}')).toEqual({ version: 1, muted: true })
   })
 
+  test('auto-start keeps a visible constructor failure until graphics are retried', () => {
+    window.history.replaceState({}, '', '/hover?visualTest=1&autoStart=1&seed=42')
+    mockGraphicsReady = false
+    mockInitialGraphicsFailure = true
+    render(<HoverGame />)
+    expect(screen.getByRole('button', { name: 'Retry graphics' })).toHaveFocus()
+    const state = mockSceneProps.engineRef.current
+    expect(state).not.toBeNull()
+    act(() => jest.advanceTimersByTime(10_000))
+    expect(mockSceneProps.running).toBe(false)
+    mockInitialGraphicsFailure = false
+    mockGraphicsReady = true
+    fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+    expect(mockSceneProps.engineRef.current).toBe(state)
+    expect(createEngineState).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/CYCLE 1/)).toBeInTheDocument()
+  })
+
   test('graphics failure holds the intro and retry preserves the same round and native controls', () => {
     render(<HoverGame />)
     fireEvent.click(screen.getByRole('button', { name: 'Start Engine' }))
@@ -126,11 +155,55 @@ describe('HoverGame', () => {
     expect(mockSceneProps.graphicsAttempt).toBe(1)
     expect(mockSceneProps.engineRef.current).toBe(state)
     expect(JSON.stringify(state)).toBe(before)
+    expect(createEngineState).toHaveBeenCalledTimes(1)
     act(() => mockSceneProps.onGraphicsStatus('ready'))
     expect(mockSceneProps.readInput().thrust).toBe(0)
     expect(screen.getByText(/CYCLE 1/)).toBeInTheDocument()
     act(() => jest.advanceTimersByTime(2500))
     expect(mockSceneProps.running).toBe(true)
+  })
+
+  test('batched starting and ready signals clear stale keys and reconnect fresh input', () => {
+    render(<HoverGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start Engine' }))
+    fireEvent.keyDown(window, { code: 'KeyW' })
+    expect(mockSceneProps.readInput().thrust).toBe(1)
+    act(() => {
+      mockSceneProps.onGraphicsStatus('starting')
+      mockSceneProps.onGraphicsStatus('ready')
+    })
+    expect(mockSceneProps.readInput().thrust).toBe(0)
+    fireEvent.keyDown(window, { code: 'KeyW', repeat: true })
+    expect(mockSceneProps.readInput().thrust).toBe(0)
+    fireEvent.keyUp(window, { code: 'KeyW' })
+    fireEvent.keyDown(window, { code: 'KeyW' })
+    expect(mockSceneProps.readInput().thrust).toBe(1)
+  })
+
+  test('holding a movement key across retry requires a fresh press after recovery', () => {
+    render(<HoverGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start Engine' }))
+    fireEvent.keyDown(window, { code: 'KeyW' })
+    act(() => {
+      mockGraphicsReady = false
+      mockSceneProps.onGraphicsStatus('failed')
+    })
+    mockGraphicsReady = true
+    fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
+    fireEvent.keyDown(window, { code: 'KeyW', repeat: true })
+    expect(mockSceneProps.readInput().thrust).toBe(0)
+    fireEvent.keyUp(window, { code: 'KeyW' })
+    fireEvent.keyDown(window, { code: 'KeyW' })
+    expect(mockSceneProps.readInput().thrust).toBe(1)
+  })
+
+  test('healthy native buttons retain Space activation without capturing movement keys', () => {
+    render(<HoverGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start Engine' }))
+    const mute = screen.getByRole('button', { name: 'Mute sound' })
+    expect(fireEvent.keyDown(mute, { code: 'Space' })).toBe(true)
+    fireEvent.keyDown(mute, { code: 'KeyW' })
+    expect(mockSceneProps.readInput().thrust).toBe(1)
   })
 
   test.each(['win', 'lose'] as const)('graphics hold suspends the %s transition deadline', (kind) => {

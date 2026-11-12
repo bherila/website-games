@@ -14,7 +14,7 @@ jest.mock('three', () => {
   const actual = jest.requireActual<typeof import('three')>('three')
   return { ...actual, WebGLRenderer: jest.fn(), Clock: class {
     elapsedTime = 0
-    getDelta() { this.elapsedTime += 0.05; return 0.05 }
+    getDelta() { this.elapsedTime += 0.1; return 0.1 }
   } }
 })
 jest.mock('../scene/sceneBuilder', () => ({ buildMapScene: jest.fn() }))
@@ -65,7 +65,7 @@ describe('Hover graphics startup', () => {
     jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { frames.set(++nextFrame, callback); return nextFrame })
     jest.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id) })
     disconnect = jest.fn()
-    global.ResizeObserver = class {
+    globalThis.ResizeObserver = class {
       constructor(callback: ResizeObserverCallback) { staleResize = callback }
       observe = jest.fn()
       unobserve = jest.fn()
@@ -83,7 +83,6 @@ describe('Hover graphics startup', () => {
     const options = props(fault === 'clear' ? null : round())
     const state = options.engineRef.current
     const before = JSON.stringify(state)
-    const rng = state?.rng
     if (fault === 'constructor') jest.mocked(THREE.WebGLRenderer).mockImplementationOnce(() => { throw new Error('context unavailable') })
     if (fault === 'setup') renderer.setSize.mockImplementationOnce(() => { throw new Error('size failed') })
     if (fault === 'clear') renderer.clear.mockImplementationOnce(() => { throw new Error('clear failed') })
@@ -92,10 +91,10 @@ describe('Hover graphics startup', () => {
     if (fault === 'mirror') jest.mocked(renderMirror).mockImplementationOnce(() => { throw new Error('mirror failed') })
     const view = render(<HoverScene {...options} />)
     expect(options.onGraphicsStatus).toHaveBeenLastCalledWith('failed')
+    expect(options.onHudSnapshot).not.toHaveBeenCalled()
     expect(view.container.querySelector('canvas')).toBeNull()
     expect(frames.size).toBe(0)
     expect(JSON.stringify(state)).toBe(before)
-    expect(state?.rng).toBe(rng)
     act(() => staleResize([], {} as ResizeObserver))
     view.rerender(<HoverScene {...options} graphicsAttempt={1} />)
     expect(options.engineRef.current).toBe(state)
@@ -108,13 +107,14 @@ describe('Hover graphics startup', () => {
     }
   })
 
-  test('attract clear parks; a later round build failure recovers without consuming round time', () => {
+  test.each(['build', 'mirror'])('attract clear parks; a later round %s failure recovers without consuming round time', (fault) => {
     const options = props(null)
     const view = render(<HoverScene {...options} />)
     expect(frames.size).toBe(0)
     options.engineRef.current = round()
     const before = JSON.stringify(options.engineRef.current)
-    jest.mocked(renderMirror).mockImplementationOnce(() => { throw new Error('first populated mirror failed') })
+    if (fault === 'build') jest.mocked(buildMapScene).mockImplementationOnce(() => { throw new Error('first round build failed') })
+    else jest.mocked(renderMirror).mockImplementationOnce(() => { throw new Error('first populated mirror failed') })
     view.rerender(<HoverScene {...options} />)
     expect(options.onGraphicsStatus).toHaveBeenLastCalledWith('failed')
     expect(JSON.stringify(options.engineRef.current)).toBe(before)
@@ -125,6 +125,10 @@ describe('Hover graphics startup', () => {
 
   test('the first successful main and mirror frame precedes simulation, then a healthy loop steps', () => {
     const options = props()
+    options.onHudSnapshot.mockImplementation(() => {
+      expect(renderer.render).toHaveBeenCalled()
+      expect(renderMirror).toHaveBeenCalled()
+    })
     render(<HoverScene {...options} />)
     expect(options.engineRef.current?.elapsedSec).toBe(0)
     expect(renderer.render).toHaveBeenCalledTimes(1)

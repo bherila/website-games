@@ -68,6 +68,8 @@ export function createKeyboardInput(options: KeyboardInputOptions = {}): InputSo
       return
     }
     if (GAME_KEYS.has(key.code)) {
+      // A key held across a graphics hold needs a fresh press after recovery.
+      if (key.repeat && !held.has(key.code)) return
       key.preventDefault()
       held.add(key.code)
     }
