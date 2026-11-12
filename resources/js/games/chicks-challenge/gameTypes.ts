@@ -47,6 +47,9 @@ export function starsForMoves(moves: number, par: number): number {
  * events exactly once and may accelerate playback when it falls behind.
  */
 export interface SceneProps {
+  /** A retry rebuilds graphics only; the parent retains the puzzle and history. */
+  graphicsAttempt?: number
+  onGraphicsStatus?: (status: GraphicsStatus) => void
   state: GameState
   events: readonly EngineEvent[]
   moveSeq: number
@@ -58,6 +61,8 @@ export interface SceneProps {
   /** Changing this snaps every sprite to `state` without tweens (undo). */
   resetKey?: number
 }
+
+export type GraphicsStatus = 'loading' | 'ready' | 'failed'
 
 export interface BumpSignal {
   readonly seq: number

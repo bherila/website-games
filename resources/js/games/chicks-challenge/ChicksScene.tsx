@@ -52,7 +52,7 @@ import {
   STEP_TWEEN_MS,
   TELEPORT_FLASH_MS,
 } from './scene/sceneConstants'
-import { disposeRenderer } from './scene/threeUtils'
+import { disposeRenderer, finishDisposal } from './scene/threeUtils'
 import {
   createEntityMaterialCache,
   createTileMaterialCache,
@@ -238,7 +238,7 @@ function applyCameraView(camera: THREE.OrthographicCamera, view: CameraView): vo
   camera.updateProjectionMatrix()
 }
 
-export function ChicksScene({ state, events, moveSeq, bump = null, resetKey = 0 }: SceneProps): ReactElement {
+export function ChicksScene({ state, events, moveSeq, bump = null, resetKey = 0, graphicsAttempt = 0, onGraphicsStatus }: SceneProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const stateRef = useRef(state)
   const eventsRef = useRef(events)
@@ -272,152 +272,192 @@ export function ChicksScene({ state, events, moveSeq, bump = null, resetKey = 0 
       return
     }
 
-    const scene = new THREE.Scene()
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, CAMERA_NEAR, CAMERA_FAR)
-    camera.position.set(0, 0, CAMERA_Z)
-
-    // Transparent clear colour: the board is letterboxed inside its own box now
-    // that the HUD and toolbar are flow siblings, so the page background (light or
-    // dark) shows around it instead of a black band.
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
-    renderer.setClearColor(0x000000, 0)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    container.appendChild(renderer.domElement)
-
-    const boardGroup = new THREE.Group()
-    const entityLayer = createEntityLayer()
-    scene.add(boardGroup, entityLayer.group)
-
-    const tileMaterials: TileMaterialCache = createTileMaterialCache()
-    const entityMaterials: EntityMaterialCache = createEntityMaterialCache()
-    const effects: EffectsManager = createEffectsManager()
-    scene.add(effects.group)
-
-    const scheduler = new TweenScheduler<EntityId>()
-
-    let board: BoardHandle | null = null
-    let prevState: GameState | null = null
-    let lastProcessedSeq = -1
-    let lastResetKey = resetKeyRef.current
-    let lastBumpSeq = bumpRef.current?.seq ?? 0
-    let bumpStartedAt = Number.NEGATIVE_INFINITY
-    let cameraView: CameraView = { centerX: 0, centerY: 0, halfWidth: 1, halfHeight: 1 }
-
-    // Not typed as `Viewport` (its fields are readonly) since resize() mutates it in place;
-    // it's structurally assignable wherever a Viewport is expected.
-    const viewport = { width: 1, height: 1 }
-    const resize = (): void => {
-      viewport.width = Math.max(1, container.clientWidth)
-      viewport.height = Math.max(1, container.clientHeight)
-      renderer.setSize(viewport.width, viewport.height)
-    }
-    const resizeObserver = new ResizeObserver(resize)
-    resizeObserver.observe(container)
-    resize()
-
-    const hardReset = (nextState: GameState): void => {
-      if (board) {
-        boardGroup.remove(board.group)
-        disposeBoard(board)
-      }
-      board = buildBoard(nextState.tiles, nextState.width, nextState.height, tileMaterials)
-      boardGroup.add(board.group)
-
-      syncEntitySprites(entityLayer, nextState, entityMaterials)
-      scheduler.clearAllQueues()
-      snapAllEntities(scheduler, nextState)
-      applyEntityVisuals(entityLayer, scheduler, nextState)
-
-      effects.disposeAll()
-
-      const focus = tileCenterWorld(nextState.player.pos.x, nextState.player.pos.y)
-      cameraView =
-        chooseCameraMode(viewport, nextState.width, nextState.height) === 'fit'
-          ? fitCameraView(viewport, nextState.width, nextState.height)
-          : followCameraView(viewport, nextState.width, nextState.height, focus)
-    }
-
-    const advanceMove = (prevTiles: readonly TileKind[], nextState: GameState, moveEvents: readonly EngineEvent[]): void => {
-      if (board) {
-        diffBoard(board, prevTiles, nextState.tiles, tileMaterials)
-      }
-      syncEntitySprites(entityLayer, nextState, entityMaterials)
-      ensureSchedulerEntities(scheduler, nextState)
-      pruneSchedulerEntities(scheduler, nextState)
-      processMoveEvents(moveEvents, nextState, scheduler, effects, clock.elapsedTime)
-    }
-
-    const clock = new THREE.Clock()
+    let stopped = false
+    let ready = false
     let frameId = 0
-
-    const animate = (): void => {
-      frameId = requestAnimationFrame(animate)
-      const dt = Math.min(0.1, clock.getDelta())
-      const elapsed = clock.elapsedTime
-
-      const currentState = stateRef.current
-      const currentSeq = moveSeqRef.current
-      const currentEvents = eventsRef.current
-
-      const isFirstFrame = board === null
-      const isBackwardReset = !isFirstFrame && (currentSeq < lastProcessedSeq || (currentSeq === 0 && lastProcessedSeq !== 0))
-      const dimensionsChanged =
-        !isFirstFrame && prevState !== null && (prevState.width !== currentState.width || prevState.height !== currentState.height)
-
-      const resetRequested = resetKeyRef.current !== lastResetKey
-
-      if (isFirstFrame || isBackwardReset || dimensionsChanged || resetRequested) {
-        hardReset(currentState)
-        lastProcessedSeq = currentSeq
-        lastResetKey = resetKeyRef.current
-      } else if (currentSeq !== lastProcessedSeq && prevState) {
-        advanceMove(prevState.tiles, currentState, currentEvents)
-        lastProcessedSeq = currentSeq
-      }
-      prevState = currentState
-
-      scheduler.advance(dt * 1000)
-
-      const currentBump = bumpRef.current
-      if (currentBump && currentBump.seq !== lastBumpSeq) {
-        lastBumpSeq = currentBump.seq
-        bumpStartedAt = elapsed
-      }
-      const nudge = currentBump ? bumpNudgeOffset(currentBump.dir, (elapsed - bumpStartedAt) * 1000) : undefined
-      applyEntityVisuals(entityLayer, scheduler, currentState, nudge)
-
-      tileMaterials.update(elapsed)
-      effects.update(elapsed)
-
-      const playerTweenPos = scheduler.positionOf('player') ?? currentState.player.pos
-      const focus = tileCenterWorld(playerTweenPos.x, playerTweenPos.y)
-      const mode = chooseCameraMode(viewport, currentState.width, currentState.height)
-      const targetView =
-        mode === 'fit'
-          ? fitCameraView(viewport, currentState.width, currentState.height)
-          : followCameraView(viewport, currentState.width, currentState.height, focus)
-      cameraView = mode === 'fit' ? targetView : smoothCameraView(cameraView, targetView, dt, CAMERA_FOLLOW_SMOOTHING_PER_SEC)
-      applyCameraView(camera, cameraView)
-
-      renderer.render(scene, camera)
+    const resources: (() => void)[] = []
+    let rendererCleanup: (() => void) | undefined
+    const cleanup = (): void => {
+      if (stopped) return
+      stopped = true
+      cancelAnimationFrame(frameId)
+      // GPU objects and caches must go before the renderer's internal state.
+      finishDisposal([...resources.reverse(), () => rendererCleanup?.()])
     }
+    const fail = (): void => {
+      if (stopped) return
+      cleanup()
+      onGraphicsStatus?.('failed')
+    }
+    onGraphicsStatus?.('loading')
 
-    animate()
+    try {
+      const scene = new THREE.Scene()
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, CAMERA_NEAR, CAMERA_FAR)
+      camera.position.set(0, 0, CAMERA_Z)
+
+      // Transparent clear colour: the board is letterboxed inside its own box now
+      // that the HUD and toolbar are flow siblings, so the page background (light or
+      // dark) shows around it instead of a black band.
+      const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true })
+      rendererCleanup = () => disposeRenderer(renderer, container)
+      renderer.setClearColor(0x000000, 0)
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      container.appendChild(renderer.domElement)
+
+      const boardGroup = new THREE.Group()
+      const entityLayer = createEntityLayer()
+      resources.push(() => disposeEntityLayer(entityLayer))
+      scene.add(boardGroup, entityLayer.group)
+
+      const tileMaterials: TileMaterialCache = createTileMaterialCache()
+      resources.push(() => tileMaterials.dispose())
+      const entityMaterials: EntityMaterialCache = createEntityMaterialCache()
+      resources.push(() => entityMaterials.dispose())
+      const effects: EffectsManager = createEffectsManager()
+      resources.push(() => effects.disposeAll())
+      scene.add(effects.group)
+
+      const scheduler = new TweenScheduler<EntityId>()
+
+      let board: BoardHandle | null = null
+      resources.push(() => {
+        if (board) disposeBoard(board)
+      })
+      let prevState: GameState | null = null
+      let lastProcessedSeq = -1
+      let lastResetKey = resetKeyRef.current
+      let lastBumpSeq = bumpRef.current?.seq ?? 0
+      let bumpStartedAt = Number.NEGATIVE_INFINITY
+      let cameraView: CameraView = { centerX: 0, centerY: 0, halfWidth: 1, halfHeight: 1 }
+
+      // Not typed as `Viewport` (its fields are readonly) since resize() mutates it in place;
+      // it's structurally assignable wherever a Viewport is expected.
+      const viewport = { width: 1, height: 1 }
+      const resize = (): void => {
+        if (stopped) return
+        try {
+          viewport.width = Math.max(1, container.clientWidth)
+          viewport.height = Math.max(1, container.clientHeight)
+          renderer.setSize(viewport.width, viewport.height)
+        } catch {
+          fail()
+        }
+      }
+      const resizeObserver = new ResizeObserver(resize)
+      resources.push(() => resizeObserver.disconnect())
+      resizeObserver.observe(container)
+      resize()
+      if (stopped) return cleanup
+
+      const hardReset = (nextState: GameState): void => {
+        if (board) {
+          boardGroup.remove(board.group)
+          const previousBoard = board
+          board = null
+          disposeBoard(previousBoard)
+        }
+        board = buildBoard(nextState.tiles, nextState.width, nextState.height, tileMaterials)
+        boardGroup.add(board.group)
+
+        syncEntitySprites(entityLayer, nextState, entityMaterials)
+        scheduler.clearAllQueues()
+        snapAllEntities(scheduler, nextState)
+        applyEntityVisuals(entityLayer, scheduler, nextState)
+
+        effects.disposeAll()
+
+        const focus = tileCenterWorld(nextState.player.pos.x, nextState.player.pos.y)
+        cameraView =
+          chooseCameraMode(viewport, nextState.width, nextState.height) === 'fit'
+            ? fitCameraView(viewport, nextState.width, nextState.height)
+            : followCameraView(viewport, nextState.width, nextState.height, focus)
+      }
+
+      const advanceMove = (prevTiles: readonly TileKind[], nextState: GameState, moveEvents: readonly EngineEvent[]): void => {
+        if (board) {
+          diffBoard(board, prevTiles, nextState.tiles, tileMaterials)
+        }
+        syncEntitySprites(entityLayer, nextState, entityMaterials)
+        ensureSchedulerEntities(scheduler, nextState)
+        pruneSchedulerEntities(scheduler, nextState)
+        processMoveEvents(moveEvents, nextState, scheduler, effects, clock.elapsedTime)
+      }
+
+      const clock = new THREE.Clock()
+
+      const animate = (): void => {
+        if (stopped) return
+        try {
+          const dt = Math.min(0.1, clock.getDelta())
+          const elapsed = clock.elapsedTime
+
+          const currentState = stateRef.current
+          const currentSeq = moveSeqRef.current
+          const currentEvents = eventsRef.current
+
+          const isFirstFrame = board === null
+          const isBackwardReset = !isFirstFrame && (currentSeq < lastProcessedSeq || (currentSeq === 0 && lastProcessedSeq !== 0))
+          const dimensionsChanged =
+            !isFirstFrame && prevState !== null && (prevState.width !== currentState.width || prevState.height !== currentState.height)
+
+          const resetRequested = resetKeyRef.current !== lastResetKey
+
+          if (isFirstFrame || isBackwardReset || dimensionsChanged || resetRequested) {
+            hardReset(currentState)
+            lastProcessedSeq = currentSeq
+            lastResetKey = resetKeyRef.current
+          } else if (currentSeq !== lastProcessedSeq && prevState) {
+            advanceMove(prevState.tiles, currentState, currentEvents)
+            lastProcessedSeq = currentSeq
+          }
+          prevState = currentState
+
+          scheduler.advance(dt * 1000)
+
+          const currentBump = bumpRef.current
+          if (currentBump && currentBump.seq !== lastBumpSeq) {
+            lastBumpSeq = currentBump.seq
+            bumpStartedAt = elapsed
+          }
+          const nudge = currentBump ? bumpNudgeOffset(currentBump.dir, (elapsed - bumpStartedAt) * 1000) : undefined
+          applyEntityVisuals(entityLayer, scheduler, currentState, nudge)
+
+          tileMaterials.update(elapsed)
+          effects.update(elapsed)
+
+          const playerTweenPos = scheduler.positionOf('player') ?? currentState.player.pos
+          const focus = tileCenterWorld(playerTweenPos.x, playerTweenPos.y)
+          const mode = chooseCameraMode(viewport, currentState.width, currentState.height)
+          const targetView =
+            mode === 'fit'
+              ? fitCameraView(viewport, currentState.width, currentState.height)
+              : followCameraView(viewport, currentState.width, currentState.height, focus)
+          cameraView = mode === 'fit' ? targetView : smoothCameraView(cameraView, targetView, dt, CAMERA_FOLLOW_SMOOTHING_PER_SEC)
+          applyCameraView(camera, cameraView)
+
+          renderer.render(scene, camera)
+          if (!ready) {
+            ready = true
+            onGraphicsStatus?.('ready')
+          }
+          frameId = requestAnimationFrame(animate)
+        } catch {
+          fail()
+        }
+      }
+
+      animate()
+
+    } catch {
+      fail()
+    }
 
     return () => {
-      cancelAnimationFrame(frameId)
-      resizeObserver.disconnect()
-      effects.disposeAll()
-      if (board) {
-        boardGroup.remove(board.group)
-        disposeBoard(board)
-      }
-      tileMaterials.dispose()
-      disposeEntityLayer(entityLayer)
-      entityMaterials.dispose()
-      disposeRenderer(renderer, container)
+      cleanup()
+      onGraphicsStatus?.('loading')
     }
-  }, [])
+  }, [graphicsAttempt, onGraphicsStatus])
 
   return <div ref={containerRef} className="absolute inset-0" aria-hidden="true" />
 }

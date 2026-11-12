@@ -18,6 +18,7 @@ import {
   TELEPORT_FLASH_MS,
   Z_EFFECT,
 } from './sceneConstants'
+import { finishDisposal } from './threeUtils'
 
 export interface Effect {
   readonly object: THREE.Object3D
@@ -32,15 +33,8 @@ function tileCenter(pos: Position): { x: number; y: number } {
 }
 
 function disposeMesh(mesh: THREE.Mesh): void {
-  mesh.geometry.dispose()
-  const material = mesh.material
-  if (Array.isArray(material)) {
-    for (const item of material) {
-      item.dispose()
-    }
-  } else {
-    material.dispose()
-  }
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+  finishDisposal([() => mesh.geometry.dispose(), ...materials.map((material) => () => material.dispose())])
 }
 
 export function createSplashEffect(pos: Position): Effect {
@@ -245,7 +239,7 @@ export function createEffectsManager(): EffectsManager {
   function disposeAll(): void {
     for (const entry of active) {
       group.remove(entry.effect.object)
-      entry.effect.dispose()
+      finishDisposal([() => entry.effect.dispose()])
     }
     active.length = 0
   }

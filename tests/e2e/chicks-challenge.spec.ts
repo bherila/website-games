@@ -6,6 +6,7 @@ const BOARD_ROTOR = '[data-testid="chips-board-rotor"]'
 async function waitForBoard(page: Page): Promise<void> {
   const canvas = page.locator('canvas').first()
   await expect(canvas).toBeVisible()
+  await expect(page.getByTestId('chips-board')).toHaveAttribute('data-graphics-status', 'ready')
   await expect
     .poll(async () => (await page.locator(BOARD_ROTOR).boundingBox())?.width ?? 0, { timeout: 10_000 })
     .toBeGreaterThan(0)
@@ -120,6 +121,40 @@ test.describe("Chick's Challenge board layout", () => {
     }
     await expect(page.getByRole('img', { name: 'yellow key: 1' })).toBeVisible()
     expect(await board.boundingBox()).toEqual(before)
+  })
+
+  test('keeps keyboard play and shortcuts working after persistent control clicks', async ({ page }) => {
+    await page.goto('/chicks-challenge?level=1')
+    await waitForBoard(page)
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByLabel('1 of 16 moves')).toBeVisible()
+    await page.keyboard.press('ArrowUp')
+    await expect(page.getByLabel('2 of 16 moves')).toBeVisible()
+    let moves = 2
+    for (const name of ['Restart level', 'Undo move', 'Board rotation: automatic', 'Mute sound']) {
+      const control = name === 'Board rotation: automatic' ? page.getByTestId('orientation-toggle')
+        : name === 'Mute sound' ? page.getByRole('button', { name: /mute sound/i })
+          : page.getByRole('button', { name, exact: true })
+      await control.click()
+      await expect(control).toBeFocused()
+      if (name === 'Restart level') moves = 0
+      if (name === 'Undo move') moves -= 1
+      await expect(page.getByLabel(`${moves} of 16 moves`)).toBeVisible()
+      await page.keyboard.press('ArrowDown')
+      await expect(page.getByLabel(`${++moves} of 16 moves`)).toBeVisible()
+      await page.keyboard.press('w')
+      await expect(page.getByLabel(`${++moves} of 16 moves`)).toBeVisible()
+      await page.keyboard.press('r')
+      await expect(page.getByLabel('0 of 16 moves')).toBeVisible()
+      await page.keyboard.press('z')
+      await expect(page.getByLabel(`${moves} of 16 moves`)).toBeVisible()
+    }
+    // Space activates the focused native mute button without spending a move.
+    await page.keyboard.press('Space')
+    await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toBeFocused()
+    await expect(page.getByLabel(`${moves} of 16 moves`)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('level-tile-1')).toBeVisible()
   })
 
   test('keeps the largest board inside the viewport', async ({ page }) => {
@@ -256,5 +291,119 @@ test.describe("Chick's Challenge board layout", () => {
     // so the game itself never has to load at an absurd size.
     await page.setViewportSize({ width: 375, height: 130 })
     await expectDialogTopReachable(page, 'You died', 'death-dialog')
+  })
+})
+
+test.describe("Chick's Challenge graphics recovery", () => {
+  test('recovers from unavailable WebGL without spending moves and offers a safe menu', async ({ page }) => {
+    await page.addInitScript(() => {
+      // Preserve the dynamic canvas receiver when forwarding getContext below.
+      // eslint-disable-next-line typescript/unbound-method
+      const original = HTMLCanvasElement.prototype.getContext
+      let blocked = true
+      Object.assign(window, { restoreChicksGraphics: () => { blocked = false } })
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, options?: unknown) {
+        if (blocked && contextId.startsWith('webgl')) return null
+        return original.call(this, contextId, options)
+      } as typeof original
+    })
+    await page.goto('/chicks-challenge?level=1')
+    const alert = page.getByRole('alert').filter({ hasText: 'Graphics unavailable' })
+    const retry = page.getByRole('button', { name: 'Retry graphics' })
+    await expect(alert).toBeVisible()
+    await expect(retry).toBeFocused()
+    await expect(page.getByRole('button', { name: 'Restart level' })).toBeDisabled()
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('r')
+    await page.keyboard.press('Backspace')
+    await expect(page.getByLabel('0 of 16 moves')).toBeVisible()
+    await page.getByTestId('orientation-toggle').click()
+    await expect(page.getByTestId('orientation-toggle')).toHaveAttribute('data-orientation-preference', 'rotated')
+    await retry.click()
+    await expect(alert).toBeVisible()
+    // Native Space activates retry while its keydown must not enqueue a wait.
+    await retry.focus()
+    await page.keyboard.press('Space')
+    await expect(alert).toBeVisible()
+    await page.evaluate(() => (window as unknown as { restoreChicksGraphics: () => void }).restoreChicksGraphics())
+    await retry.click()
+    await waitForBoard(page)
+    await expect(page.getByTestId('chips-board')).toBeFocused()
+    await expect(page.getByLabel('0 of 16 moves')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Undo move' })).toBeDisabled()
+    // Return via the regular menu, then prove the recovery menu also works.
+    await page.getByRole('button', { name: 'Level select', exact: true }).click()
+    await expect(page.getByTestId('level-tile-1')).toBeVisible()
+    await page.reload()
+    await expect(alert).toBeVisible()
+    await alert.getByRole('button', { name: 'Level select' }).click()
+    await expect(page.getByTestId('level-tile-1')).toBeVisible()
+  })
+
+  test('retries a populated draw failure while retaining the puzzle and undo history', async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('bwh.chicks-challenge.board-orientation.v1', JSON.stringify('upright'))
+      // Preserve the dynamic canvas receiver when forwarding getContext below.
+      // eslint-disable-next-line typescript/unbound-method
+      const original = HTMLCanvasElement.prototype.getContext
+      let failed = false
+      Object.assign(window, { failChicksDraw: (value: boolean) => { failed = value } })
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, options?: unknown) {
+        const context = original.call(this, contextId, options)
+        if (contextId.startsWith('webgl') && context) {
+          const gl = context as WebGLRenderingContext
+          const drawArrays = gl.drawArrays.bind(gl)
+          const drawElements = gl.drawElements.bind(gl)
+          gl.drawArrays = (mode, first, count) => {
+            if (failed) throw new Error('Injected populated draw failure')
+            drawArrays(mode, first, count)
+          }
+          gl.drawElements = (mode, count, type, offset) => {
+            if (failed) throw new Error('Injected populated draw failure')
+            drawElements(mode, count, type, offset)
+          }
+        }
+        return context
+      } as typeof original
+    })
+    await page.goto('/chicks-challenge?level=1')
+    await waitForBoard(page)
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByLabel('1 of 16 moves')).toBeVisible()
+    await expect(page.getByTestId('hint-banner')).toBeVisible()
+    // Start a hold, then fail before its repeat delay. No stale repeat may survive.
+    const cdp = await page.context().newCDPSession(page)
+    if (testInfo.project.name === 'chromium-mobile-375') {
+      const pad = await page.getByTestId('touch-dpad-up').boundingBox()
+      expect(pad).not.toBeNull()
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: pad!.x + pad!.width / 2, y: pad!.y + pad!.height / 2, id: 1 }] })
+    } else {
+      await page.keyboard.down('ArrowUp')
+    }
+    await page.evaluate(() => (window as unknown as { failChicksDraw: (value: boolean) => void }).failChicksDraw(true))
+    const alert = page.getByRole('alert').filter({ hasText: 'Graphics unavailable' })
+    await expect(alert).toBeVisible()
+    // End the physical hold after recovery has already cleared its repeat source.
+    if (testInfo.project.name === 'chromium-mobile-375') {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    } else {
+      await page.keyboard.up('ArrowUp')
+    }
+    // The queued move might have won the race with the graphics frame; preserve its exact count.
+    const counter = await page.locator('[aria-label$=" of 16 moves"]').getAttribute('aria-label')
+    await page.keyboard.press('r')
+    await page.keyboard.press('z')
+    await page.keyboard.press('ArrowDown')
+    const retry = page.getByRole('button', { name: 'Retry graphics' })
+    await retry.click()
+    await expect(alert).toBeVisible()
+    await page.evaluate(() => (window as unknown as { failChicksDraw: (value: boolean) => void }).failChicksDraw(false))
+    await retry.click()
+    await waitForBoard(page)
+    await page.waitForTimeout(650)
+    await expect(page.getByLabel(counter!)).toBeVisible()
+    const moves = Number.parseInt(counter!, 10)
+    await page.getByRole('button', { name: 'Undo move' }).click()
+    await expect(page.getByLabel(`${moves - 1} of 16 moves`)).toBeVisible()
   })
 })

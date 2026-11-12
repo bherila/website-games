@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 
 import { ChicksGame } from '../ChicksGame'
-import { STEP_TWEEN_MS } from '../gameTypes'
+import { type GraphicsStatus, STEP_TWEEN_MS } from '../gameTypes'
 
 interface ScenePlayerProbeProps {
+  onGraphicsStatus?: (status: GraphicsStatus) => void
   state: { player: { pos: { x: number, y: number } } }
 }
 
@@ -20,7 +21,8 @@ jest.mock('../ChicksScene', () => {
   const { useEffect } = jest.requireActual<typeof import('react')>('react')
 
   return {
-    ChicksScene: ({ state }: ScenePlayerProbeProps) => {
+    ChicksScene: ({ state, onGraphicsStatus }: ScenePlayerProbeProps) => {
+      useEffect(() => onGraphicsStatus?.('ready'), [onGraphicsStatus])
       useEffect(() => {
         mockOnSceneCommit?.()
       })
