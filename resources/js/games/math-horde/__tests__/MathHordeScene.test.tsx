@@ -35,7 +35,7 @@ describe('Math Horde graphics lifecycle', () => {
     jest.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id) })
     observe = jest.fn()
     disconnect = jest.fn()
-    global.ResizeObserver = jest.fn((callback) => {
+    globalThis.ResizeObserver = jest.fn((callback) => {
       resize = callback
 
       return { observe, disconnect }
