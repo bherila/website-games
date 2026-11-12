@@ -205,6 +205,8 @@ describe('TowerDefenseGame', () => {
     act(() => scene?.onGraphicsAvailable(state, false))
     expect(state.hero.input).toEqual({ x: 0, y: 0 })
     const checkpoint = snapshotRun(state)
+    fireEvent.click(screen.getByRole('button', { name: 'Double speed' }))
+    expect(scene?.speed).toBe(1)
     fireEvent.keyDown(window, { code: 'KeyN' })
     fireEvent.keyDown(window, { code: 'ArrowLeft' })
     fireEvent.keyDown(window, { code: 'Space' })
@@ -217,6 +219,18 @@ describe('TowerDefenseGame', () => {
     expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
     fireEvent.keyUp(window, { code: 'ArrowRight' })
     expect(snapshotRun(state)).toEqual(checkpoint)
+  })
+
+  it.each(['won', 'lost'] as const)('does not retain a completed %s run when returning to level select', (status) => {
+    const state = startFirstLevel()
+    fireEvent.click(screen.getByRole('button', { name: 'Level select' }))
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(scene?.state).toBe(state)
+    act(() => { state.status = status; scene?.onFinish(state) })
+    const exit = screen.getAllByRole('button', { name: 'Level select' })[0]
+    if (!exit) throw new Error('Missing level select')
+    fireEvent.click(exit)
+    expect(screen.queryByTestId('resume-run')).not.toBeInTheDocument()
   })
 
   it('records stars and unlocks the next level on a win', () => {

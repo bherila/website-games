@@ -147,7 +147,7 @@ test.describe('Tower Defense', () => {
     const spot = await cellPoint(page, 6, 16)
     await page.mouse.click(spot.x, spot.y)
     await page.getByRole('button', { name: 'Pause', exact: true }).click()
-    const stored = await page.evaluate(() => localStorage.getItem('bwh.tower-defense.run.v1'))
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)
     expect(stored).not.toBeNull()
     await page.addInitScript(() => {
       const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')?.value as typeof HTMLCanvasElement.prototype.getContext
@@ -175,10 +175,10 @@ test.describe('Tower Defense', () => {
     await expect(retry).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(dialog).toBeVisible()
-    expect(await page.evaluate(() => localStorage.getItem('bwh.tower-defense.run.v1'))).toBe(stored)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)).toEqual(stored)
     await exit.click()
     await expect(page.getByTestId('resume-run')).toBeFocused()
-    expect(await page.evaluate(() => localStorage.getItem('bwh.tower-defense.run.v1'))).toBe(stored)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)).toEqual(stored)
     await page.getByTestId('resume-run').click()
     await expect(retry).toBeFocused()
     await page.evaluate(() => window.dispatchEvent(new Event('restore-test-graphics')))
@@ -190,7 +190,7 @@ test.describe('Tower Defense', () => {
     await expect(page.getByTestId('gold')).toHaveText('70')
     // The loop is live while paused; leaving again must checkpoint the identical simulation.
     await paused.getByRole('button', { name: 'Level select', exact: true }).click()
-    expect(await page.evaluate(() => localStorage.getItem('bwh.tower-defense.run.v1'))).toBe(stored)
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)).toEqual(stored)
     expect(errors).toEqual([])
   })
 

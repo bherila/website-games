@@ -260,6 +260,9 @@ export function TowerDefenseGame(): ReactElement {
   const toSelect = useCallback((): void => {
     graphicsReadyRef.current = false
     resetPhysicalInput()
+    const current = activeRunRef.current
+    // Keep the live run even if this checkpoint or a later checkpoint cannot be written.
+    setRetainedRun(current?.status === 'playing' ? current : null)
     checkpoint()
     activeRunRef.current = null
     window.clearTimeout(checkpointTimerRef.current)
@@ -647,11 +650,11 @@ export function TowerDefenseGame(): ReactElement {
             />
             <BottomControlButton
               active={speed > 1}
-              disabled={false}
+              disabled={!graphicsReady}
               icon={<FastForward />}
               label={speed > 1 ? 'Normal speed' : 'Double speed'}
               variant="ghost"
-              onClick={() => setSpeed((current) => (current > 1 ? 1 : 2))}
+              onClick={() => { if (graphicsReadyRef.current) setSpeed((current) => (current > 1 ? 1 : 2)) }}
             />
             <SoundBottomControlButton
               muted={muted}
@@ -683,7 +686,7 @@ export function TowerDefenseGame(): ReactElement {
         {graphicsFailed && (
           <GraphicsUnavailable
             onRetry={retryGraphics}
-            onExit={() => { setRetainedRun(activeRunRef.current); toSelect() }}
+            onExit={toSelect}
             onRestoreFocus={() => {
               if (activeRunRef.current === game) {
                 playRef.current?.querySelector<HTMLButtonElement>('[aria-label="Game paused"] button')?.focus()

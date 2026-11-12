@@ -192,8 +192,8 @@ it('survives StrictMode replay, cancels the old loop, and leaves one live canvas
   expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
 })
 
-it('retains the live run on return to select when checkpoint writes fail', async () => {
-  savedRun()
+it.each([true, false])('retains the live run through repeated returns when checkpoint writes fail (previous save: %s)', async (hasPreviousSave) => {
+  if (hasPreviousSave) savedRun()
   const stored = localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)
   const originalSetItem = Storage.prototype.setItem
   jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
@@ -204,7 +204,7 @@ it('retains the live run on return to select when checkpoint writes fail', async
   failed.render.mockImplementation(() => { throw new Error('Draw failed') })
   jest.mocked(THREE.WebGLRenderer).mockImplementationOnce(() => failed as unknown as THREE.WebGLRenderer)
   render(<TowerDefenseGame />)
-  fireEvent.click(screen.getByTestId('resume-run'))
+  fireEvent.click(screen.getByTestId(hasPreviousSave ? 'resume-run' : 'level-tile-1'))
   const live = jest.mocked(createTerrainView).mock.calls[0]?.[1]
   if (!live) throw new Error('Missing live run')
   const expected = snapshotRun(live)
@@ -219,5 +219,14 @@ it('retains the live run on return to select when checkpoint writes fail', async
   expect(snapshotRun(live)).toEqual(expected)
   expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
   expect(screen.getByRole('alert')).toHaveTextContent('could not be saved')
+  for (let cycle = 0; cycle < 2; cycle++) {
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Game paused' })).getByRole('button', { name: 'Level select' }))
+    expect(screen.getByTestId('resume-run')).toHaveTextContent('Resume current run')
+    fireEvent.click(screen.getByTestId('resume-run'))
+    expect(jest.mocked(createTerrainView).mock.calls.at(-1)?.[1]).toBe(live)
+    expect(snapshotRun(live)).toEqual(expected)
+    expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeInTheDocument()
+    expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(stored)
+  }
   expect(localStorage.getItem(TOWER_DEFENSE_SAVE_STORAGE_KEY)).toBe(stored)
 })
