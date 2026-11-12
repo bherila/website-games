@@ -467,9 +467,16 @@ export function ChicksGame(): ReactElement {
     }
 
     function handleKeyDown(event: KeyboardEvent): void {
-      // Keep Space/Enter and letter shortcuts native on recovery/preferences buttons.
-      if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, [contenteditable="true"]')) {
-        return
+      if (event.target instanceof Element) {
+        // Editing controls own their keys. Persistent game buttons keep native
+        // activation, while movement and game shortcuts still work after a click.
+        if (event.target.closest('input, select, textarea, [contenteditable]:not([contenteditable="false"])')) {
+          return
+        }
+        if (event.target.closest('button, a[href], [role="button"]')
+          && (!graphicsReadyRef.current || event.key === ' ' || event.key === 'Enter')) {
+          return
+        }
       }
       if (event.key === 'r' || event.key === 'R') {
         handleRestart()

@@ -123,6 +123,40 @@ test.describe("Chick's Challenge board layout", () => {
     expect(await board.boundingBox()).toEqual(before)
   })
 
+  test('keeps keyboard play and shortcuts working after persistent control clicks', async ({ page }) => {
+    await page.goto('/chicks-challenge?level=1')
+    await waitForBoard(page)
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByLabel('1 of 16 moves')).toBeVisible()
+    await page.keyboard.press('ArrowUp')
+    await expect(page.getByLabel('2 of 16 moves')).toBeVisible()
+    let moves = 2
+    for (const name of ['Restart level', 'Undo move', 'Board rotation: automatic', 'Mute sound']) {
+      const control = name === 'Board rotation: automatic' ? page.getByTestId('orientation-toggle')
+        : name === 'Mute sound' ? page.getByRole('button', { name: /mute sound/i })
+          : page.getByRole('button', { name, exact: true })
+      await control.click()
+      await expect(control).toBeFocused()
+      if (name === 'Restart level') moves = 0
+      if (name === 'Undo move') moves -= 1
+      await expect(page.getByLabel(`${moves} of 16 moves`)).toBeVisible()
+      await page.keyboard.press('ArrowDown')
+      await expect(page.getByLabel(`${++moves} of 16 moves`)).toBeVisible()
+      await page.keyboard.press('w')
+      await expect(page.getByLabel(`${++moves} of 16 moves`)).toBeVisible()
+      await page.keyboard.press('r')
+      await expect(page.getByLabel('0 of 16 moves')).toBeVisible()
+      await page.keyboard.press('z')
+      await expect(page.getByLabel(`${moves} of 16 moves`)).toBeVisible()
+    }
+    // Space activates the focused native mute button without spending a move.
+    await page.keyboard.press('Space')
+    await expect(page.getByRole('button', { name: 'Mute sound', exact: true })).toBeFocused()
+    await expect(page.getByLabel(`${moves} of 16 moves`)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('level-tile-1')).toBeVisible()
+  })
+
   test('keeps the largest board inside the viewport', async ({ page }) => {
     // Level 38 is the pack's biggest board (31x31) and drives the follow camera.
     await page.goto('/chicks-challenge?level=38')

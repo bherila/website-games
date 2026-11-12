@@ -46,7 +46,7 @@ function frame(): void {
 }
 
 function advance(ms = STEP_TWEEN_MS): void {
-  act(() => jest.advanceTimersByTime(ms))
+  act(() => { jest.advanceTimersByTime(ms) })
 }
 
 function press(key: string): void {
@@ -153,7 +153,7 @@ it('keeps gameplay gated until the first populated retry draw completes', () => 
     press('ArrowDown')
     press('r')
     press('z')
-    advance(1000)
+    jest.advanceTimersByTime(1000)
     expect(screen.getByLabelText('0 of 16 moves')).toBeInTheDocument()
   })
   fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
@@ -162,6 +162,57 @@ it('keeps gameplay gated until the first populated retry draw completes', () => 
   press('ArrowDown')
   advance()
   expect(screen.getByLabelText('1 of 16 moves')).toBeInTheDocument()
+})
+
+it.each(['Restart level', 'Undo move', 'Board rotation: automatic', 'Mute sound'])(
+  'keeps game shortcuts working with the healthy %s button focused', (name) => {
+    render(<ChicksGame />)
+    press('ArrowDown')
+    advance()
+    press('ArrowUp')
+    advance()
+    const button = screen.getByRole('button', { name })
+    button.focus()
+    fireEvent.click(button)
+    expect(button).toHaveFocus()
+    const movesAfterClick = name === 'Restart level' ? 0 : name === 'Undo move' ? 1 : 2
+    // Dispatch on the actual focused element, as the browser does.
+    const pressFocused = (key: string): void => {
+      fireEvent.keyDown(document.activeElement!, { key })
+      fireEvent.keyUp(document.activeElement!, { key })
+    }
+    expect(fireEvent.keyDown(document.activeElement!, { key: ' ' })).toBe(true)
+    expect(fireEvent.keyDown(document.activeElement!, { key: 'Enter' })).toBe(true)
+    advance()
+    expect(screen.getByLabelText(`${movesAfterClick} of 16 moves`)).toBeInTheDocument()
+    pressFocused('ArrowDown')
+    advance()
+    pressFocused('w')
+    advance()
+    expect(screen.getByLabelText(`${movesAfterClick + 2} of 16 moves`)).toBeInTheDocument()
+    pressFocused('r')
+    expect(screen.getByLabelText('0 of 16 moves')).toBeInTheDocument()
+    pressFocused('z')
+    expect(screen.getByLabelText(`${movesAfterClick + 2} of 16 moves`)).toBeInTheDocument()
+    pressFocused('Escape')
+    expect(screen.getByTestId('level-tile-1')).toBeInTheDocument()
+  },
+)
+
+it('leaves form and editable keyboard input alone while graphics are healthy', () => {
+  const { container } = render(<ChicksGame />)
+  for (const tag of ['input', 'textarea', 'select', 'div']) {
+    const editable = document.createElement(tag)
+    if (tag === 'div') editable.setAttribute('contenteditable', '')
+    container.appendChild(editable)
+    editable.focus()
+    for (const key of ['ArrowDown', 'w', 'r', 'z', 'Escape', ' ']) {
+      expect(fireEvent.keyDown(editable, { key })).toBe(true)
+      fireEvent.keyUp(editable, { key })
+    }
+  }
+  advance(1000)
+  expect(screen.getByLabelText('0 of 16 moves')).toBeInTheDocument()
 })
 
 it('returns to level select safely after repeated startup failures', () => {
