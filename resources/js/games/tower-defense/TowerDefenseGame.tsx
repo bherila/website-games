@@ -35,6 +35,7 @@ import type { BoardOverlay } from './scene/buildingView'
 import { type BoardPointer, TowerDefenseScene } from './TowerDefenseScene'
 import { BuildTray } from './ui/BuildTray'
 import { GameHud } from './ui/GameHud'
+import { GraphicsUnavailable } from './ui/GraphicsUnavailable'
 import { ElementPickOverlay, LostOverlay, PauseOverlay, TutorialOverlay, WonOverlay } from './ui/Overlays'
 import { BuildingPanel, HeroPanel } from './ui/Panels'
 
@@ -68,8 +69,14 @@ export function TowerDefenseGame(): ReactElement {
   const [pendingLevel, setPendingLevel] = useState<number | null>(null)
   const [phase, setPhase] = useState<Phase>('select')
   const [game, setGame] = useState<GameState | null>(null)
+  const [retainedRun, setRetainedRun] = useState<GameState | null>(null)
   const [hud, setHud] = useState<HudSnapshot | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [graphicsReady, setGraphicsReady] = useState(false)
+  const [graphicsFailed, setGraphicsFailed] = useState(false)
+  const graphicsReadyRef = useRef(false)
+  const playRef = useRef<HTMLDivElement | null>(null)
+  const selectRef = useRef<HTMLDivElement | null>(null)
   const [speed, setSpeed] = useState(1)
   const [tool, setToolState] = useState<TowerId | null>(null)
   const [selectedId, setSelectedIdState] = useState<number | null>(null)
@@ -138,6 +145,35 @@ export function TowerDefenseGame(): ReactElement {
     }
   }, [])
 
+  const resetPhysicalInput = useCallback((): void => {
+    heldKeysRef.current.clear()
+    paintedCellRef.current = null
+    overlayRef.current.hover = null
+    if (activeRunRef.current) setHeroInput(activeRunRef.current, 0, 0)
+  }, [])
+
+  const handleGraphicsAvailable = useCallback((state: GameState, available: boolean): void => {
+    if (activeRunRef.current !== state) return
+    graphicsReadyRef.current = available
+    setGraphicsReady(available)
+    setGraphicsFailed(!available)
+    if (!available) {
+      resetPhysicalInput()
+      clearSelections()
+      setPhase('paused')
+      window.clearTimeout(checkpointTimerRef.current)
+      checkpoint()
+    }
+  }, [checkpoint, clearSelections, resetPhysicalInput])
+
+  const retryGraphics = useCallback((): void => {
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
+    resetPhysicalInput()
+    setPhase('paused')
+    setAttempt((value) => value + 1)
+  }, [resetPhysicalInput])
+
   const scheduleCheckpoint = useCallback((): void => {
     window.clearTimeout(checkpointTimerRef.current)
     checkpointTimerRef.current = window.setTimeout(checkpoint, 750)
@@ -151,7 +187,7 @@ export function TowerDefenseGame(): ReactElement {
     sfx.unlock()
     const next = createGameState(level)
     const result = saveRun(next)
-    if (!result.ok && (recovery.snapshot || recovery.problem === 'invalid')) {
+    if (!result.ok && (retainedRun || recovery.snapshot || recovery.problem === 'invalid')) {
       setSaveError('The new run could not be saved. Your previous saved run is unchanged.')
       return false
     }
@@ -162,6 +198,10 @@ export function TowerDefenseGame(): ReactElement {
     } else {
       setSaveError('Saving is unavailable. You can play, but this run may be lost when you leave.')
     }
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
+    setGraphicsFailed(false)
+    setRetainedRun(null)
     activeRunRef.current = next
     savedWaveRef.current = next.waveNumber
     window.clearTimeout(checkpointTimerRef.current)
@@ -175,22 +215,26 @@ export function TowerDefenseGame(): ReactElement {
     setShowTutorial(!tutorialSeen())
     setPendingLevel(null)
     return true
-  }, [clearSelections, recovery.problem, recovery.snapshot, sfx])
+  }, [clearSelections, recovery.problem, recovery.snapshot, retainedRun, sfx])
 
   const requestLevel = useCallback((id: number): void => {
-    if (recovery.snapshot || recovery.problem === 'invalid') {
+    if (retainedRun || recovery.snapshot || recovery.problem === 'invalid') {
       replacementOriginRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
       setPendingLevel(id)
     } else startLevel(id)
-  }, [recovery.problem, recovery.snapshot, startLevel])
+  }, [recovery.problem, recovery.snapshot, retainedRun, startLevel])
 
   const resumeRun = useCallback((): void => {
     const current = loadRun()
     setRecovery(current)
-    if (!current.snapshot) return
-    const next = restoreRun(current.snapshot)
+    const next = retainedRun ?? (current.snapshot ? restoreRun(current.snapshot) : null)
+    if (!next) return
     // Physical keys are not held after a reload. Queued movement/jobs still resume.
     setHeroInput(next, 0, 0)
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
+    setGraphicsFailed(false)
+    setRetainedRun(null)
     activeRunRef.current = next
     savedWaveRef.current = next.waveNumber
     clearSelections()
@@ -199,9 +243,9 @@ export function TowerDefenseGame(): ReactElement {
     setPhase('paused')
     setSpeed(1)
     setShowTutorial(false)
-    setSaveError(null)
+    if (!retainedRun) setSaveError(null)
     setAttempt((value) => value + 1)
-  }, [clearSelections])
+  }, [clearSelections, retainedRun])
 
   const finishTutorial = useCallback((): void => {
     sfx.unlock()
@@ -214,13 +258,18 @@ export function TowerDefenseGame(): ReactElement {
   }, [sfx])
 
   const toSelect = useCallback((): void => {
+    graphicsReadyRef.current = false
+    resetPhysicalInput()
+    const current = activeRunRef.current
+    // Keep the live run even if this checkpoint or a later checkpoint cannot be written.
+    setRetainedRun(current?.status === 'playing' ? current : null)
     checkpoint()
     activeRunRef.current = null
     window.clearTimeout(checkpointTimerRef.current)
     clearSelections()
     setProgress(loadProgress())
     setPhase('select')
-  }, [checkpoint, clearSelections])
+  }, [checkpoint, clearSelections, resetPhysicalInput])
 
   const handleFinish = useCallback((finished: GameState): void => {
     activeRunRef.current = null
@@ -282,7 +331,7 @@ export function TowerDefenseGame(): ReactElement {
   }, [flash, playSfx, refreshHud])
 
   const handlePointer = useCallback((pointer: BoardPointer): void => {
-    if (!game || phase !== 'playing' || showTutorial || game.pendingPicks > 0) {
+    if (!graphicsReadyRef.current || !game || phase !== 'playing' || showTutorial || game.pendingPicks > 0) {
       return
     }
     const armed = overlayRef.current.tool
@@ -336,12 +385,14 @@ export function TowerDefenseGame(): ReactElement {
   }, [game, phase, placeTool, playSfx, refreshHud, setHeroOpen, setSelectedId, showTutorial])
 
   const togglePause = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     sfx.unlock()
     checkpoint()
     setPhase((current) => (current === 'paused' ? 'playing' : current === 'playing' ? 'paused' : current))
   }, [checkpoint, sfx])
 
   const chooseTool = useCallback((tower: TowerId): void => {
+    if (!graphicsReadyRef.current) return
     sfx.unlock()
     setSelectedId(null)
     setHeroOpen(false)
@@ -349,7 +400,7 @@ export function TowerDefenseGame(): ReactElement {
   }, [setHeroOpen, setSelectedId, setTool, sfx])
 
   const handleCallWave = useCallback((): void => {
-    if (!game) {
+    if (!graphicsReadyRef.current || !game) {
       return
     }
     sfx.unlock()
@@ -363,14 +414,14 @@ export function TowerDefenseGame(): ReactElement {
   }, [flash, game, refreshHud, sfx])
 
   const handlePick = useCallback((element: ElementId): void => {
-    if (game && pickElement(game, element)) {
+    if (graphicsReadyRef.current && game && pickElement(game, element)) {
       playSfx('pick')
       refreshHud(game)
     }
   }, [game, playSfx, refreshHud])
 
   const handleBuyHero = useCallback((upgrade: HeroUpgrade): void => {
-    if (game && buyHeroUpgrade(game, upgrade)) {
+    if (graphicsReadyRef.current && game && buyHeroUpgrade(game, upgrade)) {
       playSfx('upgraded')
       refreshHud(game)
     }
@@ -407,7 +458,7 @@ export function TowerDefenseGame(): ReactElement {
       setHeroInput(game, x, y)
     }
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.defaultPrevented || (event.target instanceof Element && event.target.closest(SHORTCUT_TARGETS))) {
+      if (!graphicsReadyRef.current || event.defaultPrevented || (event.target instanceof Element && event.target.closest(SHORTCUT_TARGETS))) {
         return
       }
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
@@ -453,16 +504,16 @@ export function TowerDefenseGame(): ReactElement {
   if (phase === 'select' || !game || !hud) {
     return (
       <PortraitGameShell className="dark bg-[radial-gradient(circle_at_top,#14532d,#020617_70%)]">
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col" ref={selectRef}>
           {pendingLevel === null && (saveError || recovery.problem) && (
             <p className="mx-auto mt-3 max-w-md px-4 text-center text-sm font-bold text-amber-200" role="alert">
               {saveError ?? (recovery.problem === 'invalid' ? 'The saved run is damaged or from an incompatible version. You can start a new level; your stars are safe.' : 'Saving is unavailable in this browser.')}
             </p>
           )}
-          {recovery.snapshot && (
+          {(retainedRun || recovery.snapshot) && (
             <div className="mx-auto mt-3 flex max-w-md flex-wrap items-center justify-center gap-3 px-4 text-sm text-white">
-              <span>Level {recovery.snapshot.levelId} · wave {recovery.snapshot.waveNumber}/{levelById(recovery.snapshot.levelId)?.waves}</span>
-              <button type="button" data-testid="resume-run" className="min-h-12 rounded-full bg-amber-400 px-5 font-black text-amber-950" onClick={resumeRun}>Resume saved run</button>
+              <span>Level {retainedRun?.level.id ?? recovery.snapshot?.levelId} · wave {retainedRun?.waveNumber ?? recovery.snapshot?.waveNumber}/{retainedRun?.level.waves ?? levelById(recovery.snapshot?.levelId ?? 0)?.waves}</span>
+              <button type="button" data-testid="resume-run" className="min-h-12 rounded-full bg-amber-400 px-5 font-black text-amber-950" onClick={resumeRun}>{retainedRun ? 'Resume current run' : 'Resume saved run'}</button>
             </div>
           )}
           <div className="min-h-0 flex-1">
@@ -499,7 +550,7 @@ export function TowerDefenseGame(): ReactElement {
 
   const level = game.level
   const needsPick = hud.pendingPicks > 0
-  const active = phase === 'playing' && !showTutorial && !needsPick
+  const active = graphicsReady && phase === 'playing' && !showTutorial && !needsPick
   const hint = level.id === 1 && phase === 'playing' && !notice ? firstLevelHint(hud, tool) : null
 
   return (
@@ -510,119 +561,139 @@ export function TowerDefenseGame(): ReactElement {
         data-enemies={hud.enemiesAlive}
         data-phase={phase}
         data-testid="tower-defense-play"
+        ref={playRef}
       >
-        {saveError && <p className="absolute inset-x-3 top-16 z-40 rounded-xl bg-amber-950/95 p-2 text-center text-xs font-bold text-amber-100" role="alert">{saveError}</p>}
-        <GameHud hud={hud} title={`${level.id}. ${level.title}`} />
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <section aria-label="Battlefield" className="relative min-h-0 flex-1 overflow-hidden md:order-2">
-            <TowerDefenseScene
-              active={active}
-              key={`${level.id}-${attempt}`}
-              overlayRef={overlayRef}
-              playSfx={playSfx}
-              speed={speed}
-              state={game}
-              onFinish={handleFinish}
-              onHud={handleHud}
-              onPointer={handlePointer}
-            />
-
-            {hud.pathBlocked && (
-              <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex justify-center" data-testid="path-blocked" role="status">
-                <span className="rounded-full bg-rose-600/95 px-3 py-1 text-xs font-black text-white shadow-lg">Path blocked: enemies will smash through!</span>
-              </div>
-            )}
-            {(notice ?? hint) && (
-              <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex justify-center" data-testid="game-notice" role="status">
-                <span className="rounded-2xl bg-slate-950/90 px-3 py-1.5 text-center text-xs font-bold text-amber-100 shadow-lg md:text-sm">{notice ?? hint}</span>
-              </div>
-            )}
-
-            {selected && phase === 'playing' && (
-              <BuildingPanel
-                building={selected}
-                gold={hud.gold}
-                upgradeQueued={game.plans.some((plan) => plan.buildingId === selected.id && plan.type === 'upgrade')}
-                onClose={() => setSelectedId(null)}
-                onSell={() => {
-                  if (sellBuilding(game, selected.id)) {
-                    setSelectedId(null)
-                    refreshHud(game)
-                  }
-                }}
-                onUpgrade={() => {
-                  if (orderUpgrade(game, selected.id)) {
-                    playSfx('place')
-                    refreshHud(game)
-                  }
-                }}
+        <div className="contents" inert={!graphicsReady}>
+          {saveError && <p className="absolute inset-x-3 top-16 z-40 rounded-xl bg-amber-950/95 p-2 text-center text-xs font-bold text-amber-100" role="alert">{saveError}</p>}
+          <GameHud hud={hud} title={`${level.id}. ${level.title}`} />
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <section aria-label="Battlefield" className="relative min-h-0 flex-1 overflow-hidden md:order-2">
+              <TowerDefenseScene
+                active={active}
+                key={`${level.id}-${attempt}`}
+                overlayRef={overlayRef}
+                playSfx={playSfx}
+                speed={speed}
+                state={game}
+                onGraphicsAvailable={handleGraphicsAvailable}
+                onFinish={handleFinish}
+                onHud={handleHud}
+                onPointer={handlePointer}
               />
-            )}
-            {heroOpen && phase === 'playing' && <HeroPanel hud={hud} onBuy={handleBuyHero} onClose={() => setHeroOpen(false)} />}
-          </section>
-          <BuildTray
-            disabled={phase !== 'playing'}
-            heroOpen={heroOpen}
-            hud={hud}
-            tool={tool}
-            onHero={() => {
-              setTool(null)
-              setSelectedId(null)
-              setHeroOpen(!heroOpen)
-            }}
-            onTool={chooseTool}
-          />
+
+              {hud.pathBlocked && (
+                <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex justify-center" data-testid="path-blocked" role="status">
+                  <span className="rounded-full bg-rose-600/95 px-3 py-1 text-xs font-black text-white shadow-lg">Path blocked: enemies will smash through!</span>
+                </div>
+              )}
+              {(notice ?? hint) && (
+                <div className="pointer-events-none absolute inset-x-2 bottom-2 z-10 flex justify-center" data-testid="game-notice" role="status">
+                  <span className="rounded-2xl bg-slate-950/90 px-3 py-1.5 text-center text-xs font-bold text-amber-100 shadow-lg md:text-sm">{notice ?? hint}</span>
+                </div>
+              )}
+
+              {selected && phase === 'playing' && (
+                <BuildingPanel
+                  building={selected}
+                  gold={hud.gold}
+                  upgradeQueued={game.plans.some((plan) => plan.buildingId === selected.id && plan.type === 'upgrade')}
+                  onClose={() => setSelectedId(null)}
+                  onSell={() => {
+                    if (!graphicsReadyRef.current) return
+                    if (sellBuilding(game, selected.id)) {
+                      setSelectedId(null)
+                      refreshHud(game)
+                    }
+                  }}
+                  onUpgrade={() => {
+                    if (!graphicsReadyRef.current) return
+                    if (orderUpgrade(game, selected.id)) {
+                      playSfx('place')
+                      refreshHud(game)
+                    }
+                  }}
+                />
+              )}
+              {heroOpen && phase === 'playing' && <HeroPanel hud={hud} onBuy={handleBuyHero} onClose={() => setHeroOpen(false)} />}
+            </section>
+            <BuildTray
+              disabled={!graphicsReady || phase !== 'playing'}
+              heroOpen={heroOpen}
+              hud={hud}
+              tool={tool}
+              onHero={() => {
+                if (!graphicsReadyRef.current) return
+                setTool(null)
+                setSelectedId(null)
+                setHeroOpen(!heroOpen)
+              }}
+              onTool={chooseTool}
+            />
+          </div>
+
+          <GameBottomToolbar>
+            <BottomControlButton disabled={!graphicsReady} icon={<Grid3x3 />} label="Level select" variant="ghost" onClick={toSelect} />
+            <BottomControlButton
+              disabled={!graphicsReady || (phase !== 'playing' && phase !== 'paused')}
+              icon={phase === 'paused' ? <Play /> : <Pause />}
+              label={phase === 'paused' ? 'Resume' : 'Pause'}
+              variant="ghost"
+              onClick={togglePause}
+            />
+            <BottomControlButton
+              accentClassName="border-emerald-600 bg-emerald-500 text-white hover:bg-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white"
+              {...(hud.nextWaveIn !== null ? { count: Math.ceil(hud.nextWaveIn) } : {})}
+              disabled={!graphicsReady || hud.nextWaveIn === null || phase !== 'playing' || needsPick}
+              icon={<SkipForward className="fill-current" />}
+              label="Send next wave"
+              onClick={handleCallWave}
+            />
+            <BottomControlButton
+              active={speed > 1}
+              disabled={!graphicsReady}
+              icon={<FastForward />}
+              label={speed > 1 ? 'Normal speed' : 'Double speed'}
+              variant="ghost"
+              onClick={() => { if (graphicsReadyRef.current) setSpeed((current) => (current > 1 ? 1 : 2)) }}
+            />
+            <SoundBottomControlButton
+              muted={muted}
+              onMutedChange={(next) => {
+                setMuted(next)
+                sfx.setMuted(next)
+                mute.save(next)
+              }}
+            />
+            <FullscreenBottomControlButton />
+          </GameBottomToolbar>
+
+          {showTutorial && phase === 'playing' && <TutorialOverlay onStart={finishTutorial} />}
+          {!showTutorial && needsPick && phase === 'playing' && <ElementPickOverlay nextWave={hud.nextWave} unlocked={hud.unlocked} onPick={handlePick} />}
+          {phase === 'paused' && <PauseOverlay onExit={toSelect} onResume={togglePause} />}
+          {phase === 'lost' && <LostOverlay wave={hud.waveNumber} onExit={toSelect} onRetry={() => startLevel(level.id)} />}
+          {phase === 'won' && (
+            <WonOverlay
+              finalLevel={level.id >= TOTAL_LEVELS}
+              lives={hud.lives}
+              maxLives={hud.maxLives}
+              stars={earned}
+              onExit={toSelect}
+              onNext={() => startLevel(level.id + 1)}
+              onRetry={() => startLevel(level.id)}
+            />
+          )}
         </div>
-
-        <GameBottomToolbar>
-          <BottomControlButton disabled={false} icon={<Grid3x3 />} label="Level select" variant="ghost" onClick={toSelect} />
-          <BottomControlButton
-            disabled={phase !== 'playing' && phase !== 'paused'}
-            icon={phase === 'paused' ? <Play /> : <Pause />}
-            label={phase === 'paused' ? 'Resume' : 'Pause'}
-            variant="ghost"
-            onClick={togglePause}
-          />
-          <BottomControlButton
-            accentClassName="border-emerald-600 bg-emerald-500 text-white hover:bg-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white"
-            {...(hud.nextWaveIn !== null ? { count: Math.ceil(hud.nextWaveIn) } : {})}
-            disabled={hud.nextWaveIn === null || phase !== 'playing' || needsPick}
-            icon={<SkipForward className="fill-current" />}
-            label="Send next wave"
-            onClick={handleCallWave}
-          />
-          <BottomControlButton
-            active={speed > 1}
-            disabled={false}
-            icon={<FastForward />}
-            label={speed > 1 ? 'Normal speed' : 'Double speed'}
-            variant="ghost"
-            onClick={() => setSpeed((current) => (current > 1 ? 1 : 2))}
-          />
-          <SoundBottomControlButton
-            muted={muted}
-            onMutedChange={(next) => {
-              setMuted(next)
-              sfx.setMuted(next)
-              mute.save(next)
-            }}
-          />
-          <FullscreenBottomControlButton />
-        </GameBottomToolbar>
-
-        {showTutorial && <TutorialOverlay onStart={finishTutorial} />}
-        {!showTutorial && needsPick && phase === 'playing' && <ElementPickOverlay nextWave={hud.nextWave} unlocked={hud.unlocked} onPick={handlePick} />}
-        {phase === 'paused' && <PauseOverlay onExit={toSelect} onResume={togglePause} />}
-        {phase === 'lost' && <LostOverlay wave={hud.waveNumber} onExit={toSelect} onRetry={() => startLevel(level.id)} />}
-        {phase === 'won' && (
-          <WonOverlay
-            finalLevel={level.id >= TOTAL_LEVELS}
-            lives={hud.lives}
-            maxLives={hud.maxLives}
-            stars={earned}
+        {graphicsFailed && (
+          <GraphicsUnavailable
+            onRetry={retryGraphics}
             onExit={toSelect}
-            onNext={() => startLevel(level.id + 1)}
-            onRetry={() => startLevel(level.id)}
+            onRestoreFocus={() => {
+              if (activeRunRef.current === game) {
+                playRef.current?.querySelector<HTMLButtonElement>('[aria-label="Game paused"] button')?.focus()
+              } else if (!activeRunRef.current) {
+                selectRef.current?.querySelector<HTMLButtonElement>('[data-testid="resume-run"], [data-testid="level-tile-1"]')?.focus()
+              }
+            }}
           />
         )}
       </div>

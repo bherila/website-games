@@ -137,6 +137,63 @@ test.describe('Tower Defense', () => {
     expect(errors).toEqual([])
   })
 
+  test('graphics failure retries the saved run paused and safely returns to level select', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await page.addInitScript((key) => localStorage.setItem(key, 'seen'), TUTORIAL_KEY)
+    await page.goto('/tower-defense')
+    await page.getByTestId('level-tile-1').click()
+    await page.getByTestId('tray-arrow').click()
+    const spot = await cellPoint(page, 6, 16)
+    await page.mouse.click(spot.x, spot.y)
+    await page.getByRole('button', { name: 'Pause', exact: true }).click()
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)
+    expect(stored).not.toBeNull()
+    await page.addInitScript(() => {
+      const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')?.value as typeof HTMLCanvasElement.prototype.getContext
+      if (!original) throw new Error('Missing canvas getContext')
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...args: unknown[]) {
+        if (kind.startsWith('webgl')) return null
+        return Reflect.apply(original, this, [kind, ...args])
+      } as typeof original
+      window.addEventListener('restore-test-graphics', () => { HTMLCanvasElement.prototype.getContext = original }, { once: true })
+    })
+    await page.reload()
+    await page.getByTestId('resume-run').click()
+    const dialog = page.getByRole('alertdialog', { name: 'Graphics unavailable' })
+    const retry = dialog.getByRole('button', { name: 'Retry graphics' })
+    const exit = dialog.getByRole('button', { name: 'Level select' })
+    await expect(retry).toBeFocused()
+    await expect(page.getByTestId('tower-defense-canvas')).toHaveCount(0)
+    await page.keyboard.press('n')
+    await page.keyboard.press('ArrowLeft')
+    await retry.press('Enter')
+    await expect(retry).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    await expect(exit).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(retry).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeVisible()
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)).toEqual(stored)
+    await exit.click()
+    await expect(page.getByTestId('resume-run')).toBeFocused()
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)).toEqual(stored)
+    await page.getByTestId('resume-run').click()
+    await expect(retry).toBeFocused()
+    await page.evaluate(() => window.dispatchEvent(new Event('restore-test-graphics')))
+    await retry.click()
+    await expect(dialog).toBeHidden()
+    await expect(page.getByTestId('tower-defense-canvas')).toBeVisible()
+    const paused = page.getByRole('dialog', { name: 'Game paused' })
+    await expect(paused.getByRole('button', { name: 'Resume', exact: true })).toBeFocused()
+    await expect(page.getByTestId('gold')).toHaveText('70')
+    // The loop is live while paused; leaving again must checkpoint the identical simulation.
+    await paused.getByRole('button', { name: 'Level select', exact: true }).click()
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bwh.tower-defense.run.v1') ?? 'null') as Record<string, unknown> | null)).toEqual(stored)
+    expect(errors).toEqual([])
+  })
+
   test('walls dragged across the field seal the route, and enemies smash through them', async ({ page }) => {
     await page.addInitScript((key) => localStorage.setItem(key, 'seen'), TUTORIAL_KEY)
     await page.goto('/tower-defense')
