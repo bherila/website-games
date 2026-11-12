@@ -31,8 +31,22 @@ export function createCanvasTexture(
 }
 
 export function disposeRenderer(renderer: THREE.WebGLRenderer, container: HTMLElement): void {
-  renderer.dispose()
-  if (renderer.domElement.parentElement === container) {
-    container.removeChild(renderer.domElement)
+  try {
+    renderer.dispose()
+  } finally {
+    if (renderer.domElement.parentElement === container) {
+      container.removeChild(renderer.domElement)
+    }
+  }
+}
+
+/** Finish all owned cleanup even when one GPU resource refuses disposal. */
+export function finishDisposal(actions: readonly (() => void)[]): void {
+  for (const action of actions) {
+    try {
+      action()
+    } catch {
+      // A lost/partially initialized context must not prevent the next retry.
+    }
   }
 }

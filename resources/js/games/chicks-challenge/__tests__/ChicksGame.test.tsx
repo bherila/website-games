@@ -8,13 +8,18 @@ import { parseLevel } from '../levels/parseLevel'
 
 const mockSceneProps: { current: SceneProps | null } = { current: null }
 
-jest.mock('../ChicksScene', () => ({
-  ChicksScene: (props: SceneProps) => {
-    mockSceneProps.current = props
+jest.mock('../ChicksScene', () => {
+  const { useEffect } = jest.requireActual<typeof import('react')>('react')
+  return {
+    ChicksScene: (props: SceneProps) => {
+      const { onGraphicsStatus } = props
+      useEffect(() => onGraphicsStatus?.('ready'), [onGraphicsStatus])
+      mockSceneProps.current = props
 
-    return null
-  },
-}))
+      return null
+    },
+  }
+})
 
 // Injects one synthetic, guaranteed-to-drown level (id 9001, outside the 1..40
 // shipped range) alongside the real pack so the death path doesn't need a

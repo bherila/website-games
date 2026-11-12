@@ -191,6 +191,19 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 
 ## Scene & rendering
 
+- **Graphics recovery:** renderer construction, partial setup and the first populated draw must
+  succeed before gameplay input is enabled. Setup/draw failures show an accessible “Graphics
+  unavailable” panel outside the hidden, rotated canvas, with “Retry graphics” and “Level select”.
+  Retry rebuilds graphics for the exact current parent puzzle, preserving moves and undo history;
+  it never restarts a level or creates another attempt. While unavailable, the parent synchronously
+  rejects move/undo/restart commands and clears queued input and keyboard/swipe/D-pad repeats.
+  Menu, mute and orientation preferences remain usable. Recovery receives focus; a successful retry
+  returns focus to the board, and shortcuts respect native buttons. Every failed/retired scene cancels
+  frames and resize observers, disposes partial board geometry, effects and cached materials/textures
+  before the renderer, and detaches its canvas even if disposal throws. StrictMode and stale callbacks
+  must not revive a retired scene. Focused real-parent Jest fault tests and desktop/mobile browser
+  context/draw fault injection cover this contract.
+
 - three.js **orthographic** camera looking straight down (this is the "2D via the WebGL stack" reuse —
   same renderer/lifecycle/disposal patterns as the other games, per-game `scene/threeUtils.ts` copied
   from Hover's).

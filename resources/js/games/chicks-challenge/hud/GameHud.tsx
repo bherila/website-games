@@ -14,6 +14,7 @@ interface GameHudProps {
   /** Item kinds this level can hand out; their row is reserved from the start. */
   inventorySlots: readonly InventorySlot[]
   muted: boolean
+  restartDisabled?: boolean
   onRestart: () => void
   onLevelSelect: () => void
   onToggleMute: () => void
@@ -50,7 +51,7 @@ const chipClass =
  * "HUD & screens". It is a flow sibling of the playfield — not an overlay — so it
  * can never cover board tiles; the hint banner is `hud/HintBanner.tsx`.
  */
-export function GameHud({ state, levelId, par, inventorySlots, muted, onRestart, onLevelSelect, onToggleMute }: GameHudProps): ReactElement {
+export function GameHud({ state, levelId, par, inventorySlots, muted, restartDisabled = false, onRestart, onLevelSelect, onToggleMute }: GameHudProps): ReactElement {
   const row = inventoryRow(inventorySlots, state)
 
   return (
@@ -73,7 +74,7 @@ export function GameHud({ state, levelId, par, inventorySlots, muted, onRestart,
 
           <div className="flex items-center gap-2">
             <SoundToggle muted={muted} onMutedChange={onToggleMute} className={iconButtonClass} iconClassName="size-5" />
-            <button aria-label="Restart level" className={iconButtonClass} type="button" onClick={onRestart}>
+            <button aria-label="Restart level" className={iconButtonClass} disabled={restartDisabled} type="button" onClick={onRestart}>
               <RotateCcw aria-hidden="true" className="size-5" />
             </button>
             <button aria-label="Level select" className={iconButtonClass} type="button" onClick={onLevelSelect}>

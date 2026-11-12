@@ -17,6 +17,7 @@ import * as THREE from 'three'
 
 import type { MonsterKind, TileKind } from '../engine/types'
 import { ENTITY_TEXTURE_SIZE, PALETTE, TILE_TEXTURE_SIZE } from './sceneConstants'
+import { finishDisposal } from './threeUtils'
 import { createCanvasTexture, hexColor } from './threeUtils'
 
 type Ctx = CanvasRenderingContext2D
@@ -673,7 +674,14 @@ export function createTileMaterialCache(): TileMaterialCache {
       return existing
     }
 
-    const material = new THREE.MeshBasicMaterial({ map: createTileTexture(kind) })
+    const texture = createTileTexture(kind)
+    let material: THREE.MeshBasicMaterial
+    try {
+      material = new THREE.MeshBasicMaterial({ map: texture })
+    } catch (error) {
+      texture.dispose()
+      throw error
+    }
     materials.set(kind, material)
     if (TILE_ANIMATIONS[kind]) {
       animated.push({ kind, material })
@@ -690,8 +698,7 @@ export function createTileMaterialCache(): TileMaterialCache {
 
   function dispose(): void {
     for (const material of materials.values()) {
-      material.map?.dispose()
-      material.dispose()
+      finishDisposal([() => material.map?.dispose(), () => material.dispose()])
     }
     materials.clear()
     animated.length = 0
@@ -849,7 +856,13 @@ export function createEntityMaterialCache(): EntityMaterialCache {
     }
 
     const texture = kind === 'player' ? createPlayerTexture() : kind === 'block' ? createBlockTexture() : createMonsterTexture(kind)
-    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+    let material: THREE.MeshBasicMaterial
+    try {
+      material = new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+    } catch (error) {
+      texture.dispose()
+      throw error
+    }
     materials.set(kind, material)
 
     return material
@@ -857,8 +870,7 @@ export function createEntityMaterialCache(): EntityMaterialCache {
 
   function dispose(): void {
     for (const material of materials.values()) {
-      material.map?.dispose()
-      material.dispose()
+      finishDisposal([() => material.map?.dispose(), () => material.dispose()])
     }
     materials.clear()
   }

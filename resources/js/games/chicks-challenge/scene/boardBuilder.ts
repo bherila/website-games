@@ -31,19 +31,24 @@ export function buildBoard(
   const group = new THREE.Group()
   const meshes: THREE.Mesh[] = []
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const index = y * width + x
-      const kind = tiles[index] ?? 'wall'
-      const mesh = new THREE.Mesh(geometry, materials.get(kind))
-      const pos = tileCenterWorld(x, y)
-      mesh.position.set(pos.x, pos.y, Z_TILE)
-      group.add(mesh)
-      meshes.push(mesh)
+  try {
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = y * width + x
+        const kind = tiles[index] ?? 'wall'
+        const mesh = new THREE.Mesh(geometry, materials.get(kind))
+        const pos = tileCenterWorld(x, y)
+        mesh.position.set(pos.x, pos.y, Z_TILE)
+        group.add(mesh)
+        meshes.push(mesh)
+      }
     }
-  }
 
-  return { group, geometry, meshes, width, height }
+    return { group, geometry, meshes, width, height }
+  } catch (error) {
+    geometry.dispose()
+    throw error
+  }
 }
 
 /** Swaps the material of every tile whose kind changed between `prevTiles` and `nextTiles`. */

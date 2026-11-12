@@ -21,7 +21,7 @@ import { applyMove } from './engine/applyMove'
 import type { EngineEvent, GameState, MoveIntent } from './engine/types'
 import { tileAt } from './engine/types'
 import { loadSavedProgress, recordWin, saveProgress } from './gameProgress'
-import { type BumpSignal, type GamePhase, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS, UNDO_HISTORY_MAX } from './gameTypes'
+import { type BumpSignal, type GamePhase, type GraphicsStatus, INPUT_BUFFER_MAX, starsForMoves, STEP_TWEEN_MS, TOTAL_LEVELS, UNDO_HISTORY_MAX } from './gameTypes'
 import { GameHud } from './hud/GameHud'
 import { GameToolbar } from './hud/GameToolbar'
 import { HintBanner } from './hud/HintBanner'
@@ -140,6 +140,12 @@ export function ChicksGame(): ReactElement {
   const [winSummary, setWinSummary] = useState<WinSummary | null>(null)
   const [touchEnabled] = useState(isTouchDevice)
   const [muted, setMuted] = useState(() => loadMuted())
+  const [graphicsStatus, setGraphicsStatus] = useState<GraphicsStatus>('loading')
+  const [graphicsAttempt, setGraphicsAttempt] = useState(0)
+  const graphicsReadyRef = useRef(false)
+  const boardFocusRef = useRef<HTMLDivElement | null>(null)
+  const retryButtonRef = useRef<HTMLButtonElement | null>(null)
+  const returnFocusToBoardRef = useRef(false)
   const [stuck, setStuck] = useState(false)
   const [orientationPreference, setOrientationPreference] = useState(loadBoardOrientationPreference)
 
@@ -227,6 +233,32 @@ export function ChicksGame(): ReactElement {
     heldKeyRef.current = null
   }, [])
 
+  const handleGraphicsStatus = useCallback((status: GraphicsStatus): void => {
+    // The consumption timer and held-input callbacks can run before React commits.
+    graphicsReadyRef.current = status === 'ready'
+    if (status !== 'ready') {
+      clearKeyRepeat()
+      touchRepeatRef.current.stop()
+      queueRef.current.clear()
+    }
+    setGraphicsStatus(status)
+  }, [clearKeyRepeat])
+
+  const handleRetryGraphics = useCallback((): void => {
+    returnFocusToBoardRef.current = true
+    handleGraphicsStatus('loading')
+    setGraphicsAttempt((attempt) => attempt + 1)
+  }, [handleGraphicsStatus])
+
+  useEffect(() => {
+    if (graphicsStatus === 'failed') {
+      retryButtonRef.current?.focus()
+    } else if (graphicsStatus === 'ready' && returnFocusToBoardRef.current) {
+      returnFocusToBoardRef.current = false
+      boardFocusRef.current?.focus()
+    }
+  }, [graphicsStatus])
+
   const pushHistory = useCallback((entry: UndoEntry): void => {
     const history = historyRef.current
     history.push(entry)
@@ -267,7 +299,7 @@ export function ChicksGame(): ReactElement {
   // A restart mid-run is undoable (a stray tap on the restart button costs
   // nothing); replaying after a win starts clean.
   const handleRestart = useCallback((): void => {
-    if (!levelDef) {
+    if (!graphicsReadyRef.current || !levelDef) {
       return
     }
     const current = gameStateRef.current
@@ -285,7 +317,7 @@ export function ChicksGame(): ReactElement {
   /** Steps back to the state before the last accepted move (or restart), reviving a death. */
   const handleUndo = useCallback((): void => {
     const current = gameStateRef.current
-    if (!current || current.won) {
+    if (!graphicsReadyRef.current || !current || current.won) {
       return
     }
     const entry = historyRef.current.pop()
@@ -307,6 +339,8 @@ export function ChicksGame(): ReactElement {
   }, [clearDeathTimeout, clearKeyRepeat])
 
   const handleGoToSelect = useCallback((): void => {
+    graphicsReadyRef.current = false
+    touchRepeatRef.current.stop()
     clearDeathTimeout()
     clearKeyRepeat()
     queueRef.current.clear()
@@ -318,7 +352,7 @@ export function ChicksGame(): ReactElement {
   }, [clearDeathTimeout, clearKeyRepeat])
 
   const handleNextLevel = useCallback((): void => {
-    if (!levelDef) {
+    if (!graphicsReadyRef.current || !levelDef) {
       return
     }
     const next = getLevelById(levelDef.id + 1)
@@ -330,7 +364,7 @@ export function ChicksGame(): ReactElement {
   // Applies at most one queued intent to the engine, handling win/death transitions.
   const processQueuedIntent = useCallback((): void => {
     const current = gameStateRef.current
-    if (!current || !levelDef) {
+    if (!graphicsReadyRef.current || !current || !levelDef) {
       return
     }
 
@@ -395,7 +429,7 @@ export function ChicksGame(): ReactElement {
     sfx().play('stuck')
   }, [sfx])
 
-  useStuckProbe({ active: phase === 'playing' && !stuck, onStuck: handleStuck, state: gameState })
+  useStuckProbe({ active: graphicsStatus === 'ready' && phase === 'playing' && !stuck, onStuck: handleStuck, state: gameState })
 
   // Throttles intent application to one per STEP_TWEEN_MS so the scene's tween
   // animations can keep up with buffered input (docs/games/chicks-challenge.md "Controls").
@@ -420,7 +454,7 @@ export function ChicksGame(): ReactElement {
    * layout effect so it is never a frame behind what the player can see.
    */
   const enqueueIntent = useCallback((intent: MoveIntent): void => {
-    if (intent === 'wait' && !waitEnabledRef.current) {
+    if (!graphicsReadyRef.current || (intent === 'wait' && !waitEnabledRef.current)) {
       return
     }
     queueRef.current.enqueue(rotateIntent(intent, quarterTurnsRef.current))
@@ -433,6 +467,10 @@ export function ChicksGame(): ReactElement {
     }
 
     function handleKeyDown(event: KeyboardEvent): void {
+      // Keep Space/Enter and letter shortcuts native on recovery/preferences buttons.
+      if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, [contenteditable="true"]')) {
+        return
+      }
       if (event.key === 'r' || event.key === 'R') {
         handleRestart()
 
@@ -452,7 +490,7 @@ export function ChicksGame(): ReactElement {
         return
       }
 
-      if (phase !== 'playing' || event.repeat) {
+      if (!graphicsReadyRef.current || phase !== 'playing' || event.repeat) {
         return
       }
 
@@ -461,6 +499,7 @@ export function ChicksGame(): ReactElement {
         return
       }
 
+      event.preventDefault()
       heldKeyRef.current = event.key
       keyRepeatRef.current.start(() => enqueueIntent(intent))
     }
@@ -490,7 +529,7 @@ export function ChicksGame(): ReactElement {
   // tap-to-wait affordance near the player character.
   const { boardRef: boardSwipeRef, ...boardSwipeHandlers } = useSwipeGesture({
     threshold: SWIPE_THRESHOLD_PX,
-    enabled: phase === 'playing',
+    enabled: graphicsStatus === 'ready' && phase === 'playing',
     onSwipe: (direction): void => {
       // One swipe is one step; keeping the finger down past the repeat delay walks on.
       touchRepeatRef.current.start(() => enqueueIntent(direction))
@@ -510,6 +549,7 @@ export function ChicksGame(): ReactElement {
   // The playfield needs both the orientation measurer's ref and the swipe hook's
   // native-touch ref; a stable callback fans one element node out to both.
   const setBoardElement = useCallback((element: HTMLDivElement | null): void => {
+    boardFocusRef.current = element
     boardAreaRef(element)
     boardSwipeRef(element)
   }, [boardAreaRef, boardSwipeRef])
@@ -536,6 +576,7 @@ export function ChicksGame(): ReactElement {
           state={gameState}
           onLevelSelect={handleGoToSelect}
           onRestart={handleRestart}
+          restartDisabled={graphicsStatus !== 'ready'}
           onToggleMute={handleToggleMute}
         />
 
@@ -544,30 +585,46 @@ export function ChicksGame(): ReactElement {
           <div
             className="relative min-h-0 min-w-0 flex-1 touch-none overscroll-none select-none [-webkit-touch-callout:none]"
             data-testid="chips-board"
+            data-graphics-status={graphicsStatus}
+            tabIndex={-1}
             ref={setBoardElement}
             onContextMenu={(event) => event.preventDefault()}
             {...boardSwipeHandlers}
           >
             <BoardRotor height={boardBox?.height ?? null} quarterTurns={quarterTurns} width={boardBox?.width ?? null}>
-              <ChicksScene bump={bump} events={events} moveSeq={moveSeq} resetKey={sceneResetKey} state={gameState} />
+              <ChicksScene graphicsAttempt={graphicsAttempt} onGraphicsStatus={handleGraphicsStatus} bump={bump} events={events} moveSeq={moveSeq} resetKey={sceneResetKey} state={gameState} />
             </BoardRotor>
 
-            {showHint && gameState.hint !== null && <HintBanner text={gameState.hint} />}
+            {graphicsStatus === 'loading' && <p role="status" className="absolute inset-0 flex items-center justify-center text-slate-800 dark:text-slate-100">Starting graphics…</p>}
+
+            {graphicsStatus === 'ready' && showHint && gameState.hint !== null && <HintBanner text={gameState.hint} />}
+            {graphicsStatus === 'failed' && (
+              <div className="absolute inset-0 z-30 flex overflow-y-auto p-4">
+                <div role="alert" className="m-auto max-w-sm rounded-2xl bg-white p-5 text-center text-slate-900 shadow-xl dark:bg-slate-800 dark:text-white">
+                  <h2 className="text-xl font-bold">Graphics unavailable</h2>
+                  <p className="mt-2">Your puzzle is paused. Try starting the graphics again, or return to level select.</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-3">
+                    <button ref={retryButtonRef} className="min-h-11 rounded-lg bg-amber-400 px-4 font-bold text-slate-950" type="button" onClick={handleRetryGraphics}>Retry graphics</button>
+                    <button className="min-h-11 rounded-lg border border-slate-400 px-4 font-bold" type="button" onClick={handleGoToSelect}>Level select</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <GameToolbar
             orientationPreference={orientationPreference}
             quarterTurns={quarterTurns}
-            showDpad={touchEnabled && phase === 'playing'}
+            showDpad={graphicsStatus === 'ready' && touchEnabled && phase === 'playing'}
             waitEnabled={waitEnabled}
-            canUndo={undoDepth > 0 && phase === 'playing'}
+            canUndo={graphicsStatus === 'ready' && undoDepth > 0 && phase === 'playing'}
             onUndo={handleUndo}
             onCycleOrientation={handleCycleOrientation}
             onIntent={enqueueIntent}
           />
         </div>
 
-        {phase === 'won' && winSummary && (
+        {graphicsStatus === 'ready' && phase === 'won' && winSummary && (
           <LevelCompleteOverlay
             bestMoves={winSummary.bestMoves}
             hasNextLevel={hasNextLevel}
@@ -581,11 +638,11 @@ export function ChicksGame(): ReactElement {
           />
         )}
 
-        {phase === 'dead' && (
+        {graphicsStatus === 'ready' && phase === 'dead' && (
           <DeathOverlay cause={gameState.deathCause} onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />
         )}
 
-        {phase === 'playing' && stuck && <StuckOverlay onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />}
+        {graphicsStatus === 'ready' && phase === 'playing' && stuck && <StuckOverlay onMenu={handleGoToSelect} onRestart={handleRestart} onUndo={undoDepth > 0 ? handleUndo : null} />}
       </section>
     </PortraitGameShell>
   )
