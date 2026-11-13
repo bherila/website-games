@@ -3,6 +3,7 @@ import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, u
 
 import type { MoveIntent } from '../engine/types'
 import { createHoldRepeat } from '../input/holdRepeat'
+import { useInputActivity } from '../input/useInputActivity'
 
 interface TouchDpadProps {
   onIntent: (intent: MoveIntent) => void
@@ -24,10 +25,12 @@ interface TouchDpadProps {
 export function TouchDpad({ onIntent, waitEnabled = true }: TouchDpadProps): ReactElement {
   const [repeat] = useState(createHoldRepeat)
   const stopRepeat = repeat.stop
+  const inputActiveRef = useInputActivity(stopRepeat)
 
   useEffect(() => repeat.stop, [repeat])
 
   const startRepeat = (intent: MoveIntent): void => {
+    if (!inputActiveRef.current || document.hidden) return
     repeat.start(() => onIntent(intent))
   }
 

@@ -26,7 +26,7 @@ interface BoardViewProps {
  * Swipe tracking is shared with Chick's Challenge via `useSwipeGesture`.
  */
 export function BoardView({ board, ghosts, mergedTileIds, onSwipe, spawnedTileId }: BoardViewProps): ReactElement {
-  const { boardRef, ...swipeHandlers } = useSwipeGesture({ threshold: SWIPE_THRESHOLD_PX, onSwipe })
+  const { boardRef, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onPointerLeave } = useSwipeGesture({ threshold: SWIPE_THRESHOLD_PX, onSwipe })
 
   const cells: ReactElement[] = []
   for (let row = 0; row < board.size; row += 1) {
@@ -53,7 +53,11 @@ export function BoardView({ board, ghosts, mergedTileIds, onSwipe, spawnedTileId
       className="@container relative aspect-square w-[min(100%,calc(100dvh_-_15rem))] touch-none rounded-2xl bg-slate-300/70 p-[1.5%] shadow-inner sm:w-[min(100%,calc(100dvh_-_17rem))] dark:bg-slate-800/80"
       data-testid="board"
       ref={boardRef}
-      {...swipeHandlers}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onPointerLeave={onPointerLeave}
     >
       <div className="relative h-full w-full">
         {cells}

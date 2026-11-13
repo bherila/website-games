@@ -59,6 +59,8 @@ export interface SwipeGestureOptions {
 }
 
 export interface SwipeGestureHandlers {
+  /** Discard the current drag without firing a swipe or tap. */
+  cancelGesture: () => void
   /** Attach to the board element; wires the native touch listeners. */
   boardRef: RefCallback<HTMLElement>
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void
@@ -187,8 +189,14 @@ export function useSwipeGesture(options: SwipeGestureOptions): SwipeGestureHandl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const cancelGesture = useCallback((): void => {
+    gestureRef.current = null
+    optionsRef.current.onGestureEnd?.()
+  }, [])
+
   return {
     boardRef,
+    cancelGesture,
 
     onPointerDown(event: ReactPointerEvent<HTMLElement>): void {
       // Touch is served by the native listeners above; ignore its Pointer Events

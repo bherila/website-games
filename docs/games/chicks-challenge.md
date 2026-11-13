@@ -165,6 +165,7 @@ Default initial facing is **up**; a level may override per-monster via `facingOv
 
 ## Controls
 
+- **Focus loss:** window blur or a hidden document clears queued moves, keyboard/swipe/D-pad holds, and unfinished gestures immediately. Returning preserves the puzzle and undo history; only a fresh press or gesture can move again.
 - **Keyboard:** arrows / WASD = step; holding past the 400 ms repeat delay (`INPUT_REPEAT_DELAY_MS`)
   auto-repeats a step every 150 ms; Space = wait; R = restart; Esc = level select.
 - **One press is one step (normative):** every source repeats through `input/holdRepeat.ts`, which

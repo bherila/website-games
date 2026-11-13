@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
 
 import { ChicksGame } from '../ChicksGame'
 import { type GraphicsStatus, STEP_TWEEN_MS } from '../gameTypes'
@@ -129,7 +130,79 @@ describe('ChicksGame board rotation', () => {
     jest.restoreAllMocks()
     Reflect.deleteProperty(window.navigator, 'maxTouchPoints')
     Reflect.deleteProperty(window.screen, 'orientation')
+    Reflect.deleteProperty(document, 'hidden')
     mockOnSceneCommit = null
+  })
+
+  it('accepts fresh keyboard and D-pad input after StrictMode effect replay', () => {
+    mockBoardArea(375, 600)
+    window.history.pushState({}, '', '/chicks-challenge?level=9003')
+    render(<StrictMode><ChicksGame /></StrictMode>)
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    fireEvent.keyUp(window, { key: 'ArrowDown' })
+    flushOneMove()
+    expect(playerPos()).toBe('2,7')
+    const down = screen.getByTestId('touch-dpad-down')
+    stubPointerCapture(down)
+    fireEvent.pointerDown(down, { pointerId: 1 })
+    fireEvent.pointerUp(down, { pointerId: 1 })
+    flushOneMove()
+    expect(playerPos()).toBe('2,8')
+  })
+
+  it.each(['blur', 'hidden'] as const)('discards held keyboard and queued moves on %s while preserving undo', (loss) => {
+    renderTallRoom(375, 600)
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    flushOneMove()
+    expect(playerPos()).toBe('2,7')
+    // Queue a second direction without consuming it; both holds and buffers must clear.
+    fireEvent.keyDown(window, { key: 'ArrowUp' })
+    if (loss === 'blur') fireEvent(window, new Event('blur'))
+    else {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+      fireEvent(document, new Event('visibilitychange'))
+    }
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    act(() => jest.advanceTimersByTime(1200))
+    expect(playerPos()).toBe('2,7')
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    fireEvent(document, new Event('visibilitychange'))
+    fireEvent(window, new Event('focus'))
+    // Native repeat from a key still physically held cannot restart our repeat timer.
+    fireEvent.keyDown(window, { key: 'ArrowUp', repeat: true })
+    act(() => jest.advanceTimersByTime(1200))
+    expect(playerPos()).toBe('2,7')
+    fireEvent.click(screen.getByTestId('undo-button'))
+    expect(playerPos()).toBe(START)
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    flushOneMove()
+    expect(playerPos()).toBe('2,7')
+    act(() => jest.advanceTimersByTime(450))
+    expect(playerPos()).not.toBe('2,7')
+    fireEvent.keyUp(window, { key: 'ArrowDown' })
+  })
+
+  it.each(['dpad', 'swipe', 'unfinished swipe'] as const)('cancels %s across blur and requires a fresh gesture', (source) => {
+    renderTallRoom(375, 600)
+    const target = source === 'dpad' ? screen.getByTestId('touch-dpad-down') : screen.getByTestId('chips-board')
+    stubPointerCapture(target)
+    fireEvent.pointerDown(target, { pointerId: 1, clientX: 180, clientY: 200 })
+    if (source === 'swipe') fireEvent.pointerMove(target, { pointerId: 1, clientX: 180, clientY: 250 })
+    if (source !== 'unfinished swipe') flushOneMove()
+    const before = playerPos()
+    fireEvent(window, new Event('blur'))
+    act(() => jest.advanceTimersByTime(1200))
+    fireEvent(window, new Event('focus'))
+    // A stale drag crossing the threshold after return must also be discarded.
+    fireEvent.pointerMove(target, { pointerId: 1, clientX: 180, clientY: 280 })
+    fireEvent.pointerUp(target, { pointerId: 1, clientX: 180, clientY: 280 })
+    act(() => jest.advanceTimersByTime(1200))
+    expect(playerPos()).toBe(before)
+    fireEvent.pointerDown(target, { pointerId: 2, clientX: 180, clientY: 200 })
+    if (source !== 'dpad') fireEvent.pointerMove(target, { pointerId: 2, clientX: 180, clientY: 250 })
+    fireEvent.pointerUp(target, { pointerId: 2, clientX: 180, clientY: 250 })
+    flushOneMove()
+    expect(playerPos()).not.toBe(before)
   })
 
   it('rotates the board a quarter turn and swaps the rotor box in a landscape viewport', () => {
