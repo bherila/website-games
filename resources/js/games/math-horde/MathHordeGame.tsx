@@ -27,6 +27,7 @@ export function MathHordeGame(): ReactElement {
   const [graphicsAttempt, setGraphicsAttempt] = useState(0)
   const [graphicsStatus, setGraphicsStatus] = useState<GraphicsStatus>('loading')
   const graphicsReadyRef = useRef(false)
+  const focusBlockedRef = useRef(false)
   const steeringKeysRef = useRef(new Set<string>())
   const [recovering, setRecovering] = useState(false)
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -63,6 +64,7 @@ export function MathHordeGame(): ReactElement {
     }
     const nextState = createGameState(selected)
     graphicsReadyRef.current = false
+    focusBlockedRef.current = document.hidden
     steeringKeysRef.current.clear()
     setGraphicsStatus('loading')
     setRecovering(false)
@@ -79,9 +81,10 @@ export function MathHordeGame(): ReactElement {
   }, [sfx])
 
   const finishTutorial = useCallback((): void => {
-    if (!graphicsReadyRef.current) {
+    if (!graphicsReadyRef.current || document.hidden) {
       return
     }
+    focusBlockedRef.current = false
     sfx.unlock()
     setShowTutorial(false)
     try {
@@ -109,7 +112,8 @@ export function MathHordeGame(): ReactElement {
   }, [])
 
   const pauseOrResume = useCallback((): void => {
-    if (graphicsReadyRef.current) {
+    if (graphicsReadyRef.current && !document.hidden) {
+      focusBlockedRef.current = false
       steeringKeysRef.current.clear()
       setPhase((current) => current === 'paused' ? 'playing' : current === 'playing' ? 'paused' : current)
     }
@@ -145,7 +149,7 @@ export function MathHordeGame(): ReactElement {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
-      if (!graphicsReadyRef.current || !gameState || showTutorial || (phase !== 'playing' && phase !== 'paused')) {
+      if (document.hidden || (focusBlockedRef.current && phase === 'playing') || !graphicsReadyRef.current || !gameState || showTutorial || (phase !== 'playing' && phase !== 'paused')) {
         return
       }
       if (event.defaultPrevented || (event.target instanceof Element && event.target.closest(
@@ -179,17 +183,28 @@ export function MathHordeGame(): ReactElement {
     function clearKey(event: KeyboardEvent): void {
       steeringKeysRef.current.delete(event.code)
     }
-    function clearKeys(): void {
+    function suspend(): void {
+      focusBlockedRef.current = true
       steeringKeysRef.current.clear()
+      if (!showTutorial) {
+        setPhase((current) => current === 'playing' ? 'paused' : current)
+      }
+    }
+    function visibilityChanged(): void {
+      if (document.hidden) {
+        suspend()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', clearKey)
-    window.addEventListener('blur', clearKeys)
+    window.addEventListener('blur', suspend)
+    document.addEventListener('visibilitychange', visibilityChanged)
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', clearKey)
-      window.removeEventListener('blur', clearKeys)
+      window.removeEventListener('blur', suspend)
+      document.removeEventListener('visibilitychange', visibilityChanged)
     }
   }, [gameState, phase, showTutorial, pauseOrResume])
 
