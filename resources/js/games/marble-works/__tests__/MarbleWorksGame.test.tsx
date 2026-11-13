@@ -117,7 +117,7 @@ describe('MarbleWorksGame', () => {
     tapCell(1, 3)
     fireEvent.click(screen.getByRole('button', { name: 'Clear board' }))
     act(() => { mockSceneProps.onReady(false) })
-    fireEvent.click(screen.getByRole('button', { name: 'Clear', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: /^Clear$/ }))
     expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
   })
 
