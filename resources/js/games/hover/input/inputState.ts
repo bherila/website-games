@@ -61,11 +61,15 @@ export function createKeyboardInput(options: KeyboardInputOptions = {}): InputSo
 
   const handleKeyDown = (event: Event): void => {
     const key = event as KeyboardEvent
+    // Leave native keyboard activation and navigation to focused controls.
+    if (key.code === 'Space' && key.target instanceof Element && key.target.closest('button, a, input, select, textarea, [contenteditable="true"]')) return
     if (key.code === 'Escape') {
       options.onPause?.()
       return
     }
     if (GAME_KEYS.has(key.code)) {
+      // A key held across a graphics hold needs a fresh press after recovery.
+      if (key.repeat && !held.has(key.code)) return
       key.preventDefault()
       held.add(key.code)
     }

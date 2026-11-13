@@ -7,7 +7,7 @@ import { createRng } from './engine/rng'
 import { loadProgress, loadSavedProgress, loadSettings, saveProgress, saveSettings } from './gameProgress'
 import type { EngineEvent, EngineState, GamePhase, HudSnapshot } from './gameTypes'
 import { MAX_LOSSES_PER_MAP, MAX_SPEED } from './gameTypes'
-import { buildHudSnapshot,HoverScene } from './HoverScene'
+import { buildHudSnapshot, type GraphicsStatus, HoverScene } from './HoverScene'
 import { HudOverlay } from './hud/HudOverlay'
 import { ScreenOverlays } from './hud/ScreenOverlays'
 import { TouchControls } from './hud/TouchControls'
@@ -21,6 +21,13 @@ const MAP_COMPLETE_MS = 3000
 const MAP_LOST_MS = 2600
 
 export function HoverGame(): ReactElement {
+  const [graphicsStatus, setGraphicsStatus] = useState<GraphicsStatus>('starting')
+  const [graphicsAttempt, setGraphicsAttempt] = useState(0)
+  const graphicsStatusRef = useRef<GraphicsStatus>('starting')
+  const graphicsReadyRef = useRef(false)
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const retryingRef = useRef(false)
+  const retryRef = useRef<HTMLButtonElement | null>(null)
   const [phase, setPhase] = useState<GamePhase>('attract')
   const [hud, setHud] = useState<HudSnapshot | null>(null)
   const [muted, setMuted] = useState(() => loadSettings().muted)
@@ -52,24 +59,31 @@ export function HoverGame(): ReactElement {
     return sfxRef.current
   }, [])
 
-  const schedule = useCallback((fn: () => void, ms: number): void => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current)
+  const handleGraphicsStatus = useCallback((status: GraphicsStatus): void => {
+    if (status !== 'ready') {
+      inputRef.current?.detach()
+      touchHandle?.reset()
+    } else {
+      // Starting and ready may be batched into one commit. Reconnect the
+      // existing source even when React sees no final status change.
+      inputRef.current?.attach()
     }
-    timerRef.current = setTimeout(fn, ms)
-  }, [])
+    graphicsStatusRef.current = status
+    graphicsReadyRef.current = status === 'ready'
+    setGraphicsStatus(status)
+  }, [touchHandle])
 
   const beginRound = useCallback(
     (roundIndex: number, score: number, lossesOnMap: number): void => {
+      if (graphicsStatusRef.current !== 'failed') handleGraphicsStatus('starting')
       const visual = readHoverVisualTestOptions()
       const seed =
         visual.enabled && visual.seed !== null ? (visual.seed + roundIndex) >>> 0 : (Date.now() ^ (roundIndex * 0x9e3779b9)) >>> 0
       engineRef.current = createEngineState({ roundIndex, rng: createRng(seed), score, lossesOnMap })
       setHud(buildHudSnapshot(engineRef.current))
       setPhase('mapIntro')
-      schedule(() => setPhase('playing'), MAP_INTRO_MS)
     },
-    [schedule],
+    [handleGraphicsStatus],
   )
 
   useEffect(() => {
@@ -169,7 +183,6 @@ export function HoverGame(): ReactElement {
         persistProgress(state, true)
         setHud(buildHudSnapshot(state))
         setPhase('mapComplete')
-        schedule(() => beginRound(state.roundIndex + 1, state.score, 0), MAP_COMPLETE_MS)
       } else if (events.some((event) => event.kind === 'lose')) {
         state.lossesOnMap += 1
         persistProgress(state, false)
@@ -178,11 +191,10 @@ export function HoverGame(): ReactElement {
           setPhase('gameOver')
         } else {
           setPhase('mapLost')
-          schedule(() => beginRound(state.roundIndex, state.score, state.lossesOnMap), MAP_LOST_MS)
         }
       }
     },
-    [beginRound, persistProgress, schedule, sfx],
+    [persistProgress, sfx],
   )
 
   const handleHudSnapshot = useCallback(
@@ -194,6 +206,7 @@ export function HoverGame(): ReactElement {
   )
 
   const togglePause = useCallback((): void => {
+    if (!graphicsReadyRef.current) return
     if (phaseRef.current === 'playing') {
       setPhase('paused')
     } else if (phaseRef.current === 'paused') {
@@ -211,6 +224,7 @@ export function HoverGame(): ReactElement {
   }, [])
 
   const readInput = useCallback((): InputState => {
+    if (!graphicsReadyRef.current) return neutralInput()
     const keyboard = inputRef.current?.read() ?? neutralInput()
     const touch = touchHandle?.source.read() ?? neutralInput()
     return mergeInputs(keyboard, touch)
@@ -218,7 +232,7 @@ export function HoverGame(): ReactElement {
 
   useEffect(() => {
     const keyboard = createKeyboardInput({ onPause: togglePause })
-    keyboard.attach()
+    if (graphicsStatus === 'ready') keyboard.attach()
     inputRef.current = keyboard
 
     const handleVisibility = (): void => {
@@ -232,37 +246,76 @@ export function HoverGame(): ReactElement {
       document.removeEventListener('visibilitychange', handleVisibility)
       keyboard.detach()
       inputRef.current = null
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current)
-      }
-      sfxRef.current?.dispose()
-      sfxRef.current = null
     }
-  }, [togglePause])
+  }, [togglePause, graphicsStatus])
 
   useEffect(() => {
-    if (phase === 'playing') {
+    if (phase === 'playing' && graphicsStatus === 'ready') {
       sfxRef.current?.startEngineHum()
     } else {
       sfxRef.current?.stopEngineHum()
       touchHandle?.reset()
     }
-  }, [phase, touchHandle])
+  }, [phase, touchHandle, graphicsStatus])
+
+  // Pause banner deadlines while graphics are unavailable, retaining the
+  // remaining duration and the same parent-owned round object.
+  const deadlineRef = useRef<{ phase: GamePhase; remaining: number } | null>(null)
+  useEffect(() => {
+    const duration = phase === 'mapIntro' ? MAP_INTRO_MS : phase === 'mapComplete' ? MAP_COMPLETE_MS : phase === 'mapLost' ? MAP_LOST_MS : null
+    if (duration === null) {
+      deadlineRef.current = null
+      return
+    }
+    if (deadlineRef.current?.phase !== phase) deadlineRef.current = { phase, remaining: duration }
+    const deadline = deadlineRef.current
+    if (graphicsStatus !== 'ready') return
+    const started = performance.now()
+    timerRef.current = setTimeout(() => {
+      if (!graphicsReadyRef.current) return
+      deadlineRef.current = null
+      const state = engineRef.current
+      if (phase === 'mapIntro') setPhase('playing')
+      else if (state) beginRound(state.roundIndex + (phase === 'mapComplete' ? 1 : 0), state.score, phase === 'mapComplete' ? 0 : state.lossesOnMap)
+    }, deadline.remaining)
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current)
+      deadline.remaining = Math.max(0, deadline.remaining - (performance.now() - started))
+    }
+  }, [phase, graphicsStatus, beginRound])
+
+  useEffect(() => {
+    if (graphicsStatus === 'failed') retryRef.current?.focus()
+    else if (graphicsStatus === 'ready' && retryingRef.current) {
+      retryingRef.current = false
+      const control = phase === 'attract' || phase === 'paused' || phase === 'gameOver'
+        ? shellRef.current?.querySelector<HTMLButtonElement>('button')
+        : null
+      ;(control ?? shellRef.current)?.focus()
+    }
+  }, [graphicsStatus, phase])
+
+  useEffect(() => () => {
+    sfxRef.current?.dispose()
+    sfxRef.current = null
+  }, [])
 
   const showHud = hud !== null && phase !== 'attract' && phase !== 'gameOver'
 
   return (
-    <div className="fixed inset-0 touch-none overflow-hidden bg-slate-950 text-white">
+    <div ref={shellRef} tabIndex={-1} className="fixed inset-0 touch-none overflow-hidden bg-slate-950 text-white">
       <HoverScene
         engineRef={engineRef}
-        running={phase === 'playing'}
+        graphicsAttempt={graphicsAttempt}
+        onGraphicsStatus={handleGraphicsStatus}
+        running={phase === 'playing' && graphicsStatus === 'ready'}
         idle={phase === 'paused'}
         readInput={readInput}
         onEvents={handleEvents}
         onHudSnapshot={handleHudSnapshot}
         minimapCanvasRef={minimapCanvasRef}
       />
-      {showHud ? (
+      {graphicsStatus === 'ready' && showHud ? (
         <HudOverlay
           hud={hud}
           muted={muted}
@@ -273,10 +326,10 @@ export function HoverGame(): ReactElement {
           onToggleMute={toggleMute}
         />
       ) : null}
-      {touchHandle && phase === 'playing' ? (
+      {graphicsStatus === 'ready' && touchHandle && phase === 'playing' ? (
         <TouchControls handle={touchHandle} onPause={togglePause} jumpEnabled={hud?.hasJumpPower ?? false} />
       ) : null}
-      <ScreenOverlays
+      {graphicsStatus === 'ready' ? <ScreenOverlays
         phase={phase}
         hud={hud}
         bestScore={bestScore}
@@ -285,8 +338,8 @@ export function HoverGame(): ReactElement {
         onStart={handleStart}
         onResume={togglePause}
         onPlayAgain={handleStart}
-      />
-      {phase === 'attract' || phase === 'paused' || phase === 'gameOver' ? (
+      /> : null}
+      {graphicsStatus === 'ready' && (phase === 'attract' || phase === 'paused' || phase === 'gameOver') ? (
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           {phase !== 'paused' ? (
             <a
@@ -300,6 +353,22 @@ export function HoverGame(): ReactElement {
             className="rounded-lg bg-white/10 text-white/80 backdrop-blur-sm hover:bg-white/20"
             iconClassName="size-4"
           />
+        </div>
+      ) : null}
+      {graphicsStatus !== 'ready' ? (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950 p-6">
+          <div className="max-w-sm text-center" role={graphicsStatus === 'failed' ? 'alert' : 'status'}>
+            <h1 className="mb-3 text-2xl font-bold">{graphicsStatus === 'failed' ? 'Graphics could not start' : 'Starting graphics…'}</h1>
+            {graphicsStatus === 'failed' ? <>
+              <p className="mb-6 text-slate-300">Your round is on hold. Try starting the graphics again to continue.</p>
+              <button ref={retryRef} type="button" className="rounded-lg bg-cyan-800 px-5 py-3 font-bold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" onClick={() => {
+                retryingRef.current = true
+                handleGraphicsStatus('starting')
+                setGraphicsAttempt((attempt) => attempt + 1)
+              }}>Retry graphics</button>
+            </> : null}
+            <a href="/" className="mt-6 block rounded py-2 text-cyan-200 underline hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">← All Games</a>
+          </div>
         </div>
       ) : null}
     </div>

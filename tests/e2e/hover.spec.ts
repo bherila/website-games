@@ -201,6 +201,47 @@ test.describe('Hover gameplay', () => {
   test.use({ deviceScaleFactor: 1 })
   test.setTimeout(120_000)
 
+  for (const autoStart of [false, true]) {
+    test(`graphics startup can retry after WebGL is restored (${autoStart ? 'existing round' : 'attract'})`, async ({ page, isMobile }) => {
+      if (!isMobile) await page.setViewportSize({ width: 1280, height: 720 })
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(String(error)))
+      await page.addInitScript(() => {
+        const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
+        HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string, ...args: unknown[]) {
+          if (contextId.includes('webgl')) return null
+          return Reflect.apply(original, this, [contextId, ...args])
+        } as typeof original
+        Object.defineProperty(window, '__restoreHoverGraphics', { value: () => { HTMLCanvasElement.prototype.getContext = original } })
+      })
+      await page.goto(autoStart ? '/hover?visualTest=1&autoStart=1&seed=42' : '/hover')
+      const retry = page.getByRole('button', { name: 'Retry graphics', exact: true })
+      await expect(page.getByRole('heading', { name: 'Graphics could not start' })).toBeVisible()
+      await expect(retry).toBeFocused()
+      await expect(page.getByRole('link', { name: /All Games/ })).toHaveAttribute('href', '/')
+      await expect(page.getByRole('button', { name: 'Start Engine', exact: true })).toHaveCount(0)
+      // A second failed attempt stays usable; the intro deadline must not run
+      // behind the recovery screen while an existing round waits for graphics.
+      await retry.click()
+      await expect(retry).toBeVisible()
+      await page.waitForTimeout(3000)
+      await page.evaluate(() => (window as unknown as { __restoreHoverGraphics: () => void }).__restoreHoverGraphics())
+      if (isMobile) await retry.tap()
+      else { await retry.focus(); await page.keyboard.press('Space') }
+      await expect(retry).toBeHidden()
+      if (!autoStart) await page.getByRole('button', { name: 'Start Engine', exact: true }).click()
+      await expect(page.getByText('Collect 3 blue flags — beat the drone!', { exact: true })).toBeVisible()
+      await expect(page.getByTestId('score-value')).toHaveText('0')
+      await expect(page.getByTestId('speed-value')).toHaveText('0')
+      await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0)
+      await expect(page.getByText('Collect 3 blue flags — beat the drone!', { exact: true })).toBeHidden()
+      await expect(page.getByLabel('Rear-view mirror')).toBeVisible()
+      await drive(page, isMobile)
+      expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_KEY)).toBeNull()
+      expect(errors).toEqual([])
+    })
+  }
+
   test('driving, pause and resume work with keyboard and native touch input', async ({ page, isMobile }) => {
     if (!isMobile) {
       await page.setViewportSize({ width: 1280, height: 720 })
@@ -290,8 +331,12 @@ test.describe('Hover gameplay', () => {
     expect(saved.bestScore).toBeGreaterThan(1000)
     // The automatic next arena starts with fresh flags and carries the score.
     await page.clock.fastForward(3100)
-    await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0, { timeout: 15_000 })
+    // The transition timer creates City while the clock is still paused.
+    // Advance its first populated draw before checking the remounted HUD.
+    await page.clock.runFor(100)
     await expect(page.getByTestId('score-value')).toHaveText(saved.bestScore.toLocaleString())
+    await expect(page.getByTestId('flag-dot-blue')).toHaveCount(3)
+    await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0, { timeout: 15_000 })
 
     if (!isMobile) await page.setViewportSize({ width: 1280, height: 720 })
     await page.reload()
