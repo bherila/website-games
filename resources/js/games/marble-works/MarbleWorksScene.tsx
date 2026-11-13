@@ -139,12 +139,40 @@ export function MarbleWorksScene(props: MarbleWorksSceneProps): ReactElement {
     if (!controller || !readyRef.current) return
     try {
       controller.setPlacements(placements)
+    } catch { failRef.current() }
+  }, [placements])
+
+  useEffect(() => {
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
       controller.setGhost(ghost)
+    } catch { failRef.current() }
+  }, [ghost])
+
+  useEffect(() => {
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
       controller.setSelection(selected)
+    } catch { failRef.current() }
+  }, [selected])
+
+  useEffect(() => {
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
       controller.setBuildOverlay(editing, freeCells, tutorialCell)
+    } catch { failRef.current() }
+  }, [editing, freeCells, tutorialCell])
+
+  useEffect(() => {
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
       controller.setGhostPaths(ghostPaths)
     } catch { failRef.current() }
-  }, [placements, ghost, selected, editing, freeCells, tutorialCell, ghostPaths])
+  }, [ghostPaths])
 
   useEffect(() => {
     const controller = controllerRef.current

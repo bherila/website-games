@@ -93,3 +93,44 @@ it('disposes a controller returned after context loss during construction', () =
   expect(callbacks.onReady).not.toHaveBeenCalledWith(true)
   expect(screen.queryByTestId('marble-works-canvas')).not.toBeInTheDocument()
 })
+
+it('updates only the changed scene input while the armed ghost follows the pointer', () => {
+  const active = controller()
+  factory.mockImplementation(() => active as unknown as MarbleWorksSceneController)
+  const current = props()
+  const mounted = render(<MarbleWorksScene {...current} />)
+  const setters = [active.setPlacements, active.setGhost, active.setSelection, active.setBuildOverlay, active.setGhostPaths]
+  setters.forEach((setter) => setter.mockClear())
+
+  const firstGhost = { placement: { ...current.placements[0]!, col: 2 }, ok: true }
+  mounted.rerender(<MarbleWorksScene {...current} ghost={firstGhost} />)
+  const nextGhost = { placement: { ...firstGhost.placement, row: 2 }, ok: false }
+  mounted.rerender(<MarbleWorksScene {...current} ghost={nextGhost} />)
+  expect(active.setGhost).toHaveBeenCalledTimes(2)
+  expect(active.setGhost).toHaveBeenLastCalledWith(nextGhost)
+  for (const setter of [active.setPlacements, active.setSelection, active.setBuildOverlay, active.setGhostPaths]) {
+    expect(setter).not.toHaveBeenCalled()
+  }
+  expect(factory).toHaveBeenCalledTimes(1)
+
+  setters.forEach((setter) => setter.mockClear())
+  const freeCells = [{ col: 1, row: 2 }]
+  mounted.rerender(<MarbleWorksScene {...current} freeCells={freeCells} ghost={nextGhost} />)
+  expect(active.setBuildOverlay).toHaveBeenCalledWith(current.editing, freeCells, current.tutorialCell)
+  for (const setter of [active.setPlacements, active.setGhost, active.setSelection, active.setGhostPaths]) {
+    expect(setter).not.toHaveBeenCalled()
+  }
+})
+
+it('returns to recovery when an incremental ghost update fails', () => {
+  const active = controller()
+  factory.mockImplementation(() => active as unknown as MarbleWorksSceneController)
+  const current = props()
+  const mounted = render(<MarbleWorksScene {...current} />)
+  active.setGhost.mockImplementationOnce(() => { throw new Error('allocation failed') })
+  mounted.rerender(<MarbleWorksScene {...current} ghost={{ placement: current.placements[0]!, ok: true }} />)
+  expect(current.onReady).toHaveBeenLastCalledWith(false)
+  expect(active.dispose).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('alert')).toHaveTextContent('Your pieces are kept')
+  expect(screen.queryByTestId('marble-works-canvas')).not.toBeInTheDocument()
+})
