@@ -8,7 +8,7 @@ import { PlateEscapeScene } from '../PlateEscapeScene'
 let mockReady = true
 const mockPlay = jest.fn()
 jest.mock('../sfx', () => ({
-  ...jest.requireActual('../sfx'),
+  ...jest.requireActual<typeof import('../sfx')>('../sfx'),
   createPlateSfx: () => ({ play: mockPlay, unlock: jest.fn(), dispose: jest.fn(), setMuted: jest.fn() }),
 }))
 jest.mock('@/components/ui/dialog', () => ({
@@ -19,9 +19,9 @@ jest.mock('@/components/ui/dialog', () => ({
   DialogDescription: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 jest.mock('../PlateEscapeScene', () => {
-  const { useLayoutEffect } = jest.requireActual('react')
-  const { getLevel } = jest.requireActual('../level')
-  return { PlateEscapeScene: jest.fn(({ onReady, onError, onTargets, state }) => {
+  const { useLayoutEffect } = jest.requireActual<typeof import('react')>('react')
+  const { getLevel } = jest.requireActual<typeof import('../level')>('../level')
+  return { PlateEscapeScene: jest.fn(({ onReady, onError, onTargets, state }: React.ComponentProps<typeof PlateEscapeScene>) => {
     useLayoutEffect(() => {
       if (mockReady) onReady()
       else onError('Graphics unavailable')
@@ -60,7 +60,7 @@ test('retry preserves the puzzle, trays and undo history while unavailable mutat
   collect('front-1')
   const before = props().state
   const scene = props()
-  const undo = screen.getByRole('button', { name: 'Undo', exact: true })
+  const undo = screen.getByRole('button', { name: /^Undo$/ })
   act(() => scene.onError('Graphics unavailable'))
   expect(undo).toBeDisabled()
   fireEvent.click(undo)
@@ -80,7 +80,7 @@ test('retry preserves the puzzle, trays and undo history while unavailable mutat
   expect(props().state.spare).toEqual(before.spare)
   fireEvent.click(undo)
   expect(props().state.removed).toEqual(['right-roof-1'])
-  fireEvent.click(screen.getByRole('button', { name: 'Restart', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: /^Restart$/ }))
   expect(props().state.removed).toEqual([])
   expect(undo).toBeDisabled()
 })
@@ -99,7 +99,7 @@ test('a dial turn survives retry and can still be undone', () => {
   expect(props().state).toBe(before)
   fireEvent.click(screen.getByRole('button', { name: 'Retry graphics' }))
   expect(props().state).toBe(before)
-  fireEvent.click(screen.getByRole('button', { name: 'Undo', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: /^Undo$/ }))
   expect(props().state.dials.dial).toBe(0)
   expect(props().state.removed).toEqual(['door-pin'])
 })
@@ -111,7 +111,7 @@ test('startup failure blocks moves and keeps preferences and the level menu usab
   expect(props().state.removed).toEqual([])
   fireEvent.click(screen.getByRole('button', { name: 'Mute sound' }))
   expect(screen.getByRole('button', { name: 'Unmute sound' })).toBeVisible()
-  fireEvent.click(screen.getByRole('button', { name: 'Levels', exact: true }))
+  fireEvent.click(screen.getByRole('button', { name: /^Levels$/ }))
   expect(screen.getByTestId('level-tile-1')).toBeVisible()
 })
 

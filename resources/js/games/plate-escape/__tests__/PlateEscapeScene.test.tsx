@@ -7,8 +7,8 @@ import { createPuzzle, removeScrew } from '../engine'
 import * as geometry from '../houseGeometry'
 import { PlateEscapeScene } from '../PlateEscapeScene'
 
-jest.mock('../houseGeometry', () => ({ ...jest.requireActual('../houseGeometry'), createStage: jest.fn(), createPlateMesh: jest.fn() }))
-jest.mock('three', () => ({ ...jest.requireActual('three'), WebGLRenderer: jest.fn() }))
+jest.mock('../houseGeometry', () => ({ ...jest.requireActual<typeof import('../houseGeometry')>('../houseGeometry'), createStage: jest.fn(), createPlateMesh: jest.fn() }))
+jest.mock('three', () => ({ ...jest.requireActual<typeof import('three')>('three'), WebGLRenderer: jest.fn() }))
 jest.mock('three/examples/jsm/controls/OrbitControls.js', () => ({ OrbitControls: jest.fn() }))
 
 describe('Plate Escape graphics lifecycle', () => {
@@ -22,8 +22,8 @@ describe('Plate Escape graphics lifecycle', () => {
 
   beforeEach(() => {
     jest.restoreAllMocks()
-    jest.mocked(geometry.createStage).mockReset().mockImplementation(jest.requireActual('../houseGeometry').createStage)
-    jest.mocked(geometry.createPlateMesh).mockReset().mockImplementation(jest.requireActual('../houseGeometry').createPlateMesh)
+    jest.mocked(geometry.createStage).mockReset().mockImplementation(jest.requireActual<typeof import('../houseGeometry')>('../houseGeometry').createStage)
+    jest.mocked(geometry.createPlateMesh).mockReset().mockImplementation(jest.requireActual<typeof import('../houseGeometry')>('../houseGeometry').createPlateMesh)
     frames = new Map()
     frameId = 0
     jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
