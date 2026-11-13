@@ -28,11 +28,16 @@ const FIXED_STEP = 1 / 60
 export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFinish, onHud, onGraphicsStatus }: MathHordeSceneProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const liveRef = useRef({ active, onFinish, onHud, playSfx, onGraphicsStatus })
+  const resetActivityRef = useRef<(() => void) | null>(null)
   const finishSentRef = useRef(false)
 
   useLayoutEffect(() => {
     liveRef.current = { active, onFinish, onHud, playSfx, onGraphicsStatus }
   }, [active, onFinish, onHud, playSfx, onGraphicsStatus])
+
+  useLayoutEffect(() => {
+    resetActivityRef.current?.()
+  }, [active])
 
   useLayoutEffect(() => {
     const container = containerRef.current
@@ -47,7 +52,39 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
     let renderer: THREE.WebGLRenderer | undefined
     const canvas = document.createElement('canvas')
     const resources = new SceneResources()
+    let focusBlocked = document.hidden
+    let previousTime = performance.now()
+    let accumulator = 0
+    let hudAccumulator = 0
     const pointers = new Set<number>()
+    function clearPointers(): void {
+      for (const id of pointers) {
+        safely(() => canvas.releasePointerCapture?.(id))
+      }
+      pointers.clear()
+    }
+    function resetActivity(): void {
+      previousTime = performance.now()
+      accumulator = 0
+      clearPointers()
+      if (liveRef.current.active && !document.hidden) {
+        focusBlocked = false
+      }
+    }
+    resetActivityRef.current = resetActivity
+    function suspend(): void {
+      resetActivity()
+      // Block the next frame before the parent commits its pause overlay.
+      focusBlocked = true
+    }
+    function visibilityChanged(): void {
+      if (document.hidden) {
+        suspend()
+      }
+    }
+    function canPlay(): boolean {
+      return !focusBlocked && !document.hidden && liveRef.current.active
+    }
     const inputController = new AbortController()
 
     function cleanup(): void {
@@ -59,10 +96,8 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
       safely(() => cancelAnimationFrame(animationFrame))
       safely(() => resizeObserver?.disconnect())
       safely(() => inputController.abort())
-      for (const id of pointers) {
-        safely(() => canvas.releasePointerCapture?.(id))
-      }
-      pointers.clear()
+      resetActivityRef.current = null
+      clearPointers()
       // Release instance buffers, lights/shadows, textures, materials and geometry
       // while the renderer's disposal listeners still exist.
       resources.dispose()
@@ -122,14 +157,14 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
       }
 
       function handlePointer(event: PointerEvent): void {
-        if (stopped || !ready || !liveRef.current.active || !pointers.has(event.pointerId)) {
+        if (stopped || !ready || !canPlay() || !pointers.has(event.pointerId)) {
           return
         }
         const rect = canvas.getBoundingClientRect()
         setTargetX(state, ((event.clientX - rect.left) / Math.max(1, rect.width) - 0.5) * TRACK_HALF_WIDTH * 2)
       }
       function pointerDown(event: PointerEvent): void {
-        if (stopped || !ready || !liveRef.current.active) {
+        if (stopped || !ready || !canPlay()) {
           return
         }
         pointers.add(event.pointerId)
@@ -140,7 +175,7 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
         pointers.delete(event.pointerId)
       }
       function wheel(event: WheelEvent): void {
-        if (stopped || !ready || !liveRef.current.active) {
+        if (stopped || !ready || !canPlay()) {
           return
         }
         event.preventDefault()
@@ -152,6 +187,8 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
         fail()
       }
       const signal = inputController.signal
+      window.addEventListener('blur', suspend, { signal })
+      document.addEventListener('visibilitychange', visibilityChanged, { signal })
       canvas.addEventListener('pointerdown', pointerDown, { signal })
       canvas.addEventListener('pointermove', handlePointer, { signal })
       canvas.addEventListener('pointerup', pointerUp, { signal })
@@ -177,9 +214,7 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
       }
       ready = true
       liveRef.current.onGraphicsStatus('ready')
-      let previousTime = performance.now()
-      let accumulator = 0
-      let hudAccumulator = 0
+      previousTime = performance.now()
 
       function renderFrame(now: number): void {
         if (stopped || !ready) {
@@ -188,7 +223,7 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
         try {
           const frameDelta = Math.min(0.1, (now - previousTime) / 1_000)
           previousTime = now
-          if (liveRef.current.active) {
+          if (canPlay()) {
             accumulator += frameDelta
             while (accumulator >= FIXED_STEP) {
               tickGame(state, FIXED_STEP)
@@ -196,7 +231,7 @@ export function MathHordeScene({ active, state, graphicsAttempt, playSfx, onFini
             }
           } else {
             accumulator = 0
-            pointers.clear()
+            clearPointers()
           }
           const events = drainEvents(state)
           effects.handleEvents(events, state)

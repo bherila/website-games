@@ -138,6 +138,52 @@ describe('MathHordeGame', () => {
     fireEvent.keyDown(window, { code, repeat: true })
     expect(state.targetX).toBeCloseTo(originalTarget + 1.6 * direction)
   })
+  it.each(['blur', 'hidden'])('pauses the same run on %s and requires resume and fresh steering', (cause) => {
+    startPlaying()
+    const state = currentGameState()
+    fireEvent.keyDown(window, { code: 'ArrowRight' })
+    const target = state.targetX
+    const hidden = jest.spyOn(document, 'hidden', 'get').mockReturnValue(false)
+    try {
+      act(() => {
+        if (cause === 'hidden') {
+          hidden.mockReturnValue(true)
+          document.dispatchEvent(new Event('visibilitychange'))
+        } else {
+          window.dispatchEvent(new Event('blur'))
+        }
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', repeat: true }))
+      })
+      expect(state.targetX).toBe(target)
+      expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeVisible()
+      hidden.mockReturnValue(false)
+      fireEvent(document, new Event('visibilitychange'))
+      fireEvent.focus(window)
+      expect(screen.getByRole('dialog', { name: 'Game paused' })).toBeVisible()
+      fireEvent.click(screen.getAllByRole('button', { name: 'Resume' }).at(-1)!)
+      expect(currentGameState()).toBe(state)
+      fireEvent.keyDown(window, { code: 'ArrowRight', repeat: true })
+      expect(state.targetX).toBe(target)
+      fireEvent.keyDown(window, { code: 'ArrowRight' })
+      expect(state.targetX).toBeCloseTo(target + 0.8)
+      expect(state.elapsed).toBe(0)
+      expect(window.localStorage.getItem('bwh.math-horde.progress.v1')).toBeNull()
+    } finally {
+      hidden.mockRestore()
+    }
+  })
+
+  it('keeps the tutorial open after focus loss', () => {
+    render(<MathHordeGame />)
+    fireEvent.click(screen.getByTestId('level-tile-1'))
+    fireEvent.blur(window)
+    expect(screen.getByRole('dialog', { name: 'How to play' })).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Game paused' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'START FIRING' }))
+    fireEvent.keyDown(window, { code: 'ArrowRight' })
+    expect(currentGameState().targetX).toBeCloseTo(0.8)
+  })
+
   it('freezes parent shortcuts and callbacks until graphics recover around the same run', () => {
     startPlaying()
     const props = jest.mocked(MathHordeScene).mock.calls.at(-1)![0]

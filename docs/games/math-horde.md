@@ -25,6 +25,10 @@ either key do not toggle again. Game shortcuts leave already-handled events,
 focused buttons, links, form controls, and editable content alone. In particular,
 Space on Mute, Pause, or Resume keeps the button's native keyboard activation.
 Steering does not change the target while paused or while the tutorial is open.
+Losing window focus or hiding the page pauses the current run immediately. Returning
+keeps it paused until explicit resume, with no elapsed-time catch-up. Held keys and
+captured drag gestures are discarded; steering requires fresh input. The tutorial
+stays open when focus is lost before starting.
 
 ## Progress and preferences
 

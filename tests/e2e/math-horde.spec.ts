@@ -92,6 +92,52 @@ test.describe('Math Horde gameplay', () => {
     await expect(page.getByRole('button', { name: 'Unmute sound', exact: true })).toBeVisible()
     expect(errors).toEqual([])
   })
+  test('focus loss and page hiding preserve the run until explicit resume', async ({ page, isMobile }) => {
+    if (!isMobile) {
+      await page.setViewportSize({ width: 1280, height: 720 })
+    }
+    await page.addInitScript(() => localStorage.setItem('bwh.math-horde.tutorial.v1', 'seen'))
+    await page.goto('/math-horde')
+    await page.getByTestId('level-tile-1').click()
+    const canvas = page.getByTestId('math-horde-scene').locator('canvas')
+    await expect(canvas).toBeVisible()
+    const progressIndicator = page.locator('section div[style^="width:"]').first()
+    await expect(progressIndicator).not.toHaveAttribute('style', 'width: 0%;')
+    const paused = page.getByRole('dialog', { name: 'Game paused', exact: true })
+    for (const cause of ['blur', 'hidden']) {
+      await page.evaluate((reason) => {
+        if (reason === 'hidden') {
+          Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+          document.dispatchEvent(new Event('visibilitychange'))
+        } else {
+          window.dispatchEvent(new Event('blur'))
+        }
+      }, cause)
+      await expect(paused).toBeVisible()
+      // Let the throttled HUD catch up with the last visible simulation frame.
+      await page.waitForTimeout(200)
+      const progress = await progressIndicator.getAttribute('style')
+      const army = await page.getByTestId('army-size').textContent()
+      const score = await page.getByText(/^SECTOR 1 ·/).textContent()
+      await page.waitForTimeout(450)
+      await expect(progressIndicator).toHaveAttribute('style', progress!)
+      await expect(page.getByTestId('army-size')).toHaveText(army!)
+      await expect(page.getByText(/^SECTOR 1 ·/)).toHaveText(score!)
+      await page.evaluate(() => {
+        Reflect.deleteProperty(document, 'hidden')
+        document.dispatchEvent(new Event('visibilitychange'))
+        window.dispatchEvent(new Event('focus'))
+      })
+      await expect(paused).toBeVisible()
+      await page.waitForTimeout(150)
+      await expect(progressIndicator).toHaveAttribute('style', progress!)
+      await paused.getByRole('button', { name: 'Resume', exact: true }).click()
+      await expect(paused).toBeHidden()
+      await expect(progressIndicator).not.toHaveAttribute('style', progress!)
+      expect(await page.evaluate((key) => localStorage.getItem(key), PROGRESS_KEY)).toBeNull()
+    }
+  })
+
   test('graphics failure offers a safe menu and retries the waiting run paused', async ({ page, isMobile }) => {
     if (!isMobile) {
       await page.setViewportSize({ width: 1280, height: 720 })

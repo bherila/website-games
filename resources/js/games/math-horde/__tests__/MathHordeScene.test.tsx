@@ -111,6 +111,58 @@ describe('Math Horde graphics lifecycle', () => {
     expect(props.onGraphicsStatus).toHaveBeenLastCalledWith('ready')
   })
 
+  it.each(['blur', 'hidden'])('synchronously freezes on %s, releases capture and resets the resumed clock', (cause) => {
+    let now = 100
+    jest.spyOn(performance, 'now').mockImplementation(() => now)
+    const hidden = jest.spyOn(document, 'hidden', 'get').mockReturnValue(false)
+    const { props, state } = setup()
+    const view = render(<MathHordeScene {...props} />)
+    const canvas = view.container.querySelector('canvas')!
+    canvas.setPointerCapture = jest.fn()
+    canvas.releasePointerCapture = jest.fn()
+    jest.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, width: 100 } as DOMRect)
+    function pointer(type: string, x: number): void {
+      const event = new Event(type)
+      Object.assign(event, { pointerId: 7, clientX: x })
+      fireEvent(canvas, event)
+    }
+    pointer('pointerdown', 75)
+    expect(canvas.setPointerCapture).toHaveBeenCalledWith(7)
+    const target = state.targetX
+    const before = JSON.stringify(state)
+    if (cause === 'hidden') {
+      hidden.mockReturnValue(true)
+      fireEvent(document, new Event('visibilitychange'))
+    } else {
+      fireEvent.blur(window)
+    }
+    expect(canvas.releasePointerCapture).toHaveBeenCalledWith(7)
+    pointer('pointermove', 5)
+    fireEvent.wheel(canvas, { deltaX: 100 })
+    now = 10_000
+    // The parent has not committed active=false yet.
+    act(() => frames.get(frameId)!(now))
+    expect(state.elapsed).toBe(0)
+    expect(state.targetX).toBe(target)
+    hidden.mockReturnValue(false)
+    fireEvent.focus(window)
+    act(() => frames.get(frameId)!(now + 100))
+    expect(state.elapsed).toBe(0)
+    view.rerender(<MathHordeScene {...props} active={false} />)
+    now = 20_000
+    view.rerender(<MathHordeScene {...props} />)
+    pointer('pointermove', 5)
+    expect(state.targetX).toBe(target)
+    act(() => frames.get(frameId)!(now))
+    expect(state.elapsed).toBe(0)
+    act(() => frames.get(frameId)!(now + 20))
+    expect(state.elapsed).toBeCloseTo(1 / 60)
+    expect(JSON.stringify(state)).not.toBe(before)
+    pointer('pointerdown', 5)
+    expect(state.targetX).toBeLessThan(target)
+    hidden.mockRestore()
+  })
+
   it('does not revive readiness when context loss fires during the first draw', () => {
     const { props } = setup()
     graphics.render.mockImplementationOnce(() => {
