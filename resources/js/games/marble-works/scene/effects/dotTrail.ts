@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
 import type { Vec2 } from '../../pieces/pieceCatalog'
+import { buildOwned, own } from '../resourceScope'
 
 export interface DotTrail {
   mesh: THREE.InstancedMesh
@@ -12,15 +13,17 @@ const DUMMY = new THREE.Object3D()
 
 /** A fading tail of dots behind the rolling marble. */
 export function createDotTrail(capacity: number, radius: number, color: string, opacity: number): DotTrail {
-  const mesh = new THREE.InstancedMesh(
-    new THREE.SphereGeometry(radius, 10, 6),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }),
-    capacity,
-  )
-  mesh.count = 0
-  mesh.frustumCulled = false
+  return buildOwned(() => {
+    const mesh = own(new THREE.InstancedMesh(
+      own(new THREE.SphereGeometry(radius, 10, 6)),
+      own(new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false })),
+      capacity,
+    ))
+    mesh.count = 0
+    mesh.frustumCulled = false
 
-  return { mesh, points: [] }
+    return { mesh, points: [] }
+  })
 }
 
 /** Lays dots along `points`; with `taper` the oldest dots shrink away. */

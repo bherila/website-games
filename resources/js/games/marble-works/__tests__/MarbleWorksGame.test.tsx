@@ -11,14 +11,18 @@ function result(status: RunResult['status'], gems: number): RunResult {
 }
 
 /** Pointer type the scene stub reports; tests switch it to 'mouse' for desktop flows. */
+let mockGraphicsReady = true
+let mockSceneProps: MarbleWorksSceneProps
 let mockPointerType = 'touch'
 
 jest.mock('../MarbleWorksScene', () => ({
   MarbleWorksScene: (props: MarbleWorksSceneProps) => {
-    const { onLayout } = props
+    mockSceneProps = props
+    const { onLayout, onReady } = props
     useEffect(() => {
+      onReady(mockGraphicsReady)
       onLayout({ width: 600, height: 800, cellSize: 80, left: 0, top: 0 })
-    }, [onLayout])
+    }, [onLayout, onReady])
     const pointer = (type: 'down' | 'up' | 'move', col: number, row: number) => props.onBoardPointer({
       type,
       cell: { col, row },
@@ -72,8 +76,84 @@ function scene(): HTMLElement {
 describe('MarbleWorksGame', () => {
   beforeEach(() => {
     mockPointerType = 'touch'
+    mockGraphicsReady = true
     window.localStorage.clear()
     window.history.pushState({}, '', '/marble-works')
+  })
+
+  it('gates editing and Go until graphics are ready, and keeps session drafts through failure and menu', () => {
+    mockGraphicsReady = false
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    expect(screen.getByRole('button', { name: 'Go' })).toBeDisabled()
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 3)
+    expect(scene()).toHaveAttribute('data-placements', '')
+    act(() => { mockSceneProps.onReady(true) })
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 3)
+    fireEvent.click(screen.getByRole('button', { name: 'Go' }))
+    act(() => {
+      mockSceneProps.onReady(false)
+      // Native input or an old run callback in the same turn must not mutate progress.
+      mockSceneProps.onRunEnd(result('won', 0))
+      mockSceneProps.onBoardPointer({ type: 'up', cell: { col: 2, row: 2 }, clientX: 0, clientY: 0, pointerType: 'touch', pressed: false })
+    })
+    expect(scene()).toHaveAttribute('data-run-token', 'null')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
+    act(() => { mockSceneProps.onReady(true) })
+    expect(screen.getByRole('button', { name: 'Go' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Level select' }))
+    mockGraphicsReady = true
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
+  })
+
+  it('keeps the draft when graphics fail while Clear confirmation is already open', () => {
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 3)
+    fireEvent.click(screen.getByRole('button', { name: 'Clear board' }))
+    act(() => { mockSceneProps.onReady(false) })
+    fireEvent.click(screen.getByRole('button', { name: /^Clear$/ }))
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
+  })
+
+  it('ignores held and modified shortcuts, and lets focused toolbar letters edit the selected piece', () => {
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 3)
+    const flip = screen.getByRole('button', { name: 'Flip piece' })
+    flip.focus()
+    fireEvent.keyDown(document.activeElement!, { key: 'f', repeat: true })
+    fireEvent.keyDown(document.activeElement!, { key: 'f', ctrlKey: true })
+    const prevented = new KeyboardEvent('keydown', { key: 'f', bubbles: true, cancelable: true })
+    prevented.preventDefault()
+    fireEvent(document.activeElement!, prevented)
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
+    fireEvent.keyDown(document.activeElement!, { key: 'f' })
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3F')
+    flip.blur()
+    fireEvent.keyDown(document.body, { key: ' ' })
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
+    fireEvent.keyDown(document.body, { key: ' ', repeat: true })
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
+  })
+
+  it('leaves a selected ramp unchanged when F is pressed on Cancel in Clear confirmation', () => {
+    render(<MarbleWorksGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Level 1, 0 stars' }))
+    fireEvent.click(screen.getByTestId('tray-ramp-steep'))
+    tapCell(1, 3)
+    fireEvent.click(screen.getByRole('button', { name: 'Clear board' }))
+    const cancel = screen.getByRole('button', { name: 'Cancel' })
+    cancel.focus()
+    fireEvent.keyDown(document.activeElement!, { key: 'f' })
+    fireEvent.click(cancel)
+    expect(scene()).toHaveAttribute('data-placements', 'ramp-steep@1,3')
   })
 
   it('opens on the level select with only level 1 unlocked', () => {

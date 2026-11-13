@@ -1,4 +1,4 @@
-import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, useRef } from 'react'
+import { type PointerEvent as ReactPointerEvent, type ReactElement, useEffect, useRef, useState } from 'react'
 
 import { canvasSizeForContainer } from '../_shared/three/viewport'
 import { worldToCell } from './board/grid'
@@ -31,6 +31,8 @@ export interface MarbleWorksSceneProps {
   ghostPaths: readonly (readonly Vec2[])[] | null
   /** A new number starts a run with the current placements; null resets the marbles. */
   runToken: number | null
+  onReady: (ready: boolean) => void
+  onMenu: () => void
   onRunEnd: (result: RunResult) => void
   /** Live gem count during a run. */
   onGem?: (collected: number) => void
@@ -49,90 +51,150 @@ function prefersReducedMotion(): boolean {
 export function MarbleWorksScene(props: MarbleWorksSceneProps): ReactElement {
   const { level, placements, ghost, selected, editing, freeCells, tutorialCell, ghostPaths, runToken } = props
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  const [failed, setFailed] = useState(false)
+  const readyRef = useRef(false)
+  const failRef = useRef<() => void>(() => {})
   const controllerRef = useRef<MarbleWorksSceneController | null>(null)
   const layoutRef = useRef<BoardLayout | null>(null)
   const pressedRef = useRef(false)
-  const placementsRef = useRef(placements)
-  const callbacksRef = useRef({ onRunEnd: props.onRunEnd, onGem: props.onGem, onLayout: props.onLayout, onBoardPointer: props.onBoardPointer })
+  const latestRef = useRef(props)
+  useEffect(() => { latestRef.current = props })
 
   useEffect(() => {
-    placementsRef.current = placements
-    callbacksRef.current = { onRunEnd: props.onRunEnd, onGem: props.onGem, onLayout: props.onLayout, onBoardPointer: props.onBoardPointer }
-  })
-
-  useEffect(() => {
-    const canvas = canvasRef.current
     const container = containerRef.current
-    if (!canvas || !container) {
-      return undefined
-    }
-
-    const controller = new MarbleWorksSceneController(canvas, level, { reducedMotion: prefersReducedMotion() })
-    controllerRef.current = controller
-    const applySize = (): void => {
-      const size = canvasSizeForContainer(container.clientWidth, container.clientHeight)
-      const layout = controller.resize(size.width, size.height)
-      layoutRef.current = layout
-      callbacksRef.current.onLayout(layout)
-    }
-    applySize()
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(applySize)
-    observer?.observe(container)
-    window.addEventListener('resize', applySize)
-
-    return () => {
+    if (!container) return undefined
+    let active = true
+    let controller: MarbleWorksSceneController | null = null
+    let observer: ResizeObserver | null = null
+    const canvas = document.createElement('canvas')
+    canvas.setAttribute('aria-label', 'Marble run board')
+    canvas.dataset.testid = 'marble-works-canvas'
+    canvas.className = 'block h-full w-full'
+    container.prepend(canvas)
+    const cleanup = (): void => {
+      readyRef.current = false
+      pressedRef.current = false
+      layoutRef.current = null
       observer?.disconnect()
       window.removeEventListener('resize', applySize)
-      controller.dispose()
+      canvas.removeEventListener('webglcontextlost', onContextLost)
       controllerRef.current = null
+      try { controller?.dispose() } catch { /* Canvas and observers must still be released. */ } finally { canvas.remove() }
     }
-  }, [level])
+    const fail = (): void => {
+      if (!active) return
+      active = false
+      try { cleanup() } finally {
+        setFailed(true)
+        latestRef.current.onReady(false)
+      }
+    }
+    failRef.current = fail
+    const applySize = (): void => {
+      if (!active || !controller) return
+      try {
+        const size = canvasSizeForContainer(container.clientWidth, container.clientHeight)
+        const layout = controller.resize(size.width, size.height)
+        layoutRef.current = layout
+        latestRef.current.onLayout(layout)
+      } catch { fail() }
+    }
+    const onContextLost = (event: Event): void => { event.preventDefault(); fail() }
+    setFailed(false)
+    latestRef.current.onReady(false)
+    canvas.addEventListener('webglcontextlost', onContextLost)
+    try {
+      controller = new MarbleWorksSceneController(canvas, level, { reducedMotion: prefersReducedMotion(), onError: fail })
+      if (!active) {
+        cleanup()
+        return () => { cleanup() }
+      }
+      controllerRef.current = controller
+      applySize()
+      if (active) {
+        const current = latestRef.current
+        controller.setPlacements(current.placements)
+        controller.setGhost(current.ghost)
+        controller.setSelection(current.selected)
+        controller.setBuildOverlay(current.editing, current.freeCells, current.tutorialCell)
+        controller.setGhostPaths(current.ghostPaths)
+        controller.renderFirstFrame()
+        if (!active) return () => { cleanup() }
+        readyRef.current = true
+        current.onReady(true)
+        observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(applySize)
+        observer?.observe(container)
+        window.addEventListener('resize', applySize)
+      }
+    } catch { fail() }
+    return () => {
+      active = false
+      cleanup()
+    }
+  }, [level, attempt])
 
   useEffect(() => {
-    controllerRef.current?.setPlacements(placements)
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
+      controller.setPlacements(placements)
+    } catch { failRef.current() }
   }, [placements])
 
   useEffect(() => {
-    controllerRef.current?.setGhost(ghost)
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
+      controller.setGhost(ghost)
+    } catch { failRef.current() }
   }, [ghost])
 
   useEffect(() => {
-    controllerRef.current?.setSelection(selected)
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
+      controller.setSelection(selected)
+    } catch { failRef.current() }
   }, [selected])
 
   useEffect(() => {
-    controllerRef.current?.setBuildOverlay(editing, freeCells, tutorialCell)
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
+      controller.setBuildOverlay(editing, freeCells, tutorialCell)
+    } catch { failRef.current() }
   }, [editing, freeCells, tutorialCell])
 
   useEffect(() => {
-    controllerRef.current?.setGhostPaths(ghostPaths)
+    const controller = controllerRef.current
+    if (!controller || !readyRef.current) return
+    try {
+      controller.setGhostPaths(ghostPaths)
+    } catch { failRef.current() }
   }, [ghostPaths])
 
   useEffect(() => {
     const controller = controllerRef.current
-    if (!controller) {
-      return
-    }
-    if (runToken === null) {
-      controller.resetRun()
-      return
-    }
-    controller.startRun(placementsRef.current, {
-      onEnd: (result) => callbacksRef.current.onRunEnd(result),
-      onGem: (collected) => callbacksRef.current.onGem?.(collected),
-    })
+    if (!controller || !readyRef.current) return
+    try {
+      if (runToken === null) controller.resetRun()
+      else controller.startRun(latestRef.current.placements, {
+        onEnd: (result) => { if (controllerRef.current === controller && readyRef.current) latestRef.current.onRunEnd(result) },
+        onGem: (collected) => { if (controllerRef.current === controller && readyRef.current) latestRef.current.onGem?.(collected) },
+      })
+    } catch { failRef.current() }
   }, [runToken])
 
   const emit = (type: BoardPointerEvent['type'], event: ReactPointerEvent<HTMLDivElement>): void => {
     const container = containerRef.current
     const layout = layoutRef.current
-    if (!container || !layout) {
+    if (!container || !layout || !readyRef.current) {
       return
     }
     const rect = container.getBoundingClientRect()
     const [x, y] = screenToWorld(level, layout, event.clientX - rect.left, event.clientY - rect.top)
-    callbacksRef.current.onBoardPointer({
+    latestRef.current.onBoardPointer({
       type,
       cell: worldToCell(level, x, y),
       clientX: event.clientX,
@@ -170,7 +232,16 @@ export function MarbleWorksScene(props: MarbleWorksSceneProps): ReactElement {
         emit('up', event)
       }}
     >
-      <canvas aria-label="Marble run board" className="block h-full w-full" data-testid="marble-works-canvas" ref={canvasRef} />
+      {failed && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-sky-50 p-4 dark:bg-slate-950" onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()}>
+          <div className="max-w-sm rounded-2xl bg-white p-5 text-center text-slate-900 shadow-lg dark:bg-slate-800 dark:text-white" role="alert">
+            <p className="font-bold">The board graphics could not start.</p>
+            <p className="my-3 text-sm">Your pieces are kept. Try the graphics again to return to building.</p>
+            <button className="m-1 rounded-lg bg-sky-700 px-4 py-3 font-bold text-white" type="button" onClick={() => setAttempt((value) => value + 1)}>Retry graphics</button>
+            <button className="m-1 rounded-lg border px-4 py-3 font-bold" type="button" onClick={props.onMenu}>Level select</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

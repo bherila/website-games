@@ -17,6 +17,86 @@ async function cellPoint(page: Page, cols: number, rows: number, col: number, ro
 }
 
 test.describe('Marble Works', () => {
+  test('blocked graphics restore editing after retry', async ({ page }) => {
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await page.addInitScript(() => {
+      // Preserve the native receiver with Reflect.apply below.
+      // oxlint-disable-next-line typescript/unbound-method
+      const original = HTMLCanvasElement.prototype.getContext
+      const state = window as Window & { blockMarbleGraphics?: boolean }
+      state.blockMarbleGraphics = true
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...args: Parameters<typeof original>) {
+        if (state.blockMarbleGraphics && String(args[0]).startsWith('webgl')) return null
+        return Reflect.apply(original, this, args)
+      } as typeof original
+    })
+    await page.goto('/marble-works')
+    await page.getByTestId('level-tile-1').click()
+    await expect(page.getByRole('alert')).toContainText('Your pieces are kept')
+    await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeDisabled()
+    await expect(page.getByTestId('tray-ramp-steep')).toBeDisabled()
+    await page.evaluate(() => { (window as Window & { blockMarbleGraphics?: boolean }).blockMarbleGraphics = false })
+    await page.getByRole('button', { name: 'Retry graphics' }).click()
+    await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeEnabled()
+    await page.getByTestId('tray-ramp-steep').click()
+    const target = await cellPoint(page, 5, 6, 1, 3)
+    await page.mouse.click(target.x, target.y)
+    await expect(page.getByTestId('tutorial-message')).toContainText('Press Go')
+    expect(errors).toEqual([])
+  })
+
+  for (const recovery of ['Retry graphics', 'Level select'] as const) {
+    test(`context loss keeps placements through ${recovery}`, async ({ page }) => {
+      const errors: string[] = []
+      page.on('pageerror', (error) => errors.push(String(error)))
+      await page.goto('/marble-works?level=1')
+      await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeEnabled()
+      await page.getByTestId('tray-ramp-steep').click()
+      const target = await cellPoint(page, 5, 6, 1, 3)
+      await page.mouse.click(target.x, target.y)
+      await page.getByTestId('marble-works-canvas').dispatchEvent('webglcontextlost', { cancelable: true })
+      await expect(page.getByRole('alert')).toBeVisible()
+      await page.getByRole('alert').getByRole('button', { name: recovery, exact: true }).click()
+      if (recovery === 'Level select') await page.getByTestId('level-tile-1').click()
+      await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeEnabled()
+      await expect(page.getByTestId('tutorial-message')).toContainText('Press Go')
+      await expect(page.getByTestId('tray-ramp-steep')).toHaveAccessibleName('Steep Ramp, 0 left')
+      expect(errors).toEqual([])
+    })
+  }
+
+  test('focused controls respect Clear confirmation and toolbar shortcuts', async ({ page }) => {
+    await page.goto('/marble-works?level=1')
+    await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeEnabled()
+    await page.getByTestId('tray-ramp-steep').click()
+    const target = await cellPoint(page, 5, 6, 1, 3)
+    await page.mouse.click(target.x, target.y)
+    await page.getByRole('button', { name: 'Clear board' }).click()
+    await page.getByRole('button', { name: 'Cancel', exact: true }).focus()
+    await page.keyboard.press('f')
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('tutorial-message')).toContainText('Press Go')
+    await page.getByRole('button', { name: 'Flip piece' }).focus()
+    await page.keyboard.press('f')
+    await expect(page.getByTestId('tutorial-message')).toContainText('use Flip')
+    await page.keyboard.press('f')
+    await expect(page.getByTestId('tutorial-message')).toContainText('Press Go')
+  })
+
+  test('held Space starts one run and Stop returns to building', async ({ page }) => {
+    await page.goto('/marble-works?level=1')
+    await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeEnabled()
+    await page.evaluate(() => { (document.activeElement as HTMLElement | null)?.blur() })
+    await page.keyboard.down('Space')
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+    await page.keyboard.down('Space')
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+    await page.keyboard.up('Space')
+    await page.getByRole('button', { name: 'Stop', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Go', exact: true })).toBeEnabled()
+  })
+
   test('the tutorial win unlocks level 2 and keeps progress after reload', async ({ page }) => {
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(String(error)))

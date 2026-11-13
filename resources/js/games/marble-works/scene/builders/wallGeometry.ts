@@ -2,6 +2,7 @@ import * as THREE from 'three'
 
 import type { WorldWall } from '../../board/grid'
 import type { Vec2 } from '../../pieces/pieceCatalog'
+import { buildOwned, own } from '../resourceScope'
 
 /** Depth (z) of piece bodies. The marble rolls in the z = 0 plane. */
 export const PIECE_DEPTH = 0.6
@@ -27,18 +28,20 @@ export function wallOutline(wall: WorldWall): Vec2[] {
 
 /** Extruded, lightly bevelled prism for one wall, centred on z = 0. */
 export function createWallGeometry(wall: WorldWall, depth = PIECE_DEPTH): THREE.ExtrudeGeometry {
-  const outline = wallOutline(wall)
-  const shape = new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)))
-  const bevel = Math.min(0.025, wall.thickness * 0.25)
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: depth - (bevel * 2),
-    bevelEnabled: true,
-    bevelThickness: bevel,
-    bevelSize: bevel,
-    bevelSegments: 2,
-    curveSegments: 4,
-  })
-  geometry.translate(0, 0, -(depth / 2) + bevel)
+  return buildOwned(() => {
+    const outline = wallOutline(wall)
+    const shape = new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)))
+    const bevel = Math.min(0.025, wall.thickness * 0.25)
+    const geometry = own(new THREE.ExtrudeGeometry(shape, {
+      depth: depth - (bevel * 2),
+      bevelEnabled: true,
+      bevelThickness: bevel,
+      bevelSize: bevel,
+      bevelSegments: 2,
+      curveSegments: 4,
+    }))
+    geometry.translate(0, 0, -(depth / 2) + bevel)
 
-  return geometry
+    return geometry
+  })
 }

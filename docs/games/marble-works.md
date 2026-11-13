@@ -33,7 +33,9 @@ Route `/marble-works` (`games.marble-works`), entrypoint
    the next edit.
 
 Keyboard shortcuts: `R` rotate, `F` flip (the selected piece, or the armed piece before you
-place it), `Delete` remove, `Esc` deselect, `Space` Go/Stop.
+place it), `Delete` remove, `Esc` deselect, `Space` Go/Stop. Shortcuts ignore held-key
+repeats, modifiers, handled events, forms and open dialogs; focused game toolbar buttons
+retain letter shortcuts and own their native Space activation.
 
 ## Marbles, droppers and baskets
 
@@ -227,6 +229,12 @@ camera looking head-on at the board.
   if that is more), because a tablet's edge swipes and case lip swallow touches right at it.
 - **Chrome:** the shared `GameBottomToolbar` (Levels, Clear, Go/Stop, Fullscreen),
   `LevelSelectGrid` and `TapHint`.
+- **Graphics recovery:** board edits and Go wait for the first sized, populated render.
+  If graphics initialization, rendering or the WebGL context fails, an accessible panel
+  offers Retry graphics and Level select. Retrying creates a fresh canvas and renderer,
+  returning to Edit with placements and session level drafts kept. Runs restart from Edit;
+  physics state is not checkpointed. Partial factory allocations and scene resources are
+  released before the renderer, even when another resource fails to dispose.
 - **Reduced motion:** with `prefers-reduced-motion`, the trail, confetti, basket wobble and
   snap animation are all off.
 
@@ -258,7 +266,8 @@ client). The original campaign's `v1` local key is not read.
   is mocked).
 - `tests/e2e/marble-works.spec.ts` (`pnpm run test:e2e:marble-works`): builds and wins the
   tutorial in a real browser, checks the board fits the viewport, and checks at iPad landscape
-  size that the tray's cards are large, clear of the screen edge and all fit without scrolling. It is not part of the PR
-  gate.
+  size that the tray's cards are large, clear of the screen edge and all fit without scrolling.
+  It also exercises blocked/restored graphics and focused keyboard controls on desktop and
+  375-pixel phones, and runs through the gameplay PR gate.
 - `tests/Feature/MarbleWorksGamePageTest.php`, plus the level-24/25 bounds in
   `GameDataApiTest` and the campaign-revision rule in `tests/Unit/GameDataMergerTest.php`.

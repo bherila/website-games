@@ -37,10 +37,12 @@ import {
   setMaterialQuality,
 } from './glassQuality'
 import { GEM_COLOR, GHOST_OK_COLOR, GLASS_PIECE_TINT, MARBLE_STYLES, SELECTION_COLOR } from './palette'
+import { buildOwned, own, ownedResources } from './resourceScope'
 import { canvasTexture } from './textures'
 
 export interface SceneControllerOptions {
   reducedMotion: boolean
+  onError: () => void
 }
 
 export interface RunCallbacks {
@@ -112,7 +114,7 @@ function createOutline(width: number, height: number, color: string): THREE.Mesh
   roundedRect(hole, width - 0.08, height - 0.08, 0.11)
   shape.holes.push(hole)
 
-  return new THREE.Mesh(new THREE.ShapeGeometry(shape, 6), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false }))
+  return buildOwned(() => new THREE.Mesh(own(new THREE.ShapeGeometry(shape, 6)), own(new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false }))))
 }
 
 /**
@@ -121,12 +123,14 @@ function createOutline(width: number, height: number, color: string): THREE.Mesh
  */
 export class MarbleWorksSceneController {
   readonly level: LevelDef
-  private readonly renderer: THREE.WebGLRenderer
+  private renderer: THREE.WebGLRenderer | undefined
   private readonly scene = new THREE.Scene()
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100)
   private readonly timer = new THREE.Timer()
   private readonly reducedMotion: boolean
-  private readonly environment: THREE.Texture
+  private environment: THREE.Texture | undefined
+  private environmentTarget: THREE.WebGLRenderTarget | undefined
+  private readonly onError: () => void
   private layout: BoardLayout = { width: 1, height: 1, cellSize: 1, left: 0, top: 0 }
   private readonly pieces = new Map<string, PlacedMesh>()
   private placementsByIndex: PlacedPiece[] = []
@@ -136,15 +140,15 @@ export class MarbleWorksSceneController {
   private readonly ghostGroup = new THREE.Group()
   private readonly selectionGroup = new THREE.Group()
   private readonly effectsGroup = new THREE.Group()
-  private readonly gridLines: THREE.LineSegments
-  private readonly droppers: DropperMesh[]
-  private readonly baskets: BasketMesh[]
-  private readonly gems: GemMesh[]
-  private readonly schedule: ReturnType<typeof marbleSchedule>
-  private readonly marbles: MarbleView[]
-  private readonly ghostPaths: DotTrail[]
-  private readonly shardMaterial: THREE.Material
-  private glassQuality: GlassQuality
+  private gridLines!: THREE.LineSegments
+  private readonly droppers: DropperMesh[] = []
+  private readonly baskets: BasketMesh[] = []
+  private readonly gems: GemMesh[] = []
+  private readonly schedule: ReturnType<typeof marbleSchedule> = []
+  private readonly marbles: MarbleView[] = []
+  private readonly ghostPaths: DotTrail[] = []
+  private shardMaterial!: THREE.Material
+  private glassQuality: GlassQuality = 'lite'
   /** Frame times sampled to decide whether refraction is affordable (null once decided). */
   private frameSamples: number[] | null = []
   private tutorialMarker: THREE.Mesh | null = null
@@ -152,7 +156,7 @@ export class MarbleWorksSceneController {
   private runCallbacks: RunCallbacks | null = null
   private readonly clock: FixedStepClock = createFixedStepClock()
   /** Seconds (scene clock) when each dropper last opened its gate. */
-  private gateOpenedAt: (number | null)[]
+  private gateOpenedAt: (number | null)[] = []
   private springs: { mesh: PieceMesh; startedAt: number }[] = []
   private swings: ToggleSwing[] = []
   private shardBursts: ShardBurst[] = []
@@ -166,110 +170,134 @@ export class MarbleWorksSceneController {
   constructor(canvas: HTMLCanvasElement, level: LevelDef, options: SceneControllerOptions) {
     this.level = level
     this.reducedMotion = options.reducedMotion
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false })
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
-    this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.toneMapping = THREE.NeutralToneMapping
-    // Refraction renders the board into a buffer behind the glass; half resolution is plenty
-    // for marbles a few dozen pixels across and halves that pass's cost.
-    this.renderer.transmissionResolutionScale = 0.5
-    this.glassQuality = isSoftwareRenderer(this.renderer.getContext()) ? 'lite' : 'refractive'
-    if (this.glassQuality === 'lite') {
-      this.frameSamples = null
+    this.onError = options.onError
+    try {
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false })
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+      this.renderer.shadowMap.enabled = true
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace
+      this.renderer.toneMapping = THREE.NeutralToneMapping
+      // Refraction renders the board into a buffer behind the glass; half resolution is plenty
+      // for marbles a few dozen pixels across and halves that pass's cost.
+      this.renderer.transmissionResolutionScale = 0.5
+      this.glassQuality = isSoftwareRenderer(this.renderer.getContext()) ? 'lite' : 'refractive'
+      if (this.glassQuality === 'lite') {
+        this.frameSamples = null
+      }
+
+      // A small painted studio (sky, floor and two soft boxes) gives glass, steel and gems
+      // their reflections. Prefiltering a 128×64 image is far cheaper than rendering a room.
+      const studio = canvasTexture(128, 64, (context) => {
+        const sky = context.createLinearGradient(0, 0, 0, 64)
+        sky.addColorStop(0, '#ffffff')
+        sky.addColorStop(0.45, '#cfe6f7')
+        sky.addColorStop(0.55, '#8a7a66')
+        sky.addColorStop(1, '#3b3127')
+        context.fillStyle = sky
+        context.fillRect(0, 0, 128, 64)
+        context.fillStyle = '#ffffff'
+        context.fillRect(18, 10, 22, 12)
+        context.fillRect(80, 14, 30, 8)
+      })
+      studio.mapping = THREE.EquirectangularReflectionMapping
+      let pmrem: THREE.PMREMGenerator | undefined
+      try {
+        pmrem = new THREE.PMREMGenerator(this.renderer)
+        this.environmentTarget = pmrem.fromEquirectangular(studio)
+        this.environment = this.environmentTarget.texture
+      } finally {
+        studio.dispose()
+        pmrem?.dispose()
+      }
+
+      this.scene.background = canvasTexture(4, 256, (context) => {
+        const gradient = context.createLinearGradient(0, 0, 0, 256)
+        gradient.addColorStop(0, '#5ab7ff')
+        gradient.addColorStop(0.65, '#bfe6ff')
+        gradient.addColorStop(1, '#eaf7ff')
+        context.fillStyle = gradient
+        context.fillRect(0, 0, 4, 256)
+      })
+
+      const cx = level.cols / 2
+      const cy = level.rows / 2
+      this.camera.position.set(cx, cy, 20)
+      this.camera.lookAt(cx, cy, 0)
+
+      this.scene.add(new THREE.HemisphereLight('#ffffff', '#b59a74', 1.35))
+      const sun = new THREE.DirectionalLight('#ffffff', 1.7)
+      this.scene.add(sun, sun.target)
+      sun.position.set(cx - 3, cy + 5, 10)
+      sun.target.position.set(cx, cy, 0)
+      sun.castShadow = true
+      const extent = Math.max(level.cols, level.rows)
+      sun.shadow.camera.left = -extent
+      sun.shadow.camera.right = extent
+      sun.shadow.camera.top = extent
+      sun.shadow.camera.bottom = -extent
+      sun.shadow.camera.near = 1
+      sun.shadow.camera.far = 40
+      sun.shadow.mapSize.set(1024, 1024)
+      sun.shadow.radius = 4
+      sun.shadow.bias = -0.0015
+      this.scene.add(sun, sun.target)
+
+      this.scene.add(createPegboard(level))
+      this.gridLines = createGridLines(level)
+      this.scene.add(this.gridLines)
+      this.scene.add(createObstacles(level))
+      this.scene.add(this.overlayGroup)
+
+      for (const fixed of level.fixed) {
+        const mesh = createPieceMesh(level, fixed, 'fixed')
+        this.fixedMeshes.push(mesh)
+        this.scene.add(mesh.group)
+      }
+
+      level.droppers.forEach((_, index) => { const mesh = createDropper(level, index); this.scene.add(mesh.group); this.droppers.push(mesh) })
+      level.baskets.forEach((_, index) => { const mesh = createBasket(level, index); this.scene.add(mesh.group); this.baskets.push(mesh) })
+      level.gems.forEach((_, index) => { const mesh = createGem(level, index); this.scene.add(mesh.group); this.gems.push(mesh) })
+      this.gateOpenedAt = level.droppers.map(() => null)
+      for (const mesh of [...this.droppers, ...this.baskets, ...this.gems]) {
+        this.scene.add(mesh.group)
+      }
+      this.scene.add(this.piecesGroup, this.ghostGroup, this.selectionGroup, this.effectsGroup)
+
+      this.schedule.push(...marbleSchedule(level))
+      for (const marble of this.schedule) {
+        const trail = createDotTrail(512, 0.035, marble.kind === 'steel' ? '#334155' : '#1e293b', 0.4)
+        this.scene.add(trail.mesh)
+        this.ghostPaths.push(trail)
+      }
+      this.schedule.forEach((marble) => {
+        const mesh = createMarbleMesh(marble.kind)
+        this.scene.add(mesh.group)
+        const trail = createDotTrail(TRAIL_LENGTH, MARBLE_KINDS[marble.kind].radius * 0.5, '#ffffff', 0.35)
+        this.scene.add(mesh.group, trail.mesh)
+
+        this.marbles.push({ mesh, trail, sinking: null })
+      })
+      for (const ghost of this.ghostPaths) {
+        this.scene.add(ghost.mesh)
+      }
+      this.shardMaterial = pieceGlassMaterial(GLASS_PIECE_TINT)
+      ;(this.shardMaterial as THREE.MeshPhysicalMaterial).envMap = this.environment ?? null
+      this.placeMarblesInDroppers()
+      this.dress(this.scene)
+
+      this.timer.connect(document)
+    } catch (error) {
+      this.dispose()
+      throw error
     }
+  }
 
-    // A small painted studio (sky, floor and two soft boxes) gives glass, steel and gems
-    // their reflections. Prefiltering a 128×64 image is far cheaper than rendering a room.
-    const studio = canvasTexture(128, 64, (context) => {
-      const sky = context.createLinearGradient(0, 0, 0, 64)
-      sky.addColorStop(0, '#ffffff')
-      sky.addColorStop(0.45, '#cfe6f7')
-      sky.addColorStop(0.55, '#8a7a66')
-      sky.addColorStop(1, '#3b3127')
-      context.fillStyle = sky
-      context.fillRect(0, 0, 128, 64)
-      context.fillStyle = '#ffffff'
-      context.fillRect(18, 10, 22, 12)
-      context.fillRect(80, 14, 30, 8)
-    })
-    studio.mapping = THREE.EquirectangularReflectionMapping
-    const pmrem = new THREE.PMREMGenerator(this.renderer)
-    this.environment = pmrem.fromEquirectangular(studio).texture
-    studio.dispose()
-    pmrem.dispose()
-
-    this.scene.background = canvasTexture(4, 256, (context) => {
-      const gradient = context.createLinearGradient(0, 0, 0, 256)
-      gradient.addColorStop(0, '#5ab7ff')
-      gradient.addColorStop(0.65, '#bfe6ff')
-      gradient.addColorStop(1, '#eaf7ff')
-      context.fillStyle = gradient
-      context.fillRect(0, 0, 4, 256)
-    })
-
-    const cx = level.cols / 2
-    const cy = level.rows / 2
-    this.camera.position.set(cx, cy, 20)
-    this.camera.lookAt(cx, cy, 0)
-
-    this.scene.add(new THREE.HemisphereLight('#ffffff', '#b59a74', 1.35))
-    const sun = new THREE.DirectionalLight('#ffffff', 1.7)
-    sun.position.set(cx - 3, cy + 5, 10)
-    sun.target.position.set(cx, cy, 0)
-    sun.castShadow = true
-    const extent = Math.max(level.cols, level.rows)
-    sun.shadow.camera.left = -extent
-    sun.shadow.camera.right = extent
-    sun.shadow.camera.top = extent
-    sun.shadow.camera.bottom = -extent
-    sun.shadow.camera.near = 1
-    sun.shadow.camera.far = 40
-    sun.shadow.mapSize.set(1024, 1024)
-    sun.shadow.radius = 4
-    sun.shadow.bias = -0.0015
-    this.scene.add(sun, sun.target)
-
-    this.scene.add(createPegboard(level))
-    this.gridLines = createGridLines(level)
-    this.scene.add(this.gridLines)
-    this.scene.add(createObstacles(level))
-    this.scene.add(this.overlayGroup)
-
-    for (const fixed of level.fixed) {
-      const mesh = createPieceMesh(level, fixed, 'fixed')
-      this.fixedMeshes.push(mesh)
-      this.scene.add(mesh.group)
-    }
-
-    this.droppers = level.droppers.map((_, index) => createDropper(level, index))
-    this.baskets = level.baskets.map((_, index) => createBasket(level, index))
-    this.gems = level.gems.map((_, index) => createGem(level, index))
-    this.gateOpenedAt = level.droppers.map(() => null)
-    for (const mesh of [...this.droppers, ...this.baskets, ...this.gems]) {
-      this.scene.add(mesh.group)
-    }
-    this.scene.add(this.piecesGroup, this.ghostGroup, this.selectionGroup, this.effectsGroup)
-
-    this.schedule = marbleSchedule(level)
-    this.ghostPaths = this.schedule.map((marble) => createDotTrail(512, 0.035, marble.kind === 'steel' ? '#334155' : '#1e293b', 0.4))
-    this.marbles = this.schedule.map((marble) => {
-      const mesh = createMarbleMesh(marble.kind)
-      const trail = createDotTrail(TRAIL_LENGTH, MARBLE_KINDS[marble.kind].radius * 0.5, '#ffffff', 0.35)
-      this.scene.add(mesh.group, trail.mesh)
-
-      return { mesh, trail, sinking: null }
-    })
-    for (const ghost of this.ghostPaths) {
-      this.scene.add(ghost.mesh)
-    }
-    this.shardMaterial = pieceGlassMaterial(GLASS_PIECE_TINT)
-    ;(this.shardMaterial as THREE.MeshPhysicalMaterial).envMap = this.environment
-    this.placeMarblesInDroppers()
-    this.dress(this.scene)
-
-    this.timer.connect(document)
+  /** Start animation only after React has sized and populated the scene. */
+  renderFirstFrame(): void {
+    if (this.disposed || !this.renderer) return
+    this.renderer.render(this.scene, this.camera)
+    if (this.disposed) return
     this.frame = requestAnimationFrame(this.loop)
   }
 
@@ -282,7 +310,7 @@ export class MarbleWorksSceneController {
     this.camera.bottom = frustum.bottom
     this.camera.position.set(this.level.cols / 2, this.level.rows / 2, 20)
     this.camera.updateProjectionMatrix()
-    this.renderer.setSize(width, height, false)
+    this.renderer?.setSize(width, height, false)
 
     return this.layout
   }
@@ -301,6 +329,7 @@ export class MarbleWorksSceneController {
         this.removePiece(placement.uid)
       }
       const mesh = createPieceMesh(this.level, placement, 'player')
+      this.piecesGroup.add(mesh.group)
       this.dress(mesh.group)
       const holder = new THREE.Group()
       const [cx, cy] = footprintCenter(this.level, placement)
@@ -356,19 +385,19 @@ export class MarbleWorksSceneController {
     }
     for (const cell of freeCells) {
       const [x, y] = cellCenter(this.level, cell)
-      const tint = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.92, 0.92),
-        new THREE.MeshBasicMaterial({ color: GHOST_OK_COLOR, transparent: true, opacity: 0.12, depthWrite: false }),
-      )
+      const tint = buildOwned(() => new THREE.Mesh(
+        own(new THREE.PlaneGeometry(0.92, 0.92)),
+        own(new THREE.MeshBasicMaterial({ color: GHOST_OK_COLOR, transparent: true, opacity: 0.12, depthWrite: false })),
+      ))
       tint.position.set(x, y, PEGBOARD_Z + 0.015)
       this.overlayGroup.add(tint)
     }
     if (tutorialCell) {
       const [x, y] = cellCenter(this.level, tutorialCell)
-      const marker = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.94, 0.94),
-        new THREE.MeshBasicMaterial({ color: SELECTION_COLOR, transparent: true, opacity: 0.45, depthWrite: false }),
-      )
+      const marker = buildOwned(() => new THREE.Mesh(
+        own(new THREE.PlaneGeometry(0.94, 0.94)),
+        own(new THREE.MeshBasicMaterial({ color: SELECTION_COLOR, transparent: true, opacity: 0.45, depthWrite: false })),
+      ))
       marker.position.set(x, y, PEGBOARD_Z + 0.02)
       this.overlayGroup.add(marker)
       this.tutorialMarker = marker
@@ -430,19 +459,43 @@ export class MarbleWorksSceneController {
   }
 
   dispose(): void {
+    if (this.disposed) return
     this.disposed = true
-    cancelAnimationFrame(this.frame)
-    this.timer.dispose()
-    this.resetRun()
+    const safely = (release: () => void): void => { try { release() } catch { /* Continue releasing the remaining owners. */ } }
+    safely(() => cancelAnimationFrame(this.frame))
+    safely(() => this.timer.dispose())
+    this.run = null
+    this.runCallbacks = null
+    const released = new Set<object>()
+    const release = (resource: { dispose: () => void } | null | undefined): void => {
+      if (!resource || released.has(resource)) return
+      released.add(resource)
+      safely(() => resource.dispose())
+    }
     this.scene.traverse((object) => {
-      if (object !== this.scene) {
-        disposeObject(object)
+      ownedResources(object).forEach(release)
+      const light = object as THREE.Light
+      if (light.isLight) {
+        const shadow = (light as THREE.DirectionalLight).shadow
+        release(shadow?.map)
+        release(shadow?.mapPass)
+        release(light)
+      }
+      const mesh = object as THREE.Mesh
+      if ((mesh as THREE.InstancedMesh).isInstancedMesh) release(mesh as THREE.InstancedMesh)
+      if (mesh.geometry?.userData.cached !== true) release(mesh.geometry)
+      for (const material of Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : []) {
+        for (const value of Object.values(material)) {
+          if (value instanceof THREE.Texture && value !== this.environment && value.userData.cached !== true) release(value)
+        }
+        release(material)
       }
     })
-    ;(this.scene.background as THREE.Texture | null)?.dispose()
-    this.environment.dispose()
-    this.shardMaterial.dispose()
-    this.renderer.dispose()
+    release(this.scene.background instanceof THREE.Texture ? this.scene.background : null)
+    release(this.environmentTarget)
+    release(this.shardMaterial)
+    release(this.renderer)
+    this.scene.clear()
   }
 
   /**
@@ -454,7 +507,7 @@ export class MarbleWorksSceneController {
     root.traverse((object) => {
       const { material } = object as THREE.Mesh
       if (material instanceof THREE.MeshPhysicalMaterial && material.envMap !== this.environment) {
-        material.envMap = this.environment
+        material.envMap = this.environment ?? null
         material.envMapIntensity *= 0.55
         material.needsUpdate = true
       }
@@ -667,40 +720,44 @@ export class MarbleWorksSceneController {
     if (this.disposed) {
       return
     }
-    this.frame = requestAnimationFrame(this.loop)
-    this.timer.update(timestamp)
-    const dt = Math.min(this.timer.getDelta(), 0.1)
-    const now = this.timer.getElapsed()
+    try {
+      this.timer.update(timestamp)
+      const dt = Math.min(this.timer.getDelta(), 0.1)
+      const now = this.timer.getElapsed()
 
-    const run = this.run
-    if (run && this.runCallbacks) {
-      let status = run.status
-      advanceFixedSteps(this.clock, dt, { fixedStep: FIXED_STEP_S, maxSubsteps: MAX_STEPS_PER_FRAME }, () => {
-        status = run.tick((event) => this.handleRunEvent(event))
+      const run = this.run
+      if (run && this.runCallbacks) {
+        let status = run.status
+        advanceFixedSteps(this.clock, dt, { fixedStep: FIXED_STEP_S, maxSubsteps: MAX_STEPS_PER_FRAME }, () => {
+          status = run.tick((event) => this.handleRunEvent(event))
 
-        return status === 'running'
-      })
-      run.marbles.forEach((marble, index) => {
-        const view = this.marbles[index]
-        if (!view || marble.tracker.status === 'waiting' || view.sinking) {
-          return
+          return status === 'running'
+        })
+        run.marbles.forEach((marble, index) => {
+          const view = this.marbles[index]
+          if (!view || marble.tracker.status === 'waiting' || view.sinking) {
+            return
+          }
+          const { position, quaternion } = marble.body
+          view.mesh.group.position.set(position.x, position.y, 0)
+          view.mesh.group.scale.setScalar(1)
+          view.mesh.spinner.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
+          if (!this.reducedMotion && marble.tracker.status === 'rolling') {
+            setDotTrail(view.trail, [...view.trail.points, [position.x, position.y] as Vec2].slice(-TRAIL_LENGTH), -0.05, true)
+          }
+        })
+        if (status !== 'running') {
+          this.finishRun()
         }
-        const { position, quaternion } = marble.body
-        view.mesh.group.position.set(position.x, position.y, 0)
-        view.mesh.group.scale.setScalar(1)
-        view.mesh.spinner.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
-        if (!this.reducedMotion && marble.tracker.status === 'rolling') {
-          setDotTrail(view.trail, [...view.trail.points, [position.x, position.y] as Vec2].slice(-TRAIL_LENGTH), -0.05, true)
-        }
-      })
-      if (status !== 'running') {
-        this.finishRun()
       }
-    }
 
-    this.animate(now, dt)
-    this.sampleFrame(dt)
-    this.renderer.render(this.scene, this.camera)
+      this.animate(now, dt)
+      this.sampleFrame(dt)
+      this.renderer?.render(this.scene, this.camera)
+      if (!this.disposed) this.frame = requestAnimationFrame(this.loop)
+    } catch {
+      this.onError()
+    }
   }
 
   private animate(now: number, dt: number): void {
