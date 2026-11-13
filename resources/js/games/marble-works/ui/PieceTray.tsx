@@ -78,6 +78,7 @@ export function PieceTray({ level, remaining, armed, disabled, shakePiece, onArm
                   !used && 'cursor-grab active:cursor-grabbing',
                   shakePiece?.pieceId === pieceId && 'marble-works-shake',
                 )}
+                disabled={disabled}
                 data-piece={pieceId}
                 data-testid={`tray-${pieceId}`}
                 key={`${pieceId}-${shakePiece?.pieceId === pieceId ? shakePiece.key : 0}`}

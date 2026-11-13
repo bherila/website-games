@@ -103,6 +103,7 @@ export function MarbleWorksGame(): ReactElement {
   const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [drag, setDrag] = useState<Drag | null>(null)
   const [hover, setHover] = useState<PiecePlacement | null>(null)
+  const [graphicsReady, setGraphicsReady] = useState(false)
   const [phase, setPhase] = useState<Phase>('edit')
   const [runToken, setRunToken] = useState<number | null>(null)
   const [failed, setFailed] = useState<{ status: FailStatus; kind: MarbleKind | null } | null>(null)
@@ -117,6 +118,7 @@ export function MarbleWorksGame(): ReactElement {
   const trayDragRef = useRef<TrayDrag | null>(null)
   const trayDragEndedAtRef = useRef(Number.NEGATIVE_INFINITY)
 
+  const graphicsReadyRef = useRef(false)
   const placementsByLevelRef = useRef(new Map<number, PlacedPiece[]>())
   const orientationsRef = useRef(new Map<PieceId, { variant: number; flipped: boolean }>())
   const nextUidRef = useRef(1)
@@ -127,7 +129,8 @@ export function MarbleWorksGame(): ReactElement {
   const goButtonRef = useRef<HTMLDivElement | null>(null)
 
   const level = useMemo<LevelDef | null>(() => LEVELS.find((candidate) => candidate.id === levelId) ?? null, [levelId])
-  const editing = phase === 'edit'
+  const editing = phase === 'edit' && graphicsReady
+
 
   useEffect(() => () => {
     if (failTimerRef.current !== null) {
@@ -141,6 +144,23 @@ export function MarbleWorksGame(): ReactElement {
       failTimerRef.current = null
     }
   }
+
+  const handleGraphicsReady = useCallback((ready: boolean): void => {
+    graphicsReadyRef.current = ready
+    setGraphicsReady(ready)
+    if (!ready) {
+      clearFailTimer()
+      setPhase('edit')
+      setRunToken(null)
+      setDrag(null)
+      setHover(null)
+      setArmed(null)
+      setSelectedUid(null)
+      trayDragRef.current = null
+      setTrayDragIcon(null)
+    }
+  }, [])
+
 
   const updatePlacements = useCallback((next: PlacedPiece[]): void => {
     setPlacements(next)
@@ -157,6 +177,8 @@ export function MarbleWorksGame(): ReactElement {
       return
     }
     clearFailTimer()
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
     setLevelId(id)
     setPlacements(placementsByLevelRef.current.get(id) ?? [])
     setArmed(null)
@@ -174,6 +196,8 @@ export function MarbleWorksGame(): ReactElement {
 
   const goToSelect = useCallback((): void => {
     clearFailTimer()
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
     setLevelId(null)
     setRunToken(null)
     setPhase('edit')
@@ -241,7 +265,7 @@ export function MarbleWorksGame(): ReactElement {
   const shakeTray = (pieceId: PieceId): void => setTrayShake((current) => ({ pieceId, key: (current?.key ?? 0) + 1 }))
 
   const handleArm = (pieceId: PieceId): void => {
-    if (!level || !editing || performance.now() - trayDragEndedAtRef.current < TRAY_CLICK_AFTER_DRAG_MS) {
+    if (!level || !editing || !graphicsReadyRef.current || performance.now() - trayDragEndedAtRef.current < TRAY_CLICK_AFTER_DRAG_MS) {
       return
     }
     if (armed?.pieceId === pieceId) {
@@ -261,7 +285,7 @@ export function MarbleWorksGame(): ReactElement {
 
   /** Starts a possible tray drag. Touch keeps tap-to-pick, so the tray strip still scrolls. */
   const handleTrayPointerDown = (pieceId: PieceId, event: ReactPointerEvent<HTMLButtonElement>): void => {
-    if (event.pointerType === 'touch' || event.button !== 0 || !level || !editing || (remaining[pieceId] ?? 0) <= 0) {
+    if (event.pointerType === 'touch' || event.button !== 0 || !level || !editing || !graphicsReadyRef.current || (remaining[pieceId] ?? 0) <= 0) {
       return
     }
     trayDragRef.current = { pieceId, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
@@ -334,7 +358,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const replaceSelected = (transform: (placement: PlacedPiece) => PlacedPiece): void => {
-    if (!level || !selected) {
+    if (!level || !selected || !graphicsReadyRef.current) {
       return
     }
     const candidate = transform(selected)
@@ -346,7 +370,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const removeSelected = (): void => {
-    if (!selected) {
+    if (!selected || !graphicsReadyRef.current) {
       return
     }
     updatePlacements(placements.filter((placement) => placement.uid !== selected.uid))
@@ -354,7 +378,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const transformArmed = (transform: (armedPiece: PiecePlacement) => PiecePlacement): void => {
-    if (!armed) {
+    if (!armed || !graphicsReadyRef.current) {
       return
     }
     const next = transform({ ...armed, col: 0, row: 0 })
@@ -372,7 +396,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const handleBoardPointer = (event: BoardPointerEvent): void => {
-    if (!level || !editing) {
+    if (!level || !editing || !graphicsReadyRef.current) {
       return
     }
     const { cell } = event
@@ -476,7 +500,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const handleGo = (): void => {
-    if (!level) {
+    if (!level || !graphicsReadyRef.current) {
       return
     }
     if (phase === 'edit') {
@@ -499,7 +523,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const handleRunEnd = useCallback((result: RunResult): void => {
-    if (!level) {
+    if (!level || !graphicsReadyRef.current) {
       return
     }
     setLiveGems(result.gems)
@@ -532,6 +556,7 @@ export function MarbleWorksGame(): ReactElement {
   }
 
   const handleClear = (): void => {
+    if (!graphicsReadyRef.current) return
     updatePlacements([])
     setSelectedUid(null)
   }
@@ -541,13 +566,15 @@ export function MarbleWorksGame(): ReactElement {
       return undefined
     }
     const onKey = (event: KeyboardEvent): void => {
-      const target = event.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+      const target = event.target instanceof HTMLElement ? event.target : null
+      if (!graphicsReadyRef.current || event.repeat || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey
+        || document.querySelector('[role="alertdialog"], [role="dialog"][aria-modal="true"]')
+        || target?.closest('form, input, textarea, select, a, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="slider"], [role="switch"]')) {
         return
       }
       const key = event.key.toLowerCase()
       if (key === ' ') {
-        if (target?.tagName === 'BUTTON') {
+        if (target?.closest('button, [role="button"]')) {
           return
         }
         event.preventDefault()
@@ -555,18 +582,21 @@ export function MarbleWorksGame(): ReactElement {
       } else if (!editing) {
         return
       } else if (key === 'r') {
+        event.preventDefault()
         if (selected) {
           replaceSelected(rotatePlacement)
         } else {
           transformArmed(rotatePlacement)
         }
       } else if (key === 'f') {
+        event.preventDefault()
         if (selected) {
           replaceSelected(flipPlacement)
         } else {
           transformArmed(flipPlacement)
         }
       } else if (key === 'delete' || key === 'backspace') {
+        event.preventDefault()
         removeSelected()
       } else if (key === 'escape') {
         setArmed(null)
@@ -656,6 +686,8 @@ export function MarbleWorksGame(): ReactElement {
             selected={editing ? selected : null}
             tutorialCell={tutorialStep === 'place' || tutorialStep === 'fix' || tutorialStep === 'flip' ? tutorial?.cell ?? null : null}
             onBoardPointer={handleBoardPointer}
+            onReady={handleGraphicsReady}
+            onMenu={goToSelect}
             onGem={setLiveGems}
             onLayout={setLayout}
             onRunEnd={handleRunEnd}
@@ -749,7 +781,7 @@ export function MarbleWorksGame(): ReactElement {
               accentClassName={phase === 'running'
                 ? 'border-rose-600 bg-rose-500 text-white hover:bg-rose-500 dark:border-rose-500 dark:bg-rose-500 dark:text-white sm:size-16 size-14'
                 : 'border-emerald-600 bg-emerald-500 text-white hover:bg-emerald-500 dark:border-emerald-500 dark:bg-emerald-500 dark:text-white sm:size-16 size-14'}
-              disabled={phase === 'won'}
+              disabled={!graphicsReady || phase === 'won'}
               icon={phase === 'running' ? <Square className="fill-current" /> : <Play className="fill-current" />}
               label={phase === 'running' ? 'Stop' : 'Go'}
               onClick={handleGo}

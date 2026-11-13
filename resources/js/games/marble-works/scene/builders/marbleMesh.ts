@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { MARBLE_KINDS, type MarbleKind } from '../../physics/marbles'
 import { markGlass } from '../glassQuality'
 import { MARBLE_STYLES } from '../palette'
+import { buildOwned, own } from '../resourceScope'
 
 export interface MarbleMesh {
   kind: MarbleKind
@@ -18,7 +19,7 @@ export interface MarbleMesh {
  * reflections on top.
  */
 function glassMaterial(tint: string, attenuation: string): THREE.MeshPhysicalMaterial {
-  return markGlass(new THREE.MeshPhysicalMaterial({
+  return markGlass(own(new THREE.MeshPhysicalMaterial({
     color: tint,
     metalness: 0,
     roughness: 0.02,
@@ -31,15 +32,15 @@ function glassMaterial(tint: string, attenuation: string): THREE.MeshPhysicalMat
     clearcoatRoughness: 0.03,
     specularIntensity: 1,
     envMapIntensity: 1.4,
-  }), 0.55)
+  })), 0.55)
 }
 
 /** A cat's-eye vane set: thin coloured blades sealed inside the glass. */
 function addSwirl(spinner: THREE.Group, radius: number, colors: readonly string[]): void {
   colors.forEach((color, index) => {
     const vane = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 0.78, 20, 12),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.35, emissive: color, emissiveIntensity: 0.2 }),
+      own(new THREE.SphereGeometry(radius * 0.78, 20, 12)),
+      own(new THREE.MeshStandardMaterial({ color, roughness: 0.35, emissive: color, emissiveIntensity: 0.2 })),
     )
     vane.scale.set(1, 0.22, 0.5)
     vane.rotation.z = index * (Math.PI / colors.length)
@@ -48,35 +49,37 @@ function addSwirl(spinner: THREE.Group, radius: number, colors: readonly string[
 }
 
 export function createMarbleMesh(kind: MarbleKind): MarbleMesh {
-  const { radius } = MARBLE_KINDS[kind]
-  const style = MARBLE_STYLES[kind]
-  const group = new THREE.Group()
-  group.name = `marble:${kind}`
-  const spinner = new THREE.Group()
+  return buildOwned(() => {
+    const { radius } = MARBLE_KINDS[kind]
+    const style = MARBLE_STYLES[kind]
+    const group = new THREE.Group()
+    group.name = `marble:${kind}`
+    const spinner = new THREE.Group()
 
-  if (kind === 'steel') {
-    const ball = new THREE.Mesh(
-      new THREE.SphereGeometry(radius, 40, 28),
-      new THREE.MeshPhysicalMaterial({ color: style.tint, metalness: 1, roughness: 0.14, clearcoat: 0.4, envMapIntensity: 1.6 }),
-    )
-    ball.castShadow = true
-    spinner.add(ball)
-    // A faint machined band so the roll is visible on a mirror ball.
-    const band = new THREE.Mesh(
-      new THREE.TorusGeometry(radius * 0.99, radius * 0.03, 8, 40),
-      new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 1, roughness: 0.4 }),
-    )
-    spinner.add(band)
+    if (kind === 'steel') {
+      const ball = new THREE.Mesh(
+        own(new THREE.SphereGeometry(radius, 40, 28)),
+        own(new THREE.MeshPhysicalMaterial({ color: style.tint, metalness: 1, roughness: 0.14, clearcoat: 0.4, envMapIntensity: 1.6 })),
+      )
+      ball.castShadow = true
+      spinner.add(ball)
+      // A faint machined band so the roll is visible on a mirror ball.
+      const band = new THREE.Mesh(
+        own(new THREE.TorusGeometry(radius * 0.99, radius * 0.03, 8, 40)),
+        own(new THREE.MeshStandardMaterial({ color: '#64748b', metalness: 1, roughness: 0.4 })),
+      )
+      spinner.add(band)
+      group.add(spinner)
+
+      return { kind, group, spinner }
+    }
+
+    const glass = new THREE.Mesh(own(new THREE.SphereGeometry(radius, 40, 28)), glassMaterial(style.tint, style.attenuation))
+    glass.castShadow = true
+    group.add(glass)
+    addSwirl(spinner, radius, style.swirl)
     group.add(spinner)
 
     return { kind, group, spinner }
-  }
-
-  const glass = new THREE.Mesh(new THREE.SphereGeometry(radius, 40, 28), glassMaterial(style.tint, style.attenuation))
-  glass.castShadow = true
-  group.add(glass)
-  addSwirl(spinner, radius, style.swirl)
-  group.add(spinner)
-
-  return { kind, group, spinner }
+  })
 }
