@@ -31,6 +31,7 @@ import { createInputQueue, keyboardIntent } from './input/inputQueue'
 import { cycleBoardOrientationPreference, rotateIntent } from './input/orientation'
 import { loadBoardOrientationPreference, saveBoardOrientationPreference } from './input/orientationStorage'
 import { useBoardOrientation } from './input/useBoardOrientation'
+import { useInputActivity } from './input/useInputActivity'
 import { useStuckProbe } from './input/useStuckProbe'
 import { levelUsesWait } from './input/waitRelevance'
 import { getLevelById } from './levels'
@@ -157,6 +158,7 @@ export function ChicksGame(): ReactElement {
   const recordedRef = useRef<string>('')
   const historyRef = useRef<UndoEntry[]>([])
   const touchRepeatRef = useRef(createHoldRepeat())
+  const cancelSwipeRef = useRef<(() => void) | null>(null)
   const sfxRef = useRef<SfxEngine | null>(null)
   const mutedRef = useRef(muted)
 
@@ -232,6 +234,13 @@ export function ChicksGame(): ReactElement {
     keyRepeatRef.current.stop()
     heldKeyRef.current = null
   }, [])
+
+  const inputActiveRef = useInputActivity(() => {
+    clearKeyRepeat()
+    touchRepeatRef.current.stop()
+    queueRef.current.clear()
+    cancelSwipeRef.current?.()
+  })
 
   const handleGraphicsStatus = useCallback((status: GraphicsStatus): void => {
     // The consumption timer and held-input callbacks can run before React commits.
@@ -364,7 +373,7 @@ export function ChicksGame(): ReactElement {
   // Applies at most one queued intent to the engine, handling win/death transitions.
   const processQueuedIntent = useCallback((): void => {
     const current = gameStateRef.current
-    if (!graphicsReadyRef.current || !current || !levelDef) {
+    if (!inputActiveRef.current || document.hidden || !graphicsReadyRef.current || !current || !levelDef) {
       return
     }
 
@@ -422,7 +431,7 @@ export function ChicksGame(): ReactElement {
       clearDeathTimeout()
       deathTimeoutRef.current = window.setTimeout(() => setPhase('dead'), DEATH_DELAY_MS)
     }
-  }, [clearDeathTimeout, devModes.record, levelDef, playEventSfx, pushHistory])
+  }, [clearDeathTimeout, devModes.record, levelDef, playEventSfx, pushHistory, inputActiveRef])
 
   const handleStuck = useCallback((): void => {
     setStuck(true)
@@ -454,11 +463,11 @@ export function ChicksGame(): ReactElement {
    * layout effect so it is never a frame behind what the player can see.
    */
   const enqueueIntent = useCallback((intent: MoveIntent): void => {
-    if (!graphicsReadyRef.current || (intent === 'wait' && !waitEnabledRef.current)) {
+    if (!inputActiveRef.current || document.hidden || !graphicsReadyRef.current || (intent === 'wait' && !waitEnabledRef.current)) {
       return
     }
     queueRef.current.enqueue(rotateIntent(intent, quarterTurnsRef.current))
-  }, [])
+  }, [inputActiveRef])
 
   // Keyboard: arrows/WASD step, hold auto-repeats; Space = wait; R = restart; Esc = level select.
   useEffect(() => {
@@ -467,6 +476,7 @@ export function ChicksGame(): ReactElement {
     }
 
     function handleKeyDown(event: KeyboardEvent): void {
+      if (!inputActiveRef.current || document.hidden) return
       if (event.target instanceof Element) {
         // Editing controls own their keys. Persistent game buttons keep native
         // activation, while movement and game shortcuts still work after a click.
@@ -525,7 +535,7 @@ export function ChicksGame(): ReactElement {
       window.removeEventListener('keyup', handleKeyUp)
       clearKeyRepeat()
     }
-  }, [phase, enqueueIntent, handleRestart, handleGoToSelect, handleUndo, clearKeyRepeat])
+  }, [phase, enqueueIntent, handleRestart, handleGoToSelect, handleUndo, clearKeyRepeat, inputActiveRef])
 
   const stopTouchRepeat = useCallback((): void => {
     touchRepeatRef.current.stop()
@@ -534,10 +544,11 @@ export function ChicksGame(): ReactElement {
   // Shared with 2048 via `useSwipeGesture`; Chick's Challenge layers on
   // hold-to-repeat (a swipe kept pressed re-issues its direction) and the
   // tap-to-wait affordance near the player character.
-  const { boardRef: boardSwipeRef, ...boardSwipeHandlers } = useSwipeGesture({
+  const { boardRef: boardSwipeRef, cancelGesture, ...boardSwipeHandlers } = useSwipeGesture({
     threshold: SWIPE_THRESHOLD_PX,
     enabled: graphicsStatus === 'ready' && phase === 'playing',
     onSwipe: (direction): void => {
+      if (!inputActiveRef.current || document.hidden) return
       // One swipe is one step; keeping the finger down past the repeat delay walks on.
       touchRepeatRef.current.start(() => enqueueIntent(direction))
     },
@@ -550,6 +561,10 @@ export function ChicksGame(): ReactElement {
       }
     },
   })
+
+  useLayoutEffect(() => {
+    cancelSwipeRef.current = cancelGesture
+  }, [cancelGesture])
 
   useEffect(() => stopTouchRepeat, [stopTouchRepeat])
 

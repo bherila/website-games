@@ -294,6 +294,67 @@ test.describe("Chick's Challenge board layout", () => {
   })
 })
 
+test.describe("Chick's Challenge focus loss", () => {
+  for (const source of ['keyboard', 'dpad', 'swipe', 'unfinished swipe'] as const) {
+    for (const loss of ['blur', 'hidden'] as const) {
+      test(`clears ${source} input on ${loss} and preserves undo`, async ({ page }, testInfo) => {
+        test.skip(source !== 'keyboard' && testInfo.project.name !== 'chromium-mobile-375', 'Touch holds need the phone project')
+        await page.addInitScript(() => localStorage.setItem('bwh.chicks-challenge.board-orientation.v1', JSON.stringify('upright')))
+        await page.goto('/chicks-challenge?level=1')
+        await waitForBoard(page)
+        // Preserve one accepted move and its undo entry before holding the opposite direction.
+        await page.keyboard.press('ArrowDown')
+        await expect(page.getByLabel('1 of 16 moves')).toBeVisible()
+        const cdp = await page.context().newCDPSession(page)
+        if (source === 'keyboard') await page.keyboard.down('ArrowUp')
+        else {
+          const target = page.getByTestId(source === 'dpad' ? 'touch-dpad-up' : 'chips-board')
+          const box = await target.boundingBox()
+          expect(box).not.toBeNull()
+          const point = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2, id: 1 }
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] })
+          if (source === 'swipe') await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, y: point.y - 60 }] })
+        }
+        // Deliver lifecycle events deterministically while the actual browser input remains down.
+        await page.evaluate((event) => {
+          if (event === 'blur') window.dispatchEvent(new Event('blur'))
+          else {
+            Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+            document.dispatchEvent(new Event('visibilitychange'))
+          }
+        }, loss)
+        const counter = page.locator('[aria-label$=" of 16 moves"]')
+        const preserved = await counter.getAttribute('aria-label')
+        await page.waitForTimeout(800)
+        await expect(counter).toHaveAttribute('aria-label', preserved!)
+        await page.evaluate(() => {
+          Reflect.deleteProperty(document, 'hidden')
+          document.dispatchEvent(new Event('visibilitychange'))
+          window.dispatchEvent(new Event('focus'))
+        })
+        if (source === 'keyboard') await page.keyboard.up('ArrowUp')
+        else {
+          if (source === 'unfinished swipe') {
+            const box = await page.getByTestId('chips-board').boundingBox()
+            await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 - 60, id: 1 }] })
+          }
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        }
+        await page.waitForTimeout(800)
+        await expect(counter).toHaveAttribute('aria-label', preserved!)
+        const moves = Number.parseInt(preserved!, 10)
+        await page.getByTestId('undo-button').click()
+        await expect(page.getByLabel(`${moves - 1} of 16 moves`)).toBeVisible()
+        // A fresh press still works; undo again to make down legal regardless of the held-move race.
+        if (moves > 1) await page.getByTestId('undo-button').click()
+        if (source === 'keyboard') await page.keyboard.press('ArrowDown')
+        else await page.getByTestId('touch-dpad-down').tap()
+        await expect(page.getByLabel('1 of 16 moves')).toBeVisible()
+      })
+    }
+  }
+})
+
 test.describe("Chick's Challenge graphics recovery", () => {
   test('recovers from unavailable WebGL without spending moves and offers a safe menu', async ({ page }) => {
     await page.addInitScript(() => {
