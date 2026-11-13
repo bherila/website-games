@@ -331,8 +331,12 @@ test.describe('Hover gameplay', () => {
     expect(saved.bestScore).toBeGreaterThan(1000)
     // The automatic next arena starts with fresh flags and carries the score.
     await page.clock.fastForward(3100)
-    await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0, { timeout: 15_000 })
+    // The transition timer creates City while the clock is still paused.
+    // Advance its first populated draw before checking the remounted HUD.
+    await page.clock.runFor(100)
     await expect(page.getByTestId('score-value')).toHaveText(saved.bestScore.toLocaleString())
+    await expect(page.getByTestId('flag-dot-blue')).toHaveCount(3)
+    await expect(page.locator('[data-testid="flag-dot-blue"][data-filled="true"]')).toHaveCount(0, { timeout: 15_000 })
 
     if (!isMobile) await page.setViewportSize({ width: 1280, height: 720 })
     await page.reload()
