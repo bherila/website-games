@@ -5,6 +5,84 @@ import { LAB_TRACES, MILL_TRACES, VILLAGE_TRACES, WORKSHOP_TRACE } from '../../r
 test.describe('Plate Escape real puzzle', () => {
   test.use({ deviceScaleFactor: 1 })
 
+  test('graphics retry preserves removed screws, collection and undo after context loss', async ({ page, isMobile }) => {
+    test.setTimeout(120_000)
+    if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(String(error)))
+    await page.goto('/plate-escape')
+    await page.getByTestId('level-tile-1').click()
+    const undo = page.getByRole('button', { name: 'Undo', exact: true })
+    for (const id of ['right-roof-1', 'right-roof-2']) {
+      const screw = page.locator(`[data-screw-id="${id}"]`)
+      if (isMobile) await screw.tap()
+      else await screw.click()
+      await expect(undo).toBeEnabled()
+    }
+    await expect(page.getByTestId('screw-progress')).toHaveText('2 / 9 screws')
+    const released = await page.getByTestId('plate-progress').textContent()
+    const collection = await page.getByLabel(/^Spare storage:/).getAttribute('aria-label')
+    const scene = page.getByTestId('plate-escape-scene')
+    await scene.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+      const context = canvas.getContext('webgl2')
+      const extension = context?.getExtension('WEBGL_lose_context')
+      if (!extension) throw new Error('Context loss extension unavailable')
+      extension.loseContext()
+    })
+    const recovery = page.getByRole('alertdialog', { name: 'Graphics unavailable' })
+    await expect(recovery).toBeVisible()
+    await expect(scene.locator('canvas')).toHaveCount(0)
+    await expect(undo).toBeDisabled()
+    await expect(page.getByTestId('screw-progress')).toHaveText('2 / 9 screws')
+    await recovery.getByRole('button', { name: 'Retry graphics' }).click()
+    await expect(recovery).toBeHidden()
+    await expect(scene.locator('canvas')).toBeVisible()
+    await expect(undo).toBeEnabled()
+    await expect(page.getByTestId('screw-progress')).toHaveText('2 / 9 screws')
+    await expect(page.getByTestId('plate-progress')).toHaveText(released!)
+    await expect(page.getByLabel(/^Spare storage:/)).toHaveAttribute('aria-label', collection!)
+    await expect(page.locator('[data-screw-id^="right-roof-"]')).toHaveCount(0)
+    await undo.click()
+    await expect(page.getByTestId('screw-progress')).toHaveText('1 / 9 screws')
+    await expect(page.locator('[data-screw-id="right-roof-2"]')).toBeVisible()
+    await expect(page.getByTestId('plate-progress')).toHaveText('0 / 6 plates released')
+    expect(await page.evaluate(() => localStorage.getItem('bwh.plate-escape.progress.v1'))).toBeNull()
+    expect(errors).toEqual([])
+  })
+
+  test('startup graphics failure can retry safely and keeps the level menu available', async ({ page, isMobile }) => {
+    test.setTimeout(120_000)
+    if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })
+    await page.addInitScript(() => {
+      Reflect.set(window, '__plateEscapeBlockWebgl', true)
+      const original = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'getContext')!.value as typeof HTMLCanvasElement.prototype.getContext
+      Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+        configurable: true,
+        value(this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+          if (/webgl/i.test(type) && Reflect.get(window, '__plateEscapeBlockWebgl')) return null
+          return Reflect.apply(original, this, [type, ...args])
+        },
+      })
+    })
+    await page.goto('/plate-escape')
+    await page.getByTestId('level-tile-1').click()
+    const recovery = page.getByRole('alertdialog', { name: 'Graphics unavailable' })
+    const retry = recovery.getByRole('button', { name: 'Retry graphics' })
+    await expect(retry).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled()
+    await retry.click()
+    await expect(retry).toBeVisible()
+    await page.getByRole('button', { name: 'Mute sound' }).click()
+    await expect(page.getByRole('button', { name: 'Unmute sound' })).toBeVisible()
+    await page.evaluate(() => Reflect.set(window, '__plateEscapeBlockWebgl', false))
+    await retry.click()
+    await expect(recovery).toBeHidden()
+    await expect(page.locator('[data-screw-id="front-1"]')).toBeVisible()
+    await expect(page.getByTestId('screw-progress')).toHaveText('0 / 9 screws')
+    await page.getByRole('button', { name: 'Levels', exact: true }).click()
+    await expect(page.getByTestId('level-tile-2')).toHaveAttribute('data-unlocked', 'false')
+  })
+
   test('rotates, reveals screws, undoes, sorts every color and remembers a clear', async ({ page, isMobile }, testInfo) => {
     test.setTimeout(360_000)
     if (!isMobile) await page.setViewportSize({ width: 1000, height: 850 })

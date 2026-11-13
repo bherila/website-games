@@ -78,6 +78,8 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
   const [sceneKey, setSceneKey] = useState(0)
   const [busy, setBusy] = useState(false)
   const [finished, setFinished] = useState(false)
+  const graphicsReadyRef = useRef(false)
+  const [graphicsReady, setGraphicsReady] = useState(false)
   const [error, setError] = useState('')
   const [help, setHelp] = useState(Boolean(level.introduction) && !cleared)
   const [message, setMessage] = useState('Drag to turn the assembly. Tap an exposed screw to collect it.')
@@ -152,12 +154,14 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     setFinished(false)
     setFly(null)
     setHint(null)
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
     setError('')
     setMessage('Fresh start. Drag to turn; tap a screw to unscrew it.')
     setSceneKey((current) => current + 1)
   }
   const unscrew = (id: string, button: HTMLButtonElement): void => {
-    if (busy || won || lost || error) return
+    if (!graphicsReadyRef.current || busy || won || lost || error) return
     const next = removeScrew(puzzle, id)
     if (next === puzzle) {
       explain(lockedReason(id), id)
@@ -210,7 +214,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       : `The ${COLORS[screw.color].name.toLowerCase()} screw in the window catches the ${dial}. Take it out first.`
   }
   const turn = (id: string, step: 1 | -1): void => {
-    if (busy || won || lost || error) return
+    if (!graphicsReadyRef.current || busy || won || lost || error) return
     const next = turnDial(puzzle, id, step)
     if (next === puzzle) {
       const lock = dialLock(puzzle, id)
@@ -224,7 +228,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
   }
   const undo = (): void => {
     const previous = history.at(-1)
-    if (!previous || busy) return
+    if (!graphicsReadyRef.current || !previous || busy) return
     setPuzzle(previous)
     setHistory((current) => current.slice(0, -1))
     setFinished(false)
@@ -235,7 +239,26 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
     else if (rackOpen(puzzle) && !rackOpen(previous)) show('Last screw restored. The staging rack is shut again, and its slot with it.', puzzle.removed.at(-1)!)
     else setMessage('Last screw restored, along with its plate and tray space.')
   }
-  const reportError = useCallback((text: string) => setError(text), [])
+  const reportError = useCallback((text: string): void => {
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
+    setTargets([])
+    setError(text)
+    if (moveTimerRef.current) clearTimeout(moveTimerRef.current)
+    setBusy(false)
+    setFly(null)
+  }, [])
+  const reportReady = useCallback((): void => {
+    graphicsReadyRef.current = true
+    setGraphicsReady(true)
+  }, [])
+  const retryGraphics = (): void => {
+    graphicsReadyRef.current = false
+    setGraphicsReady(false)
+    setTargets([])
+    setError('')
+    setSceneKey((current) => current + 1)
+  }
   const plateEvent = useCallback((event: PlateEvent) => play(event), [play])
 
   return (
@@ -251,7 +274,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       <CollectionTrays state={busy && fly ? history.at(-1) ?? puzzle : puzzle} />
       <section className="relative min-h-0 flex-1" aria-label="Plate puzzle">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,#fff9ed_0%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,#2a3640_0%,transparent_70%)]" />
-        <PlateEscapeScene key={sceneKey} state={puzzle} view={view} motion={!still} onTargets={setTargets} onError={reportError} onPlateEvent={plateEvent} />
+        <PlateEscapeScene key={sceneKey} state={puzzle} view={view} motion={!still} onTargets={setTargets} onError={reportError} onReady={reportReady} onPlateEvent={plateEvent} />
         {targets.map((target) => {
           const screw = SCREWS.find((candidate) => candidate.id === target.id)!
           if (target.coveredBy) return <span key={target.id} role="img" aria-label={`${COLORS[screw.color].name} screw covered by ${target.coveredBy.toLowerCase()}`} data-covered-screw-id={screw.id} className="pointer-events-none absolute grid h-6 w-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/80 bg-white/80 text-slate-700 shadow-sm dark:border-white/10 dark:bg-slate-900/85 dark:text-slate-200" style={{ left: target.x, top: target.y }}><LockKeyhole size={13} aria-hidden="true" /></span>
@@ -259,13 +282,13 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
           if (target.holdsUp) {
             return (
               <TapTarget key={target.id} className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 dark:focus-visible:outline-slate-200" style={{ left: target.x, top: target.y, touchAction: 'none' }} aria-label={`${label}, holding up the ${target.holdsUp.toLowerCase()}`} data-bearing-screw-id={screw.id}
-                onTap={() => { if (!busy && !won && !lost && !error) explain(lockedReason(target.id), target.id) }}>
+                onTap={() => { if (graphicsReadyRef.current && !busy && !won && !lost && !error) explain(lockedReason(target.id), target.id) }}>
                 <span key={hint?.screw === target.id ? hint.sequence : 0} aria-hidden="true" className="plate-bearing-badge absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full border-2 border-orange-500 bg-white text-orange-600 shadow-sm dark:bg-slate-900 dark:text-orange-400"><House size={11} strokeWidth={2.5} /></span>
               </TapTarget>
             )
           }
           return (
-            <TapTarget key={target.id} className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 dark:focus-visible:outline-slate-200" style={{ left: target.x, top: target.y, touchAction: 'none' }} disabled={busy || won || lost || Boolean(error)} aria-label={`Unscrew ${label.toLowerCase()}`} data-screw-id={screw.id}
+            <TapTarget key={target.id} className="screw-target absolute h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 dark:focus-visible:outline-slate-200" style={{ left: target.x, top: target.y, touchAction: 'none' }} disabled={!graphicsReady || busy || won || lost || Boolean(error)} aria-label={`Unscrew ${label.toLowerCase()}`} data-screw-id={screw.id}
               onTap={(button) => unscrew(target.id, button)} />
           )
         })}
@@ -274,9 +297,9 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
         <div className="pointer-events-none absolute inset-x-2 bottom-[4.25rem] flex flex-wrap justify-center gap-2">
           {DIALS.map((dial) => panelState(puzzle, dial.id) === 'open' && (
             <div key={dial.id} className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-white/80 bg-white/80 p-1 shadow-sm dark:border-white/10 dark:bg-slate-900/80">
-              <button type="button" aria-label={`Turn the ${dial.name.toLowerCase()} left`} onClick={() => turn(dial.id, -1)} disabled={busy || won || lost || Boolean(error)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:opacity-35 dark:text-slate-200 dark:hover:bg-slate-800"><ChevronLeft size={20} aria-hidden="true" /></button>
+              <button type="button" aria-label={`Turn the ${dial.name.toLowerCase()} left`} onClick={() => turn(dial.id, -1)} disabled={!graphicsReady || busy || won || lost || Boolean(error)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:opacity-35 dark:text-slate-200 dark:hover:bg-slate-800"><ChevronLeft size={20} aria-hidden="true" /></button>
               {/* Arrow keys turn the focused dial one stop, and focus stays on it. */}
-              <div role="slider" tabIndex={0} aria-label={dial.name} aria-valuemin={1} aria-valuemax={dial.dial!.stops} aria-valuenow={(puzzle.dials[dial.id] ?? 0) + 1} aria-disabled={busy || won || lost || Boolean(error)}
+              <div role="slider" tabIndex={0} aria-label={dial.name} aria-valuemin={1} aria-valuemax={dial.dial!.stops} aria-valuenow={(puzzle.dials[dial.id] ?? 0) + 1} aria-disabled={!graphicsReady || busy || won || lost || Boolean(error)}
                 aria-valuetext={`${dialReading(puzzle, dial.id)}${dialHeld(dial.id) ? `. ${dialHeld(dial.id)}` : ''}`} data-dial-id={dial.id}
                 onKeyDown={(event) => {
                   const step = ({ ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 } as const)[event.key as 'ArrowLeft']
@@ -291,7 +314,7 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
                   <span className="flex items-center gap-1">{dialHeld(dial.id) && <LockKeyhole size={12} aria-hidden="true" />}{(puzzle.dials[dial.id] ?? 0) + 1}/{dial.dial!.stops}</span>
                 </span>
               </div>
-              <button type="button" aria-label={`Turn the ${dial.name.toLowerCase()} right`} onClick={() => turn(dial.id, 1)} disabled={busy || won || lost || Boolean(error)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:opacity-35 dark:text-slate-200 dark:hover:bg-slate-800"><ChevronRight size={20} aria-hidden="true" /></button>
+              <button type="button" aria-label={`Turn the ${dial.name.toLowerCase()} right`} onClick={() => turn(dial.id, 1)} disabled={!graphicsReady || busy || won || lost || Boolean(error)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 disabled:opacity-35 dark:text-slate-200 dark:hover:bg-slate-800"><ChevronRight size={20} aria-hidden="true" /></button>
             </div>
           ))}
         </div>
@@ -302,15 +325,15 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
           <button type="button" aria-label="Rotate right" onClick={() => orbit('right')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"><RotateCw size={20} aria-hidden="true" /></button>
           {level.rotor && !reduceMotion && <button type="button" aria-label={still ? 'Resume motion' : 'Pause motion'} onClick={() => setStill(!still)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">{still ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}</button>}
         </div>
-        {lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl dark:bg-slate-900/95">
+        {!error && graphicsReady && lost && <div role="alertdialog" aria-labelledby="storage-full-title" aria-describedby="storage-full-help" className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl dark:bg-slate-900/95">
           <div className="mb-3 flex justify-center"><ScrewHead color={puzzle.overflow!} size={48} /></div>
           <h2 id="storage-full-title" className="text-2xl font-bold">No room for that screw</h2>
           <p id="storage-full-help" className="mt-3 text-sm text-slate-600 dark:text-slate-300">All {capacity} {rackShut ? 'open ' : ''}spare slots are full{rackShut ? ', the staging rack is still shut' : ''}, and this <span className="sr-only">{COLORS[puzzle.overflow!].name.toLowerCase()} </span>screw has no matching tray. Try a different order.</p>
           <button autoFocus type="button" onClick={undo} className="mt-5 rounded-full bg-slate-800 px-5 py-3 font-semibold text-white dark:bg-slate-100 dark:text-slate-900">Undo last move</button>
           <button type="button" onClick={restart} className="mt-2 rounded-full bg-white px-5 py-3 font-semibold dark:bg-slate-800">Retry level</button>
         </div>}
-        {error && <div role="alert" className="absolute inset-4 grid place-content-center rounded-3xl bg-white/95 p-6 text-center dark:bg-slate-900/95"><p>{error}</p><button type="button" onClick={restart} className="mt-4 rounded-full bg-slate-800 px-5 py-3 text-white dark:bg-slate-100 dark:text-slate-900">Restart level</button></div>}
-        {finished && (
+        {error && <div role="alertdialog" aria-label="Graphics unavailable" className="absolute inset-4 grid place-content-center rounded-3xl bg-white/95 p-6 text-center dark:bg-slate-900/95"><p>{error}</p><button type="button" autoFocus onClick={retryGraphics} className="mt-4 rounded-full bg-slate-800 px-5 py-3 text-white dark:bg-slate-100 dark:text-slate-900">Retry graphics</button></div>}
+        {!error && graphicsReady && finished && (
           <div className="absolute inset-4 grid place-content-center rounded-3xl bg-[#fffbf2]/95 p-6 text-center shadow-xl dark:bg-slate-900/95">
             <StarRow stars={3} />
             <h2 className="mt-3 text-3xl font-bold">All plates free!</h2>
@@ -323,14 +346,14 @@ function LevelSession({ level, cleared, onSelect, onLevels, onWin, play, unlockS
       <footer className="px-4 pb-[max(14px,env(safe-area-inset-bottom))]">
         <p className={`mb-3 text-center text-xs ${storageFull && level.overflowLoses ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'}`}>{level.overflowLoses ? storageFull ? `Storage full · Match a tray${rackShut ? ', free the staging rack,' : ''} or the next screw will overflow` : rackShut ? `${capacity} spare slots · Free the staging rack for one more` : `${capacity} spare slots · An unmatched screw with no room ends the attempt` : 'Drag to turn · Tap a screw · The gable walls hold up the roof'}</p>
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white/65 p-2 dark:bg-white/5">
-          <button type="button" onClick={undo} disabled={history.length === 0 || busy || won} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-35"><Undo2 size={16} aria-hidden="true" />Undo</button>
+          <button type="button" onClick={undo} disabled={!graphicsReady || history.length === 0 || busy || won} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-35"><Undo2 size={16} aria-hidden="true" />Undo</button>
           <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400" data-testid="screw-progress">{puzzle.removed.length} / {SCREWS.length} screws</span>
           <button type="button" onClick={restart} className="rounded-xl px-4 py-2 text-sm font-semibold">Restart</button>
           <SoundToggle muted={muted} onMutedChange={onMutedChange} className="text-slate-600 dark:text-slate-300" />
           <FullscreenIconButton className="text-slate-600 dark:text-slate-300" />
         </div>
       </footer>
-      {level.introduction && <Dialog open={help} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>{level.name}</DialogTitle><DialogDescription>{level.introduction}</DialogDescription></DialogHeader><button type="button" onClick={() => setHelp(false)} className="rounded-full bg-slate-800 px-6 py-3 font-semibold text-white dark:bg-slate-100 dark:text-slate-900">Let's play</button></DialogContent></Dialog>}
+      {level.introduction && <Dialog open={help && !error && graphicsReady} onOpenChange={setHelp}><DialogContent><DialogHeader><DialogTitle>{level.name}</DialogTitle><DialogDescription>{level.introduction}</DialogDescription></DialogHeader><button type="button" onClick={() => setHelp(false)} className="rounded-full bg-slate-800 px-6 py-3 font-semibold text-white dark:bg-slate-100 dark:text-slate-900">Let's play</button></DialogContent></Dialog>}
       <p className="sr-only" role="status" aria-live="polite">{message}</p>
       {fly && <span aria-hidden="true" className="plate-screw-flight" style={{ left: fly.x, top: fly.y, '--fly-x': `${fly.dx}px`, '--fly-y': `${fly.dy}px` } as CSSProperties}><ScrewHead color={fly.color} size={30} /></span>}
     </PortraitGameShell>
