@@ -210,7 +210,13 @@ retained after the cottage redesign.
 
 The React scene disposes geometry, materials, controls, WebGL resources, animation frames, resize
 observers, shadow maps and listeners on restart/unmount. The 512px sun shadow is refreshed
-while screws or panels animate and reused while the house is still. Context loss shows a recovery action. Device pixel ratio
+while screws or panels animate and reused while the house is still. Graphics setup, draw failures and context loss stop the view and offer **Retry graphics**.
+Retry rebuilds the same puzzle with its removed screws, trays, dial stops and undo
+history intact; **Restart** still starts a fresh puzzle. Screw, dial and undo input
+waits for a populated first draw and target projection. Previously removed parts
+reappear settled without replaying their effects or sounds. Levels and preferences
+remain available during recovery. Cleanup contains individual disposal failures,
+releases GPU resources before the renderer, and removes the canvas. Device pixel ratio
 is capped at 1.5; automated browser profiles use DPR 1 for functional input coverage, not a device
 performance benchmark.
 
