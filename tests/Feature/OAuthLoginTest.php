@@ -612,9 +612,49 @@ class OAuthLoginTest extends TestCase
         }
     }
 
-    private function fakeProvider(string $subject, string $name, string $email): void
+    public function test_local_password_confirmation_and_passkey_routes_remain_absent(): void
     {
-        Http::fake(function (Request $request) use ($subject, $name, $email) {
+        $user = User::factory()->create();
+        $this->assertFalse((bool) config('bherila-auth.routes.confirm_password'));
+        foreach (['/api/auth/confirm-password', '/api/passkeys/register/options', '/api/passkeys/confirm/options'] as $path) {
+            $this->actingAs($user)->postJson($path, ['password' => 'password'])->assertNotFound();
+        }
+    }
+
+    public function test_an_explicitly_unverified_provider_address_cannot_create_an_account(): void
+    {
+        $this->fakeProvider('unverified-subject', 'Account', 'unverified@example.test', emailVerified: false);
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')->assertForbidden();
+
+        $this->assertGuest();
+        $this->assertSame(0, User::query()->count());
+    }
+
+    public function test_legacy_provider_without_verification_claim_can_still_sign_in(): void
+    {
+        $this->fakeProvider('legacy-subject', 'Account', 'legacy@example.test', emailVerified: null);
+        $this->withSession($this->oauthSession())
+            ->get('/oauth/callback?state=expected-state&code=authorization-code')->assertRedirect('/');
+
+        $this->assertAuthenticated();
+        $this->assertSame(1, User::query()->count());
+    }
+
+    public function test_a_session_with_an_old_password_hash_is_retired(): void
+    {
+        $this->withoutVite();
+        $user = User::factory()->create();
+        $oldHash = $user->password;
+        $user->forceFill(['password' => bcrypt('replacement-password')])->save();
+        $this->actingAs($user)->withSession(['password_hash_web' => $oldHash])
+            ->getJson('/api/games/data')->assertUnauthorized();
+        $this->assertGuest();
+    }
+
+    private function fakeProvider(string $subject, string $name, string $email, ?bool $emailVerified = true): void
+    {
+        Http::fake(function (Request $request) use ($subject, $name, $email, $emailVerified) {
             if ($request->url() === 'https://identity.example.test/oauth/token') {
                 $this->assertSame('authorization_code', $request['grant_type']);
                 $this->assertSame('authorization-code', $request['code']);
@@ -626,7 +666,9 @@ class OAuthLoginTest extends TestCase
             if ($request->url() === 'https://identity.example.test/api/oauth/user') {
                 $this->assertSame('Bearer test-access-token', $request->header('Authorization')[0] ?? null);
 
-                return Http::response(['sub' => $subject, 'name' => $name, 'email' => $email], 200);
+                return Http::response(array_filter([
+                    'sub' => $subject, 'name' => $name, 'email' => $email, 'email_verified' => $emailVerified,
+                ], static fn (mixed $value): bool => $value !== null), 200);
             }
 
             return Http::response([], 404);

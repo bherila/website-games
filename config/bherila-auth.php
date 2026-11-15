@@ -5,6 +5,7 @@ use App\Auth\OAuthAccounts;
 return [
     'routes' => [
         'enabled' => false,
+        'confirm_password' => false,
     ],
 
     // Every per-client limit keys on Request::ip(). Behind Cloudflare that is the

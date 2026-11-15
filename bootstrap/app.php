@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->authenticateSessions();
         $middleware->web(append: [RenewRememberCookie::class]);
         $middleware->alias(['identity-provider-session' => RequireIdentityProviderSession::class]);
         $middleware->validateCsrfTokens(except: ['__e2e/login']);
