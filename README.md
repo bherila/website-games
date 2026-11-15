@@ -342,3 +342,24 @@ It deploys only the games application and never includes the server environment 
 
 Keep credentials, account numbers, and other identifying information out of the
 repository, commit messages, and CI configuration.
+
+## auth-laravel v0.30 upgrade
+
+Deploy and qualify the identity provider's v0.30-compatible release before this
+application update. Package credential routes remain disabled, explicitly including
+password confirmation. This application has no two-factor attempt table and sends
+no local 2FA emails, so the package's optional link-secret migration is not copied.
+An explicit `email_verified: false` provider identity is refused before account
+creation; legacy providers omitting the claim retain their supported sign-in path.
+Session password-hash checks retire sessions after the stored password changes.
+
+Run focused tests locally; full tests, builds and static analysis run in required
+CI on the candidate commit. The dependency refresh stays within existing stable
+Composer and pnpm ranges except the deliberate auth-laravel minor adoption.
+
+The dependency refresh also applies scoped patched versions for advisory-affected
+transitives. deepmerge 4.3.1 has no published patched release; this repository carries the
+same reviewed pnpm repair used by sibling applications, covering source, CommonJS
+and UMD. `pnpm run test:dependency-security` tests the copy actually loaded by Jest,
+including prototype-poisoning negative cases and normal configuration merging.
+The upstream advisory can still name version 4.3.1; no advisory is ignored or dismissed.

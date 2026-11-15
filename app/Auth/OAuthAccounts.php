@@ -15,7 +15,7 @@ class OAuthAccounts extends RelyingPartyAccounts
         return [
             'name' => $identity->name,
             'email' => $identity->email,
-            // The provider does not return an email_verified claim.
+            // AccountEmail owns local confirmation independently of provider claims.
             'email_verified_at' => null,
             'password' => Hash::make(Str::random(64)),
         ];
