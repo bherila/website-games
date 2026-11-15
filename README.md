@@ -356,3 +356,10 @@ Session password-hash checks retire sessions after the stored password changes.
 Run focused tests locally; full tests, builds and static analysis run in required
 CI on the candidate commit. The dependency refresh stays within existing stable
 Composer and pnpm ranges except the deliberate auth-laravel minor adoption.
+
+The dependency refresh also applies scoped patched versions for advisory-affected
+transitives. deepmerge 4.3.1 has no published patched release; this repository carries the
+same reviewed pnpm repair used by sibling applications, covering source, CommonJS
+and UMD. `pnpm run test:dependency-security` tests the copy actually loaded by Jest,
+including prototype-poisoning negative cases and normal configuration merging.
+The upstream advisory can still name version 4.3.1; no advisory is ignored or dismissed.
