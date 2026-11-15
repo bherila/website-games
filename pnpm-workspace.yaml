@@ -58,4 +58,4 @@ minimumReleaseAgeExclude:
 
 # GHSA-gcqx-w48m-w2h4: exact shared repair; source, CJS and UMD are covered.
 patchedDependencies:
-  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
+  deepmerge@4.3.1: patches/deepmerge-4.3.1.patch
