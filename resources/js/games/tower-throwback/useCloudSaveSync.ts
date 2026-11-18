@@ -44,7 +44,7 @@ export interface CloudSaveSync {
   remove: (slotId: SandboxSlotId) => void
   /** Re-fetch cloud slot metadata. */
   refresh: () => void
-  /** Re-attempt the last mirror for a slot after a failure. */
+  /** Mirror the current local slot after a failure or remote change. */
   retry: (slotId: SandboxSlotId) => void
 }
 
@@ -171,8 +171,6 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
   const [local, setLocal] = useState<Partial<Record<SandboxSlotId, string>>>(() => localDigests(localSavedSlots))
   /** What happened to the most recent mirror attempt for each slot. */
   const [outcomes, setOutcomes] = useState<Partial<Record<SandboxSlotId, PushOutcome>>>(loadPersistedOutcomes)
-  /** Retained so a failed push can be retried without re-reading storage. */
-  const lastPayloadRef = useRef<Partial<Record<SandboxSlotId, SavedSandbox>>>({})
   /** Invalidates completions from older overlapping pushes for the same slot. */
   const pushAttemptRef = useRef<Partial<Record<SandboxSlotId, number>>>({})
 
@@ -281,11 +279,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
       // Predict the server's rejection rather than firing a request that will
       // 422 and then be swallowed. The local save is already written and safe.
       setOutcome(slotId, { kind: 'tooLarge', digest })
-      lastPayloadRef.current[slotId] = saved
       return
     }
 
-    lastPayloadRef.current[slotId] = saved
     setOutcome(slotId, { kind: 'pushing', digest })
 
     void (async () => {
@@ -329,9 +325,10 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
     })()
   }, [applyMeta, enabled, ensureLease, markConflict, setOutcome])
 
-  /** Re-attempt the last payload we tried to mirror for a slot. */
+  /** Retry only the authoritative local copy. A cached payload can belong to
+   * a tower that was replaced, restored, or cleared since the failed push. */
   const retry = useCallback((slotId: SandboxSlotId) => {
-    const payload = lastPayloadRef.current[slotId] ?? loadSandbox(slotId)
+    const payload = loadSandbox(slotId)
     if (payload) {
       pushSlot(slotId, payload)
     }
@@ -390,7 +387,6 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
       void releaseLease(slotId, token)
     }
     delete tokensRef.current[slotId]
-    delete lastPayloadRef.current[slotId]
     pushAttemptRef.current[slotId] = (pushAttemptRef.current[slotId] ?? 0) + 1
     void deleteCloudSlot(slotId)
     clearConflict(slotId)
