@@ -47,7 +47,7 @@ const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: str
   unverified: { label: 'Cloud: not verified', className: 'text-amber-200' },
   different: { label: 'Cloud: copies differ', className: 'text-amber-200' },
   pushing: { label: 'Cloud: saving…', className: 'text-sky-200' },
-  stale: { label: 'Cloud: behind this device', className: 'text-amber-200' },
+  stale: { label: 'Cloud: not compared', className: 'text-amber-200' },
   failed: { label: 'Cloud: save failed', className: 'text-red-200' },
   tooLarge: { label: 'Cloud: too large — local only', className: 'text-amber-200' },
   localOnly: { label: 'Cloud: local only', className: 'text-white/50' },
@@ -59,7 +59,7 @@ const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: str
 
 /** Extra explanation for the states a player would otherwise have to guess at. */
 const CLOUD_STATUS_DETAIL: Partial<Record<CloudSlotStatus, string>> = {
-  stale: 'Your browser has the newer tower. Retry to update the cloud copy.',
+  stale: 'The cloud copy has not been compared with this browser. Retry to mirror the current browser save.',
   unverified: 'The cloud result could not be verified. Retry to mirror the current browser save.',
   different: 'The cloud copy differs from this browser. Retry to mirror the current browser save.',
   failed: 'Your tower is saved in this browser; only the cloud copy is behind.',

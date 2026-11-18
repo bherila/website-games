@@ -104,7 +104,7 @@ describe('SaveLoadOverlay cloud status', () => {
 describe('SaveLoadOverlay — honest cloud states', () => {
   it.each([
     ['pushing', /saving/i],
-    ['stale', /behind this device/i],
+    ['stale', /not compared/i],
     ['failed', /save failed/i],
     ['tooLarge', /too large/i],
     ['unverified', /not verified/i],

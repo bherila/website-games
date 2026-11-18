@@ -62,7 +62,7 @@ export interface CloudSlotPayload {
  *
  * - `synced`: the cloud copy matches the local save.
  * - `pushing`: a mirror is in flight.
- * - `stale`: both copies exist, but the local save is newer than the cloud one.
+ * - `stale`: both copies exist without current proof that their contents match.
  * - `failed`: the last push failed for a reason the player can retry.
  * - `tooLarge`: the save exceeds the cloud byte budget; it stays local-only.
  * - `localOnly`: no cloud copy (or the slot lives only in the browser).
