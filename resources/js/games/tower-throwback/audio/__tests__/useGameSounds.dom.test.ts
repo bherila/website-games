@@ -139,6 +139,46 @@ describe('useGameSounds', () => {
     expect(sfx.placementRejectedBuzz).toHaveBeenCalledTimes(1)
   })
 
+  it('coalesces placement sounds in bulk batches while keeping subsequent clicks audible', () => {
+    const { result } = renderHook(() => useGameSounds(null))
+    const events: EngineEvent[] = Array.from({ length: 200 }, () => [
+      { type: 'placed', kind: 'officeS', cost: 20_000 },
+      { type: 'placementRejected', kind: 'officeS', reason: 'Occupied' },
+    ] satisfies EngineEvent[]).flat()
+    act(() => result.current.playEvents(events))
+    expect(sfx.placeThunk).toHaveBeenCalledTimes(1)
+    expect(sfx.placementRejectedBuzz).toHaveBeenCalledTimes(1)
+    act(() => result.current.playEvents(events.slice(0, 2)))
+    expect(sfx.placeThunk).toHaveBeenCalledTimes(2)
+    expect(sfx.placementRejectedBuzz).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops ambient beds when a run ends and restarts them for the next occupied nighttime tower', () => {
+    const { rerender } = renderHook(({ s }: { s: HudSnapshot | null }) => useGameSounds(s), {
+      initialProps: { s: snapshot({ activePeople: 100, phase: 'night' }) as HudSnapshot | null },
+    })
+    jest.clearAllMocks()
+    rerender({ s: null })
+    expect(sfx.stopCrowdMurmur).toHaveBeenCalledTimes(1)
+    expect(sfx.stopNightCrickets).toHaveBeenCalledTimes(1)
+    rerender({ s: snapshot({ activePeople: 100, phase: 'night' }) })
+    expect(sfx.startCrowdMurmur).toHaveBeenCalledTimes(1)
+    expect(sfx.startNightCrickets).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores ambient beds after StrictMode effect replay and stops them on unmount', () => {
+    const { unmount } = renderHook(() => useGameSounds(snapshot({ activePeople: 100, phase: 'night' })), {
+      reactStrictMode: true,
+    })
+    expect(sfx.startCrowdMurmur).toHaveBeenCalledTimes(2)
+    expect(sfx.startNightCrickets).toHaveBeenCalledTimes(2)
+    expect(sfx.stopCrowdMurmur).toHaveBeenCalledTimes(1)
+    expect(sfx.stopNightCrickets).toHaveBeenCalledTimes(1)
+    unmount()
+    expect(sfx.stopCrowdMurmur).toHaveBeenCalledTimes(2)
+    expect(sfx.stopNightCrickets).toHaveBeenCalledTimes(2)
+  })
+
   it('throttles elevator dings to drop extras in a burst', () => {
     const { result } = renderHook(() => useGameSounds(null))
 
