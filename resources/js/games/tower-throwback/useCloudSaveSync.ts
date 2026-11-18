@@ -383,6 +383,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         } else if (result.reason === 'conflict') {
           markConflict(slot, result.conflict)
           report({ kind: 'idle', digest })
+          reconcile(slot)
         } else {
           if (result.reason === 'offline' || result.reason === 'unconfirmed') markUncertain(slot)
           report({ kind: uncertainRef.current.has(slot) ? 'unverified' : 'failed', digest })

@@ -805,3 +805,15 @@ it('reconciles a confirmed deletion when a different tab replaced local bytes wi
   expect(api().slots['slot-a'].canRestore).toBe(false)
   expect(api().slots['slot-a'].deletion).toBe('idle')
 })
+
+it('preserves a PUT conflict while discovering a first backup written by the new lease owner', async () => {
+  const saved = savedSandbox()
+  mocked.listCloudSlots.mockResolvedValueOnce([slotMeta({ saved: false })])
+  mocked.acquireLease.mockResolvedValueOnce({ ok: true, token: 'ours', meta: slotMeta({ saved: false }) })
+  await renderSync()
+  expect(api().slots['slot-a'].canRestore).toBe(false)
+  mocked.pushCloudSlot.mockResolvedValueOnce({ ok: false, reason: 'conflict', conflict: { acquired_at: 'A', expires_at: 'B' } })
+  await act(async () => { api().pushSlot('slot-a', saved) })
+  expect(api().slots['slot-a'].status).toBe('conflict')
+  expect(api().slots['slot-a'].canRestore).toBe(true)
+})
