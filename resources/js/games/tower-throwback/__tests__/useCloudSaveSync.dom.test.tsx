@@ -243,8 +243,8 @@ describe('useCloudSaveSync status truthfulness', () => {
 
     expect(api().slots['slot-a'].status).toBe('tooLarge')
     expect(mocked.acquireLease).not.toHaveBeenCalled()
-    // No request at all: the server would only 422 it, and that failure used to
-    // be invisible.
+    // Reject the mirror without acquiring a lease or sending a PUT. A read-only
+    // metadata reconciliation still preserves Restore for an existing backup.
     expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
   })
 
@@ -768,4 +768,40 @@ it('recovers cloud restore metadata when an initial list was overtaken by a fail
   expect(api().slots['slot-a'].status).toBe('conflict')
   expect(api().slots['slot-a'].canRestore).toBe(true)
   expect(api().slots['slot-a'].cloudUpdatedAt).toBe(slotMeta().updated_at)
+})
+
+it.each(['oversize', 'unreadable', 'takeover'] as const)('recovers cloud Restore metadata after a %s operation overtakes the initial index', async (path) => {
+  const saved = savedSandbox()
+  const index = deferredResult<cloudSync.CloudSlotMeta[] | null>()
+  mocked.listCloudSlots.mockImplementationOnce(() => index.promise)
+  await renderSync()
+  if (path === 'oversize') (fitsCloudBudget as jest.Mock).mockReturnValue(false)
+  if (path === 'unreadable') localStorage.setItem('bwh.tower-throwback.sandbox.v1.slot-a', 'broken JSON')
+  if (path === 'takeover') mocked.acquireLease.mockResolvedValueOnce({ ok: false, reason: 'offline' })
+  await act(async () => {
+    if (path === 'takeover') expect(await api().takeOver('slot-a')).toBe(false)
+    else api().pushSlot('slot-a', saved)
+  })
+  await act(async () => { index.resolve([slotMeta()]) })
+  expect(api().slots['slot-a'].canRestore).toBe(true)
+  expect(api().slots['slot-a'].cloudUpdatedAt).toBe(slotMeta().updated_at)
+  if (path === 'oversize') {
+    expect(api().slots['slot-a'].status).toBe('tooLarge')
+    expect(mocked.acquireLease).not.toHaveBeenCalled()
+  }
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+})
+
+it('reconciles a confirmed deletion when a different tab replaced local bytes without mirroring here', async () => {
+  await renderSync(new Set())
+  const deletion = deferredResult<boolean>()
+  mocked.deleteCloudSlot.mockImplementationOnce(() => deletion.promise)
+  await act(async () => { void api().remove('slot-a') })
+  const replacement = savedSandbox()
+  claimSandboxSlot('slot-a', 'other-tab')
+  mocked.listCloudSlots.mockResolvedValueOnce([])
+  await act(async () => { deletion.resolve(true) })
+  expect(loadSandbox('slot-a')).toEqual(replacement)
+  expect(api().slots['slot-a'].canRestore).toBe(false)
+  expect(api().slots['slot-a'].deletion).toBe('idle')
 })

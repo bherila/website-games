@@ -303,7 +303,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       if (!mountedRef.current || !uncertainRef.current.has(slot)) return
       const before = readSandboxSlotStorage(slot)
       const saved = loadSandbox(slot)
-      if (!before || !saved || isSandboxSlotOwnedByAnotherTab(slot, tabSessionId)) return
+      if (!before || !saved || isSandboxSlotOwnedByAnotherTab(slot, tabSessionId)) { reconcile(slot); return }
       const intent = intentRef.current[slot]
       const cloud = await getCloudSlot(slot)
       if (!mountedRef.current) return
@@ -312,14 +312,14 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       const digest = saveDigest(JSON.stringify(saved))
       const decoded = cloud ? decodeCloudPayload(cloud.payload) : null
       const remote = decoded === null ? null : migrateSandboxPayload(decoded)
-      if (!cloud || !remote) { setOutcome(slot, { kind: 'unverified', digest }); return }
+      if (!cloud || !remote) { setOutcome(slot, { kind: 'unverified', digest }); reconcile(slot); return }
       applyMeta(slot, cloud.meta)
       setLocal((prev) => ({ ...prev, [slot]: digest }))
       setOutcome(slot, JSON.stringify(remote) === JSON.stringify(saved)
         ? { kind: 'observed', digest, cloudUpdatedAt: cloud.meta.updated_at, observedAt: Date.now() }
         : { kind: 'different', digest })
     })).catch(() => { /* the last uncertain status remains visible */ }).finally(() => verifyingRef.current.delete(slot))
-  }, [applyMeta, operation, queue, setOutcome, tabSessionId])
+  }, [applyMeta, operation, queue, reconcile, setOutcome, tabSessionId])
 
   const pushSlot = useCallback((slot: SandboxSlotId, saved: SavedSandbox) => {
     if (!enabled) return
@@ -340,6 +340,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         const initial = current()
         if (!initial) {
           if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
+          reconcile(slot)
           return
         }
         const initialJson = JSON.stringify(initial)
@@ -347,6 +348,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         const initialEnvelope = encodeCloudPayload(initialJson)
         if (!fitsCloudBudget(JSON.stringify(initialEnvelope))) {
           if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'tooLarge', digest: saveDigest(initialJson) })
+          reconcile(slot)
           return
         }
         const token = await ensureLease(slot)
@@ -354,6 +356,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         const payload = current()
         if (!payload) {
           if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
+          reconcile(slot)
           return
         }
         const serialized = JSON.stringify(payload)
@@ -366,7 +369,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
           return
         }
         const envelope = serialized === initialJson ? initialEnvelope : encodeCloudPayload(serialized)
-        if (!fitsCloudBudget(JSON.stringify(envelope))) { report({ kind: 'tooLarge', digest }); return }
+        if (!fitsCloudBudget(JSON.stringify(envelope))) { report({ kind: 'tooLarge', digest }); reconcile(slot); return }
         const result = await pushCloudSlot({ slot, payload: envelope, wireVersion: CLOUD_ENVELOPE_WIRE_VERSION, token,
           game_day: payload.clock.day, star: payload.star, population: population(payload), funds: payload.funds })
         if (!mountedRef.current) return
@@ -383,11 +386,13 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         } else {
           if (result.reason === 'offline' || result.reason === 'unconfirmed') markUncertain(slot)
           report({ kind: uncertainRef.current.has(slot) ? 'unverified' : 'failed', digest })
+          reconcile(slot)
         }
         if (uncertainRef.current.has(slot)) verify(slot)
       } catch {
         markUncertain(slot)
         if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
+        reconcile(slot)
         verify(slot)
       }
     }))
@@ -407,13 +412,14 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     return queue.barrier(slot, () => operation(slot, async () => {
       if (!mountedRef.current) return false
       const result = await acquireLease(slot, { force: true })
-      if (!mountedRef.current || !result.ok) return false
+      if (!mountedRef.current) return false
+      if (!result.ok) { reconcile(slot); return false }
       tokensRef.current[slot] = result.token
       clearConflict(slot)
       applyMeta(slot, result.meta)
       return true
     })).catch(() => false)
-  }, [applyMeta, clearConflict, enabled, operation, queue])
+  }, [applyMeta, clearConflict, enabled, operation, queue, reconcile])
 
   const restore = useCallback((slot: SandboxSlotId): Promise<SavedSandbox | null> => {
     if (!enabled) return Promise.resolve(null)
@@ -421,12 +427,14 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     const before = readSandboxSlotStorage(slot)
     const intent = nextIntent(slot)
     return queue.barrier(slot, () => operation(slot, async () => {
-      if (!mountedRef.current || !before) return null
+      if (!mountedRef.current) return null
+      if (!before) { reconcile(slot); return null }
       const unchanged = (): boolean => {
         const current = readSandboxSlotStorage(slot)
         return current !== null && current.raw === before.raw && current.owner === before.owner
       }
       const fail = (): null => {
+        reconcile(slot)
         if (intent === intentRef.current[slot]) {
           const saved = loadSandbox(slot)
           if (saved) setOutcome(slot, { kind: 'unverified', digest: saveDigest(JSON.stringify(saved)) })
@@ -450,7 +458,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       if (uncertainRef.current.has(slot)) verify(slot)
       return result.saved
     })).catch(() => null)
-  }, [applyMeta, enabled, nextIntent, operation, queue, setOutcome, tabSessionId, verify])
+  }, [applyMeta, enabled, nextIntent, operation, queue, reconcile, setOutcome, tabSessionId, verify])
 
   const remove = useCallback((slot: SandboxSlotId): Promise<boolean> => {
     if (!enabled) return Promise.resolve(false)
@@ -464,13 +472,18 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       if (!mountedRef.current) return false
       if (!isSandboxSlotEmpty(slot)) {
         if (intent === intentRef.current[slot]) setDeletions((prev) => ({ ...prev, [slot]: 'idle' }))
+        reconcile(slot)
         return false
       }
       const confirmed = await deleteCloudSlot(slot)
       if (!mountedRef.current) return confirmed
       if (!confirmed) markUncertain(slot)
       if (intent !== intentRef.current[slot]) return false
-      if (!isSandboxSlotEmpty(slot)) { setDeletions((prev) => ({ ...prev, [slot]: 'idle' })); return false }
+      if (!isSandboxSlotEmpty(slot)) {
+        setDeletions((prev) => ({ ...prev, [slot]: 'idle' }))
+        reconcile(slot)
+        return false
+      }
       if (!confirmed) {
         setDeletions((prev) => ({ ...prev, [slot]: 'failed' }))
         reconcile(slot)
