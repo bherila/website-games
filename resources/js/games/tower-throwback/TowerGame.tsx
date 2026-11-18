@@ -307,7 +307,7 @@ export function TowerGame(): ReactElement {
     () => new Set(slotSummaries.filter((slot) => slot.saved).map((slot) => slot.id)),
     [slotSummaries],
   )
-  const cloud = useCloudSaveSync(localSavedSlots)
+  const cloud = useCloudSaveSync(localSavedSlots, sandboxSessionId)
   const otherTabSlots = slotSummaries
     .filter((slot) => isSandboxSlotOwnedByAnotherTab(slot.id, sandboxSessionId))
     .map((slot) => slot.id)

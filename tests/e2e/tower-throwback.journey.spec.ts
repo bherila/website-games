@@ -120,6 +120,69 @@ test.describe('Tower Throwback real player journey', () => {
     expect(await page.evaluate((key) => localStorage.getItem(`${key}.slot-a`), SANDBOX_STORAGE_KEY)).toBeNull()
   })
 
+  test('cloud restore waits for an earlier slot mirror to complete', async ({ page }, testInfo) => {
+    const state = createEngineState({ seed: 293, mapId: 'city-tower', lobbyHeight: 1 })
+    state.speed = 0
+    const saved = migrateSandboxPayload({ ...state, version: 1, rngState: state.rng.state() })
+    expect(saved).not.toBeNull()
+    await page.addInitScript(({ key, saved }) => {
+      localStorage.setItem(key, JSON.stringify(saved))
+      localStorage.setItem(`${key}.slot-a`, JSON.stringify(saved))
+      const observer = new MutationObserver(() => {
+        const script = document.getElementById('app-initial-data')
+        if (!script?.textContent?.trim()) return
+        script.textContent = JSON.stringify({ ...JSON.parse(script.textContent), authenticated: true })
+        observer.disconnect()
+      })
+      observer.observe(document, { childList: true, subtree: true })
+    }, { key: SANDBOX_STORAGE_KEY, saved })
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => { release = resolve })
+    const calls: string[] = []
+    let remote: unknown = { ...saved, seed: 999 }
+    const meta = (slot: string) => ({ slot, saved: true, wire_version: 3, game_day: 1, star: 1, population: 0,
+      funds: 2_000_000, updated_at: '2026-11-18T00:00:00Z', lease_active: false,
+      lease_acquired_at: null, lease_expires_at: null })
+    await page.route('**/api/games/tower-throwback/saves**', async (route) => {
+      const request = route.request()
+      const path = new URL(request.url()).pathname
+      if (request.method() === 'POST') {
+        const slot = path.includes('slot-a') ? 'slot-a' : 'autosave'
+        await route.fulfill({ json: { data: { ...meta(slot), lease_token: 'test-lease' } } })
+      } else if (request.method() === 'PUT') {
+        expect(path).toMatch(/\/slot-a$/)
+        calls.push('push-start')
+        await pending
+        remote = (request.postDataJSON() as { payload: unknown }).payload
+        calls.push('push-complete')
+        await route.fulfill({ json: { data: { ...meta('slot-a'), lease_token: 'test-lease' } } })
+      } else if (path.endsWith('/slot-a')) {
+        calls.push('restore')
+        await route.fulfill({ json: { data: { ...meta('slot-a'), payload: remote } } })
+      } else {
+        await route.fulfill({ json: { data: [meta('slot-a')] } })
+      }
+    })
+    const activate = async (control: Locator): Promise<void> => {
+      if (testInfo.project.name === 'chromium-mobile-375') await control.tap()
+      else await control.click()
+    }
+    await page.goto('/tower-throwback')
+    await activate(page.getByTestId('resume-autosave'))
+    await openTowerAction(page, 'Saves', activate)
+    await activate(page.getByTestId('save-slot-a'))
+    await activate(page.getByRole('button', { name: 'Overwrite save', exact: true }))
+    await expect.poll(() => calls).toEqual(['push-start'])
+    await activate(page.getByTestId('cloud-restore-slot-a'))
+    await activate(page.getByRole('button', { name: 'Restore and replace', exact: true }))
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    expect(calls).toEqual(['push-start'])
+    release()
+    await expect(page.getByTestId('save-message')).toContainText('Restored Slot A')
+    expect(calls).toEqual(['push-start', 'push-complete', 'restore'])
+    expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(`${key}.slot-a`) ?? 'null')?.seed, SANDBOX_STORAGE_KEY)).toBe(293)
+  })
+
   test('every speed control stays fully tappable on a 320px phone', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
     await page.setViewportSize({ width: 320, height: 568 })

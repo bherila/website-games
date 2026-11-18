@@ -73,6 +73,9 @@ export interface CloudSlotPayload {
  */
 export type CloudSlotStatus =
   | 'synced'
+  | 'unverified'
+  | 'different'
+  | 'matched'
   | 'pushing'
   | 'stale'
   | 'failed'
@@ -88,6 +91,8 @@ export type CloudDeletionStatus = 'idle' | 'pending' | 'failed' | 'deleted'
 export interface CloudSlotView {
   /** Cloud deletion is independent of the local mirror payload. */
   deletion: CloudDeletionStatus
+  /** Point-in-time comparison after a lost acknowledgement; not a write fence. */
+  matchedAt: number | null
   status: CloudSlotStatus
   canRestore: boolean
   conflict: CloudLeaseConflict | null
@@ -121,6 +126,7 @@ export type CloudPushResult =
   | { ok: false; reason: 'conflict'; conflict: CloudLeaseConflict }
   | { ok: false; reason: 'offline' }
   | { ok: false; reason: 'error' }
+  | { ok: false; reason: 'unconfirmed' }
 
 /** Cloud sync only runs for a signed-in player; anonymous play stays local. */
 export function isCloudSyncEnabled(): boolean {
@@ -211,12 +217,12 @@ export async function pushCloudSlot(input: CloudPushInput): Promise<CloudPushRes
     return conflictFromResponse(response)
   }
   if (!response.ok) {
-    return { ok: false, reason: 'error' }
+    return { ok: false, reason: response.status >= 500 ? 'unconfirmed' : 'error' }
   }
 
   const parsed = await parseJson(response, singleSchema)
   if (!parsed || parsed.data.lease_token === undefined) {
-    return { ok: false, reason: 'error' }
+    return { ok: false, reason: 'unconfirmed' }
   }
 
   return { ok: true, token: parsed.data.lease_token, meta: parsed.data }

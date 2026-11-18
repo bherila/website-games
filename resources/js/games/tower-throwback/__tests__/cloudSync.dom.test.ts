@@ -238,3 +238,13 @@ describe('cloud deletion acknowledgement', () => {
     expect(await deleteCloudSlot('slot-a')).toBe(false)
   })
 })
+
+
+it.each(['truncated', 'shape', 'gateway'] as const)('reports an unconfirmed PUT after a %s response', async (failure) => {
+  const saved = localRoundTrip()
+  const result = response(failure === 'gateway' ? 502 : 200, failure === 'shape' ? { data: {} } : null)
+  if (failure === 'truncated') result.json = async () => { throw new SyntaxError('Truncated') }
+  mockPutRaw.mockResolvedValueOnce(result)
+  expect(await pushCloudSlot({ slot: 'slot-a', payload: saved, wireVersion: 2, token: 'ours',
+    game_day: 1, star: 1, funds: saved.funds, population: 0 })).toEqual({ ok: false, reason: 'unconfirmed' })
+})
