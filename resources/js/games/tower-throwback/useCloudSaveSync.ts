@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
+import { safeLocalStorage } from '../_shared/progressParsers'
 import { CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from './cloudPayload'
 import {
   acquireLease,
@@ -71,11 +72,12 @@ type PersistedPushOutcome = z.infer<typeof persistedPushOutcomeSchema>
 const PERSISTED_OUTCOMES_KEY = 'towerThrowback.cloudSync.v1'
 
 function loadPersistedOutcomes(): Partial<Record<SandboxSlotId, PushOutcome>> {
-  if (typeof localStorage === 'undefined') {
+  const storage = safeLocalStorage()
+  if (!storage) {
     return {}
   }
   try {
-    const raw = localStorage.getItem(PERSISTED_OUTCOMES_KEY)
+    const raw = storage.getItem(PERSISTED_OUTCOMES_KEY)
     const parsed: unknown = raw ? JSON.parse(raw) : null
     if (typeof parsed !== 'object' || parsed === null) {
       return {}
@@ -99,7 +101,8 @@ function loadPersistedOutcomes(): Partial<Record<SandboxSlotId, PushOutcome>> {
 }
 
 function persistOutcomes(outcomes: Partial<Record<SandboxSlotId, PushOutcome>>): void {
-  if (typeof localStorage === 'undefined') {
+  const storage = safeLocalStorage()
+  if (!storage) {
     return
   }
   try {
@@ -113,7 +116,7 @@ function persistOutcomes(outcomes: Partial<Record<SandboxSlotId, PushOutcome>>):
             : { kind: outcome.kind, digest: outcome.digest }
       }
     }
-    localStorage.setItem(PERSISTED_OUTCOMES_KEY, JSON.stringify(persisted))
+    storage.setItem(PERSISTED_OUTCOMES_KEY, JSON.stringify(persisted))
   } catch {
     // Cloud status history is advisory; a blocked/full localStorage must not
     // interfere with the authoritative local save.

@@ -458,3 +458,37 @@ describe('cloud retry uses the current local tower', () => {
     expect(decodeCloudPayload(mocked.pushCloudSlot.mock.calls.at(-1)![0].payload)).toEqual(original)
   })
 })
+
+describe('blocked storage', () => {
+  it.each(['getter', 'read', 'write'] as const)('keeps advisory updates in memory after a storage %s failure', async (failure) => {
+    const saved = savedSandbox()
+    await renderSync()
+    const fault = failure === 'getter'
+      ? jest.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+      : jest.spyOn(Storage.prototype, failure === 'read' ? 'getItem' : 'setItem').mockImplementation(() => {
+        throw new DOMException('Denied', 'SecurityError')
+      })
+    try {
+      await act(async () => { api().pushSlot('slot-a', saved) })
+      expect(api().slots['slot-a'].status).toBe('synced')
+    } finally {
+      fault.mockRestore()
+    }
+    expect(loadSandbox('slot-a')).toEqual(saved)
+    await act(async () => { api().pushSlot('slot-a', saved) })
+    expect(api().slots['slot-a'].status).toBe('synced')
+  })
+
+  it.each([true, false])('keeps the cloud hook usable when the localStorage getter throws (signed in: %s)', async (enabled) => {
+    mocked.isCloudSyncEnabled.mockReturnValue(enabled)
+    const blocked = jest.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Denied', 'SecurityError')
+    })
+    try {
+      await renderSync(new Set())
+      expect(api().enabled).toBe(enabled)
+    } finally {
+      blocked.mockRestore()
+    }
+  })
+})
