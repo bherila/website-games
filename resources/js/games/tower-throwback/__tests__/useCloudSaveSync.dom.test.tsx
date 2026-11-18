@@ -374,37 +374,6 @@ describe('useCloudSaveSync compressed (v3) cloud payloads', () => {
 })
 
 
-describe('cloud restore local ownership', () => {
-  it('claims a successfully restored slot for this tab', async () => {
-    const saved = savedSandbox()
-    clearSandbox('slot-a')
-    await renderSync(new Set<SandboxSlotId>())
-    mocked.getCloudSlot.mockResolvedValueOnce({ meta: slotMeta(), payload: saved })
-    await act(async () => { expect(await api().restore('slot-a')).toEqual(saved) })
-    expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe(getOrCreateTabSessionId())
-  })
-
-  it.each(['before', 'during'] as const)('does not overwrite a slot another tab claims %s the fetch', async (when) => {
-    const saved = savedSandbox()
-    const localBytes = localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')
-    await renderSync()
-    let finish!: (result: { meta: cloudSync.CloudSlotMeta; payload: SavedSandbox }) => void
-    mocked.getCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
-    if (when === 'before') claimSandboxSlot('slot-a', 'other-tab')
-    let restored: SavedSandbox | null = saved
-    await act(async () => {
-      const pending = api().restore('slot-a')
-      if (when === 'during') claimSandboxSlot('slot-a', 'other-tab')
-      finish({ meta: slotMeta(), payload: { ...saved, seed: 999 } })
-      restored = await pending
-    })
-    expect(restored).toBeNull()
-    expect(localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')).toBe(localBytes)
-    expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe('other-tab')
-    expect(api().slots['slot-a'].status).not.toBe('synced')
-  })
-})
-
 describe('cloud retry uses the current local tower', () => {
   it('retries a replacement save instead of the failed cached payload', async () => {
     const original = savedSandbox()
@@ -456,6 +425,37 @@ describe('cloud retry uses the current local tower', () => {
     await act(async () => { expect(await api().restore('slot-a')).toBeNull() })
     await act(async () => { api().retry('slot-a') })
     expect(decodeCloudPayload(mocked.pushCloudSlot.mock.calls.at(-1)![0].payload)).toEqual(original)
+  })
+})
+
+describe('cloud restore local ownership', () => {
+  it('claims a successfully restored slot for this tab', async () => {
+    const saved = savedSandbox()
+    clearSandbox('slot-a')
+    await renderSync(new Set<SandboxSlotId>())
+    mocked.getCloudSlot.mockResolvedValueOnce({ meta: slotMeta(), payload: saved })
+    await act(async () => { expect(await api().restore('slot-a')).toEqual(saved) })
+    expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe(getOrCreateTabSessionId())
+  })
+
+  it.each(['before', 'during'] as const)('does not overwrite a slot another tab claims %s the fetch', async (when) => {
+    const saved = savedSandbox()
+    const localBytes = localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')
+    await renderSync()
+    let finish!: (result: { meta: cloudSync.CloudSlotMeta; payload: SavedSandbox }) => void
+    mocked.getCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+    if (when === 'before') claimSandboxSlot('slot-a', 'other-tab')
+    let restored: SavedSandbox | null = saved
+    await act(async () => {
+      const pending = api().restore('slot-a')
+      if (when === 'during') claimSandboxSlot('slot-a', 'other-tab')
+      finish({ meta: slotMeta(), payload: { ...saved, seed: 999 } })
+      restored = await pending
+    })
+    expect(restored).toBeNull()
+    expect(localStorage.getItem('bwh.tower-throwback.sandbox.v1.slot-a')).toBe(localBytes)
+    expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBe('other-tab')
+    expect(api().slots['slot-a'].status).not.toBe('synced')
   })
 })
 
