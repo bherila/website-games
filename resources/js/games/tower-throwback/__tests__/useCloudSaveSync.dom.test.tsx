@@ -755,3 +755,17 @@ it('reports the authoritative queued replacement size rather than the originally
   expect(mocked.acquireLease).not.toHaveBeenCalled()
   expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
 })
+
+it('recovers cloud restore metadata when an initial list was overtaken by a failed lease acquisition', async () => {
+  const index = deferredResult<cloudSync.CloudSlotMeta[] | null>()
+  const lease = deferredResult<cloudSync.CloudLeaseResult>()
+  mocked.listCloudSlots.mockImplementationOnce(() => index.promise)
+  await renderSync()
+  mocked.acquireLease.mockImplementationOnce(() => lease.promise)
+  await act(async () => { api().openSlot('slot-a') })
+  await act(async () => { index.resolve([slotMeta()]) })
+  await act(async () => { lease.resolve({ ok: false, reason: 'conflict', conflict: { acquired_at: 'A', expires_at: 'B' } }) })
+  expect(api().slots['slot-a'].status).toBe('conflict')
+  expect(api().slots['slot-a'].canRestore).toBe(true)
+  expect(api().slots['slot-a'].cloudUpdatedAt).toBe(slotMeta().updated_at)
+})

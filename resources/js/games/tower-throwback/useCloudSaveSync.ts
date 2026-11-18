@@ -333,6 +333,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       const current = (): SavedSandbox | null => isSandboxSlotOwnedByAnotherTab(slot, tabSessionId) ? null : loadSandbox(slot)
       if (readOnlyRef.current.has(slot)) {
         if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
+        reconcile(slot)
         return
       }
       try {
@@ -359,7 +360,11 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         const digest = saveDigest(serialized)
         if (intent === intentRef.current[slot]) setLocal((prev) => ({ ...prev, [slot]: digest }))
         const report = (outcome: PushOutcome): void => { if (intent === intentRef.current[slot]) setOutcome(slot, outcome) }
-        if (!token) { report({ kind: readOnlyRef.current.has(slot) ? 'idle' : 'failed', digest }); return }
+        if (!token) {
+          report({ kind: readOnlyRef.current.has(slot) ? 'idle' : 'failed', digest })
+          reconcile(slot)
+          return
+        }
         const envelope = serialized === initialJson ? initialEnvelope : encodeCloudPayload(serialized)
         if (!fitsCloudBudget(JSON.stringify(envelope))) { report({ kind: 'tooLarge', digest }); return }
         const result = await pushCloudSlot({ slot, payload: envelope, wireVersion: CLOUD_ENVELOPE_WIRE_VERSION, token,
@@ -386,7 +391,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         verify(slot)
       }
     }))
-  }, [applyMeta, enabled, ensureLease, markConflict, markUncertain, nextIntent, operation, queue, setOutcome, tabSessionId, verify])
+  }, [applyMeta, enabled, ensureLease, markConflict, markUncertain, nextIntent, operation, queue, reconcile, setOutcome, tabSessionId, verify])
 
   const retry = useCallback((slot: SandboxSlotId) => {
     const saved = loadSandbox(slot)
@@ -394,9 +399,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
   }, [pushSlot])
   const openSlot = useCallback((slot: SandboxSlotId) => {
     if (enabled) void queue.barrier(slot, () => operation(slot, async () => {
-      if (mountedRef.current) await ensureLease(slot)
-    })).catch(() => { /* lease failure is retried by a later mirror */ })
-  }, [enabled, ensureLease, operation, queue])
+      if (mountedRef.current && !(await ensureLease(slot))) reconcile(slot)
+    })).catch(() => reconcile(slot))
+  }, [enabled, ensureLease, operation, queue, reconcile])
   const takeOver = useCallback((slot: SandboxSlotId): Promise<boolean> => {
     if (!enabled) return Promise.resolve(false)
     return queue.barrier(slot, () => operation(slot, async () => {
