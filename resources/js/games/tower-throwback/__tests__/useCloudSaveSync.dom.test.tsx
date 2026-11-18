@@ -492,3 +492,140 @@ describe('blocked storage', () => {
     }
   })
 })
+
+
+describe('cloud deletion results', () => {
+  it('keeps failed deletion visible after the local slot is gone and retries explicitly', async () => {
+    await renderSync(new Set())
+    mocked.deleteCloudSlot.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    await act(async () => { await api().remove('slot-a') })
+    expect(api().slots['slot-a'].deletion).toBe('failed')
+    expect(api().slots['slot-a'].cloudUpdatedAt).toBe(slotMeta().updated_at)
+    expect(mocked.releaseLease).not.toHaveBeenCalled()
+    await act(async () => { await api().remove('slot-a') })
+    expect(api().slots['slot-a'].deletion).toBe('deleted')
+    expect(api().slots['slot-a'].canRestore).toBe(false)
+    expect(mocked.deleteCloudSlot).toHaveBeenCalledTimes(2)
+  })
+})
+
+
+it('deduplicates deletion clicks while keeping other slots independent', async () => {
+  await renderSync(new Set())
+  let finish!: (value: boolean) => void
+  mocked.deleteCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+  mocked.deleteCloudSlot.mockResolvedValueOnce(true)
+  let first!: Promise<boolean>
+  await act(async () => {
+    first = api().remove('slot-a')
+    expect(api().remove('slot-a')).toBe(first)
+    expect(await api().remove('slot-b')).toBe(true)
+  })
+  expect(api().slots['slot-a'].deletion).toBe('pending')
+  expect(api().slots['slot-b'].deletion).toBe('deleted')
+  await act(async () => { finish(true); await first })
+  expect(api().slots['slot-a'].deletion).toBe('deleted')
+  expect(mocked.deleteCloudSlot).toHaveBeenCalledTimes(2)
+})
+
+it.each([true, false])('preserves a replacement tower when an old deletion completes (confirmed: %s)', async (confirmed) => {
+  await renderSync(new Set())
+  let finish!: (value: boolean) => void
+  mocked.deleteCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+  await act(async () => { void api().remove('slot-a') })
+  const replacement = savedSandbox()
+  await act(async () => { api().pushSlot('slot-a', replacement) })
+  await act(async () => { finish(confirmed) })
+  expect(loadSandbox('slot-a')).toEqual(replacement)
+  expect(api().slots['slot-a'].deletion).toBe('idle')
+  expect(api().slots['slot-a'].cloudUpdatedAt).toBe(slotMeta().updated_at)
+  mocked.deleteCloudSlot.mockClear()
+  await act(async () => { expect(await api().remove('slot-a')).toBe(false) })
+  expect(mocked.deleteCloudSlot).not.toHaveBeenCalled()
+})
+
+it('does not automatically repeat a failed delete after remount', async () => {
+  mocked.deleteCloudSlot.mockResolvedValueOnce(false)
+  const first = await renderSync(new Set())
+  await act(async () => { await api().remove('slot-a') })
+  first.unmount()
+  await renderSync(new Set())
+  expect(api().slots['slot-a'].canRestore).toBe(true)
+  expect(mocked.deleteCloudSlot).toHaveBeenCalledTimes(1)
+})
+
+
+it('retains a successful earlier lease acquisition when a newer push was queued', async () => {
+  const saved = savedSandbox()
+  await renderSync()
+  let acquire!: (value: cloudSync.CloudLeaseResult) => void
+  mocked.acquireLease.mockImplementationOnce(() => new Promise((resolve) => { acquire = resolve }))
+  mocked.acquireLease.mockResolvedValueOnce({ ok: false, reason: 'conflict', conflict: { acquired_at: null, expires_at: null } })
+  await act(async () => { api().openSlot('slot-a'); api().pushSlot('slot-a', saved) })
+  await act(async () => { acquire({ ok: true, token: 'ours', meta: slotMeta() }) })
+  expect(api().slots['slot-a'].status).not.toBe('conflict')
+})
+
+it('keeps an overlapping pre-restore push result visible rather than claiming unconditional equality', async () => {
+  const saved = savedSandbox()
+  await renderSync()
+  let finish!: (value: cloudSync.CloudPushResult) => void
+  mocked.pushCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))
+  await act(async () => { api().pushSlot('slot-a', saved) })
+  mocked.getCloudSlot.mockResolvedValueOnce({ payload: { ...saved, seed: 999 }, meta: slotMeta({ updated_at: '2026-07-20' }) })
+  await act(async () => { await api().restore('slot-a') })
+  await act(async () => { finish({ ok: true, token: 'ours', meta: slotMeta() }) })
+  expect(api().slots['slot-a'].status).toBe('stale')
+  expect(loadSandbox('slot-a')?.seed).toBe(999)
+})
+
+it('exposes lease recovery after a conflicted failed deletion is superseded by a local save', async () => {
+  await renderSync(new Set())
+  mocked.acquireLease.mockResolvedValueOnce({ ok: false, reason: 'conflict', conflict: { acquired_at: null, expires_at: null } })
+  await act(async () => { api().openSlot('slot-a') })
+  mocked.deleteCloudSlot.mockResolvedValueOnce(false)
+  await act(async () => { await api().remove('slot-a') })
+  expect(api().slots['slot-a'].deletion).toBe('failed')
+  const replacement = savedSandbox()
+  await act(async () => { api().pushSlot('slot-a', replacement) })
+  expect(api().slots['slot-a'].deletion).toBe('idle')
+  expect(api().slots['slot-a'].status).toBe('conflict')
+})
+
+it('makes a recreated remote tower restorable after a later refresh', async () => {
+  await renderSync(new Set())
+  mocked.deleteCloudSlot.mockResolvedValueOnce(true)
+  await act(async () => { await api().remove('slot-a') })
+  expect(api().slots['slot-a'].deletion).toBe('deleted')
+  await act(async () => { api().refresh() })
+  expect(api().slots['slot-a'].deletion).toBe('idle')
+  expect(api().slots['slot-a'].canRestore).toBe(true)
+})
+
+
+it('ignores metadata read during a deletion when its response arrives after confirmation', async () => {
+  await renderSync(new Set())
+  let finishDelete!: (value: boolean) => void
+  let finishList!: (value: cloudSync.CloudSlotMeta[] | null) => void
+  mocked.deleteCloudSlot.mockImplementationOnce(() => new Promise((resolve) => { finishDelete = resolve }))
+  mocked.deleteCloudSlot.mockResolvedValueOnce(false)
+  mocked.listCloudSlots.mockImplementationOnce(() => new Promise((resolve) => { finishList = resolve }))
+  await act(async () => { void api().remove('slot-a'); await api().remove('slot-b') })
+  await act(async () => { finishDelete(true) })
+  await act(async () => { finishList([slotMeta()]) })
+  expect(api().slots['slot-a'].deletion).toBe('deleted')
+  expect(api().slots['slot-a'].canRestore).toBe(false)
+  expect(api().slots['slot-a'].cloudUpdatedAt).toBeNull()
+})
+
+
+it('reports unconfirmed cloud deletion without a request when storage cannot be checked', async () => {
+  await renderSync(new Set())
+  mocked.deleteCloudSlot.mockClear()
+  const blocked = jest.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+  try {
+    await act(async () => { expect(await api().remove('slot-a')).toBe(false) })
+    expect(api().slots['slot-a'].deletion).toBe('failed')
+    expect(mocked.deleteCloudSlot).not.toHaveBeenCalled()
+  } finally { blocked.mockRestore() }
+})

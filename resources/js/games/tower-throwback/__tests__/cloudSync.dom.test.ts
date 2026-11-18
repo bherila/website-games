@@ -2,6 +2,7 @@ import { fetchWrapper } from '@/fetchWrapper'
 
 import {
   acquireLease,
+  deleteCloudSlot,
   getCloudSlot,
   isCloudSyncEnabled,
   listCloudSlots,
@@ -17,6 +18,7 @@ jest.mock('@/fetchWrapper', () => ({
     postRaw: jest.fn(),
     putRaw: jest.fn(),
     delete: jest.fn(),
+    deleteRaw: jest.fn(),
   },
 }))
 
@@ -219,5 +221,20 @@ describe('isCloudSyncEnabled', () => {
 
   it('is false when there is no boot data', () => {
     expect(isCloudSyncEnabled()).toBe(false)
+  })
+})
+
+
+describe('cloud deletion acknowledgement', () => {
+  it.each([204, 200, 401, 500])('confirms deletion only for the idempotent 204 response (received %s)', async (status) => {
+    const request = fetchWrapper.deleteRaw as jest.Mock
+    request.mockResolvedValueOnce(response(status, status === 200 ? '<html>Sign in</html>' : null))
+    expect(await deleteCloudSlot('slot-a')).toBe(status === 204)
+    expect(request).toHaveBeenCalledWith('/api/games/tower-throwback/saves/slot-a', {})
+  })
+
+  it('reports an unconfirmed deletion after a transport failure', async () => {
+    ;(fetchWrapper.deleteRaw as jest.Mock).mockRejectedValueOnce(new TypeError('Offline'))
+    expect(await deleteCloudSlot('slot-a')).toBe(false)
   })
 })

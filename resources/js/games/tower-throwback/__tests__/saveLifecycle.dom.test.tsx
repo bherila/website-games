@@ -21,7 +21,7 @@ const scene: { current: ComponentProps<typeof TowerScene> | null } = { current: 
 const cloud = {
   enabled: true,
   slots: Object.fromEntries(SANDBOX_SLOT_IDS.map((id) => [id, {
-    status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
+    deletion: 'idle', status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
   }])) as Record<SandboxSlotId, CloudSlotView>,
   openSlot: jest.fn(), pushSlot: jest.fn(), takeOver: jest.fn(), restore: jest.fn(),
   remove: jest.fn(), refresh: jest.fn(), retry: jest.fn(),
@@ -80,6 +80,14 @@ beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
   jest.clearAllMocks()
+  cloud.enabled = true
+  for (const id of SANDBOX_SLOT_IDS) cloud.slots[id] = {
+    deletion: 'idle', status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
+  }
+  cloud.remove.mockImplementation(async (id: SandboxSlotId) => {
+    cloud.slots[id] = { ...cloud.slots[id], deletion: 'deleted', canRestore: false, status: 'localOnly' }
+    return true
+  })
   cloud.restore.mockResolvedValue(null)
   scene.current = null
   Object.defineProperty(document, 'hidden', { configurable: true, value: false })
@@ -704,4 +712,50 @@ it.each(['resume', 'load'] as const)('refuses %s when claiming the destination o
   }
   expect(cloud.openSlot).not.toHaveBeenCalled()
   expect(loadSandbox('slot-a')?.seed).toBe(999)
+})
+
+
+it('does not request cloud deletion for an anonymous clear', () => {
+  cloud.enabled = false
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  fireEvent.click(screen.getByTestId('clear-slot-a'))
+  fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
+  expect(loadSandbox('slot-a')).toBeNull()
+  expect(cloud.remove).not.toHaveBeenCalled()
+  expect(screen.getByTestId('save-message')).toHaveTextContent('in this browser')
+})
+
+it.each(['valid', 'unreadable', 'owner-only', 'unavailable'] as const)('never repeats local Clear when retrying cloud deletion over %s local state', (kind) => {
+  seedSlot('autosave', 4242)
+  cloud.slots['slot-a'] = { ...cloud.slots['slot-a'], deletion: 'failed' }
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  if (kind === 'valid') seedSlot('slot-a', 999)
+  if (kind === 'unreadable') localStorage.setItem(sandboxStorageKey('slot-a'), 'broken JSON')
+  if (kind === 'owner-only') claimSandboxSlot('slot-a', getOrCreateTabSessionId())
+  const removeItem = jest.spyOn(Storage.prototype, 'removeItem')
+  if (kind === 'unavailable') jest.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new DOMException('Denied', 'SecurityError') })
+  fireEvent.click(screen.getByTestId('cloud-delete-retry-slot-a'))
+  expect(cloud.remove).not.toHaveBeenCalled()
+  expect(removeItem).not.toHaveBeenCalled()
+  expect(screen.getByTestId('save-message')).toHaveTextContent('slot has changed')
+})
+
+it('retries only cloud deletion after closing and reopening the save overlay', () => {
+  seedSlot('autosave', 4242)
+  cloud.slots['slot-a'] = { ...cloud.slots['slot-a'], deletion: 'failed' }
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  fireEvent.click(screen.getByRole('button', { name: 'Close save overlay' }))
+  openSaves()
+  const removeItem = jest.spyOn(Storage.prototype, 'removeItem')
+  fireEvent.click(screen.getByTestId('cloud-delete-retry-slot-a'))
+  expect(cloud.remove).toHaveBeenCalledWith('slot-a')
+  expect(removeItem).not.toHaveBeenCalled()
 })

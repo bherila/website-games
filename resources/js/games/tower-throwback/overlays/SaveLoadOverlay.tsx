@@ -38,6 +38,7 @@ interface SaveLoadOverlayProps {
   onTakeOver?: (slotId: SandboxSlotId) => void
   /** Re-attempt a failed or behind cloud mirror. */
   onCloudRetry?: (slotId: SandboxSlotId) => void
+  onCloudDeleteRetry?: (slotId: SandboxSlotId) => void
 }
 
 const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: string }> = {
@@ -77,7 +78,7 @@ function slotHasStoredData(slot: SandboxSlotSummary): boolean {
   return slot.saved || slot.loadFailure === 'unknownMap'
 }
 
-function actionCopy(action: PendingSaveAction, slot: SandboxSlotSummary): { confirmLabel: string; description: string; title: string } {
+function actionCopy(action: PendingSaveAction, slot: SandboxSlotSummary, cloudEnabled: boolean): { confirmLabel: string; description: string; title: string } {
   switch (action.type) {
     case 'save':
       return {
@@ -94,7 +95,9 @@ function actionCopy(action: PendingSaveAction, slot: SandboxSlotSummary): { conf
     case 'clear':
       return {
         title: `Clear ${slot.label}?`,
-        description: 'This saved tower will be permanently removed from browser storage.',
+        description: cloudEnabled
+          ? "This saved tower will be permanently removed from browser storage and your account's cloud copy will be deleted."
+          : 'This saved tower will be permanently removed from browser storage.',
         confirmLabel: 'Clear slot',
       }
     case 'restore':
@@ -118,18 +121,31 @@ interface CloudSlotStatusRowProps {
   onCloudRestore: ((slotId: SandboxSlotId, event: MouseEvent<HTMLButtonElement>) => void) | undefined
   onTakeOver: ((slotId: SandboxSlotId) => void) | undefined
   onCloudRetry: ((slotId: SandboxSlotId) => void) | undefined
+  onCloudDeleteRetry: ((slotId: SandboxSlotId) => void) | undefined
 }
 
-function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudRetry }: CloudSlotStatusRowProps): ReactElement {
-  const copy = CLOUD_STATUS_COPY[view.status]
-  const detail = CLOUD_STATUS_DETAIL[view.status]
+function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudRetry, onCloudDeleteRetry }: CloudSlotStatusRowProps): ReactElement {
+  const deletion = view.deletion ?? 'idle'
+  const copy = deletion === 'pending' ? { label: 'Cloud: deleting…', className: 'text-sky-200' }
+    : deletion === 'failed' ? { label: 'Cloud: deletion unconfirmed', className: 'text-red-200' }
+      : deletion === 'deleted' ? { label: 'Cloud: deleted', className: 'text-emerald-200' }
+        : CLOUD_STATUS_COPY[view.status]
+  const detail = deletion === 'failed'
+    ? 'This browser slot was cleared. Cloud deletion could not be confirmed; retry to finish.'
+    : deletion === 'idle' ? CLOUD_STATUS_DETAIL[view.status] : undefined
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/10 pt-2">
-      <span data-testid={`cloud-status-${slotId}`} className={`text-[11px] font-semibold ${copy.className}`}>
+      <span role={deletion === 'failed' ? 'alert' : 'status'} data-testid={`cloud-status-${slotId}`} className={`text-[11px] font-semibold ${copy.className}`}>
         {copy.label}
       </span>
-      {view.canRetry && onCloudRetry && (
+      {deletion === 'failed' && onCloudDeleteRetry && (
+        <button type="button" data-testid={`cloud-delete-retry-${slotId}`} onClick={() => onCloudDeleteRetry(slotId)}
+          className="rounded bg-red-500/20 px-2 py-1 text-sm font-bold text-red-100 hover:bg-red-500/35">
+          Retry cloud deletion
+        </button>
+      )}
+      {deletion === 'idle' && view.canRetry && onCloudRetry && (
         <button
           type="button"
           data-testid={`cloud-retry-${slotId}`}
@@ -144,7 +160,7 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
           {detail}
         </span>
       )}
-      {view.canRestore && onCloudRestore && (
+      {deletion === 'idle' && view.canRestore && onCloudRestore && (
         <button
           type="button"
           data-testid={`cloud-restore-${slotId}`}
@@ -154,7 +170,7 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
           Restore from cloud
         </button>
       )}
-      {view.status === 'conflict' && onTakeOver && (
+      {deletion === 'idle' && view.status === 'conflict' && onTakeOver && (
         <button
           type="button"
           data-testid={`cloud-takeover-${slotId}`}
@@ -191,6 +207,7 @@ export function SaveLoadOverlay({
   onCloudRestore,
   onTakeOver,
   onCloudRetry,
+  onCloudDeleteRetry,
 }: SaveLoadOverlayProps): ReactElement {
   const [importSlotId, setImportSlotId] = useState<SandboxSlotId>('slot-a')
   const [importPayload, setImportPayload] = useState('')
@@ -356,7 +373,7 @@ export function SaveLoadOverlay({
   }
 
   const pendingSlot = pendingAction ? slotFor(pendingAction.slotId) : null
-  const pendingCopy = pendingAction && pendingSlot ? actionCopy(pendingAction, pendingSlot) : null
+  const pendingCopy = pendingAction && pendingSlot ? actionCopy(pendingAction, pendingSlot, cloudEnabled) : null
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/85 p-4">
@@ -432,7 +449,7 @@ export function SaveLoadOverlay({
                 <button
                   type="button"
                   data-testid={`save-${slot.id}`}
-                  disabled={!canSave}
+                  disabled={!canSave || cloudSlots?.[slot.id].deletion === 'pending'}
                   onClick={(event) => requestAction({ type: 'save', slotId: slot.id }, event)}
                   className="rounded bg-emerald-500/25 px-2 py-1 text-[12px] font-bold text-emerald-100 hover:bg-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -441,7 +458,7 @@ export function SaveLoadOverlay({
                 <button
                   type="button"
                   data-testid={`load-${slot.id}`}
-                  disabled={!slot.saved}
+                  disabled={!slot.saved || cloudSlots?.[slot.id].deletion === 'pending'}
                   onClick={(event) => requestAction({ type: 'load', slotId: slot.id }, event)}
                   className="rounded bg-sky-500/25 px-2 py-1 text-[12px] font-bold text-sky-100 hover:bg-sky-500/40 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -459,14 +476,14 @@ export function SaveLoadOverlay({
                 <button
                   type="button"
                   data-testid={`clear-${slot.id}`}
-                  disabled={!slotHasStoredData(slot) && !slot.hasOwner}
+                  disabled={cloudSlots?.[slot.id].deletion === 'pending' || (!slotHasStoredData(slot) && !slot.hasOwner && !(cloudEnabled && cloudSlots?.[slot.id].canRestore))}
                   onClick={(event) => requestAction({ type: 'clear', slotId: slot.id }, event)}
                   className="rounded bg-red-500/20 px-2 py-1 text-[12px] font-bold text-red-100 hover:bg-red-500/35 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Clear
                 </button>
               </div>
-              {otherTabSlots.includes(slot.id) && onTakeOverSlot && (
+              {cloudSlots?.[slot.id].deletion !== 'pending' && otherTabSlots.includes(slot.id) && onTakeOverSlot && (
                 <LocalSlotTakeover slotId={slot.id} label={slot.label} onTakeOver={onTakeOverSlot} />
               )}
               {cloudEnabled && cloudSlots && (
@@ -476,6 +493,7 @@ export function SaveLoadOverlay({
                   onCloudRestore={onCloudRestore ? (slotId, event) => requestAction({ type: 'restore', slotId }, event) : undefined}
                   onTakeOver={onTakeOver}
                   onCloudRetry={onCloudRetry}
+                  onCloudDeleteRetry={onCloudDeleteRetry}
                 />
               )}
             </div>
@@ -555,7 +573,7 @@ export function SaveLoadOverlay({
           <button
             type="button"
             data-testid="import-save"
-            disabled={importPayload.trim().length === 0}
+            disabled={importPayload.trim().length === 0 || cloudSlots?.[importSlotId].deletion === 'pending'}
             onClick={(event) => requestAction({ type: 'import', slotId: importSlotId, raw: importPayload }, event)}
             className="mt-2 rounded bg-amber-500/80 px-3 py-1.5 text-sm font-bold text-slate-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
