@@ -43,8 +43,11 @@ interface SaveLoadOverlayProps {
 
 const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: string }> = {
   synced: { label: 'Cloud: synced', className: 'text-emerald-200' },
+  matched: { label: 'Cloud: matched on last check', className: 'text-emerald-200' },
+  unverified: { label: 'Cloud: not verified', className: 'text-amber-200' },
+  different: { label: 'Cloud: copies differ', className: 'text-amber-200' },
   pushing: { label: 'Cloud: saving…', className: 'text-sky-200' },
-  stale: { label: 'Cloud: behind this device', className: 'text-amber-200' },
+  stale: { label: 'Cloud: not compared', className: 'text-amber-200' },
   failed: { label: 'Cloud: save failed', className: 'text-red-200' },
   tooLarge: { label: 'Cloud: too large — local only', className: 'text-amber-200' },
   localOnly: { label: 'Cloud: local only', className: 'text-white/50' },
@@ -56,7 +59,9 @@ const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: str
 
 /** Extra explanation for the states a player would otherwise have to guess at. */
 const CLOUD_STATUS_DETAIL: Partial<Record<CloudSlotStatus, string>> = {
-  stale: 'Your browser has the newer tower. Retry to update the cloud copy.',
+  stale: 'The cloud copy has not been compared with this browser. Retry to mirror the current browser save.',
+  unverified: 'The cloud result could not be verified. Retry to mirror the current browser save.',
+  different: 'The cloud copy differs from this browser. Retry to mirror the current browser save.',
   failed: 'Your tower is saved in this browser; only the cloud copy is behind.',
   tooLarge: 'This tower exceeds the cloud size limit. It stays saved in this browser.',
 }
@@ -132,7 +137,9 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
         : CLOUD_STATUS_COPY[view.status]
   const detail = deletion === 'failed'
     ? 'This browser slot was cleared. Cloud deletion could not be confirmed; retry to finish.'
-    : deletion === 'idle' ? CLOUD_STATUS_DETAIL[view.status] : undefined
+    : deletion === 'idle' && view.status === 'matched' && view.matchedAt !== null
+      ? `The cloud copy matched this browser at ${new Date(view.matchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+      : deletion === 'idle' ? CLOUD_STATUS_DETAIL[view.status] : undefined
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/10 pt-2">

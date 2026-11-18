@@ -21,7 +21,7 @@ const scene: { current: ComponentProps<typeof TowerScene> | null } = { current: 
 const cloud = {
   enabled: true,
   slots: Object.fromEntries(SANDBOX_SLOT_IDS.map((id) => [id, {
-    deletion: 'idle', status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
+    deletion: 'idle', matchedAt: null, status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
   }])) as Record<SandboxSlotId, CloudSlotView>,
   openSlot: jest.fn(), pushSlot: jest.fn(), takeOver: jest.fn(), restore: jest.fn(),
   remove: jest.fn(), refresh: jest.fn(), retry: jest.fn(),
@@ -82,7 +82,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   cloud.enabled = true
   for (const id of SANDBOX_SLOT_IDS) cloud.slots[id] = {
-    deletion: 'idle', status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
+    deletion: 'idle', matchedAt: null, status: 'cloudAvailable', canRestore: true, conflict: null, cloudUpdatedAt: null, canRetry: false,
   }
   cloud.remove.mockImplementation(async (id: SandboxSlotId) => {
     cloud.slots[id] = { ...cloud.slots[id], deletion: 'deleted', canRestore: false, status: 'localOnly' }

@@ -20,7 +20,7 @@ function slots(): SandboxSlotSummary[] {
 
 /** Fills in the fields a test does not care about so fixtures stay readable. */
 function view(overrides: Partial<CloudSlotView> = {}): CloudSlotView {
-  return { deletion: 'idle', status: 'localOnly', canRestore: false, conflict: null, cloudUpdatedAt: null, canRetry: false, ...overrides }
+  return { deletion: 'idle', matchedAt: null, status: 'localOnly', canRestore: false, conflict: null, cloudUpdatedAt: null, canRetry: false, ...overrides }
 }
 
 function cloudSlots(overrides: Partial<Record<SandboxSlotId, CloudSlotView>>): Record<SandboxSlotId, CloudSlotView> {
@@ -83,7 +83,7 @@ describe('SaveLoadOverlay cloud status', () => {
         cloudEnabled
         cloudSlots={cloudSlots({
           'slot-a': view({ status: 'synced', canRestore: true }),
-          'slot-b': view({ deletion: 'idle', status: 'cloudAvailable', canRestore: true }),
+          'slot-b': view({ deletion: 'idle', matchedAt: null, status: 'cloudAvailable', canRestore: true }),
         })}
         onCloudRestore={onCloudRestore}
         onTakeOver={jest.fn()}
@@ -104,9 +104,12 @@ describe('SaveLoadOverlay cloud status', () => {
 describe('SaveLoadOverlay — honest cloud states', () => {
   it.each([
     ['pushing', /saving/i],
-    ['stale', /behind this device/i],
+    ['stale', /not compared/i],
     ['failed', /save failed/i],
     ['tooLarge', /too large/i],
+    ['unverified', /not verified/i],
+    ['different', /copies differ/i],
+    ['matched', /matched on last check/i],
   ] as const)('labels the %s state', (status, pattern) => {
     render(
       <SaveLoadOverlay
@@ -157,7 +160,7 @@ it.each(['readable', 'unknown-map'] as const)('confirms replacing %s local data 
     props.slots[1] = { ...props.slots[1]!, saved: false, loadFailure: 'unknownMap' }
   }
   render(<SaveLoadOverlay {...props} cloudEnabled
-    cloudSlots={cloudSlots({ 'slot-a': view({ deletion: 'idle', status: 'cloudAvailable', canRestore: true }) })}
+    cloudSlots={cloudSlots({ 'slot-a': view({ deletion: 'idle', matchedAt: null, status: 'cloudAvailable', canRestore: true }) })}
     onCloudRestore={onCloudRestore} />)
   const trigger = screen.getByTestId('cloud-restore-slot-a')
   fireEvent.click(trigger)
@@ -206,4 +209,11 @@ it('reports unconfirmed deletion and offers a separate explicit retry', () => {
   expect(screen.queryByTestId('cloud-delete-retry-slot-b')).not.toBeInTheDocument()
   expect(screen.getByTestId('save-slot-b')).toBeDisabled()
   expect(screen.getByTestId('clear-slot-b')).toBeDisabled()
+})
+
+
+it('shows when a cloud match was actually observed', () => {
+  render(<SaveLoadOverlay {...baseProps()} cloudEnabled
+    cloudSlots={cloudSlots({ 'slot-a': view({ status: 'matched', matchedAt: Date.UTC(2026, 10, 18, 12, 34) }) })} />)
+  expect(screen.getByTestId('cloud-detail-slot-a')).toHaveTextContent('matched this browser at')
 })

@@ -457,6 +457,20 @@ consequence-bearing engine auxiliary state). Derived grid, routing, and renderin
 load. Autosave runs at midnight settlement and on `visibilitychange`/unmount. V1 snapshots migrate
 in memory; malformed or unknown future versions are rejected without overwriting stored bytes.
 
+Cloud operations are serialized independently per slot within a mounted game. Consecutive
+waiting mirrors coalesce; lease acquisition, takeover, restore and deletion retain their order.
+A queued mirror reads the current owned browser slot rather than retaining an obsolete payload.
+Restore consent applies to the local bytes and owner at request time: a change while waiting or
+fetching refuses replacement. Local data remains authoritative when the network fails.
+
+A transport failure or unusable successful PUT acknowledgement leaves the cloud result
+unverified. A subsequent queued read may establish a **point-in-time** match and display when it
+was observed, or report that the copies differ. This is not a server write fence: an earlier
+request with a lost acknowledgement can still commit later, and other tabs/devices may write.
+Durable content revisions and an atomic restore fence are separate server work (#297).
+Cloud deletion requires an explicit account-owner action; a failed deletion retry never repeats
+the local clear. Deletion confirmation names both browser and account-cloud scope when signed in.
+
 **Cloud copies** of a slot use wire version 3: an envelope
 `{format: "tower-throwback/gzip+base64", version: 3, data}` whose `data` is the base64 gzip of the
 save JSON (`cloudPayload.ts`, `fflate`). A large tower's JSON passes the 1 MiB cloud cap; the
