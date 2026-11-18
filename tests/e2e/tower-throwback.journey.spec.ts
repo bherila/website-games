@@ -14,6 +14,53 @@ test.describe('Tower Throwback real player journey', () => {
   // Functional input coverage uses the phone's CSS layout without high-DPI render cost.
   test.use({ deviceScaleFactor: 1 })
 
+  test('loading another tower discards commands queued in the save overlay', async ({ page }, testInfo) => {
+    const slots = [4242, 999].map((seed) => {
+      const state = createEngineState({ seed, mapId: 'city-tower', lobbyHeight: 1 })
+      state.speed = 0
+      return migrateSandboxPayload({ ...state, version: 1, rngState: state.rng.state() })
+    })
+    expect(slots.every(Boolean)).toBe(true)
+    await page.addInitScript(({ key, slots }) => {
+      if (sessionStorage.getItem('tower-run-isolation-fixture')) return
+      sessionStorage.setItem('tower-run-isolation-fixture', 'seeded')
+      localStorage.clear()
+      localStorage.setItem(key, JSON.stringify(slots[0]))
+      localStorage.setItem(`${key}.slot-a`, JSON.stringify(slots[1]))
+    }, { key: SANDBOX_STORAGE_KEY, slots })
+    const activate = async (control: Locator): Promise<void> => {
+      if (testInfo.project.name === 'chromium-mobile-375') await control.tap()
+      else await control.click()
+    }
+    await page.goto('/tower-throwback')
+    await activate(page.getByTestId('resume-autosave'))
+    await openTowerAction(page, 'Saves', activate)
+    // Submit both actions before the next renderer frame can drain A's queue.
+    // Microtasks let React commit each discrete click without yielding to rAF.
+    await page.evaluate(async () => {
+      const click = (selector: string): void => {
+        const button = document.querySelector<HTMLElement>(selector)
+        if (!button) throw new Error(`Missing control: ${selector}`)
+        button.click()
+      }
+      click('[data-testid="disasters-toggle"]')
+      await Promise.resolve()
+      click('[data-testid="load-slot-a"]')
+      await Promise.resolve()
+      click('[data-testid="confirm-destructive-action"]')
+    })
+    await expect(page.getByRole('dialog', { name: 'Save / Load', exact: true })).toHaveCount(0)
+    // The new snapshot is published only after its first command-draining frame.
+    await expect(page.getByTestId('speed-0')).toHaveAttribute('aria-pressed', 'true')
+    await openTowerAction(page, 'Saves', activate)
+    await expect(page.getByTestId('disasters-toggle')).toBeChecked()
+    await activate(page.getByRole('button', { name: 'Close save overlay' }))
+    await page.reload()
+    await activate(page.getByTestId('resume-slot-a'))
+    await openTowerAction(page, 'Saves', activate)
+    await expect(page.getByTestId('disasters-toggle')).toBeChecked()
+  })
+
   test('every speed control stays fully tappable on a 320px phone', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
     await page.setViewportSize({ width: 320, height: 568 })

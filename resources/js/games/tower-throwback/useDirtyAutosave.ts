@@ -36,6 +36,8 @@ export interface DirtyAutosaveOptions {
 
 export interface DirtyAutosave {
   health: SaveHealth
+  /** Discard the previous run's pending deadline and save-health history. */
+  reset: () => void
   /** Record that the tower changed and (re)arm the debounce. */
   markDirty: () => void
   /** Force an immediate write, bypassing the debounce (used by manual saves). */
@@ -58,6 +60,11 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
   useEffect(() => {
     nowRef.current = now
   }, [now])
+
+  const reset = useCallback(() => {
+    scheduleRef.current = emptySchedule()
+    setHealth(initialSaveHealth())
+  }, [])
 
   const recordResult = useCallback((result: AutosaveOutcome) => {
     const at = nowRef.current()
@@ -128,7 +135,7 @@ export function useDirtyAutosave({ save, enabled, now = Date.now }: DirtyAutosav
     }
   }, [enabled])
 
-  return { health, markDirty, flush, recordResult }
+  return { health, reset, markDirty, flush, recordResult }
 }
 
 export { msUntilAutosave }

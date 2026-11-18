@@ -586,3 +586,122 @@ it.each(['refresh', 'remount'] as const)('can finish a partial clear after a %s 
   expect(cloud.remove).toHaveBeenCalledWith('slot-a')
   expect(screen.getByTestId('clear-slot-a')).toBeDisabled()
 })
+
+
+it.each(['autosave', 'slot-a'] as const)('discards previous commands and their save deadline when loading %s', (slot) => {
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  fireEvent.click(screen.getByTestId('disasters-toggle'))
+  expect(runningScene().commandQueueRef.current).toContainEqual({ type: 'setDisastersEnabled', enabled: false })
+  fireEvent.click(screen.getByTestId(`load-${slot}`))
+  fireEvent.click(screen.getByRole('button', { name: 'Load tower' }))
+  expect(runningScene().engineState.seed).toBe(slot === 'autosave' ? 4242 : 999)
+  const writes = jest.spyOn(Storage.prototype, 'setItem')
+  act(drainCommands)
+  act(() => jest.advanceTimersByTime(10_000))
+  expect(writes.mock.calls.filter(([key]) => key === sandboxStorageKey(slot))).toHaveLength(0)
+  expect(runningScene().engineState.options.disastersEnabled).toBe(true)
+  expect(screen.queryByTestId('save-health')).not.toBeInTheDocument()
+})
+
+
+it('preserves pending commands and their save deadline after a failed load', () => {
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  resume()
+  openSaves()
+  fireEvent.click(screen.getByTestId('disasters-toggle'))
+  fireEvent.click(screen.getByTestId('load-slot-a'))
+  localStorage.removeItem(sandboxStorageKey('slot-a'))
+  fireEvent.click(screen.getByRole('button', { name: 'Load tower' }))
+  expect(screen.getByTestId('save-message')).toHaveTextContent('empty or unreadable')
+  expect(runningScene().engineState.seed).toBe(4242)
+  expect(runningScene().commandQueueRef.current).toHaveLength(1)
+  expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'pending')
+  fireEvent.click(screen.getByRole('button', { name: 'Close save overlay' }))
+  act(drainCommands)
+  act(() => jest.advanceTimersByTime(5_000))
+  expect(loadSandbox()?.options.disastersEnabled).toBe(false)
+})
+
+it('clears failed health from the previous tower after a successful load', () => {
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  resume()
+  const realSetItem = Storage.prototype.setItem
+  const fault = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    if (key === sandboxStorageKey('autosave')) throw new DOMException('Full', 'QuotaExceededError')
+    realSetItem.call(this, key, value)
+  })
+  hiddenTab()
+  expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'failed')
+  fault.mockRestore()
+  openSaves()
+  fireEvent.click(screen.getByTestId('load-slot-a'))
+  fireEvent.click(screen.getByRole('button', { name: 'Load tower' }))
+  expect(screen.queryByTestId('save-health')).not.toBeInTheDocument()
+  expect(screen.queryByTestId('save-health-error')).not.toBeInTheDocument()
+})
+
+it.each(['resume', 'start'] as const)('discards queued commands after ownership loss followed by %s', (next) => {
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  resume()
+  act(() => runningScene().onPlaceCommand?.({ type: 'setDisastersEnabled', enabled: false }))
+  act(() => {
+    claimSandboxSlot('autosave', 'second-tab')
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: sandboxOwnerStorageKey('autosave'), newValue: 'second-tab',
+    }))
+  })
+  expect(screen.queryByTestId('scene')).not.toBeInTheDocument()
+  if (next === 'resume') {
+    resume('slot-a')
+  } else {
+    localStorage.removeItem(sandboxOwnerStorageKey('autosave'))
+    fireEvent.click(screen.getByTestId('start'))
+    fireEvent.click(screen.getByTestId('start'))
+  }
+  expect(runningScene().commandQueueRef.current).toHaveLength(0)
+  act(drainCommands)
+  expect(runningScene().engineState.options.disastersEnabled).toBe(true)
+  expect(screen.queryByTestId('save-health')).not.toBeInTheDocument()
+})
+
+
+it.each(['resume', 'load'] as const)('refuses %s when claiming the destination owner fails', (transition) => {
+  seedSlot('autosave', 4242)
+  seedSlot('slot-a', 999)
+  render(<TowerGame />)
+  if (transition === 'load') {
+    resume()
+    openSaves()
+    fireEvent.click(screen.getByTestId('disasters-toggle'))
+  }
+  cloud.openSlot.mockClear()
+  const setItem = Storage.prototype.setItem
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+    if (key === sandboxOwnerStorageKey('slot-a')) throw new DOMException('Denied', 'QuotaExceededError')
+    setItem.call(this, key, value)
+  })
+  if (transition === 'resume') {
+    fireEvent.click(screen.getByTestId('resume-slot-a'))
+    expect(screen.queryByTestId('scene')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('full')
+  } else {
+    fireEvent.click(screen.getByTestId('load-slot-a'))
+    fireEvent.click(screen.getByRole('button', { name: 'Load tower' }))
+    expect(runningScene().engineState.seed).toBe(4242)
+    expect(runningScene().commandQueueRef.current).toHaveLength(1)
+    expect(screen.getByTestId('save-health')).toHaveAttribute('data-status', 'pending')
+    expect(screen.getByTestId('save-message')).toHaveTextContent('full')
+  }
+  expect(cloud.openSlot).not.toHaveBeenCalled()
+  expect(loadSandbox('slot-a')?.seed).toBe(999)
+})
