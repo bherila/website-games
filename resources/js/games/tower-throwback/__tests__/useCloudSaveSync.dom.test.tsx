@@ -404,3 +404,57 @@ describe('cloud restore local ownership', () => {
     expect(api().slots['slot-a'].status).not.toBe('synced')
   })
 })
+
+describe('cloud retry uses the current local tower', () => {
+  it('retries a replacement save instead of the failed cached payload', async () => {
+    const original = savedSandbox()
+    await renderSync()
+    mocked.pushCloudSlot.mockResolvedValueOnce({ ok: false, reason: 'error' })
+    await act(async () => { api().pushSlot('slot-a', original) })
+    const replacement = { ...original, seed: 999, funds: original.funds + 100 }
+    expect(importSandbox(JSON.stringify(replacement), 'slot-a', getOrCreateTabSessionId()).ok).toBe(true)
+    await act(async () => { api().retry('slot-a') })
+    const push = mocked.pushCloudSlot.mock.calls.at(-1)![0]
+    expect(decodeCloudPayload(push.payload)).toEqual(replacement)
+    expect(push.funds).toBe(replacement.funds)
+  })
+
+  it('does not recreate a deleted tower from its cached payload', async () => {
+    const original = savedSandbox()
+    await renderSync()
+    mocked.pushCloudSlot.mockResolvedValueOnce({ ok: false, reason: 'error' })
+    await act(async () => { api().pushSlot('slot-a', original) })
+    expect(clearSandbox('slot-a').ok).toBe(true)
+    mocked.pushCloudSlot.mockClear()
+    await act(async () => { api().retry('slot-a') })
+    expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+    expect(loadSandbox('slot-a')).toBeNull()
+  })
+
+  it('retries the restored tower when a later remote revision makes the mirror stale', async () => {
+    const original = savedSandbox()
+    await renderSync()
+    mocked.pushCloudSlot.mockResolvedValueOnce({ ok: false, reason: 'error' })
+    await act(async () => { api().pushSlot('slot-a', original) })
+    const restored = { ...original, seed: 999 }
+    mocked.getCloudSlot.mockResolvedValueOnce({ payload: restored, meta: slotMeta() })
+    await act(async () => { expect(await api().restore('slot-a')).toEqual(restored) })
+    mocked.listCloudSlots.mockResolvedValueOnce([slotMeta({ updated_at: '2026-07-20T12:00:00+00:00' })])
+    await act(async () => { api().refresh() })
+    expect(api().slots['slot-a'].status).toBe('stale')
+    expect(api().slots['slot-a'].canRetry).toBe(true)
+    await act(async () => { api().retry('slot-a') })
+    expect(decodeCloudPayload(mocked.pushCloudSlot.mock.calls.at(-1)![0].payload)).toEqual(restored)
+  })
+
+  it('retains the current local tower for retry when a restore fails', async () => {
+    const original = savedSandbox()
+    await renderSync()
+    mocked.pushCloudSlot.mockResolvedValueOnce({ ok: false, reason: 'error' })
+    await act(async () => { api().pushSlot('slot-a', original) })
+    mocked.getCloudSlot.mockResolvedValueOnce(null)
+    await act(async () => { expect(await api().restore('slot-a')).toBeNull() })
+    await act(async () => { api().retry('slot-a') })
+    expect(decodeCloudPayload(mocked.pushCloudSlot.mock.calls.at(-1)![0].payload)).toEqual(original)
+  })
+})
