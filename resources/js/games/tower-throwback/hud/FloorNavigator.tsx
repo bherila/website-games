@@ -101,10 +101,10 @@ export function FloorNavigator({ className = '', floorRange = DEFAULT_RANGE, inc
         nextFloor = currentFloor - 10
         break
       case 'Home':
-        nextFloor = floorRange.max
+        nextFloor = floorRange.min
         break
       case 'End':
-        nextFloor = floorRange.min
+        nextFloor = floorRange.max
         break
     }
     if (nextFloor !== null) {
@@ -123,6 +123,7 @@ export function FloorNavigator({ className = '', floorRange = DEFAULT_RANGE, inc
         role="slider"
         tabIndex={0}
         aria-label="Tower floor navigator"
+        aria-orientation="vertical"
         aria-valuemin={floorRange.min}
         aria-valuemax={floorRange.max}
         aria-valuenow={currentFloor}
