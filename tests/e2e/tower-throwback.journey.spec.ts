@@ -61,6 +61,65 @@ test.describe('Tower Throwback real player journey', () => {
     await expect(page.getByTestId('disasters-toggle')).toBeChecked()
   })
 
+  test('Clear discloses cloud removal and retries an unconfirmed cloud delete without restoring local data', async ({ page }, testInfo) => {
+    const state = createEngineState({ seed: 295, mapId: 'city-tower', lobbyHeight: 1 })
+    state.speed = 0
+    const saved = migrateSandboxPayload({ ...state, version: 1, rngState: state.rng.state() })
+    expect(saved).not.toBeNull()
+    await page.addInitScript(({ key, saved }) => {
+      localStorage.setItem(key, JSON.stringify(saved))
+      localStorage.setItem(`${key}.slot-a`, JSON.stringify(saved))
+    }, { key: SANDBOX_STORAGE_KEY, saved })
+    // Mark fixture boot data before the deferred game module reads it. Every
+    // cloud request is stubbed below; this does not establish a server session.
+    await page.addInitScript(() => {
+      const observer = new MutationObserver(() => {
+        const script = document.getElementById('app-initial-data')
+        if (!script?.textContent?.trim()) return
+        const data = JSON.parse(script.textContent) as Record<string, unknown>
+        script.textContent = JSON.stringify({ ...data, authenticated: true })
+        observer.disconnect()
+      })
+      observer.observe(document, { childList: true, subtree: true })
+    })
+    let deletes = 0
+    const meta = (slot: string, saved: boolean) => ({ slot, saved, wire_version: saved ? 3 : null,
+      game_day: 1, star: 1, population: 0, funds: 2_000_000, updated_at: '2026-11-18T00:00:00Z',
+      lease_active: false, lease_acquired_at: null, lease_expires_at: null })
+    await page.route('**/api/games/tower-throwback/saves**', async (route) => {
+      const request = route.request()
+      const path = new URL(request.url()).pathname
+      if (request.method() === 'DELETE') {
+        expect(path).toMatch(/\/slot-a$/)
+        deletes += 1
+        await route.fulfill(deletes === 1 ? { status: 503, json: { message: 'Unavailable' } } : { status: 204 })
+      } else if (request.method() === 'POST') {
+        await route.fulfill({ json: { data: { ...meta('autosave', false), lease_token: 'test-lease' } } })
+      } else {
+        expect(request.method()).toBe('GET')
+        await route.fulfill({ json: { data: deletes < 2 ? [meta('slot-a', true)] : [] } })
+      }
+    })
+    const activate = async (control: Locator): Promise<void> => {
+      if (testInfo.project.name === 'chromium-mobile-375') await control.tap()
+      else await control.click()
+    }
+    await page.goto('/tower-throwback')
+    await activate(page.getByTestId('resume-autosave'))
+    await openTowerAction(page, 'Saves', activate)
+    await activate(page.getByTestId('clear-slot-a'))
+    await expect(page.getByRole('alertdialog')).toContainText("account's cloud copy")
+    await activate(page.getByRole('button', { name: 'Clear slot', exact: true }))
+    await expect(page.getByTestId('cloud-status-slot-a')).toHaveText('Cloud: deletion unconfirmed')
+    expect(await page.evaluate((key) => localStorage.getItem(`${key}.slot-a`), SANDBOX_STORAGE_KEY)).toBeNull()
+    await activate(page.getByRole('button', { name: 'Close save overlay' }))
+    await openTowerAction(page, 'Saves', activate)
+    await activate(page.getByTestId('cloud-delete-retry-slot-a'))
+    await expect(page.getByTestId('cloud-status-slot-a')).toHaveText('Cloud: deleted')
+    expect(deletes).toBe(2)
+    expect(await page.evaluate((key) => localStorage.getItem(`${key}.slot-a`), SANDBOX_STORAGE_KEY)).toBeNull()
+  })
+
   test('every speed control stays fully tappable on a 320px phone', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium-mobile-375', 'phone layout only')
     await page.setViewportSize({ width: 320, height: 568 })

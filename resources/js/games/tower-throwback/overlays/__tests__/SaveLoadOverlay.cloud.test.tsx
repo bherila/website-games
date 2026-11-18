@@ -20,7 +20,7 @@ function slots(): SandboxSlotSummary[] {
 
 /** Fills in the fields a test does not care about so fixtures stay readable. */
 function view(overrides: Partial<CloudSlotView> = {}): CloudSlotView {
-  return { status: 'localOnly', canRestore: false, conflict: null, cloudUpdatedAt: null, canRetry: false, ...overrides }
+  return { deletion: 'idle', status: 'localOnly', canRestore: false, conflict: null, cloudUpdatedAt: null, canRetry: false, ...overrides }
 }
 
 function cloudSlots(overrides: Partial<Record<SandboxSlotId, CloudSlotView>>): Record<SandboxSlotId, CloudSlotView> {
@@ -83,7 +83,7 @@ describe('SaveLoadOverlay cloud status', () => {
         cloudEnabled
         cloudSlots={cloudSlots({
           'slot-a': view({ status: 'synced', canRestore: true }),
-          'slot-b': view({ status: 'cloudAvailable', canRestore: true }),
+          'slot-b': view({ deletion: 'idle', status: 'cloudAvailable', canRestore: true }),
         })}
         onCloudRestore={onCloudRestore}
         onTakeOver={jest.fn()}
@@ -157,7 +157,7 @@ it.each(['readable', 'unknown-map'] as const)('confirms replacing %s local data 
     props.slots[1] = { ...props.slots[1]!, saved: false, loadFailure: 'unknownMap' }
   }
   render(<SaveLoadOverlay {...props} cloudEnabled
-    cloudSlots={cloudSlots({ 'slot-a': view({ status: 'cloudAvailable', canRestore: true }) })}
+    cloudSlots={cloudSlots({ 'slot-a': view({ deletion: 'idle', status: 'cloudAvailable', canRestore: true }) })}
     onCloudRestore={onCloudRestore} />)
   const trigger = screen.getByTestId('cloud-restore-slot-a')
   fireEvent.click(trigger)
@@ -170,4 +170,40 @@ it.each(['readable', 'unknown-map'] as const)('confirms replacing %s local data 
   fireEvent.click(screen.getByRole('button', { name: 'Restore and replace' }))
   expect(onCloudRestore).toHaveBeenCalledTimes(1)
   expect(onCloudRestore).toHaveBeenCalledWith('slot-a')
+})
+
+
+it.each([false, true])('describes the complete Clear scope (cloud enabled: %s)', (cloudEnabled) => {
+  render(<SaveLoadOverlay {...baseProps()} cloudEnabled={cloudEnabled} />)
+  fireEvent.click(screen.getByTestId('clear-slot-a'))
+  const confirmation = screen.getByRole('alertdialog')
+  expect(confirmation).toHaveTextContent('browser storage')
+  if (cloudEnabled) expect(confirmation).toHaveTextContent("account's cloud copy")
+  else expect(confirmation).not.toHaveTextContent('cloud')
+})
+
+
+it('offers confirmed Clear for a cloud-only slot after a remount', () => {
+  const onClear = jest.fn()
+  render(<SaveLoadOverlay {...baseProps()} cloudEnabled onClear={onClear}
+    cloudSlots={cloudSlots({ 'slot-b': view({ status: 'cloudAvailable', canRestore: true }) })} />)
+  fireEvent.click(screen.getByTestId('clear-slot-b'))
+  expect(onClear).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
+  expect(onClear).toHaveBeenCalledWith('slot-b')
+})
+
+it('reports unconfirmed deletion and offers a separate explicit retry', () => {
+  const onCloudDeleteRetry = jest.fn()
+  const props = { ...baseProps(), cloudEnabled: true, onCloudDeleteRetry,
+    cloudSlots: cloudSlots({ 'slot-b': view({ deletion: 'failed' }) }) }
+  const { rerender } = render(<SaveLoadOverlay {...props} />)
+  expect(screen.getByTestId('cloud-status-slot-b')).toHaveTextContent('deletion unconfirmed')
+  fireEvent.click(screen.getByTestId('cloud-delete-retry-slot-b'))
+  expect(onCloudDeleteRetry).toHaveBeenCalledWith('slot-b')
+  expect(props.onClear).not.toHaveBeenCalled()
+  rerender(<SaveLoadOverlay {...props} cloudSlots={cloudSlots({ 'slot-b': view({ deletion: 'pending' }) })} />)
+  expect(screen.queryByTestId('cloud-delete-retry-slot-b')).not.toBeInTheDocument()
+  expect(screen.getByTestId('save-slot-b')).toBeDisabled()
+  expect(screen.getByTestId('clear-slot-b')).toBeDisabled()
 })

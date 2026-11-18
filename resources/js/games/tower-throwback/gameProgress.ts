@@ -556,6 +556,23 @@ export function sandboxLoadFailure(slotId: SandboxSlotId = 'autosave'): 'unknown
   }
 }
 
+/** Raw bytes and ownership distinguish empty, unreadable, and inaccessible slots. */
+export function readSandboxSlotStorage(slotId: SandboxSlotId): { raw: string | null; owner: string | null } | null {
+  const storage = safeLocalStorage()
+  if (!storage) return null
+  try {
+    return { raw: storage.getItem(sandboxStorageKey(slotId)), owner: storage.getItem(sandboxOwnerStorageKey(slotId)) }
+  } catch {
+    return null
+  }
+}
+
+/** Refuse destructive cloud retries unless both local keys are provably absent. */
+export function isSandboxSlotEmpty(slotId: SandboxSlotId): boolean {
+  const local = readSandboxSlotStorage(slotId)
+  return local !== null && local.raw === null && local.owner === null
+}
+
 export type SandboxClearResult =
   | { ok: true }
   | { ok: false; reason: 'storageUnavailable' | 'slotOwnedByAnotherTab' }

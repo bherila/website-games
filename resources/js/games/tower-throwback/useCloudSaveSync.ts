@@ -12,6 +12,7 @@ import { safeLocalStorage } from '../_shared/progressParsers'
 import { CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from './cloudPayload'
 import {
   acquireLease,
+  type CloudDeletionStatus,
   type CloudLeaseConflict,
   type CloudSlotMeta,
   type CloudSlotStatus,
@@ -21,9 +22,8 @@ import {
   isCloudSyncEnabled,
   listCloudSlots,
   pushCloudSlot,
-  releaseLease,
 } from './cloudSync'
-import { getOrCreateTabSessionId, importSandbox, loadSandbox, migrateSandboxPayload, type SavedSandbox } from './gameProgress'
+import { getOrCreateTabSessionId, importSandbox, isSandboxSlotEmpty, loadSandbox, migrateSandboxPayload, readSandboxSlotStorage, type SavedSandbox } from './gameProgress'
 import { SANDBOX_SLOT_IDS, type SandboxSlotId } from './gameTypes'
 import { fitsCloudBudget } from './saveBudget'
 
@@ -41,7 +41,7 @@ export interface CloudSaveSync {
   /** Pull a cloud save down into the local slot; returns the restored save. */
   restore: (slotId: SandboxSlotId) => Promise<SavedSandbox | null>
   /** Drop the cloud copy of a slot (mirrors a local clear). */
-  remove: (slotId: SandboxSlotId) => void
+  remove: (slotId: SandboxSlotId) => Promise<boolean>
   /** Re-fetch cloud slot metadata. */
   refresh: () => void
   /** Mirror the current local slot after a failure or remote change. */
@@ -165,6 +165,11 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
   const [meta, setMeta] = useState<Partial<Record<SandboxSlotId, CloudSlotMeta>>>({})
   const [conflicts, setConflicts] = useState<Partial<Record<SandboxSlotId, CloudLeaseConflict>>>({})
 
+  const [deletions, setDeletions] = useState<Partial<Record<SandboxSlotId, CloudDeletionStatus>>>({})
+  const deleteIntentRef = useRef<Partial<Record<SandboxSlotId, number>>>({})
+  const deleteFenceRef = useRef<Partial<Record<SandboxSlotId, number>>>({})
+  const deletingRef = useRef<Partial<Record<SandboxSlotId, { attempt: number; promise: Promise<boolean> }>>>({})
+
   const tokensRef = useRef<Partial<Record<SandboxSlotId, string>>>({})
   const readOnlyRef = useRef<Set<SandboxSlotId>>(new Set())
   /** Digest of the newest LOCAL save we have seen for each slot. */
@@ -214,6 +219,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
       return
     }
     void (async () => {
+      const attempts = { ...pushAttemptRef.current }
       const rows = await listCloudSlots()
       if (rows === null) {
         setPhase('offline')
@@ -225,7 +231,22 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
           byId[row.slot as SandboxSlotId] = row
         }
       }
-      setMeta(byId)
+      setMeta((prev) => {
+        const next = { ...prev }
+        for (const slot of SANDBOX_SLOT_IDS) {
+          if (attempts[slot] !== pushAttemptRef.current[slot]) continue
+          if (byId[slot]) next[slot] = byId[slot]
+          else delete next[slot]
+        }
+        return next
+      })
+      setDeletions((prev) => {
+        const next = { ...prev }
+        for (const slot of SANDBOX_SLOT_IDS) {
+          if (attempts[slot] === pushAttemptRef.current[slot] && byId[slot]?.saved && next[slot] === 'deleted') next[slot] = 'idle'
+        }
+        return next
+      })
       setPhase('ready')
     })()
   }, [enabled])
@@ -239,7 +260,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
     if (existing) {
       return existing
     }
+    const fence = deleteFenceRef.current[slotId]
     const result = await acquireLease(slotId, { token: existing ?? null })
+    if (fence !== deleteFenceRef.current[slotId]) return null
     if (result.ok) {
       tokensRef.current[slotId] = result.token
       clearConflict(slotId)
@@ -260,10 +283,10 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
   }, [enabled, ensureLease])
 
   const pushSlot = useCallback((slotId: SandboxSlotId, saved: SavedSandbox) => {
-    if (!enabled || readOnlyRef.current.has(slotId)) {
-      return
-    }
-
+    if (!enabled) return
+    deleteIntentRef.current[slotId] = (deleteIntentRef.current[slotId] ?? 0) + 1
+    setDeletions((prev) => ({ ...prev, [slotId]: 'idle' }))
+    if (readOnlyRef.current.has(slotId)) return
     const serialized = JSON.stringify(saved)
     const digest = saveDigest(serialized)
     const attempt = (pushAttemptRef.current[slotId] ?? 0) + 1
@@ -370,6 +393,8 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
       return null
     }
 
+    deleteIntentRef.current[slotId] = (deleteIntentRef.current[slotId] ?? 0) + 1
+    setDeletions((prev) => ({ ...prev, [slotId]: 'idle' }))
     const digest = saveDigest(JSON.stringify(result.saved))
     setLocal((prev) => ({ ...prev, [slotId]: digest }))
     applyMeta(slotId, cloud.meta)
@@ -378,33 +403,54 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
     return result.saved
   }, [applyMeta, enabled, setOutcome])
 
-  const remove = useCallback((slotId: SandboxSlotId) => {
-    if (!enabled) {
-      return
+  const remove = useCallback((slotId: SandboxSlotId): Promise<boolean> => {
+    if (!enabled) return Promise.resolve(false)
+    const pending = deletingRef.current[slotId]
+    if (pending && pending.attempt === deleteIntentRef.current[slotId]) return pending.promise
+    const local = readSandboxSlotStorage(slotId)
+    if (!local) {
+      setDeletions((prev) => ({ ...prev, [slotId]: 'failed' }))
+      return Promise.resolve(false)
     }
-    const token = tokensRef.current[slotId]
-    if (token) {
-      void releaseLease(slotId, token)
-    }
-    delete tokensRef.current[slotId]
+    if (local.raw !== null || local.owner !== null) return Promise.resolve(false)
+    const attempt = (deleteIntentRef.current[slotId] ?? 0) + 1
+    deleteIntentRef.current[slotId] = attempt
+    deleteFenceRef.current[slotId] = (deleteFenceRef.current[slotId] ?? 0) + 1
     pushAttemptRef.current[slotId] = (pushAttemptRef.current[slotId] ?? 0) + 1
-    void deleteCloudSlot(slotId)
-    clearConflict(slotId)
-    setLocal((prev) => {
-      const next = { ...prev }
-      delete next[slotId]
-      return next
-    })
-    setOutcome(slotId, null)
-    setMeta((prev) => {
-      if (!(slotId in prev)) {
-        return prev
+    setDeletions((prev) => ({ ...prev, [slotId]: 'pending' }))
+    // DELETE removes payload and lease together. Releasing first would open a
+    // window for another writer and is unnecessary for the account-owner API.
+    const promise = (async () => {
+      let confirmed = false
+      try { confirmed = await deleteCloudSlot(slotId) } catch { /* unconfirmed */ }
+      if (deleteIntentRef.current[slotId] !== attempt) return false
+      if (!isSandboxSlotEmpty(slotId)) {
+        setDeletions((prev) => ({ ...prev, [slotId]: 'idle' }))
+        return false
       }
-      const next = { ...prev }
-      delete next[slotId]
-      return next
+      if (!confirmed) {
+        setDeletions((prev) => ({ ...prev, [slotId]: 'failed' }))
+        refresh()
+        return false
+      }
+      // A list/lease read begun during DELETE may still describe its old row.
+      // Fence those observations as well as ones started before the request.
+      pushAttemptRef.current[slotId] = (pushAttemptRef.current[slotId] ?? 0) + 1
+      deleteFenceRef.current[slotId] = (deleteFenceRef.current[slotId] ?? 0) + 1
+      delete tokensRef.current[slotId]
+      clearConflict(slotId)
+      setLocal((prev) => { const next = { ...prev }; delete next[slotId]; return next })
+      setOutcome(slotId, null)
+      setMeta((prev) => { const next = { ...prev }; delete next[slotId]; return next })
+      setDeletions((prev) => ({ ...prev, [slotId]: 'deleted' }))
+      return true
+    })()
+    deletingRef.current[slotId] = { attempt, promise }
+    void promise.finally(() => {
+      if (deletingRef.current[slotId]?.attempt === attempt) delete deletingRef.current[slotId]
     })
-  }, [clearConflict, enabled, setOutcome])
+    return promise
+  }, [clearConflict, enabled, refresh, setOutcome])
 
   const slots = useMemo<Record<SandboxSlotId, CloudSlotView>>(() => {
     const views = {} as Record<SandboxSlotId, CloudSlotView>
@@ -447,16 +493,18 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>): C
         status = 'localOnly'
       }
 
+      const deletion = localHasSave && deletions[slotId] !== 'pending' ? 'idle' : deletions[slotId] ?? 'idle'
       views[slotId] = {
+        deletion,
         status,
-        canRestore: cloudHasSave,
+        canRestore: cloudHasSave && deletion === 'idle',
         conflict,
         cloudUpdatedAt: slotMeta?.updated_at ?? null,
-        canRetry: status === 'failed' || status === 'stale',
+        canRetry: deletion === 'idle' && (status === 'failed' || status === 'stale'),
       }
     }
     return views
-  }, [conflicts, local, localSavedSlots, meta, outcomes, phase])
+  }, [conflicts, deletions, local, localSavedSlots, meta, outcomes, phase])
 
   return useMemo(
     () => ({ enabled, slots, openSlot, pushSlot, takeOver, restore, remove, refresh, retry }),

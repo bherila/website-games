@@ -83,7 +83,11 @@ export type CloudSlotStatus =
   | 'checking'
   | 'offline'
 
+export type CloudDeletionStatus = 'idle' | 'pending' | 'failed' | 'deleted'
+
 export interface CloudSlotView {
+  /** Cloud deletion is independent of the local mirror payload. */
+  deletion: CloudDeletionStatus
   status: CloudSlotStatus
   canRestore: boolean
   conflict: CloudLeaseConflict | null
@@ -227,12 +231,14 @@ export async function releaseLease(slot: SandboxSlotId, token: string): Promise<
   }
 }
 
-/** Delete a cloud slot entirely. Best-effort. */
-export async function deleteCloudSlot(slot: SandboxSlotId): Promise<void> {
+/** The idempotent DELETE contract acknowledges removal with 204 only. */
+export async function deleteCloudSlot(slot: SandboxSlotId): Promise<boolean> {
   try {
-    await fetchWrapper.delete(`${BASE_URL}/${encodeURIComponent(slot)}`, {})
+    const response = await fetchWrapper.deleteRaw(`${BASE_URL}/${encodeURIComponent(slot)}`, {})
+    return response.status === 204
   } catch {
-    // Best-effort: a failed cloud delete leaves a stale mirror, never a crash.
+    // A transport failure may follow a server commit: removal is unconfirmed.
+    return false
   }
 }
 

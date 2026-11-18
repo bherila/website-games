@@ -26,6 +26,7 @@ import {
   exportSandbox,
   getOrCreateTabSessionId,
   importSandbox,
+  isSandboxSlotEmpty,
   isSandboxSlotOwnedByAnotherTab,
   loadSandbox,
   loadSandboxSlotSummaries,
@@ -197,6 +198,7 @@ export function TowerGame(): ReactElement {
   const [sandboxSessionId] = useState(getOrCreateTabSessionId)
   const sandboxSessionIdRef = useRef(sandboxSessionId)
   const restoringSlotsRef = useRef(new Set<SandboxSlotId>())
+  const deletingSlotsRef = useRef(new Set<SandboxSlotId>())
   const sceneControllerRef = useRef<SceneController | null>(null)
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null)
   const saveLoadButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -311,6 +313,11 @@ export function TowerGame(): ReactElement {
     .map((slot) => slot.id)
 
   const refusePendingRestore = useCallback((slotId: SandboxSlotId): SaveMessage | null => {
+    if (deletingSlotsRef.current.has(slotId)) {
+      const message = { kind: 'error' as const, text: `Wait for the cloud deletion of ${slotLabel(slotId)} to finish.` }
+      setSaveMessage(message)
+      return message
+    }
     if (!restoringSlotsRef.current.has(slotId)) {
       return null
     }
@@ -650,6 +657,20 @@ export function TowerGame(): ReactElement {
     return message
   }, [mirrorToCloud, refreshSlots, refuseActiveSlotReplacement])
 
+  const deleteCloudCopy = useCallback((slotId: SandboxSlotId) => {
+    deletingSlotsRef.current.add(slotId)
+    void cloud.remove(slotId).finally(() => deletingSlotsRef.current.delete(slotId))
+  }, [cloud])
+
+  const retryCloudDeletion = useCallback((slotId: SandboxSlotId) => {
+    if (refuseActiveSlotReplacement(slotId)) return
+    if (!isSandboxSlotEmpty(slotId)) {
+      setSaveMessage({ kind: 'error', text: 'This browser slot has changed. Its tower was kept. Use Clear again if you want to remove it and its cloud copy.' })
+      return
+    }
+    deleteCloudCopy(slotId)
+  }, [deleteCloudCopy, refuseActiveSlotReplacement])
+
   const clearSlot = useCallback((slotId: SandboxSlotId) => {
     if (refuseActiveSlotReplacement(slotId)) {
       return
@@ -668,10 +689,12 @@ export function TowerGame(): ReactElement {
       return
     }
     refreshSlots()
-    cloud.remove(slotId)
     setExportText('')
-    setSaveMessage({ kind: 'success', text: `Cleared ${slotLabel(slotId)}.` })
-  }, [cloud, refreshSlots, refuseActiveSlotReplacement])
+    setSaveMessage({ kind: 'success', text: cloud.enabled
+      ? `Cleared ${slotLabel(slotId)} in this browser. See the slot's cloud deletion status below.`
+      : `Cleared ${slotLabel(slotId)} in this browser.` })
+    if (cloud.enabled) deleteCloudCopy(slotId)
+  }, [cloud.enabled, deleteCloudCopy, refreshSlots, refuseActiveSlotReplacement])
 
   useEffect(() => {
     markDirtyRef.current = autosave.markDirty
@@ -1240,6 +1263,7 @@ export function TowerGame(): ReactElement {
           onCloudRestore={restoreFromCloud}
           onTakeOver={takeOverCloudSlot}
           onCloudRetry={cloud.retry}
+          onCloudDeleteRetry={retryCloudDeletion}
         />
       )}
 
