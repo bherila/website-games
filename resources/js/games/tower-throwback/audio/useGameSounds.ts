@@ -82,13 +82,19 @@ export function useGameSounds(snapshot: HudSnapshot | null): GameSounds {
   const lastWarningRef = useRef(Number.NEGATIVE_INFINITY)
 
   const playEvents = useCallback((events: EngineEvent[]): void => {
+    // A bulk drag can produce hundreds of cell results in one frame. Preserve
+    // mixed success/rejection feedback without starting a voice for every cell.
+    let placed = false
+    let rejected = false
     for (const event of events) {
       switch (event.type) {
         case 'placed':
-          placeThunk()
+          if (!placed) placeThunk()
+          placed = true
           break
         case 'placementRejected':
-          placementRejectedBuzz()
+          if (!rejected) placementRejectedBuzz()
+          rejected = true
           break
         case 'demolished':
           demolishCrunch()
@@ -179,6 +185,10 @@ export function useGameSounds(snapshot: HudSnapshot | null): GameSounds {
 
   useEffect(() => {
     if (!snapshot) {
+      stopCrowdMurmur()
+      stopNightCrickets()
+      previousPeopleRef.current = null
+      previousNightRef.current = null
       return
     }
 
@@ -207,6 +217,8 @@ export function useGameSounds(snapshot: HudSnapshot | null): GameSounds {
     return () => {
       stopCrowdMurmur()
       stopNightCrickets()
+      previousPeopleRef.current = null
+      previousNightRef.current = null
     }
   }, [])
 

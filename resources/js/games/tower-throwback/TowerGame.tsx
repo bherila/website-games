@@ -252,7 +252,7 @@ export function TowerGame(): ReactElement {
     sceneControllerRef.current?.setReducedMotion(presentation.motionReduced)
   }, [presentation.motionReduced])
 
-  const { playEvents, muted, toggleMute, level, setLevel } = useGameSounds(snapshot)
+  const { playEvents, muted, toggleMute, level, setLevel } = useGameSounds(engineState ? snapshot : null)
   const playEventsRef = useRef(playEvents)
 
   useEffect(() => {
