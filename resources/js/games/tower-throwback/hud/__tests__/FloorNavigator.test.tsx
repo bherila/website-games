@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 
 import { injectUnit, makeTestState, placeShaft, placeSlabRow } from '../../engine/__tests__/testState'
+import { CITY_TOWER, NIAGARA_FALLS } from '../../engine/maps'
 import { FLOOR_MAX, FLOOR_MIN } from '../../gameTypes'
 import { floorAtStripPosition, FloorNavigator, floorRangeForState, floorStripPercent } from '../FloorNavigator'
 
@@ -53,10 +54,11 @@ describe('FloorNavigator', () => {
     expect(onGoToFloor).toHaveBeenCalledWith(floorAtStripPosition(100, 200))
   })
 
-  it('supports keyboard floor navigation and displays incident markers', () => {
+  it.each([CITY_TOWER, NIAGARA_FALLS])('supports numeric keyboard navigation on $name and displays incident markers', (map) => {
     const onGoToFloor = jest.fn()
     render(
       <FloorNavigator
+        floorRange={map.floorRange}
         incidents={[{ floor: 7, kind: 'bomb' }, { floor: -2, kind: 'fire' }]}
         occupied={{ minFloor: -2, maxFloor: 20 }}
         viewport={{ centerFloor: 7, minFloor: 4, maxFloor: 10 }}
@@ -66,6 +68,7 @@ describe('FloorNavigator', () => {
 
     const slider = screen.getByRole('slider', { name: 'Tower floor navigator' })
     expect(slider).toHaveAttribute('aria-valuenow', '7')
+    expect(slider).toHaveAttribute('aria-orientation', 'vertical')
     expect(screen.getByTestId('incident-floor-marker-bomb-7')).toBeInTheDocument()
     expect(screen.getByTestId('incident-floor-marker-fire--2')).toBeInTheDocument()
 
@@ -73,6 +76,6 @@ describe('FloorNavigator', () => {
     fireEvent.keyDown(slider, { key: 'PageDown' })
     fireEvent.keyDown(slider, { key: 'Home' })
     fireEvent.keyDown(slider, { key: 'End' })
-    expect(onGoToFloor.mock.calls).toEqual([[8], [-3], [FLOOR_MAX], [FLOOR_MIN]])
+    expect(onGoToFloor.mock.calls).toEqual([[8], [-3], [map.floorRange.min], [map.floorRange.max]])
   })
 })
