@@ -218,3 +218,17 @@ it('keeps a successful partial snapshot pending until queued changes reach a lat
   expect(save).toHaveBeenCalledTimes(1)
   expect(api().health).toEqual({ status: 'saved', lastSavedAt: clock, error: null })
 })
+
+
+it('resets old health and deadlines without flushing the discarded run', () => {
+  const save = jest.fn(ok)
+  const view = render(<Harness save={save} />)
+  act(() => api().recordResult({ ok: true }))
+  act(() => api().recordResult({ ok: false, error: 'Full', conflict: false }))
+  act(() => api().markDirty())
+  act(() => api().reset())
+  expect(api().health).toEqual({ status: 'idle', lastSavedAt: null, error: null })
+  advance(AUTOSAVE_MAX_UNSAVED_MS * 2)
+  view.unmount()
+  expect(save).not.toHaveBeenCalled()
+})

@@ -282,6 +282,7 @@ export function TowerGame(): ReactElement {
   }, [topHudVisible])
 
   const markDirtyRef = useRef<() => void>(() => {})
+  const resetAutosaveRef = useRef<() => void>(() => {})
 
   const enqueue = useCallback((cmd: EngineCommand) => {
     commandQueueRef.current.push(cmd)
@@ -400,21 +401,39 @@ export function TowerGame(): ReactElement {
     })()
   }, [cloud, mirrorToCloud])
 
-  const leaveGameForSlotConflict = useCallback((slotId: SandboxSlotId) => {
-    setEngineState(null)
-    setRunId((id) => id + 1)
-    setActiveSlotId(slotId)
+  // These refs keep transition callbacks stable: changing the conflict callback
+  // would also retrigger the unmount-save effect below.
+  const resetRunUi = useCallback(() => {
+    commandQueueRef.current = []
+    resetAutosaveRef.current()
+    setSnapshot(null)
+    setToasts([])
+    setToastHistory([])
+    setExportText('')
+    setShowTowerCard(false)
+    setShowFinancials(false)
+    setShowInventory(false)
+    setShowShortcutHelp(false)
+    setShowToastHistory(false)
+    setShowMore(false)
     setSelection(null)
     setOverlaySample(null)
     selectTool(null)
     setMode('run')
+  }, [selectTool])
+
+  const leaveGameForSlotConflict = useCallback((slotId: SandboxSlotId) => {
+    resetRunUi()
+    setEngineState(null)
+    setRunId((id) => id + 1)
+    setActiveSlotId(slotId)
     setShowSaveLoad(false)
     refreshSlots()
     setSaveMessage({
       kind: 'error',
       text: `${slotLabel(slotId)} was opened in another tab, so this tab stopped autosaving to avoid overwriting newer progress.`,
     })
-  }, [refreshSlots, selectTool])
+  }, [refreshSlots, resetRunUi])
 
   /**
    * The dirty-autosave write. Shares the ownership gate with every other save
@@ -458,6 +477,7 @@ export function TowerGame(): ReactElement {
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
       return
     }
+    resetRunUi()
     recordMilestone('started')
     mirrorToCloud('autosave')
     setSaveMessage(null)
@@ -465,11 +485,7 @@ export function TowerGame(): ReactElement {
     refreshSlots()
     setEngineState(state)
     setRunId((id) => id + 1)
-    setSelection(null)
-    setOverlaySample(null)
-    selectTool(null)
-    setMode('run')
-  }, [mirrorToCloud, refreshSlots, refusePendingRestore, selectTool])
+  }, [mirrorToCloud, refreshSlots, refusePendingRestore, resetRunUi])
 
   const resumeGame = useCallback((slotId: SandboxSlotId) => {
     if (refusePendingRestore(slotId)) {
@@ -477,17 +493,18 @@ export function TowerGame(): ReactElement {
     }
     const saved = loadSandbox(slotId)
     if (saved) {
-      claimSandboxSlot(slotId, sandboxSessionIdRef.current)
+      const claim = claimSandboxSlot(slotId, sandboxSessionIdRef.current)
+      if (!claim.ok) {
+        setSaveMessage({ kind: 'error', text: storageFailureMessage(claim.reason) })
+        return
+      }
       cloud.openSlot(slotId)
+      resetRunUi()
       setEngineState(restoreSandbox(saved))
       setRunId((id) => id + 1)
       setActiveSlotId(slotId)
-      setSelection(null)
-      setOverlaySample(null)
-      selectTool(null)
-      setMode('run')
     }
-  }, [cloud, refusePendingRestore, selectTool])
+  }, [cloud, refusePendingRestore, resetRunUi])
 
   const onSnapshot = useCallback((snap: HudSnapshot) => setSnapshot(snap), [])
 
@@ -588,18 +605,19 @@ export function TowerGame(): ReactElement {
       return
     }
 
-    claimSandboxSlot(slotId, sandboxSessionIdRef.current)
+    const claim = claimSandboxSlot(slotId, sandboxSessionIdRef.current)
+    if (!claim.ok) {
+      setSaveMessage({ kind: 'error', text: storageFailureMessage(claim.reason) })
+      return
+    }
     cloud.openSlot(slotId)
+    resetRunUi()
     setEngineState(restoreSandbox(saved))
     setRunId((id) => id + 1)
     setActiveSlotId(slotId)
-    setSelection(null)
-    setOverlaySample(null)
-    selectTool(null)
-    setMode('run')
     setShowSaveLoad(false)
     setSaveMessage({ kind: 'success', text: `Loaded ${slotLabel(slotId)}.` })
-  }, [cloud, refusePendingRestore, selectTool])
+  }, [cloud, refusePendingRestore, resetRunUi])
 
   const exportSlot = useCallback((slotId: SandboxSlotId) => {
     const saved = loadSandbox(slotId)
@@ -657,7 +675,8 @@ export function TowerGame(): ReactElement {
 
   useEffect(() => {
     markDirtyRef.current = autosave.markDirty
-  }, [autosave.markDirty])
+    resetAutosaveRef.current = autosave.reset
+  }, [autosave.markDirty, autosave.reset])
 
   // Drives only the "saved 30s ago" relative time. Kept off the render path's
   // clock so the readout does not re-render the HUD every frame.
