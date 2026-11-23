@@ -63,6 +63,7 @@ class AccountDeletionTest extends TestCase
             'auth_audit_log' => 'kept, user nulled',
             'email_change_requests' => 'cascades',
             'mandarin_practice_events' => 'cascades',
+            'provider_remembered_logins' => 'deleted by AccountDeletion',
             'sessions' => 'deleted by AccountDeletion',
             'tower_save_slots' => 'deleted by AccountDeletion',
             'user_game_data' => 'deleted by AccountDeletion',

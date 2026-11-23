@@ -138,6 +138,11 @@ addresses: only this application's confirmation link makes an email a key. Once 
 subject finds the account even if either address later changes. Links are audited as
 `sign_in_method_linked`.
 
+With provider identity enforcement on, a Google sign-in of an account bound to bherila ID is
+checked with bherila ID first, and its session ends when that identity does; Google-only accounts
+are unaffected. See [docs/provider-identity.md](docs/provider-identity.md), which also lists
+every credential path and the cutover steps.
+
 Administering needs more than the flag: the `administer` gate also requires that the session
 signed in through the identity provider. A Google session, or one restored from the
 remember-me cookie, is sent through the identity provider first (`identity-provider-session`

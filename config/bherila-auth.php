@@ -44,6 +44,17 @@ return [
         'receipt_connection' => env('GAMES_DELEGATED_ACCESS_RECEIPT_CONNECTION', env('GAMES_DELEGATED_ACCESS_NONCE_CONNECTION')),
     ],
 
+    // Provider identity (lifecycle) enforcement: a session whose identity the provider has since
+    // disabled, deleted, reset or ungranted is signed out. Off until
+    // BHERILA_AUTH_PROVIDER_IDENTITY_ENABLED=true; once the cutover is recorded it stays on
+    // whatever that says. Covers identity-provider, Google and remember-me sessions alike:
+    // docs/provider-identity.md. Package defaults fill in every key not named here.
+    'provider_identity' => [
+        // Signed-out players land on the sign-in page, which offers both sign-in methods.
+        'expired_redirect_route' => 'login',
+        'except_routes' => ['logout'],
+    ],
+
     // Account rules for sign-in through the identity provider: no verified email at creation,
     // and a confirmed address is kept at sign-in. See App\Auth\OAuthAccounts.
     'oauth_login' => [

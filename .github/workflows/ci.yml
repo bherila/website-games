@@ -343,7 +343,12 @@ jobs:
           verification-script: scripts/deploy/verify-production.sh
           # Strict execution reports incomplete imports only after writing valid rows.
           # Preflight without writes before allowing shared production data changes.
+          # The provider identity cutover check runs first, on the configuration just cached at the
+          # stable path while maintenance holds: a recorded cutover the configuration disagrees with
+          # (enforcement off, or the provider client incomplete) fails the deploy instead of serving
+          # every signed-in request a 503. Passes while no cutover is recorded. docs/provider-identity.md
           artisan-commands: |
+            bherila-auth:provider-identity-cutover check
             mandarin:course:import resources/data/mandarin/foundations.v1.json --stage
             mandarin:course:import --stage
             mandarin:audio:import resources/data/mandarin/audio-manifest.json --dry-run --verify-objects --strict --require-configured-course

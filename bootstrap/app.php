@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\RenewRememberCookie;
 use App\Http\Middleware\RequireIdentityProviderSession;
+use BWH\Auth\Http\Middleware\RequireActiveProviderSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,7 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->authenticateSessions();
-        $middleware->web(append: [RenewRememberCookie::class]);
+        // Provider identity enforcement on every web request, so no signed-in route can miss it;
+        // a pass-through for guests, unbound (Google-only) accounts, and until enforcement is on.
+        // See docs/provider-identity.md.
+        $middleware->web(append: [RenewRememberCookie::class, RequireActiveProviderSession::class]);
         $middleware->alias(['identity-provider-session' => RequireIdentityProviderSession::class]);
         $middleware->validateCsrfTokens(except: ['__e2e/login']);
         // The theme cookie is written by client JS (shared across *.bherila.net),

@@ -6,6 +6,7 @@ use App\Models\TowerSaveSlot;
 use App\Models\User;
 use App\Models\UserGameData;
 use App\Services\Admin\AccessAudit;
+use BWH\Auth\OAuth\Session\RememberedProviderLogins;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -39,6 +40,7 @@ final class AccountDeletion
             TowerSaveSlot::query()->where('user_id', $user->getKey())->delete();
             DB::table('personal_access_tokens')->where('tokenable_type', $user->getMorphClass())->where('tokenable_id', $user->getKey())->delete();
             DB::table(config('session.table', 'sessions'))->where('user_id', $user->getKey())->delete();
+            app(RememberedProviderLogins::class)->forgetUser((string) $user->getKey());
             $user->delete();
         });
     }
