@@ -11,11 +11,13 @@ use BWH\Auth\OAuth\Session\ProviderIdentityStatusClient;
 use BWH\Auth\OAuth\Session\RememberedProviderLogins;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as GoogleUser;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -90,7 +92,7 @@ final class ProviderIdentityTest extends TestCase
         ]]);
     }
 
-    private function googleSignIn(User $user): \Illuminate\Testing\TestResponse
+    private function googleSignIn(User $user): TestResponse
     {
         $user->identities()->create(['provider' => UserIdentity::GOOGLE, 'subject' => 'google-'.$user->getKey(), 'email' => $user->email]);
         Socialite::fake('google', (new GoogleUser)
@@ -227,9 +229,9 @@ final class ProviderIdentityTest extends TestCase
     public function test_every_signed_in_route_runs_in_the_web_group_and_so_is_enforced(): void
     {
         $outside = collect(app('router')->getRoutes()->getRoutes())
-            ->filter(fn (\Illuminate\Routing\Route $route): bool => in_array('auth', $route->gatherMiddleware(), true)
+            ->filter(fn (Route $route): bool => in_array('auth', $route->gatherMiddleware(), true)
                 && ! in_array('web', $route->gatherMiddleware(), true))
-            ->map(fn (\Illuminate\Routing\Route $route): string => $route->uri())
+            ->map(fn (Route $route): string => $route->uri())
             ->values()->all();
 
         $this->assertSame([], $outside, 'RequireActiveProviderSession is appended to the web group (bootstrap/app.php).');
