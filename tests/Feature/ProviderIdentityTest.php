@@ -70,11 +70,27 @@ final class ProviderIdentityTest extends TestCase
         return $user;
     }
 
-    /** The provider answers for every subject: active at $generation, or ended. */
+    private bool $providerActive = true;
+
+    private int $providerGeneration = 3;
+
+    private bool $providerFaked = false;
+
+    /**
+     * The provider answers for every subject: active at $generation, or ended. Faked once and
+     * read on each request, because a later Http::fake() only appends a stub the first one
+     * still shadows.
+     */
     private function provider(bool $active = true, int $generation = 3): void
     {
-        Http::fake([self::STATUS_URL => fn (Request $request) => Http::response($active
-            ? ['contract_version' => 1, 'active' => true, 'subject' => $request['subject'], 'credential_version' => $generation]
+        $this->providerActive = $active;
+        $this->providerGeneration = $generation;
+        if ($this->providerFaked) {
+            return;
+        }
+        $this->providerFaked = true;
+        Http::fake([self::STATUS_URL => fn (Request $request) => Http::response($this->providerActive
+            ? ['contract_version' => 1, 'active' => true, 'subject' => $request['subject'], 'credential_version' => $this->providerGeneration]
             : ['contract_version' => 1, 'active' => false])]);
     }
 
@@ -133,7 +149,8 @@ final class ProviderIdentityTest extends TestCase
     {
         $this->provider(active: false);
 
-        $this->actingAs(User::factory()->create())->get('/account')->assertOk();
+        // Fresh from the database, as a real request loads it: the binding columns are present.
+        $this->actingAs(User::factory()->create()->fresh())->get('/account')->assertOk();
         Http::assertNothingSent();
     }
 

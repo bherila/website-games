@@ -11,7 +11,7 @@ class RecallReleaseTest extends MandarinTestCase
     {
         config()->set('mandarin.course.source', resource_path('data/mandarin/foundations.v2.json'));
         $workflow = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
-        $this->assertSame(1, preg_match('/artisan-commands: \|\n((?: +mandarin:[^\n]+\n)+)/', $workflow, $matches));
+        $this->assertSame(1, preg_match('/artisan-commands: \|\n(?: +bherila-auth:[^\n]+\n)*((?: +mandarin:[^\n]+\n)+)/', $workflow, $matches));
         $commands = array_map('trim', explode("\n", trim($matches[1])));
         foreach ($commands as $command) {
             if (! str_starts_with($command, 'mandarin:course:import ')) {
