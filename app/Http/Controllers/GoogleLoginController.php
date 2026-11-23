@@ -2,9 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\Account\GoogleAccounts;
 use App\Services\Account\GoogleSignInRefused;
 use App\Services\Account\SignInMethod;
+use BWH\Auth\OAuth\Session\ProviderBindingResolver;
+use BWH\Auth\OAuth\Session\ProviderIdentityEnforcement;
+use BWH\Auth\OAuth\Session\ProviderObservation;
+use BWH\Auth\OAuth\Session\ProviderSession;
+use BWH\Auth\OAuth\Session\ProviderSessionExpired;
+use BWH\Auth\OAuth\Session\ProviderStatusUnavailable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -61,17 +68,58 @@ class GoogleLoginController extends Controller
             return redirect()->route('login')->with('error', $refusal->getMessage());
         }
 
+        // An account bound to the identity provider is held to it here too: an identity the
+        // provider has ended cannot come back through Google (docs/provider-identity.md).
+        try {
+            $observation = $this->observeProvider($user);
+        } catch (ProviderSessionExpired) {
+            return redirect()->route('login')->with('error', 'This account can no longer sign in. Sign in with bherila ID for details.');
+        } catch (ProviderStatusUnavailable) {
+            abort(503, 'Sign-in verification is unavailable. Please retry.', ['Retry-After' => '30', 'Cache-Control' => 'private, no-store']);
+        }
+
         // A new sign-in inherits nothing from whoever was signed in on this browser before, such
         // as the identity provider's list of their other applications; only the page to return
         // to is kept.
         $intended = $request->session()->pull('url.intended');
         $request->session()->invalidate();
+        $guard = Auth::guard();
+        $providerSession = app(ProviderSession::class);
+        if ($observation !== null) {
+            $providerSession->prepareRememberedLogin($request, $guard, $user,
+                $observation->provider, $observation->subject, $observation->generation);
+        }
         Auth::login($user, remember: true);
+        if ($observation !== null) {
+            $providerSession->establishObserved($request, $guard, $observation, (string) $user->name, (string) $user->email);
+        }
         SignInMethod::remember($request->session(), SignInMethod::GOOGLE);
         if (is_string($intended)) {
             $request->session()->put('url.intended', $intended);
         }
 
         return redirect()->intended('/');
+    }
+
+    /**
+     * The identity provider's current answer for a bound account, or null for a Google-only
+     * account. With enforcement off any failure returns null and the sign-in proceeds as before.
+     *
+     * @throws ProviderSessionExpired the identity has ended (enforcement on)
+     * @throws ProviderStatusUnavailable the provider cannot answer (enforcement on)
+     */
+    private function observeProvider(User $user): ?ProviderObservation
+    {
+        try {
+            $binding = app(ProviderBindingResolver::class)->binding($user);
+        } catch (ProviderSessionExpired $broken) {
+            if (app(ProviderIdentityEnforcement::class)->enabled()) {
+                throw $broken;
+            }
+
+            return null;
+        }
+
+        return $binding === null ? null : app(ProviderSession::class)->observe($binding);
     }
 }

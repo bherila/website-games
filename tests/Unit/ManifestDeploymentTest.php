@@ -65,12 +65,22 @@ class ManifestDeploymentTest extends TestCase
 
         self::assertIsString($workflow);
         self::assertMatchesRegularExpression(
-            '/artisan-commands: \|\s+mandarin:course:import resources\/data\/mandarin\/foundations\.v1\.json --stage\s+'
+            '/artisan-commands: \|\s+bherila-auth:provider-identity-cutover check\s+mandarin:course:import resources\/data\/mandarin\/foundations\.v1\.json --stage\s+'
             .'mandarin:course:import --stage\s+'
             .'mandarin:audio:import resources\/data\/mandarin\/audio-manifest\.json --dry-run --verify-objects --strict --require-configured-course\s+'
             .'mandarin:audio:import resources\/data\/mandarin\/audio-manifest\.json --execute --verify-objects --strict --require-configured-course/',
             $workflow,
         );
+    }
+
+    public function test_the_provider_identity_cutover_check_runs_on_every_deploy_before_go_live(): void
+    {
+        $workflow = file_get_contents(dirname(__DIR__, 2).'/.github/workflows/ci.yml');
+
+        self::assertIsString($workflow);
+        // First of the artisan commands, which the shared action runs at the stable path while
+        // maintenance still holds, so a drifted configuration fails the deploy before `up`.
+        self::assertMatchesRegularExpression('/artisan-commands: \|\s+bherila-auth:provider-identity-cutover check\n/', $workflow);
     }
 
     public function test_static_web_server_assigns_the_standard_manifest_mime_type(): void
