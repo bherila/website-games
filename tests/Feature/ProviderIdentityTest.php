@@ -78,21 +78,24 @@ final class ProviderIdentityTest extends TestCase
 
     private bool $providerFaked = false;
 
+    private ?int $providerEpoch = null;
+
     /**
      * The provider answers for every subject: active at $generation, or ended. Faked once and
      * read on each request, because a later Http::fake() only appends a stub the first one
      * still shadows.
      */
-    private function provider(bool $active = true, int $generation = 3): void
+    private function provider(bool $active = true, int $generation = 3, ?int $epoch = null): void
     {
         $this->providerActive = $active;
         $this->providerGeneration = $generation;
+        $this->providerEpoch = $epoch;
         if ($this->providerFaked) {
             return;
         }
         $this->providerFaked = true;
         Http::fake([self::STATUS_URL => fn (Request $request) => Http::response($this->providerActive
-            ? ['contract_version' => 1, 'active' => true, 'subject' => $request['subject'], 'credential_version' => $this->providerGeneration]
+            ? ['contract_version' => 1, 'active' => true, 'subject' => $request['subject'], 'credential_version' => $this->providerGeneration, ...($this->providerEpoch === null ? [] : ['recovery_epoch' => $this->providerEpoch])]
             : ['contract_version' => 1, 'active' => false])]);
     }
 
@@ -182,6 +185,48 @@ final class ProviderIdentityTest extends TestCase
         $this->travel(5)->minutes();
         $this->get('/account')->assertRedirect(route('login'));
         $this->assertGuest();
+    }
+
+    public function test_google_reuses_a_remember_token_only_under_the_same_observed_recovery_epoch(): void
+    {
+        $this->provider(epoch: 7);
+        $user = $this->bound();
+        $this->googleSignIn($user)->assertRedirect('/');
+        $token = $user->refresh()->getRememberToken();
+        $this->assertNotEmpty($token);
+        $this->assertSame(7, session('bherila_auth.provider_session.epoch'));
+        $this->assertSame(7, (int) DB::table(RememberedProviderLogins::TABLE)->where('user_id', (string) $user->id)->value('epoch'));
+        $this->newBrowser();
+
+        // Google authenticates the same account again, under the same provider epoch.
+        $this->get('/oauth/google/callback')->assertRedirect('/');
+
+        $this->assertSame($token, $user->refresh()->getRememberToken(), 'An unchanged observed baseline must not replace every other device\'s remember cookie.');
+    }
+
+    public function test_google_rotates_an_old_epochless_cookie_when_the_provider_starts_reporting_an_epoch(): void
+    {
+        $this->provider();
+        $user = $this->bound();
+        $cookieName = Auth::guard()->getRecallerName();
+        $oldCookie = $this->googleSignIn($user)->getCookie($cookieName);
+        $this->assertNotNull($oldCookie);
+        $oldToken = $user->refresh()->getRememberToken();
+        $this->newBrowser();
+
+        // Generation is unchanged. Only the newly observed recovery epoch differs.
+        $this->provider(epoch: 7);
+        $newCookie = $this->get('/oauth/google/callback')->assertRedirect('/')->getCookie($cookieName);
+        $this->assertNotNull($newCookie);
+        $this->assertNotSame($oldToken, $user->refresh()->getRememberToken(), 'An epochless cookie must never adopt a new epoch.');
+        $this->assertSame(7, (int) DB::table(RememberedProviderLogins::TABLE)->where('user_id', (string) $user->id)->value('epoch'));
+        $this->newBrowser();
+
+        $this->withCookie($cookieName, $oldCookie->getValue())->get('/account')->assertRedirect(route('login'));
+        $this->assertGuest();
+        $this->newBrowser();
+        $this->withCookie($cookieName, $newCookie->getValue())->get('/account')->assertOk();
+        $this->assertAuthenticatedAs($user);
     }
 
     public function test_google_cannot_bring_back_an_identity_the_provider_has_ended(): void
