@@ -177,7 +177,8 @@ class TowerSaveController extends Controller
 
     private function revisionFailure(TowerSaveSlotRouteRequest $request, ?TowerSaveSlot $slot): ?JsonResponse
     {
-        if ($request->input('expected_revision') !== ($slot?->content_revision ?? 'absent')) {
+        $currentRevision = $slot === null ? 'absent' : $slot->content_revision;
+        if ($request->input('expected_revision') !== $currentRevision) {
             $empty = new TowerSaveSlot(['slot' => $request->slotKey(), 'content_revision' => 'absent']);
 
             return response()->json(['message' => 'The cloud copy changed. Review it before replacing or deleting it.', 'data' => $this->metadata($slot ?? $empty)], 412);
