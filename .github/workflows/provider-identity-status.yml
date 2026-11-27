@@ -9,15 +9,18 @@ permissions:
 jobs:
   status:
     name: Read production provider identity status
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     environment: prod
-    # Wait for deployment to finish; never inspect a partly activated stable directory.
+    # Keep diagnostics independent: joining deployment concurrency can replace a pending deploy.
     concurrency:
-      group: website-games-production
+      group: website-games-provider-identity-status
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main
       - name: Inspect deployed configuration without changing it
         shell: bash
         env:
