@@ -88,7 +88,7 @@ class GoogleLoginController extends Controller
         $providerSession = app(ProviderSession::class);
         if ($observation !== null) {
             $providerSession->prepareRememberedLogin($request, $guard, $user,
-                $observation->provider, $observation->subject, $observation->generation);
+                $observation->provider, $observation->subject, $observation->generation, $observation->epoch);
         }
         Auth::login($user, remember: true);
         if ($observation !== null) {
