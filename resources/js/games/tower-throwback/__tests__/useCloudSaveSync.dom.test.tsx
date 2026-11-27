@@ -826,7 +826,7 @@ it('preserves a PUT conflict while discovering a first backup written by the new
 function signedInAccount(id = 'fixture-account'): void {
   const script = document.getElementById('app-initial-data') ?? document.createElement('script')
   script.id = 'app-initial-data'
-  script.type = 'application/json'
+  script.setAttribute('type', 'application/json')
   script.textContent = JSON.stringify({ authenticated: true, currentUser: { id } })
   document.body.append(script)
 }
@@ -950,6 +950,21 @@ it('requires a choice when A returns after B replaced the shared browser tower',
   // A normal autosave stamps A's browser ownership, but it is a new incarnation of B's tower.
   saveSandbox(createEngineState({ seed: 77, mapId: 'city-tower', lobbyHeight: 1 }), 'slot-a')
   await act(async () => { api().pushSlot('slot-a', loadSandbox('slot-a')!) })
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+  expect(api().slots['slot-a'].status).toBe('changed')
+  expect(loadSandbox('slot-a')?.seed).toBe(77)
+})
+
+it('does not mirror a different account incarnation that replaced the local bytes during acquisition', async () => {
+  signedInAccount('account-a')
+  const saved = savedSandbox()
+  await renderSync()
+  const lease = deferredResult<cloudSync.CloudLeaseResult>()
+  mocked.acquireLease.mockImplementationOnce(() => lease.promise)
+  await act(async () => { api().pushSlot('slot-a', saved) })
+  signedInAccount('account-b')
+  saveSandbox(createEngineState({ seed: 77, mapId: 'city-tower', lobbyHeight: 1 }), 'slot-a')
+  await act(async () => { lease.resolve({ ok: true, token: 'ours', meta: slotMeta() }) })
   expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
   expect(api().slots['slot-a'].status).toBe('changed')
   expect(loadSandbox('slot-a')?.seed).toBe(77)

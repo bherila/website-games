@@ -95,7 +95,7 @@ export type CloudDeletionStatus = 'idle' | 'pending' | 'failed' | 'deleted'
 export interface CloudSlotView {
   /** Cloud deletion is independent of the local mirror payload. */
   canClear?: boolean
-  revision?: string
+  revision?: string | undefined
   deletion: CloudDeletionStatus
   /** Point-in-time comparison after a lost acknowledgement; not a write fence. */
   matchedAt: number | null

@@ -57,10 +57,10 @@ export interface CloudSaveSync {
  */
 type PushOutcome =
   | { kind: 'upgrade' | 'idle' | 'pushing' | 'failed' | 'tooLarge' | 'unverified' | 'different'; digest: string }
-  | { kind: 'observed'; revision?: string; digest: string; cloudUpdatedAt: string | null; observedAt: number }
+  | { kind: 'observed'; revision?: string | undefined; digest: string; cloudUpdatedAt: string | null; observedAt: number }
   | {
       kind: 'pushed'
-      revision?: string
+      revision?: string | undefined
       digest: string
       /** Server revision proven equal to `digest` by a successful push/restore. */
       cloudUpdatedAt: string | null
@@ -398,7 +398,14 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       if (!mountedRef.current) return
       if (expectedRevision !== undefined) { revisionsRef.current[slot] = expectedRevision; clearChanged(slot) }
       else if (changedRef.current.has(slot)) return
-      const current = (): SavedSandbox | null => isSandboxSlotOwnedByAnotherTab(slot, tabSessionId) ? null : loadSandbox(slot)
+      const current = (): SavedSandbox | null => {
+        if (isSandboxSlotOwnedByAnotherTab(slot, tabSessionId)) return null
+        if (revisionsRef.current[slot] && incarnationsRef.current[slot] !== localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null)) {
+          markChanged(slot)
+          return null
+        }
+        return loadSandbox(slot)
+      }
       if (readOnlyRef.current.has(slot)) {
         if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
         reconcile(slot)
@@ -411,6 +418,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
           reconcile(slot)
           return
         }
+        const initialIncarnation = localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null)
         const initialJson = JSON.stringify(initial)
         if (intent === intentRef.current[slot]) setLocal((prev) => ({ ...prev, [slot]: saveDigest(initialJson) }))
         const initialEnvelope = encodeCloudPayload(initialJson)
@@ -434,20 +442,20 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
             const remote = decoded === null ? null : migrateSandboxPayload(decoded)
             if (!cloud || !remote) { setOutcome(slot, { kind: 'unverified', digest: requestedDigest }); return }
             applyMeta(slot, cloud.meta)
-            if (JSON.stringify(remote) !== initialJson) { markChanged(slot); return }
+            if (JSON.stringify(remote) !== initialJson || localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null) !== initialIncarnation) { markChanged(slot); return }
             rememberRevision(slot, cloud.meta.content_revision)
           }
         }
         const expected = revisionsRef.current[slot]!
         const token = await ensureLease(slot)
         if (!mountedRef.current) return
-        if (expected === 'absent' && metaRef.current[slot]?.saved === false && !metaRef.current[slot]?.deleted) rememberRevision(slot, metaRef.current[slot]!.content_revision)
         const payload = current()
         if (!payload) {
           if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
           reconcile(slot)
           return
         }
+        if (expected === 'absent' && metaRef.current[slot]?.saved === false && !metaRef.current[slot]?.deleted) rememberRevision(slot, metaRef.current[slot]!.content_revision)
         const serialized = JSON.stringify(payload)
         const digest = saveDigest(serialized)
         if (intent === intentRef.current[slot]) setLocal((prev) => ({ ...prev, [slot]: digest }))
