@@ -49,9 +49,13 @@ outage. A signed-out browser is sent to `/login`, which offers both sign-in meth
 
 1. Set `BHERILA_AUTH_PROVIDER_IDENTITY_ENABLED=true` in the server environment and deploy (or
    rebuild the config cache).
-2. Verify with a test account: disable it at the provider and check that its session here ends
-   on the next request, through bherila ID, through Google and from a remember-me cookie alike.
-   Then re-enable it.
+2. Before disabling an isolated test account, establish separate sessions through bherila ID,
+   bound Google and a remember-me cookie. Disable it at the provider. Safe GET requests may use
+   a shared observation for up to five minutes, including remembered sessions; wait beyond that
+   cache lifetime before verifying each session ends. Alternatively use a harmless authenticated
+   unsafe-method request on the isolated account, which forces a fresh status check. Do not use
+   logout as proof: it is deliberately exempt. Re-enable the test account afterward.
+   Confirm Google cannot establish a new session while the identity is disabled.
 3. Record the cutover once on the production host:
 
    ```bash
@@ -73,3 +77,6 @@ package's withdrawal steps; never just turn the setting off.
 absorbed account through the same path. The kept account's rows survive. If the merge moves a
 bherila ID binding onto the kept account, its recorded baselines no longer match, and its
 remember-me cookies sign in again once.
+
+A refused first Google sign-in or a provider outage rolls back any new Google link and its
+audit record together. A successful verification commits the link before issuing the session.

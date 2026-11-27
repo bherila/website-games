@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Http\Controllers\GoogleLoginController;
 use App\Models\User;
 use App\Models\UserIdentity;
+use App\Services\Admin\AccessAudit;
 use BWH\Auth\Http\Middleware\RequireActiveProviderSession;
+use BWH\Auth\Models\AuthAuditLog;
 use BWH\Auth\OAuth\Session\ProviderIdentityEnforcement;
 use BWH\Auth\OAuth\Session\ProviderIdentityStatusClient;
 use BWH\Auth\OAuth\Session\RememberedProviderLogins;
@@ -196,6 +198,31 @@ final class ProviderIdentityTest extends TestCase
 
         $this->googleSignIn($this->bound())->assertStatus(503);
         $this->assertGuest();
+    }
+
+    public function test_refused_first_google_sign_in_leaves_no_link_or_link_audit(): void
+    {
+        $this->provider(active: false);
+        $this->assertFirstLinkIsNotCommitted(302);
+    }
+
+    public function test_first_google_sign_in_during_provider_outage_leaves_no_link_or_link_audit(): void
+    {
+        Http::fake([self::STATUS_URL => Http::response('', 503)]);
+        $this->assertFirstLinkIsNotCommitted(503);
+    }
+
+    private function assertFirstLinkIsNotCommitted(int $status): void
+    {
+        $user = $this->bound();
+        Socialite::fake('google', (new GoogleUser)
+            ->setRaw(['sub' => 'new-google-subject', 'email' => $user->email, 'email_verified' => true, 'name' => 'Player'])
+            ->map(['id' => 'new-google-subject', 'email' => $user->email, 'name' => 'Player']));
+
+        $this->get('/oauth/google/callback')->assertStatus($status);
+        $this->assertGuest();
+        $this->assertDatabaseMissing('user_identities', ['provider' => UserIdentity::GOOGLE, 'subject' => 'new-google-subject']);
+        $this->assertSame(0, AuthAuditLog::query()->where('event', AccessAudit::SIGN_IN_LINKED)->count());
     }
 
     public function test_with_enforcement_off_google_sign_in_proceeds_whatever_the_provider_says(): void

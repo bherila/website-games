@@ -15,6 +15,7 @@ use BWH\Auth\OAuth\Session\ProviderStatusUnavailable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\InvalidStateException;
 use Laravel\Socialite\Two\User as GoogleUser;
@@ -58,20 +59,20 @@ class GoogleLoginController extends Controller
         }
 
         try {
-            $user = $accounts->resolve(
-                (string) $google->getId(),
-                $google->getEmail(),
-                ($google->getRaw()['email_verified'] ?? false) === true,
-                $google->getName(),
-            );
+            // A first-time Google link and its audit record commit only after provider
+            // verification succeeds. A refusal or outage must not leave a new sign-in method.
+            [$user, $observation] = DB::transaction(function () use ($accounts, $google): array {
+                $user = $accounts->resolve(
+                    (string) $google->getId(),
+                    $google->getEmail(),
+                    ($google->getRaw()['email_verified'] ?? false) === true,
+                    $google->getName(),
+                );
+
+                return [$user, $this->observeProvider($user)];
+            });
         } catch (GoogleSignInRefused $refusal) {
             return redirect()->route('login')->with('error', $refusal->getMessage());
-        }
-
-        // An account bound to the identity provider is held to it here too: an identity the
-        // provider has ended cannot come back through Google (docs/provider-identity.md).
-        try {
-            $observation = $this->observeProvider($user);
         } catch (ProviderSessionExpired) {
             return redirect()->route('login')->with('error', 'This account can no longer sign in. Sign in with bherila ID for details.');
         } catch (ProviderStatusUnavailable) {
