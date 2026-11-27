@@ -179,6 +179,9 @@ test.describe('Tower Throwback real player journey', () => {
     await openTowerAction(page, 'Saves', activate)
     await activate(page.getByTestId('save-slot-a'))
     await activate(page.getByRole('button', { name: 'Overwrite save', exact: true }))
+    // This is a different local tower in the target slot; cloud replacement needs its own consent.
+    await activate(page.getByTestId('cloud-retry-slot-a'))
+    await activate(page.getByRole('button', { name: 'Replace cloud backup', exact: true }))
     await expect.poll(() => calls).toEqual(['push-start'])
     await activate(page.getByTestId('cloud-restore-slot-a'))
     await activate(page.getByRole('button', { name: 'Restore and replace', exact: true }))

@@ -10,7 +10,7 @@ import { readTowerSaveFile } from './importSaveFile'
 import { LocalSlotTakeover } from './LocalSlotTakeover'
 
 type PendingSaveAction =
-  | { type: 'replaceCloud'; slotId: SandboxSlotId; revision: string }
+  | { type: 'replaceCloud'; slotId: SandboxSlotId; revision: string; incarnation: string | null }
   | { type: 'save' | 'load' | 'clear' | 'restore'; slotId: SandboxSlotId; revision?: string }
   | { type: 'import'; slotId: SandboxSlotId; raw: string }
 
@@ -38,7 +38,7 @@ interface SaveLoadOverlayProps {
   onCloudRestore?: (slotId: SandboxSlotId, revision?: string) => void
   onTakeOver?: (slotId: SandboxSlotId) => void
   /** Re-attempt a failed or behind cloud mirror. */
-  onCloudRetry?: (slotId: SandboxSlotId, revision?: string) => void
+  onCloudRetry?: (slotId: SandboxSlotId, revision?: string, incarnation?: string | null) => void
   onCloudDeleteRetry?: (slotId: SandboxSlotId) => void
 }
 
@@ -329,7 +329,7 @@ export function SaveLoadOverlay({
   const executeAction = (action: PendingSaveAction): void => {
     switch (action.type) {
       case 'replaceCloud':
-        onCloudRetry?.(action.slotId, action.revision)
+        onCloudRetry?.(action.slotId, action.revision, action.incarnation)
         break
       case 'save':
         onSave(action.slotId)
@@ -513,7 +513,7 @@ export function SaveLoadOverlay({
                   onTakeOver={onTakeOver}
                   onCloudRetry={onCloudRetry ? (slotId, event) => {
                     const view = cloudSlots[slotId]
-                    if (view.status === 'changed' && view.revision) requestAction({ type: 'replaceCloud', slotId, revision: view.revision }, event)
+                    if (view.status === 'changed' && view.revision) requestAction({ type: 'replaceCloud', slotId, revision: view.revision, incarnation: view.localIncarnation ?? null }, event)
                     else onCloudRetry(slotId)
                   } : undefined}
                   onCloudDeleteRetry={onCloudDeleteRetry}

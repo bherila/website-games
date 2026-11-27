@@ -1006,3 +1006,24 @@ it('does not bless a replacement that arrives while an unknown initial empty clo
   expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
   expect(api().slots['slot-a'].status).toBe('changed')
 })
+
+it('keeps explicit replacement consent bound to its browser tower while waiting behind a slot operation', async () => {
+  const saved = savedSandbox()
+  await renderSync()
+  const lease = deferredResult<cloudSync.CloudLeaseResult>()
+  mocked.acquireLease.mockImplementationOnce(() => lease.promise)
+  await act(async () => { api().openSlot('slot-a'); api().retry('slot-a', slotMeta().content_revision) })
+  replaceLocal(saved, 77)
+  await act(async () => { lease.resolve({ ok: true, token: 'ours', meta: slotMeta() }) })
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+  expect(api().slots['slot-a'].status).toBe('changed')
+})
+
+it('refuses replacement if the browser incarnation changed while its confirmation was open', async () => {
+  const saved = savedSandbox()
+  await renderSync()
+  const consent = api().slots['slot-a'].localIncarnation
+  replaceLocal(saved, 77)
+  await act(async () => { api().retry('slot-a', slotMeta().content_revision, consent) })
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+})

@@ -228,7 +228,7 @@ it.each(['clear', 'restore', 'replace'] as const)('pins the displayed cloud revi
   fireEvent.click(screen.getByRole('button', { name: label }))
   if (kind === 'clear') expect(props.onClear).toHaveBeenCalledWith('slot-a', 'first-revision')
   else if (kind === 'restore') expect(props.onCloudRestore).toHaveBeenCalledWith('slot-a', 'first-revision')
-  else expect(props.onCloudRetry).toHaveBeenCalledWith('slot-a', 'first-revision')
+  else expect(props.onCloudRetry).toHaveBeenCalledWith('slot-a', 'first-revision', null)
 })
 
 it('allows a fresh Clear confirmation for a remote replacement after failed deletion', () => {

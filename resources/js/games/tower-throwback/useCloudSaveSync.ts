@@ -47,7 +47,7 @@ export interface CloudSaveSync {
   /** Re-fetch cloud slot metadata. */
   refresh: () => void
   /** Mirror the current local slot after a failure or remote change. */
-  retry: (slotId: SandboxSlotId, expectedRevision?: string) => void
+  retry: (slotId: SandboxSlotId, expectedRevision?: string, incarnation?: string | null) => void
 }
 
 /**
@@ -381,7 +381,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     })).catch(() => { /* the last uncertain status remains visible */ }).finally(() => verifyingRef.current.delete(slot))
   }, [applyMeta, clearChanged, markChanged, operation, queue, reconcile, rememberRevision, setOutcome, tabSessionId])
 
-  const pushSlot = useCallback((slot: SandboxSlotId, saved: SavedSandbox, expectedRevision?: string) => {
+  const pushSlot = useCallback((slot: SandboxSlotId, saved: SavedSandbox, expectedRevision?: string, confirmedIncarnation?: string | null) => {
     if (!enabled) return
     if (expectedRevision === undefined && revisionsRef.current[slot]
       && incarnationsRef.current[slot] !== localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null)) {
@@ -389,6 +389,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       return
     }
     if (expectedRevision === undefined && changedRef.current.has(slot)) return
+    const consentIncarnation = confirmedIncarnation === undefined ? localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null) : confirmedIncarnation
     const intent = nextIntent(slot)
     setDeletions((prev) => ({ ...prev, [slot]: 'idle' }))
     const requestedDigest = saveDigest(JSON.stringify(saved))
@@ -396,7 +397,12 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     setOutcome(slot, { kind: 'pushing', digest: requestedDigest })
     queue.push(slot, () => operation(slot, async () => {
       if (!mountedRef.current) return
-      if (expectedRevision !== undefined) { revisionsRef.current[slot] = expectedRevision; incarnationsRef.current[slot] = localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null); clearChanged(slot) }
+      if (expectedRevision !== undefined) {
+        if (localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null) !== consentIncarnation) { markChanged(slot); return }
+        revisionsRef.current[slot] = expectedRevision
+        incarnationsRef.current[slot] = consentIncarnation
+        clearChanged(slot)
+      }
       else if (changedRef.current.has(slot)) return
       let readIncarnation: string | null = null
       const current = (): SavedSandbox | null => {
@@ -514,9 +520,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     }))
   }, [applyMeta, clearChanged, enabled, ensureLease, markChanged, markConflict, markUncertain, nextIntent, operation, queue, reconcile, recordSuccessor, rememberRevision, setOutcome, tabSessionId, verify])
 
-  const retry = useCallback((slot: SandboxSlotId, expectedRevision?: string) => {
+  const retry = useCallback((slot: SandboxSlotId, expectedRevision?: string, incarnation?: string | null) => {
     const saved = loadSandbox(slot)
-    if (saved) pushSlot(slot, saved, expectedRevision)
+    if (saved) pushSlot(slot, saved, expectedRevision, incarnation)
   }, [pushSlot])
   const openSlot = useCallback((slot: SandboxSlotId) => {
     if (enabled) void queue.barrier(slot, () => operation(slot, async () => {
@@ -661,7 +667,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         : current?.kind === 'pushed' && current.revision === row?.content_revision ? 'synced' : 'stale'
       else status = hasCloud ? 'cloudAvailable' : 'localOnly'
       const deletion = hasLocal && deletions[slot] !== 'pending' ? 'idle' : deletions[slot] ?? 'idle'
-      views[slot] = { canClear: hasCloud || deletion === 'failed', revision: row?.content_revision ?? (phase === 'ready' ? 'absent' : undefined), deletion, status, conflict, cloudUpdatedAt: row?.updated_at ?? null,
+      views[slot] = { localIncarnation: localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null), canClear: hasCloud || deletion === 'failed', revision: row?.content_revision ?? (phase === 'ready' ? 'absent' : undefined), deletion, status, conflict, cloudUpdatedAt: row?.updated_at ?? null,
         matchedAt: current?.kind === 'observed' ? current.observedAt : null,
         canRestore: hasCloud && deletion === 'idle',
         canRetry: deletion === 'idle' && ['changed', 'failed', 'stale', 'unverified', 'different'].includes(status) }
