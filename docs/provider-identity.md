@@ -80,3 +80,13 @@ remember-me cookies sign in again once.
 
 A refused first Google sign-in or a provider outage rolls back any new Google link and its
 audit record together. A successful verification commits the link before issuing the session.
+
+## Read-only production status
+
+Run the **Provider Identity Status** workflow manually to inspect the deployed installation
+through the existing production deployment credentials. It rejects maintenance or a release change during inspection and
+prints only enforcement/cutover, client-configuration and cache-capability flags. It makes
+no configuration, account or cutover changes. A shared-capable cache driver is a prerequisite,
+not proof of the provider's endpoint grant or a successful real-session disable/reset canary.
+The workflow deliberately reports that the live canary remains unverified; follow the cutover
+procedure above before recording it.
