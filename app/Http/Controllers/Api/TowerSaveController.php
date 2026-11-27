@@ -11,6 +11,7 @@ use App\Models\TowerSaveSlot;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -54,90 +55,156 @@ class TowerSaveController extends Controller
         ]);
     }
 
-    /** PUT — lease-checked write of a save payload to a slot. */
+    /** PUT — a conditional content write, checked atomically with lease authority. */
     public function store(StoreTowerSaveRequest $request): JsonResponse
     {
-        $token = $request->leaseToken();
-        $slot = $this->user($request)
-            ->towerSaveSlots()
-            ->firstOrNew(['slot' => $request->slotKey()]);
-
-        if ($slot->leaseHeldByOther($token)) {
-            return $this->conflictResponse($slot);
+        if ($failure = $this->protocolFailure($request, conditional: true)) {
+            return $failure;
         }
 
-        $adoptingLease = $slot->lease_token !== $token || ! $slot->leaseActive();
+        return $this->locked($request, function (?TowerSaveSlot $slot) use ($request): JsonResponse {
+            if ($slot?->leaseHeldByOther($request->leaseToken())) {
+                return $this->conflictResponse($slot);
+            }
+            if ($failure = $this->revisionFailure($request, $slot)) {
+                return $failure;
+            }
+            $slot ??= new TowerSaveSlot(['user_id' => $this->user($request)->getKey(), 'slot' => $request->slotKey()]);
+            $adoptingLease = $slot->lease_token !== $request->leaseToken() || ! $slot->leaseActive();
+            $slot->fill([
+                'is_deleted' => false, 'payload' => $request->payload(), 'wire_version' => $request->wireVersion(),
+                ...$request->displayMetadata(), 'content_revision' => (string) Str::uuid(),
+                'lease_token' => $request->leaseToken(), 'lease_expires_at' => now()->addMinutes($this->leaseTtlMinutes()),
+            ]);
+            if ($adoptingLease || $slot->lease_acquired_at === null) {
+                $slot->lease_acquired_at = now();
+            }
+            $slot->save();
 
-        $slot->fill([
-            'payload' => $request->payload(),
-            'wire_version' => $request->wireVersion(),
-            ...$request->displayMetadata(),
-            'lease_token' => $token,
-            'lease_expires_at' => now()->addMinutes($this->leaseTtlMinutes()),
-        ]);
-        if ($adoptingLease || $slot->lease_acquired_at === null) {
-            $slot->lease_acquired_at = now();
-        }
-        $slot->save();
-
-        return response()->json(['data' => $this->metadata($slot, $token)]);
+            return response()->json(['data' => $this->metadata($slot, $request->leaseToken())]);
+        });
     }
 
-    /** POST — acquire a fresh lease, or take one over with `force`. */
     public function acquire(AcquireTowerLeaseRequest $request): JsonResponse
     {
-        $requestedToken = $request->leaseToken();
-        $slot = $this->user($request)
-            ->towerSaveSlots()
-            ->firstOrNew(['slot' => $request->slotKey()]);
-
-        if (! $request->forceTakeover() && $slot->leaseHeldByOther($requestedToken)) {
-            return $this->conflictResponse($slot);
+        if ($failure = $this->protocolFailure($request)) {
+            return $failure;
         }
 
-        $renewingOwnLease = $requestedToken !== null
-            && $slot->lease_token === $requestedToken
-            && $slot->leaseActive();
+        return $this->locked($request, function (?TowerSaveSlot $slot) use ($request): JsonResponse {
+            $requestedToken = $request->leaseToken();
+            if ($slot !== null && ! $request->forceTakeover() && $slot->leaseHeldByOther($requestedToken)) {
+                return $this->conflictResponse($slot);
+            }
+            $slot ??= new TowerSaveSlot(['user_id' => $this->user($request)->getKey(), 'slot' => $request->slotKey()]);
+            $renewing = $requestedToken !== null && $slot->lease_token === $requestedToken && $slot->leaseActive();
+            $token = $renewing ? $requestedToken : Str::random(48);
+            if (! $renewing) {
+                $slot->lease_acquired_at = now();
+            }
+            $slot->fill(['lease_token' => $token, 'lease_expires_at' => now()->addMinutes($this->leaseTtlMinutes())])->save();
 
-        $issuedToken = $renewingOwnLease ? $requestedToken : Str::random(48);
-        if (! $renewingOwnLease) {
-            $slot->lease_acquired_at = now();
-        }
-        $slot->lease_token = $issuedToken;
-        $slot->lease_expires_at = now()->addMinutes($this->leaseTtlMinutes());
-        $slot->save();
-
-        return response()->json(['data' => $this->metadata($slot, $issuedToken)]);
+            return response()->json(['data' => $this->metadata($slot, $token)]);
+        });
     }
 
-    /** DELETE — release a lease this client holds (idempotent). */
     public function release(ReleaseTowerLeaseRequest $request): JsonResponse
     {
-        $slot = $this->user($request)
-            ->towerSaveSlots()
-            ->where('slot', $request->slotKey())
-            ->first();
-
-        if ($slot !== null && $slot->lease_token === $request->leaseToken()) {
-            $slot->forceFill([
-                'lease_token' => null,
-                'lease_acquired_at' => null,
-                'lease_expires_at' => null,
-            ])->save();
+        if ($failure = $this->protocolFailure($request)) {
+            return $failure;
         }
 
-        return response()->json(status: 204);
+        return $this->locked($request, function (?TowerSaveSlot $slot) use ($request): JsonResponse {
+            if ($slot !== null && $slot->lease_token === $request->leaseToken()) {
+                $slot->forceFill(['lease_token' => null, 'lease_acquired_at' => null, 'lease_expires_at' => null])->save();
+            }
+
+            return response()->json(status: 204);
+        });
     }
 
-    /** DELETE — remove the whole slot (payload + lease). */
+    /** Owner-authorized deletion retains a tombstone; it does not require the other device's lease. */
     public function destroy(TowerSaveSlotRouteRequest $request): JsonResponse
     {
-        $this->user($request)
-            ->towerSaveSlots()
-            ->where('slot', $request->slotKey())
-            ->delete();
+        if ($failure = $this->protocolFailure($request, conditional: true)) {
+            return $failure;
+        }
 
-        return response()->json(status: 204);
+        return $this->locked($request, function (?TowerSaveSlot $slot) use ($request): JsonResponse {
+            if ($failure = $this->revisionFailure($request, $slot)) {
+                return $failure;
+            }
+            $slot ??= new TowerSaveSlot(['user_id' => $this->user($request)->getKey(), 'slot' => $request->slotKey()]);
+            $slot->forceFill([
+                'is_deleted' => true, 'payload' => null, 'wire_version' => null, 'game_day' => null, 'star' => null,
+                'population' => null, 'funds' => null, 'lease_token' => null,
+                'lease_acquired_at' => null, 'lease_expires_at' => null, 'content_revision' => (string) Str::uuid(),
+            ])->save();
+
+            return response()->json(status: 204);
+        });
+    }
+
+    /** Atomically advance the revision and return its snapshot, fencing earlier ambiguous PUTs. */
+    public function restore(TowerSaveSlotRouteRequest $request): JsonResponse
+    {
+        if ($failure = $this->protocolFailure($request, conditional: true)) {
+            return $failure;
+        }
+
+        return $this->locked($request, function (?TowerSaveSlot $slot) use ($request): JsonResponse {
+            if ($failure = $this->revisionFailure($request, $slot)) {
+                return $failure;
+            }
+            if ($slot === null || ! $slot->hasPayload()) {
+                return response()->json(['message' => 'No cloud save exists for this slot.'], 404);
+            }
+            // Reading/restoring a backup is not permission to take another device's lease.
+            $slot->forceFill(['content_revision' => (string) Str::uuid()])->save();
+
+            return response()->json(['data' => [...$this->metadata($slot), 'payload' => $slot->payload]]);
+        });
+    }
+
+    private function protocolFailure(TowerSaveSlotRouteRequest $request, bool $conditional = false): ?JsonResponse
+    {
+        if ($request->integer('sync_protocol') !== 2 || ($conditional && ! $request->filled('expected_revision'))) {
+            return response()->json(['message' => 'Your tower remains in this browser. Reload the game to update cloud saving.', 'sync_protocol' => 2], 428);
+        }
+
+        return null;
+    }
+
+    private function revisionFailure(TowerSaveSlotRouteRequest $request, ?TowerSaveSlot $slot): ?JsonResponse
+    {
+        $currentRevision = $slot === null ? 'absent' : $slot->content_revision;
+        if ($request->input('expected_revision') !== $currentRevision) {
+            $empty = new TowerSaveSlot(['slot' => $request->slotKey(), 'content_revision' => 'absent']);
+
+            return response()->json(['message' => 'The cloud copy changed. Review it before replacing or deleting it.', 'data' => $this->metadata($slot ?? $empty)], 412);
+        }
+
+        return null;
+    }
+
+    /**
+     * The durable parent row serializes first creation as well as existing slots. On SQLite
+     * an explicit no-op write obtains its write lock before any slot read (FOR UPDATE is ignored).
+     *
+     * @param  callable(?TowerSaveSlot): JsonResponse  $run
+     */
+    private function locked(TowerSaveSlotRouteRequest $request, callable $run): JsonResponse
+    {
+        return DB::transaction(function () use ($request, $run): JsonResponse {
+            $id = $this->user($request)->getKey();
+            if (DB::getDriverName() === 'sqlite') {
+                DB::table('users')->where('id', $id)->update(['id' => $id]);
+            }
+            User::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+            $slot = TowerSaveSlot::query()->where('user_id', $id)->where('slot', $request->slotKey())->lockForUpdate()->first();
+
+            return $run($slot);
+        }, attempts: 5);
     }
 
     /**
@@ -149,7 +216,9 @@ class TowerSaveController extends Controller
 
         $metadata = [
             'slot' => $slot->slot,
+            'content_revision' => $slot->content_revision,
             'saved' => $slot->hasPayload(),
+            'deleted' => (bool) $slot->is_deleted,
             'wire_version' => $slot->wire_version,
             'game_day' => $slot->game_day,
             'star' => $slot->star,

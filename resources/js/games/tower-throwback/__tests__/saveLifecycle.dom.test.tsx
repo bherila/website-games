@@ -210,7 +210,7 @@ it('supports inactive imports, failed imports, cancellation and clears without c
   fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
   expect(loadSandbox('slot-a')).toBeNull()
   expect(runningScene().engineState.seed).toBe(4242)
-  expect(cloud.remove).toHaveBeenCalledWith('slot-a')
+  expect(cloud.remove).toHaveBeenCalledWith('slot-a', false, 'absent')
 })
 
 it('prevents loading or writing a slot while its cloud restore is in flight, then permits loading the restored tower', async () => {
@@ -434,7 +434,7 @@ it.each(['unavailable', 'save-key', 'owner-key'] as const)('retains the cloud co
   expect(localStorage.getItem(sandboxStorageKey('slot-a'))).toBeNull()
   expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBeNull()
   expect(cloud.remove).toHaveBeenCalledTimes(1)
-  expect(cloud.remove).toHaveBeenCalledWith('slot-a')
+  expect(cloud.remove).toHaveBeenCalledWith('slot-a', false, 'absent')
 })
 
 it.each(['readable', 'unknown-map'] as const)('preserves %s local bytes when cloud replacement is cancelled', (kind) => {
@@ -591,7 +591,7 @@ it.each(['refresh', 'remount'] as const)('can finish a partial clear after a %s 
   fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
   expect(screen.getByTestId('save-message')).toHaveTextContent('Cleared')
   expect(localStorage.getItem(sandboxOwnerStorageKey('slot-a'))).toBeNull()
-  expect(cloud.remove).toHaveBeenCalledWith('slot-a')
+  expect(cloud.remove).toHaveBeenCalledWith('slot-a', false, 'absent')
   expect(screen.getByTestId('clear-slot-a')).toBeDisabled()
 })
 
@@ -756,6 +756,6 @@ it('retries only cloud deletion after closing and reopening the save overlay', (
   openSaves()
   const removeItem = jest.spyOn(Storage.prototype, 'removeItem')
   fireEvent.click(screen.getByTestId('cloud-delete-retry-slot-a'))
-  expect(cloud.remove).toHaveBeenCalledWith('slot-a')
+  expect(cloud.remove).toHaveBeenCalledWith('slot-a', true)
   expect(removeItem).not.toHaveBeenCalled()
 })

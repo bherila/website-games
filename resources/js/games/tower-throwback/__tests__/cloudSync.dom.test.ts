@@ -29,7 +29,9 @@ const mockPostRaw = fetchWrapper.postRaw as jest.Mock
 function meta(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     slot: 'slot-a',
+    content_revision: '11111111-1111-4111-8111-111111111111',
     saved: true,
+    deleted: false,
     wire_version: 2,
     game_day: 5,
     star: 3,
@@ -79,6 +81,7 @@ describe('cloudSync round-trip', () => {
       payload: local,
       wireVersion: local.version,
       token: 'tok',
+      expectedRevision: '11111111-1111-4111-8111-111111111111',
       game_day: local.clock.day,
       star: local.star,
       population: 0,
@@ -110,6 +113,7 @@ describe('cloudSync round-trip', () => {
       payload: local!,
       wireVersion: local!.version,
       token: 'tok',
+      expectedRevision: '11111111-1111-4111-8111-111111111111',
       game_day: local!.clock.day,
       star: local!.star,
       population: 0,
@@ -138,6 +142,7 @@ describe('cloudSync offline fallback', () => {
       payload: local,
       wireVersion: local.version,
       token: 'tok',
+      expectedRevision: '11111111-1111-4111-8111-111111111111',
       game_day: local.clock.day,
       star: local.star,
       population: 0,
@@ -165,7 +170,7 @@ describe('cloudSync conflict path', () => {
       slot: 'slot-a',
       payload: { version: 2 },
       wireVersion: 2,
-      token: 'stale',
+      token: 'stale', expectedRevision: '11111111-1111-4111-8111-111111111111',
       game_day: 1,
       star: 1,
       population: 0,
@@ -229,13 +234,13 @@ describe('cloud deletion acknowledgement', () => {
   it.each([204, 200, 401, 500])('confirms deletion only for the idempotent 204 response (received %s)', async (status) => {
     const request = fetchWrapper.deleteRaw as jest.Mock
     request.mockResolvedValueOnce(response(status, status === 200 ? '<html>Sign in</html>' : null))
-    expect(await deleteCloudSlot('slot-a')).toBe(status === 204)
-    expect(request).toHaveBeenCalledWith('/api/games/tower-throwback/saves/slot-a', {})
+    expect(await deleteCloudSlot('slot-a', '11111111-1111-4111-8111-111111111111')).toBe(status === 204)
+    expect(request).toHaveBeenCalledWith('/api/games/tower-throwback/saves/slot-a', { sync_protocol: 2, expected_revision: '11111111-1111-4111-8111-111111111111' })
   })
 
   it('reports an unconfirmed deletion after a transport failure', async () => {
     ;(fetchWrapper.deleteRaw as jest.Mock).mockRejectedValueOnce(new TypeError('Offline'))
-    expect(await deleteCloudSlot('slot-a')).toBe(false)
+    expect(await deleteCloudSlot('slot-a', '11111111-1111-4111-8111-111111111111')).toBe(false)
   })
 })
 
@@ -245,6 +250,20 @@ it.each(['truncated', 'shape', 'gateway'] as const)('reports an unconfirmed PUT 
   const result = response(failure === 'gateway' ? 502 : 200, failure === 'shape' ? { data: {} } : null)
   if (failure === 'truncated') result.json = async () => { throw new SyntaxError('Truncated') }
   mockPutRaw.mockResolvedValueOnce(result)
-  expect(await pushCloudSlot({ slot: 'slot-a', payload: saved, wireVersion: 2, token: 'ours',
+  expect(await pushCloudSlot({ slot: 'slot-a', payload: saved, wireVersion: 2, token: 'ours', expectedRevision: '11111111-1111-4111-8111-111111111111',
     game_day: 1, star: 1, funds: saved.funds, population: 0 })).toEqual({ ok: false, reason: 'unconfirmed' })
+})
+
+it('sends the selected revision to the atomic restore fence rather than using a plain GET', async () => {
+  const local = localRoundTrip()
+  mockPostRaw.mockResolvedValueOnce(response(200, { data: meta({ payload: local }) }))
+  expect((await getCloudSlot('slot-a', '11111111-1111-4111-8111-111111111111'))?.payload).toEqual(local)
+  expect(mockPostRaw).toHaveBeenCalledWith('/api/games/tower-throwback/saves/slot-a/restore', { sync_protocol: 2, expected_revision: '11111111-1111-4111-8111-111111111111' })
+  expect(mockGet).not.toHaveBeenCalled()
+})
+
+it.each([412, 428])('distinguishes revision changes and upgrade requirements from lease conflicts (%s)', async (status) => {
+  mockPutRaw.mockResolvedValueOnce(response(status, { data: meta() }))
+  const result = await pushCloudSlot({ slot: 'slot-a', payload: {}, wireVersion: 2, token: 't', expectedRevision: '11111111-1111-4111-8111-111111111111', game_day: 1, star: 1, population: 0, funds: 1 })
+  expect(result).toMatchObject({ ok: false, reason: status === 412 ? 'revision' : 'upgrade' })
 })

@@ -374,14 +374,14 @@ export function TowerGame(): ReactElement {
     }
   }, [cloud])
 
-  const restoreFromCloud = useCallback((slotId: SandboxSlotId) => {
+  const restoreFromCloud = useCallback((slotId: SandboxSlotId, revision?: string) => {
     if (refuseActiveSlotReplacement(slotId)) {
       return
     }
     restoringSlotsRef.current.add(slotId)
     void (async () => {
       try {
-        const restored = await cloud.restore(slotId)
+        const restored = await cloud.restore(slotId, revision)
         refreshSlots()
         setSaveMessage(
           restored
@@ -479,7 +479,7 @@ export function TowerGame(): ReactElement {
     // A supplied seed replays a shared challenge; it selects a different point
     // in the same rng stream and changes no draw counts or ordering.
     const state = createEngineState({ seed: seed ?? randomSeed(), mapId, lobbyHeight })
-    const result = saveSandbox(state, 'autosave', sandboxSessionIdRef.current)
+    const result = saveSandbox(state, 'autosave', sandboxSessionIdRef.current, true)
     if (!result.ok) {
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
       return
@@ -586,7 +586,7 @@ export function TowerGame(): ReactElement {
     // Take ownership BEFORE writing: an explicit manual save should always win,
     // and claiming first means the write's ownership gate never rejects our own save.
     claimSandboxSlot(slotId, sandboxSessionIdRef.current)
-    const result = saveSandbox(state, slotId, sandboxSessionIdRef.current)
+    const result = saveSandbox(state, slotId, sandboxSessionIdRef.current, slotId !== activeSlotRef.current)
     if (slotId === activeSlotRef.current) {
       recordSaveResult(result.ok
         ? { ok: true, pendingChanges: commandQueueRef.current.some(isStateChangingCommand) }
@@ -657,9 +657,9 @@ export function TowerGame(): ReactElement {
     return message
   }, [mirrorToCloud, refreshSlots, refuseActiveSlotReplacement])
 
-  const deleteCloudCopy = useCallback((slotId: SandboxSlotId) => {
+  const deleteCloudCopy = useCallback((slotId: SandboxSlotId, retry = false, revision?: string) => {
     deletingSlotsRef.current.add(slotId)
-    void cloud.remove(slotId).finally(() => deletingSlotsRef.current.delete(slotId))
+    void (retry ? cloud.remove(slotId, true) : revision === undefined ? cloud.remove(slotId) : cloud.remove(slotId, false, revision)).finally(() => deletingSlotsRef.current.delete(slotId))
   }, [cloud])
 
   const retryCloudDeletion = useCallback((slotId: SandboxSlotId) => {
@@ -668,10 +668,10 @@ export function TowerGame(): ReactElement {
       setSaveMessage({ kind: 'error', text: 'This browser slot has changed. Its tower was kept. Use Clear again if you want to remove it and its cloud copy.' })
       return
     }
-    deleteCloudCopy(slotId)
+    deleteCloudCopy(slotId, true)
   }, [deleteCloudCopy, refuseActiveSlotReplacement])
 
-  const clearSlot = useCallback((slotId: SandboxSlotId) => {
+  const clearSlot = useCallback((slotId: SandboxSlotId, revision?: string) => {
     if (refuseActiveSlotReplacement(slotId)) {
       return
     }
@@ -693,7 +693,7 @@ export function TowerGame(): ReactElement {
     setSaveMessage({ kind: 'success', text: cloud.enabled
       ? `Cleared ${slotLabel(slotId)} in this browser. See the slot's cloud deletion status below.`
       : `Cleared ${slotLabel(slotId)} in this browser.` })
-    if (cloud.enabled) deleteCloudCopy(slotId)
+    if (cloud.enabled) deleteCloudCopy(slotId, false, revision)
   }, [cloud.enabled, deleteCloudCopy, refreshSlots, refuseActiveSlotReplacement])
 
   useEffect(() => {

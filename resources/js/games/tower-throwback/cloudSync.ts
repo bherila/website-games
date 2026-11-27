@@ -28,7 +28,9 @@ export type CloudLeaseConflict = z.infer<typeof conflictSchema>
 
 const cloudSlotMetaSchema = z.object({
   slot: z.string(),
+  content_revision: z.string().uuid().or(z.literal('absent')),
   saved: z.boolean(),
+  deleted: z.boolean(),
   wire_version: z.number().int().nullable(),
   game_day: z.number().int().nullable(),
   star: z.number().int().nullable(),
@@ -72,6 +74,8 @@ export interface CloudSlotPayload {
  * - `offline`: the server is unreachable; local storage is authoritative.
  */
 export type CloudSlotStatus =
+  | 'changed'
+  | 'upgrade'
   | 'synced'
   | 'unverified'
   | 'different'
@@ -90,6 +94,9 @@ export type CloudDeletionStatus = 'idle' | 'pending' | 'failed' | 'deleted'
 
 export interface CloudSlotView {
   /** Cloud deletion is independent of the local mirror payload. */
+  localIncarnation?: string | null
+  canClear?: boolean
+  revision?: string | undefined
   deletion: CloudDeletionStatus
   /** Point-in-time comparison after a lost acknowledgement; not a write fence. */
   matchedAt: number | null
@@ -114,6 +121,7 @@ export interface CloudPushInput extends CloudDisplayMetadata {
   payload: unknown
   wireVersion: number
   token: string
+  expectedRevision: string
 }
 
 export type CloudLeaseResult =
@@ -127,6 +135,8 @@ export type CloudPushResult =
   | { ok: false; reason: 'offline' }
   | { ok: false; reason: 'error' }
   | { ok: false; reason: 'unconfirmed' }
+  | { ok: false; reason: 'revision'; meta: CloudSlotMeta }
+  | { ok: false; reason: 'upgrade' }
 
 /** Cloud sync only runs for a signed-in player; anonymous play stays local. */
 export function isCloudSyncEnabled(): boolean {
@@ -157,9 +167,14 @@ export async function listCloudSlots(): Promise<CloudSlotMeta[] | null> {
 }
 
 /** The opaque payload plus metadata for one slot, or `null` if unavailable. */
-export async function getCloudSlot(slot: SandboxSlotId): Promise<CloudSlotPayload | null> {
+export async function getCloudSlot(slot: SandboxSlotId, fenceRevision?: string): Promise<CloudSlotPayload | null> {
   try {
-    const response: unknown = await fetchWrapper.get(`${BASE_URL}/${encodeURIComponent(slot)}`)
+    const response: unknown = fenceRevision === undefined
+      ? await fetchWrapper.get(`${BASE_URL}/${encodeURIComponent(slot)}`)
+      : await (async () => {
+        const result = await fetchWrapper.postRaw(`${BASE_URL}/${encodeURIComponent(slot)}/restore`, { sync_protocol: 2, expected_revision: fenceRevision })
+        return result.ok ? result.json() : null
+      })()
     const parsed = payloadSchema.safeParse(response)
     if (!parsed.success) {
       return null
@@ -176,7 +191,7 @@ export async function acquireLease(
   slot: SandboxSlotId,
   options: { force?: boolean; token?: string | null } = {},
 ): Promise<CloudLeaseResult> {
-  const body: Record<string, unknown> = {}
+  const body: Record<string, unknown> = { sync_protocol: 2 }
   if (options.force) {
     body.force = true
   }
@@ -197,6 +212,8 @@ export async function acquireLease(
 /** Push a local save to the server, extending the lease on success. */
 export async function pushCloudSlot(input: CloudPushInput): Promise<CloudPushResult> {
   const body = {
+    sync_protocol: 2,
+    expected_revision: input.expectedRevision,
     payload: input.payload,
     wire_version: input.wireVersion,
     lease_token: input.token,
@@ -213,6 +230,11 @@ export async function pushCloudSlot(input: CloudPushInput): Promise<CloudPushRes
     return { ok: false, reason: 'offline' }
   }
 
+  if (response.status === 412) {
+    const parsed = await parseJson(response, singleSchema)
+    return parsed ? { ok: false, reason: 'revision', meta: parsed.data } : { ok: false, reason: 'unconfirmed' }
+  }
+  if (response.status === 428) return { ok: false, reason: 'upgrade' }
   if (response.status === 409) {
     return conflictFromResponse(response)
   }
@@ -231,16 +253,16 @@ export async function pushCloudSlot(input: CloudPushInput): Promise<CloudPushRes
 /** Release a lease this client holds. Best-effort; failures are swallowed. */
 export async function releaseLease(slot: SandboxSlotId, token: string): Promise<void> {
   try {
-    await fetchWrapper.delete(`${BASE_URL}/${encodeURIComponent(slot)}/lease`, { lease_token: token })
+    await fetchWrapper.delete(`${BASE_URL}/${encodeURIComponent(slot)}/lease`, { sync_protocol: 2, lease_token: token })
   } catch {
     // Releasing is advisory; a missed release simply expires with the TTL.
   }
 }
 
 /** The idempotent DELETE contract acknowledges removal with 204 only. */
-export async function deleteCloudSlot(slot: SandboxSlotId): Promise<boolean> {
+export async function deleteCloudSlot(slot: SandboxSlotId, expectedRevision: string): Promise<boolean> {
   try {
-    const response = await fetchWrapper.deleteRaw(`${BASE_URL}/${encodeURIComponent(slot)}`, {})
+    const response = await fetchWrapper.deleteRaw(`${BASE_URL}/${encodeURIComponent(slot)}`, { sync_protocol: 2, expected_revision: expectedRevision })
     return response.status === 204
   } catch {
     // A transport failure may follow a server commit: removal is unconfirmed.

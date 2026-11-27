@@ -169,7 +169,7 @@ final class AccountMerge
                     ? ['lease_token' => Str::random(48), 'lease_acquired_at' => now(), 'lease_expires_at' => $replaced->lease_expires_at]
                     : ['lease_token' => null, 'lease_acquired_at' => null, 'lease_expires_at' => null];
                 $replaced?->delete();
-                $slot->forceFill(['user_id' => $keep->getKey(), 'slot' => $target] + $lease)->save();
+                $slot->forceFill(['user_id' => $keep->getKey(), 'slot' => $target, 'content_revision' => (string) Str::uuid()] + $lease)->save();
             };
             $kept = $keptRows->get($slot->slot);
             if ($kept === null || ! $kept->hasPayload()) {

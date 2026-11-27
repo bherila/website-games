@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * One Tower Throwback cloud save slot for a single user. The payload is an
@@ -15,6 +16,8 @@ use Illuminate\Support\Carbon;
  * a small set of display metadata alongside an optional ownership lease.
  *
  * @property int $id
+ * @property bool $is_deleted
+ * @property string $content_revision
  * @property int $user_id
  * @property string $slot
  * @property array<string, mixed>|null $payload
@@ -62,6 +65,8 @@ class TowerSaveSlot extends Model
     public const ENVELOPE_FORMAT = 'tower-throwback/gzip+base64';
 
     protected $fillable = [
+        'is_deleted',
+        'content_revision',
         'user_id',
         'slot',
         'payload',
@@ -75,11 +80,19 @@ class TowerSaveSlot extends Model
         'lease_expires_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $slot): void {
+            $slot->content_revision ??= (string) Str::uuid();
+        });
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'payload' => 'array',
+            'is_deleted' => 'boolean',
             'wire_version' => 'integer',
             'game_day' => 'integer',
             'star' => 'integer',
