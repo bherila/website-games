@@ -176,6 +176,17 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: tower_revision_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s --health-timeout=5s --health-retries=10
     steps:
       - uses: actions/checkout@v7
 
@@ -207,6 +218,11 @@ jobs:
 
       - name: Run PHPUnit
         run: php -d memory_limit=1G artisan test --compact
+
+      - name: Race conditional Tower operations on isolated MySQL
+        env:
+          TOWER_RACE_MYSQL: '1'
+        run: php -d memory_limit=1G artisan test --compact tests/Feature/Games/TowerRevisionConcurrencyTest.php
 
   browser-pwa:
     name: PWA Browser Checks

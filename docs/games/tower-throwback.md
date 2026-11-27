@@ -465,9 +465,27 @@ fetching refuses replacement. Local data remains authoritative when the network 
 
 A transport failure or unusable successful PUT acknowledgement leaves the cloud result
 unverified. A subsequent queued read may establish a **point-in-time** match and display when it
-was observed, or report that the copies differ. This is not a server write fence: an earlier
-request with a lost acknowledgement can still commit later, and other tabs/devices may write.
-Durable content revisions and an atomic restore fence are separate server work (#297).
+was observed, or report that the copies differ. The comparison itself is not a fence. Protocol 2 additionally binds every content mutation to an
+opaque content revision, so only one operation can consume that revision. Restore uses an atomic
+revision-advancing snapshot operation; a delayed earlier PUT is rejected even when its response
+was lost. Lease changes do not advance content revisions, and Restore does not take over another
+device's lease. Deletion retains a tombstone with a fresh revision, so delete/recreate cannot
+reuse an earlier precondition.
+
+The browser retains acknowledged lineage per account and slot, independently of advisory status.
+A local-only incarnation marker is committed atomically with each browser snapshot; changing
+accounts or replacing a browser tower does not inherit another tower's cloud authority. These
+markers are stripped by parsing before cloud payloads or exports. A mismatching/unknown remote
+version pauses automatic mirroring; the player can restore or explicitly replace the displayed
+revision. Confirmations pin that revision; external changes cancel replacement or deletion.
+Queued actions may follow only this worker's acknowledged own revision successors.
+
+Rollout is an atomic backend/frontend deployment. Legacy discovery GETs remain readable, but
+all old blind mutations (including lease changes) fail with HTTP 428 and leave the browser save
+intact; reload to obtain protocol 2. Content payload wire versions 1–3 remain separate from this
+sync protocol. Do not roll back to a server that accepts blind writes after deploying protocol 2;
+use a revision-aware recovery build and retain the revision/tombstone columns. Concurrency tests
+use independent PHP processes against isolated SQLite and, in required backend CI, MySQL.
 Cloud deletion requires an explicit account-owner action; a failed deletion retry never repeats
 the local clear. Deletion confirmation names both browser and account-cloud scope when signed in.
 

@@ -1,5 +1,6 @@
 import type { LevelSelectProgress } from '../_shared/LevelSelectGrid'
 import { isRecord, parseArray, parseInteger, parseNumber, parseString, safeLocalStorage } from '../_shared/progressParsers'
+import { localSnapshotMetadata } from './cloudLineage'
 import { ITEM_DEFS, itemDef, SHAFT_DEFS, UPGRADE_PATHS } from './engine/catalog'
 import { personTickAccumulatorOf, restorePersonTickAccumulator } from './engine/engine'
 import { createGridLayers, rebuildGrid } from './engine/grid'
@@ -477,7 +478,7 @@ function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: st
     return { ok: false, reason: 'slotOwnedByAnotherTab' }
   }
   try {
-    const serialized = JSON.stringify(saved)
+    const serialized = JSON.stringify({ ...saved, _cloudLocal: localSnapshotMetadata(storage.getItem(sandboxStorageKey(slotId))) })
     if (serialized.length > MAX_SANDBOX_JSON_CHARS) {
       return { ok: false, reason: 'quotaExceeded' }
     }

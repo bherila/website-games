@@ -85,7 +85,7 @@ test.describe('Tower Throwback real player journey', () => {
     let deletes = 0
     const meta = (slot: string, saved: boolean) => ({ slot, saved, wire_version: saved ? 3 : null,
       game_day: 1, star: 1, population: 0, funds: 2_000_000, updated_at: '2026-11-18T00:00:00Z',
-      lease_active: false, lease_acquired_at: null, lease_expires_at: null })
+      content_revision: '11111111-1111-4111-8111-111111111111', deleted: false, lease_active: false, lease_acquired_at: null, lease_expires_at: null })
     await page.route('**/api/games/tower-throwback/saves**', async (route) => {
       const request = route.request()
       const path = new URL(request.url()).pathname
@@ -127,11 +127,12 @@ test.describe('Tower Throwback real player journey', () => {
     expect(saved).not.toBeNull()
     await page.addInitScript(({ key, saved }) => {
       localStorage.setItem(key, JSON.stringify(saved))
-      localStorage.setItem(`${key}.slot-a`, JSON.stringify(saved))
+      localStorage.setItem(`${key}.slot-a`, JSON.stringify({ ...saved, _cloudLocal: { account: 'towerThrowback.cloudLineage.v2.cloud-fixture', incarnation: 'journey' } }))
+      localStorage.setItem('towerThrowback.cloudLineage.v2.cloud-fixture.slot-a', JSON.stringify({ revision: '11111111-1111-4111-8111-111111111111', incarnation: 'journey' }))
       const observer = new MutationObserver(() => {
         const script = document.getElementById('app-initial-data')
         if (!script?.textContent?.trim()) return
-        script.textContent = JSON.stringify({ ...JSON.parse(script.textContent), authenticated: true })
+        script.textContent = JSON.stringify({ ...JSON.parse(script.textContent), authenticated: true, currentUser: { id: 'cloud-fixture' } })
         observer.disconnect()
       })
       observer.observe(document, { childList: true, subtree: true })
@@ -139,14 +140,20 @@ test.describe('Tower Throwback real player journey', () => {
     let release!: () => void
     const pending = new Promise<void>((resolve) => { release = resolve })
     const calls: string[] = []
-    let remote: unknown = { ...saved, seed: 999 }
+    let remote: unknown = saved
+    let revision = '11111111-1111-4111-8111-111111111111'
     const meta = (slot: string) => ({ slot, saved: true, wire_version: 3, game_day: 1, star: 1, population: 0,
-      funds: 2_000_000, updated_at: '2026-11-18T00:00:00Z', lease_active: false,
+      funds: 2_000_000, updated_at: '2026-11-18T00:00:00Z', content_revision: revision, deleted: false, lease_active: false,
       lease_acquired_at: null, lease_expires_at: null })
     await page.route('**/api/games/tower-throwback/saves**', async (route) => {
       const request = route.request()
       const path = new URL(request.url()).pathname
-      if (request.method() === 'POST') {
+      if (request.method() === 'POST' && path.endsWith('/restore')) {
+        expect(request.postDataJSON().expected_revision).toBe(revision)
+        calls.push('restore')
+        revision = '33333333-3333-4333-8333-333333333333'
+        await route.fulfill({ json: { data: { ...meta('slot-a'), payload: remote } } })
+      } else if (request.method() === 'POST') {
         const slot = path.includes('slot-a') ? 'slot-a' : 'autosave'
         await route.fulfill({ json: { data: { ...meta(slot), lease_token: 'test-lease' } } })
       } else if (request.method() === 'PUT') {
@@ -154,10 +161,10 @@ test.describe('Tower Throwback real player journey', () => {
         calls.push('push-start')
         await pending
         remote = (request.postDataJSON() as { payload: unknown }).payload
+        revision = '22222222-2222-4222-8222-222222222222'
         calls.push('push-complete')
         await route.fulfill({ json: { data: { ...meta('slot-a'), lease_token: 'test-lease' } } })
       } else if (path.endsWith('/slot-a')) {
-        calls.push('restore')
         await route.fulfill({ json: { data: { ...meta('slot-a'), payload: remote } } })
       } else {
         await route.fulfill({ json: { data: [meta('slot-a')] } })

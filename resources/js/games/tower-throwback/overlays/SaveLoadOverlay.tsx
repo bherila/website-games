@@ -10,7 +10,8 @@ import { readTowerSaveFile } from './importSaveFile'
 import { LocalSlotTakeover } from './LocalSlotTakeover'
 
 type PendingSaveAction =
-  | { type: 'save' | 'load' | 'clear' | 'restore'; slotId: SandboxSlotId }
+  | { type: 'replaceCloud'; slotId: SandboxSlotId; revision: string }
+  | { type: 'save' | 'load' | 'clear' | 'restore'; slotId: SandboxSlotId; revision?: string }
   | { type: 'import'; slotId: SandboxSlotId; raw: string }
 
 interface SaveLoadOverlayProps {
@@ -27,21 +28,23 @@ interface SaveLoadOverlayProps {
   onLoad: (slotId: SandboxSlotId) => void
   onExport: (slotId: SandboxSlotId) => void
   onImport: (slotId: SandboxSlotId, raw: string) => void
-  onClear: (slotId: SandboxSlotId) => void
+  onClear: (slotId: SandboxSlotId, revision?: string) => void
   onSetDisastersEnabled: (enabled: boolean) => void
   onRestoreFocus?: () => void
   otherTabSlots?: readonly SandboxSlotId[]
   onTakeOverSlot?: (slotId: SandboxSlotId) => void
   cloudEnabled?: boolean
   cloudSlots?: Record<SandboxSlotId, CloudSlotView>
-  onCloudRestore?: (slotId: SandboxSlotId) => void
+  onCloudRestore?: (slotId: SandboxSlotId, revision?: string) => void
   onTakeOver?: (slotId: SandboxSlotId) => void
   /** Re-attempt a failed or behind cloud mirror. */
-  onCloudRetry?: (slotId: SandboxSlotId) => void
+  onCloudRetry?: (slotId: SandboxSlotId, revision?: string) => void
   onCloudDeleteRetry?: (slotId: SandboxSlotId) => void
 }
 
 const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: string }> = {
+  changed: { label: 'Cloud: changed — choose which copy to keep', className: 'text-amber-200' },
+  upgrade: { label: 'Cloud: reload required — tower kept in this browser', className: 'text-amber-200' },
   synced: { label: 'Cloud: synced', className: 'text-emerald-200' },
   matched: { label: 'Cloud: matched on last check', className: 'text-emerald-200' },
   unverified: { label: 'Cloud: not verified', className: 'text-amber-200' },
@@ -59,10 +62,11 @@ const CLOUD_STATUS_COPY: Record<CloudSlotStatus, { label: string; className: str
 
 /** Extra explanation for the states a player would otherwise have to guess at. */
 const CLOUD_STATUS_DETAIL: Partial<Record<CloudSlotStatus, string>> = {
+  changed: 'Cloud saving is paused to protect another version. Restore it, or explicitly replace the displayed cloud copy with this browser save.',
   stale: 'The cloud copy has not been compared with this browser. Retry to mirror the current browser save.',
   unverified: 'The cloud result could not be verified. Retry to mirror the current browser save.',
   different: 'The cloud copy differs from this browser. Retry to mirror the current browser save.',
-  failed: 'Your tower is saved in this browser; only the cloud copy is behind.',
+  failed: 'Your tower is saved in this browser. The cloud mirror could not be confirmed.',
   tooLarge: 'This tower exceeds the cloud size limit. It stays saved in this browser.',
 }
 
@@ -85,6 +89,8 @@ function slotHasStoredData(slot: SandboxSlotSummary): boolean {
 
 function actionCopy(action: PendingSaveAction, slot: SandboxSlotSummary, cloudEnabled: boolean): { confirmLabel: string; description: string; title: string } {
   switch (action.type) {
+    case 'replaceCloud':
+      return { title: `Replace the cloud copy of ${slot.label}?`, description: 'The displayed account cloud backup will be replaced by the tower saved in this browser. A newer cloud change will cancel this replacement.', confirmLabel: 'Replace cloud backup' }
     case 'save':
       return {
         title: `Overwrite ${slot.label}?`,
@@ -125,7 +131,7 @@ interface CloudSlotStatusRowProps {
   view: CloudSlotView
   onCloudRestore: ((slotId: SandboxSlotId, event: MouseEvent<HTMLButtonElement>) => void) | undefined
   onTakeOver: ((slotId: SandboxSlotId) => void) | undefined
-  onCloudRetry: ((slotId: SandboxSlotId) => void) | undefined
+  onCloudRetry: ((slotId: SandboxSlotId, event: MouseEvent<HTMLButtonElement>) => void) | undefined
   onCloudDeleteRetry: ((slotId: SandboxSlotId) => void) | undefined
 }
 
@@ -136,7 +142,7 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
       : deletion === 'deleted' ? { label: 'Cloud: deleted', className: 'text-emerald-200' }
         : CLOUD_STATUS_COPY[view.status]
   const detail = deletion === 'failed'
-    ? 'This browser slot was cleared. Cloud deletion could not be confirmed; retry to finish.'
+    ? view.status === 'changed' ? 'The cloud copy changed after Clear. It was kept. Use Clear again to review and confirm a new deletion.' : 'This browser slot was cleared. Cloud deletion could not be confirmed; retry to finish.'
     : deletion === 'idle' && view.status === 'matched' && view.matchedAt !== null
       ? `The cloud copy matched this browser at ${new Date(view.matchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
       : deletion === 'idle' ? CLOUD_STATUS_DETAIL[view.status] : undefined
@@ -146,7 +152,7 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
       <span role={deletion === 'failed' ? 'alert' : 'status'} data-testid={`cloud-status-${slotId}`} className={`text-[11px] font-semibold ${copy.className}`}>
         {copy.label}
       </span>
-      {deletion === 'failed' && onCloudDeleteRetry && (
+      {deletion === 'failed' && view.status !== 'changed' && onCloudDeleteRetry && (
         <button type="button" data-testid={`cloud-delete-retry-${slotId}`} onClick={() => onCloudDeleteRetry(slotId)}
           className="rounded bg-red-500/20 px-2 py-1 text-sm font-bold text-red-100 hover:bg-red-500/35">
           Retry cloud deletion
@@ -156,10 +162,10 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
         <button
           type="button"
           data-testid={`cloud-retry-${slotId}`}
-          onClick={() => onCloudRetry(slotId)}
+          onClick={(event) => onCloudRetry(slotId, event)}
           className="rounded bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/85 hover:bg-white/20"
         >
-          Retry
+          {view.status === 'changed' ? 'Replace cloud…' : 'Retry'}
         </button>
       )}
       {detail && (
@@ -177,7 +183,7 @@ function CloudSlotStatusRow({ slotId, view, onCloudRestore, onTakeOver, onCloudR
           Restore from cloud
         </button>
       )}
-      {deletion === 'idle' && view.status === 'conflict' && onTakeOver && (
+      {deletion === 'idle' && view.conflict !== null && onTakeOver && (
         <button
           type="button"
           data-testid={`cloud-takeover-${slotId}`}
@@ -322,6 +328,9 @@ export function SaveLoadOverlay({
 
   const executeAction = (action: PendingSaveAction): void => {
     switch (action.type) {
+      case 'replaceCloud':
+        onCloudRetry?.(action.slotId, action.revision)
+        break
       case 'save':
         onSave(action.slotId)
         break
@@ -329,10 +338,12 @@ export function SaveLoadOverlay({
         onLoad(action.slotId)
         break
       case 'clear':
-        onClear(action.slotId)
+        if (action.revision === undefined) onClear(action.slotId)
+        else onClear(action.slotId, action.revision)
         break
       case 'restore':
-        onCloudRestore?.(action.slotId)
+        if (action.revision === undefined) onCloudRestore?.(action.slotId)
+        else onCloudRestore?.(action.slotId, action.revision)
         break
       case 'import':
         onImport(action.slotId, action.raw)
@@ -341,8 +352,9 @@ export function SaveLoadOverlay({
   }
 
   const requestAction = (action: PendingSaveAction, event: MouseEvent<HTMLButtonElement>): void => {
+    if ((action.type === 'clear' || action.type === 'restore') && cloudEnabled) action = { ...action, revision: cloudSlots?.[action.slotId].revision ?? 'absent' }
     const slot = slotFor(action.slotId)
-    const destructive = action.type === 'load' || action.type === 'clear' || slotHasStoredData(slot)
+    const destructive = action.type === 'replaceCloud' || action.type === 'load' || action.type === 'clear' || slotHasStoredData(slot)
     if (!destructive) {
       executeAction(action)
       return
@@ -483,7 +495,7 @@ export function SaveLoadOverlay({
                 <button
                   type="button"
                   data-testid={`clear-${slot.id}`}
-                  disabled={cloudSlots?.[slot.id].deletion === 'pending' || (!slotHasStoredData(slot) && !slot.hasOwner && !(cloudEnabled && cloudSlots?.[slot.id].canRestore))}
+                  disabled={cloudSlots?.[slot.id].deletion === 'pending' || (!slotHasStoredData(slot) && !slot.hasOwner && !(cloudEnabled && (cloudSlots?.[slot.id].canClear || cloudSlots?.[slot.id].canRestore)))}
                   onClick={(event) => requestAction({ type: 'clear', slotId: slot.id }, event)}
                   className="rounded bg-red-500/20 px-2 py-1 text-[12px] font-bold text-red-100 hover:bg-red-500/35 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -499,7 +511,11 @@ export function SaveLoadOverlay({
                   view={cloudSlots[slot.id]}
                   onCloudRestore={onCloudRestore ? (slotId, event) => requestAction({ type: 'restore', slotId }, event) : undefined}
                   onTakeOver={onTakeOver}
-                  onCloudRetry={onCloudRetry}
+                  onCloudRetry={onCloudRetry ? (slotId, event) => {
+                    const view = cloudSlots[slotId]
+                    if (view.status === 'changed' && view.revision) requestAction({ type: 'replaceCloud', slotId, revision: view.revision }, event)
+                    else onCloudRetry(slotId)
+                  } : undefined}
                   onCloudDeleteRetry={onCloudDeleteRetry}
                 />
               )}

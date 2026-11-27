@@ -6,11 +6,25 @@ use App\Http\Requests\Games\StoreTowerSaveRequest;
 use App\Models\TowerSaveSlot;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class TowerSaveSlotTest extends TestCase
 {
     use RefreshDatabase;
+
+    /** Existing behavior checks use the current protocol; explicit stale clients are covered separately. */
+    public function json($method, $uri, array $data = [], array $headers = [], $options = 0): TestResponse
+    {
+        if (in_array($method, ['PUT', 'POST', 'DELETE'], true) && str_contains($uri, '/tower-throwback/saves/')) {
+            $data['sync_protocol'] = 2;
+            if (preg_match('~/saves/([^/]+)$~', $uri, $match) === 1) {
+                $data['expected_revision'] = TowerSaveSlot::query()->where('user_id', auth()->id())->where('slot', $match[1])->value('content_revision') ?? 'absent';
+            }
+        }
+
+        return parent::json($method, $uri, $data, $headers, $options);
+    }
 
     /**
      * @return array<string, mixed>
@@ -539,9 +553,10 @@ class TowerSaveSlotTest extends TestCase
             ->deleteJson('/api/games/tower-throwback/saves/slot-a')
             ->assertNoContent();
 
-        $this->assertDatabaseMissing('tower_save_slots', [
+        $this->assertDatabaseHas('tower_save_slots', [
             'user_id' => $user->id,
             'slot' => 'slot-a',
+            'payload' => null,
         ]);
     }
 

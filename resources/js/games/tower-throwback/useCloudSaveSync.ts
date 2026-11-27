@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { z } from 'zod'
 
 import { safeLocalStorage } from '../_shared/progressParsers'
+import { cloudLineageKey, localSnapshotIncarnation, readCloudLineage, writeCloudLineage } from './cloudLineage'
 import { CloudOperationQueue } from './cloudOperationQueue'
 import { CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from './cloudPayload'
 import {
@@ -40,13 +41,13 @@ export interface CloudSaveSync {
   /** Take a lease over from another device (force acquire). */
   takeOver: (slotId: SandboxSlotId) => Promise<boolean>
   /** Pull a cloud save down into the local slot; returns the restored save. */
-  restore: (slotId: SandboxSlotId) => Promise<SavedSandbox | null>
+  restore: (slotId: SandboxSlotId, expectedRevision?: string) => Promise<SavedSandbox | null>
   /** Drop the cloud copy of a slot (mirrors a local clear). */
-  remove: (slotId: SandboxSlotId) => Promise<boolean>
+  remove: (slotId: SandboxSlotId, retry?: boolean, expectedRevision?: string) => Promise<boolean>
   /** Re-fetch cloud slot metadata. */
   refresh: () => void
   /** Mirror the current local slot after a failure or remote change. */
-  retry: (slotId: SandboxSlotId) => void
+  retry: (slotId: SandboxSlotId, expectedRevision?: string) => void
 }
 
 /**
@@ -55,18 +56,20 @@ export interface CloudSaveSync {
  * must not be read as describing the current one.
  */
 type PushOutcome =
-  | { kind: 'idle' | 'pushing' | 'failed' | 'tooLarge' | 'unverified' | 'different'; digest: string }
-  | { kind: 'observed'; digest: string; cloudUpdatedAt: string | null; observedAt: number }
+  | { kind: 'upgrade' | 'idle' | 'pushing' | 'failed' | 'tooLarge' | 'unverified' | 'different'; digest: string }
+  | { kind: 'observed'; revision?: string; digest: string; cloudUpdatedAt: string | null; observedAt: number }
   | {
       kind: 'pushed'
+      revision?: string
       digest: string
       /** Server revision proven equal to `digest` by a successful push/restore. */
       cloudUpdatedAt: string | null
     }
 
 const persistedPushOutcomeSchema = z.object({
-  kind: z.enum(['pushed', 'failed', 'tooLarge', 'unverified', 'different', 'observed']),
+  kind: z.enum(['pushed', 'failed', 'tooLarge', 'unverified', 'different', 'observed', 'upgrade']),
   observedAt: z.number().optional(),
+  revision: z.string().optional(),
   digest: z.string(),
   cloudUpdatedAt: z.string().nullable().optional(),
 })
@@ -92,9 +95,9 @@ function loadPersistedOutcomes(): Partial<Record<SandboxSlotId, PushOutcome>> {
       if (result.success) {
         outcomes[slotId] =
           result.data.kind === 'observed'
-            ? { kind: 'observed', digest: result.data.digest, cloudUpdatedAt: result.data.cloudUpdatedAt ?? null, observedAt: result.data.observedAt ?? 0 }
+            ? { kind: 'observed', revision: result.data.revision, digest: result.data.digest, cloudUpdatedAt: result.data.cloudUpdatedAt ?? null, observedAt: result.data.observedAt ?? 0 }
             : result.data.kind === 'pushed'
-            ? { kind: 'pushed', digest: result.data.digest, cloudUpdatedAt: result.data.cloudUpdatedAt ?? null }
+            ? { kind: 'pushed', revision: result.data.revision, digest: result.data.digest, cloudUpdatedAt: result.data.cloudUpdatedAt ?? null }
             : { kind: result.data.kind, digest: result.data.digest }
       }
     }
@@ -120,7 +123,7 @@ function persistOutcomes(outcomes: Partial<Record<SandboxSlotId, PushOutcome>>, 
         persisted[slotId] = { kind: outcome?.kind === 'different' ? 'different' : 'unverified', digest: outcome?.digest ?? '' }
       } else if (outcome && outcome.kind !== 'idle' && outcome.kind !== 'pushing') {
         persisted[slotId] = outcome.kind === 'pushed'
-          ? { kind: 'pushed', digest: outcome.digest, cloudUpdatedAt: outcome.cloudUpdatedAt }
+          ? { kind: 'pushed', revision: outcome.revision, digest: outcome.digest, cloudUpdatedAt: outcome.cloudUpdatedAt }
           : { kind: outcome.kind, digest: outcome.digest }
       }
     }
@@ -180,6 +183,15 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
   )))
   const [queue] = useState(() => new CloudOperationQueue())
   const mountedRef = useRef(true)
+  const [lineageKey] = useState(cloudLineageKey)
+  const [initialLineage] = useState(() => readCloudLineage(lineageKey, (slot) => readSandboxSlotStorage(slot)?.raw ?? null))
+  const metaRef = useRef<Partial<Record<SandboxSlotId, CloudSlotMeta>>>({})
+  const revisionsRef = useRef<Partial<Record<SandboxSlotId, string>>>(Object.fromEntries(SANDBOX_SLOT_IDS.flatMap((id) => initialLineage[id]?.revision ? [[id, initialLineage[id]!.revision]] : [])))
+  const incarnationsRef = useRef<Partial<Record<SandboxSlotId, string | null>>>(Object.fromEntries(SANDBOX_SLOT_IDS.map((id) => [id, initialLineage[id]?.incarnation ?? null])))
+  const ownSuccessorsRef = useRef<Partial<Record<SandboxSlotId, Map<string, string>>>>({})
+  const deleteRevisionsRef = useRef<Partial<Record<SandboxSlotId, string>>>({})
+  const [changed, setChanged] = useState<Partial<Record<SandboxSlotId, boolean>>>(Object.fromEntries(SANDBOX_SLOT_IDS.map((id) => [id, initialLineage[id]?.blocked ?? false])))
+  const changedRef = useRef(new Set(SANDBOX_SLOT_IDS.filter((id) => initialLineage[id]?.blocked)))
   const tokensRef = useRef<Partial<Record<SandboxSlotId, string>>>({})
   const readOnlyRef = useRef(new Set<SandboxSlotId>())
   const intentRef = useRef<Partial<Record<SandboxSlotId, number>>>({})
@@ -211,8 +223,43 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     })
   }, [])
   const applyMeta = useCallback((slot: SandboxSlotId, next: CloudSlotMeta) => {
+    metaRef.current[slot] = next
     if (mountedRef.current) setMeta((prev) => ({ ...prev, [slot]: next }))
   }, [])
+  const recordSuccessor = useCallback((slot: SandboxSlotId, before: string, after: string) => {
+    if (before === after) return
+    const edges = ownSuccessorsRef.current[slot] ??= new Map()
+    edges.set(before, after)
+    if (edges.size > 64) edges.delete(edges.keys().next().value!)
+  }, [])
+  const ownDescendant = useCallback((slot: SandboxSlotId, revision: string): string => {
+    const seen = new Set<string>()
+    const edges = ownSuccessorsRef.current[slot]
+    while (edges?.has(revision) && !seen.has(revision)) {
+      seen.add(revision)
+      revision = edges.get(revision)!
+    }
+    return revision
+  }, [])
+  const persistLineage = useCallback((slot: SandboxSlotId) => {
+    const incarnation = localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null)
+    incarnationsRef.current[slot] = incarnation
+    writeCloudLineage(lineageKey, slot, { revision: revisionsRef.current[slot], blocked: changedRef.current.has(slot), incarnation })
+  }, [lineageKey])
+  const rememberRevision = useCallback((slot: SandboxSlotId, revision: string) => {
+    revisionsRef.current[slot] = revision
+    persistLineage(slot)
+  }, [persistLineage])
+  const markChanged = useCallback((slot: SandboxSlotId) => {
+    changedRef.current.add(slot)
+    persistLineage(slot)
+    setChanged((prev) => ({ ...prev, [slot]: true }))
+  }, [persistLineage])
+  const clearChanged = useCallback((slot: SandboxSlotId) => {
+    changedRef.current.delete(slot)
+    persistLineage(slot)
+    setChanged((prev) => { const next = { ...prev }; delete next[slot]; return next })
+  }, [persistLineage])
   const clearConflict = useCallback((slot: SandboxSlotId) => {
     readOnlyRef.current.delete(slot)
     setConflicts((prev) => { const next = { ...prev }; delete next[slot]; return next })
@@ -246,8 +293,8 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         for (const slot of SANDBOX_SLOT_IDS) {
           if (versions[slot] !== versionRef.current[slot] || !queue.isIdle(slot)) continue
           const row = byId.get(slot)
-          if (row) next[slot] = row
-          else delete next[slot]
+          if (row) { next[slot] = row; metaRef.current[slot] = row }
+          else { delete next[slot]; delete metaRef.current[slot] }
         }
         return next
       })
@@ -288,13 +335,23 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       const row = rows.find((item) => item.slot === slot)
       setMeta((prev) => {
         const next = { ...prev }
-        if (row) next[slot] = row
-        else delete next[slot]
+        if (row) { next[slot] = row; metaRef.current[slot] = row }
+        else { delete next[slot]; delete metaRef.current[slot] }
         return next
       })
+      const deletedRevision = deleteRevisionsRef.current[slot]
+      if (deletedRevision && row?.content_revision !== deletedRevision) {
+        if (row?.saved) { markChanged(slot); setDeletions((prev) => ({ ...prev, [slot]: 'failed' })) }
+        else if (row?.deleted) {
+          // A fresh tombstone proves the old content revision was fenced, including a lost DELETE acknowledgement.
+          delete deleteRevisionsRef.current[slot]
+          rememberRevision(slot, row.content_revision)
+          setDeletions((prev) => ({ ...prev, [slot]: isSandboxSlotEmpty(slot) ? 'deleted' : 'idle' }))
+        }
+      }
       setPhase('ready')
     })).catch(() => { /* keep the last known metadata and failed status */ })
-  }, [operation, queue])
+  }, [markChanged, operation, queue, rememberRevision])
 
   const verify = useCallback((slot: SandboxSlotId) => {
     if (!mountedRef.current || verifyingRef.current.has(slot)) return
@@ -315,14 +372,23 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       if (!cloud || !remote) { setOutcome(slot, { kind: 'unverified', digest }); reconcile(slot); return }
       applyMeta(slot, cloud.meta)
       setLocal((prev) => ({ ...prev, [slot]: digest }))
-      setOutcome(slot, JSON.stringify(remote) === JSON.stringify(saved)
-        ? { kind: 'observed', digest, cloudUpdatedAt: cloud.meta.updated_at, observedAt: Date.now() }
+      const matches = JSON.stringify(remote) === JSON.stringify(saved)
+      if (matches) { rememberRevision(slot, cloud.meta.content_revision); clearChanged(slot) }
+      else markChanged(slot)
+      setOutcome(slot, matches
+        ? { kind: 'observed', revision: cloud.meta.content_revision, digest, cloudUpdatedAt: cloud.meta.updated_at, observedAt: Date.now() }
         : { kind: 'different', digest })
     })).catch(() => { /* the last uncertain status remains visible */ }).finally(() => verifyingRef.current.delete(slot))
-  }, [applyMeta, operation, queue, reconcile, setOutcome, tabSessionId])
+  }, [applyMeta, clearChanged, markChanged, operation, queue, reconcile, rememberRevision, setOutcome, tabSessionId])
 
-  const pushSlot = useCallback((slot: SandboxSlotId, saved: SavedSandbox) => {
+  const pushSlot = useCallback((slot: SandboxSlotId, saved: SavedSandbox, expectedRevision?: string) => {
     if (!enabled) return
+    if (expectedRevision === undefined && revisionsRef.current[slot]
+      && incarnationsRef.current[slot] !== localSnapshotIncarnation(readSandboxSlotStorage(slot)?.raw ?? null)) {
+      markChanged(slot)
+      return
+    }
+    if (expectedRevision === undefined && changedRef.current.has(slot)) return
     const intent = nextIntent(slot)
     setDeletions((prev) => ({ ...prev, [slot]: 'idle' }))
     const requestedDigest = saveDigest(JSON.stringify(saved))
@@ -330,6 +396,8 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     setOutcome(slot, { kind: 'pushing', digest: requestedDigest })
     queue.push(slot, () => operation(slot, async () => {
       if (!mountedRef.current) return
+      if (expectedRevision !== undefined) { revisionsRef.current[slot] = expectedRevision; clearChanged(slot) }
+      else if (changedRef.current.has(slot)) return
       const current = (): SavedSandbox | null => isSandboxSlotOwnedByAnotherTab(slot, tabSessionId) ? null : loadSandbox(slot)
       if (readOnlyRef.current.has(slot)) {
         if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
@@ -351,8 +419,29 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
           reconcile(slot)
           return
         }
+        // Establish lineage by comparing contents, never by blessing an unseen latest revision.
+        if (!revisionsRef.current[slot]) {
+          const rows = await listCloudSlots()
+          if (!mountedRef.current || !rows) { setOutcome(slot, { kind: 'unverified', digest: requestedDigest }); return }
+          const row = rows.find((item) => item.slot === slot)
+          if (row) applyMeta(slot, row)
+          if (row?.deleted) { markChanged(slot); return }
+          if (!row || !row.saved) rememberRevision(slot, row?.content_revision ?? 'absent')
+          else {
+            const cloud = await getCloudSlot(slot)
+            if (!mountedRef.current) return
+            const decoded = cloud ? decodeCloudPayload(cloud.payload) : null
+            const remote = decoded === null ? null : migrateSandboxPayload(decoded)
+            if (!cloud || !remote) { setOutcome(slot, { kind: 'unverified', digest: requestedDigest }); return }
+            applyMeta(slot, cloud.meta)
+            if (JSON.stringify(remote) !== initialJson) { markChanged(slot); return }
+            rememberRevision(slot, cloud.meta.content_revision)
+          }
+        }
+        const expected = revisionsRef.current[slot]!
         const token = await ensureLease(slot)
         if (!mountedRef.current) return
+        if (expected === 'absent' && metaRef.current[slot]?.saved === false && !metaRef.current[slot]?.deleted) rememberRevision(slot, metaRef.current[slot]!.content_revision)
         const payload = current()
         if (!payload) {
           if (intent === intentRef.current[slot]) setOutcome(slot, { kind: 'unverified', digest: requestedDigest })
@@ -370,16 +459,24 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         }
         const envelope = serialized === initialJson ? initialEnvelope : encodeCloudPayload(serialized)
         if (!fitsCloudBudget(JSON.stringify(envelope))) { report({ kind: 'tooLarge', digest }); reconcile(slot); return }
-        const result = await pushCloudSlot({ slot, payload: envelope, wireVersion: CLOUD_ENVELOPE_WIRE_VERSION, token,
+        const sentRevision = revisionsRef.current[slot]!
+        const result = await pushCloudSlot({ slot, payload: envelope, wireVersion: CLOUD_ENVELOPE_WIRE_VERSION, token, expectedRevision: sentRevision,
           game_day: payload.clock.day, star: payload.star, population: population(payload), funds: payload.funds })
         if (!mountedRef.current) return
         if (result.ok) {
           // Keep a valid token even when a newer local intent is waiting.
           tokensRef.current[slot] = result.token
+          recordSuccessor(slot, sentRevision, result.meta.content_revision)
+          rememberRevision(slot, result.meta.content_revision)
           applyMeta(slot, result.meta)
           setPhase('ready')
           report(uncertainRef.current.has(slot) ? { kind: 'unverified', digest }
-            : { kind: 'pushed', digest, cloudUpdatedAt: result.meta.updated_at })
+            : { kind: 'pushed', revision: result.meta.content_revision, digest, cloudUpdatedAt: result.meta.updated_at })
+        } else if (result.reason === 'revision') {
+          applyMeta(slot, result.meta)
+          markChanged(slot)
+        } else if (result.reason === 'upgrade') {
+          report({ kind: 'upgrade', digest })
         } else if (result.reason === 'conflict') {
           markConflict(slot, result.conflict)
           report({ kind: 'idle', digest })
@@ -397,11 +494,11 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         verify(slot)
       }
     }))
-  }, [applyMeta, enabled, ensureLease, markConflict, markUncertain, nextIntent, operation, queue, reconcile, setOutcome, tabSessionId, verify])
+  }, [applyMeta, clearChanged, enabled, ensureLease, markChanged, markConflict, markUncertain, nextIntent, operation, queue, reconcile, recordSuccessor, rememberRevision, setOutcome, tabSessionId, verify])
 
-  const retry = useCallback((slot: SandboxSlotId) => {
+  const retry = useCallback((slot: SandboxSlotId, expectedRevision?: string) => {
     const saved = loadSandbox(slot)
-    if (saved) pushSlot(slot, saved)
+    if (saved) pushSlot(slot, saved, expectedRevision)
   }, [pushSlot])
   const openSlot = useCallback((slot: SandboxSlotId) => {
     if (enabled) void queue.barrier(slot, () => operation(slot, async () => {
@@ -422,14 +519,15 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     })).catch(() => false)
   }, [applyMeta, clearConflict, enabled, operation, queue, reconcile])
 
-  const restore = useCallback((slot: SandboxSlotId): Promise<SavedSandbox | null> => {
+  const restore = useCallback((slot: SandboxSlotId, expectedRevision?: string): Promise<SavedSandbox | null> => {
     if (!enabled) return Promise.resolve(null)
     // Consent applies to these exact bytes/owner, including time spent waiting.
     const before = readSandboxSlotStorage(slot)
+    const revision = expectedRevision ?? metaRef.current[slot]?.content_revision ?? 'absent'
     const intent = nextIntent(slot)
     return queue.barrier(slot, () => operation(slot, async () => {
       if (!mountedRef.current) return null
-      if (!before) { reconcile(slot); return null }
+      if (!before || !revision) { reconcile(slot); return null }
       const unchanged = (): boolean => {
         const current = readSandboxSlotStorage(slot)
         return current !== null && current.raw === before.raw && current.owner === before.owner
@@ -443,30 +541,38 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         return null
       }
       if (!unchanged()) return fail()
-      const cloud = await getCloudSlot(slot)
+      const expected = ownDescendant(slot, revision)
+      const cloud = await getCloudSlot(slot, expected)
       if (!mountedRef.current) return null
-      if (!unchanged() || !cloud) return fail()
+      if (!cloud) return fail()
+      recordSuccessor(slot, expected, cloud.meta.content_revision)
+      if (!unchanged()) return fail()
       const decoded = decodeCloudPayload(cloud.payload)
       if (decoded === null || migrateSandboxPayload(decoded) === null) return fail()
       const result = importSandbox(JSON.stringify(decoded), slot, tabSessionId)
       if (!result.ok) return fail()
       const digest = saveDigest(JSON.stringify(result.saved))
       setLocal((prev) => ({ ...prev, [slot]: digest }))
+      rememberRevision(slot, cloud.meta.content_revision)
+      clearChanged(slot)
       applyMeta(slot, cloud.meta)
       setDeletions((prev) => ({ ...prev, [slot]: 'idle' }))
       if (intent === intentRef.current[slot]) setOutcome(slot, uncertainRef.current.has(slot)
-        ? { kind: 'unverified', digest } : { kind: 'pushed', digest, cloudUpdatedAt: cloud.meta.updated_at })
+        ? { kind: 'unverified', digest } : { kind: 'pushed', revision: cloud.meta.content_revision, digest, cloudUpdatedAt: cloud.meta.updated_at })
       if (uncertainRef.current.has(slot)) verify(slot)
       return result.saved
     })).catch(() => null)
-  }, [applyMeta, enabled, nextIntent, operation, queue, reconcile, setOutcome, tabSessionId, verify])
+  }, [applyMeta, clearChanged, enabled, nextIntent, operation, ownDescendant, queue, reconcile, recordSuccessor, rememberRevision, setOutcome, tabSessionId, verify])
 
-  const remove = useCallback((slot: SandboxSlotId): Promise<boolean> => {
+  const remove = useCallback((slot: SandboxSlotId, retry = false, expectedRevision?: string): Promise<boolean> => {
     if (!enabled) return Promise.resolve(false)
     if (deletingRef.current[slot]) return deletingRef.current[slot]!
     const before = readSandboxSlotStorage(slot)
     if (!before) { setDeletions((prev) => ({ ...prev, [slot]: 'failed' })); return Promise.resolve(false) }
     if (before.raw !== null || before.owner !== null) return Promise.resolve(false)
+    const revision = retry ? deleteRevisionsRef.current[slot] : expectedRevision ?? metaRef.current[slot]?.content_revision ?? 'absent'
+    if (!revision) { setDeletions((prev) => ({ ...prev, [slot]: 'failed' })); reconcile(slot); return Promise.resolve(false) }
+    deleteRevisionsRef.current[slot] = revision
     const intent = nextIntent(slot)
     setDeletions((prev) => ({ ...prev, [slot]: 'pending' }))
     const promise = queue.barrier(slot, () => operation(slot, async () => {
@@ -476,7 +582,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
         reconcile(slot)
         return false
       }
-      const confirmed = await deleteCloudSlot(slot)
+      const expected = ownDescendant(slot, revision)
+      deleteRevisionsRef.current[slot] = expected
+      const confirmed = await deleteCloudSlot(slot, expected)
       if (!mountedRef.current) return confirmed
       if (!confirmed) markUncertain(slot)
       if (intent !== intentRef.current[slot]) return false
@@ -492,6 +600,10 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       }
       delete tokensRef.current[slot]
       clearConflict(slot)
+      clearChanged(slot)
+      // Reconcile this acknowledged deletion to retain its tombstone lineage for a future new tower.
+      reconcile(slot)
+      delete metaRef.current[slot]
       setLocal((prev) => { const next = { ...prev }; delete next[slot]; return next })
       setOutcome(slot, null)
       setMeta((prev) => { const next = { ...prev }; delete next[slot]; return next })
@@ -505,7 +617,7 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
     deletingRef.current[slot] = promise
     void promise.finally(() => { if (deletingRef.current[slot] === promise) delete deletingRef.current[slot] })
     return promise
-  }, [clearConflict, enabled, markUncertain, nextIntent, operation, queue, reconcile, setOutcome])
+  }, [clearChanged, clearConflict, enabled, markUncertain, nextIntent, operation, ownDescendant, queue, reconcile, setOutcome])
 
   const slots = useMemo<Record<SandboxSlotId, CloudSlotView>>(() => {
     const views = {} as Record<SandboxSlotId, CloudSlotView>
@@ -515,7 +627,9 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       const outcome = outcomes[slot]
       const current = outcome && hasLocal && outcome.digest === local[slot] ? outcome : null
       let status: CloudSlotStatus
-      if (conflict) status = 'conflict'
+      if (changed[slot]) status = 'changed'
+      else if (conflict) status = 'conflict'
+      else if (current?.kind === 'upgrade') status = 'upgrade'
       else if (current?.kind === 'tooLarge') status = 'tooLarge'
       else if (current?.kind === 'pushing') status = 'pushing'
       else if (current?.kind === 'failed') status = 'failed'
@@ -524,17 +638,17 @@ export function useCloudSaveSync(localSavedSlots: ReadonlySet<SandboxSlotId>, se
       else if (phase === 'checking') status = 'checking'
       else if (phase === 'offline') status = 'offline'
       else if (hasCloud && hasLocal) status = current?.kind === 'observed'
-        ? current.cloudUpdatedAt === row?.updated_at ? 'matched' : 'unverified'
-        : current?.kind === 'pushed' && current.cloudUpdatedAt === row?.updated_at ? 'synced' : 'stale'
+        ? current.revision === row?.content_revision ? 'matched' : 'unverified'
+        : current?.kind === 'pushed' && current.revision === row?.content_revision ? 'synced' : 'stale'
       else status = hasCloud ? 'cloudAvailable' : 'localOnly'
       const deletion = hasLocal && deletions[slot] !== 'pending' ? 'idle' : deletions[slot] ?? 'idle'
-      views[slot] = { deletion, status, conflict, cloudUpdatedAt: row?.updated_at ?? null,
+      views[slot] = { canClear: hasCloud || deletion === 'failed', revision: row?.content_revision ?? (phase === 'ready' ? 'absent' : undefined), deletion, status, conflict, cloudUpdatedAt: row?.updated_at ?? null,
         matchedAt: current?.kind === 'observed' ? current.observedAt : null,
         canRestore: hasCloud && deletion === 'idle',
-        canRetry: deletion === 'idle' && ['failed', 'stale', 'unverified', 'different'].includes(status) }
+        canRetry: deletion === 'idle' && ['changed', 'failed', 'stale', 'unverified', 'different'].includes(status) }
     }
     return views
-  }, [conflicts, deletions, local, localSavedSlots, meta, outcomes, phase])
+  }, [changed, conflicts, deletions, local, localSavedSlots, meta, outcomes, phase])
   return useMemo(() => ({ enabled, slots, openSlot, pushSlot, takeOver, restore, remove, refresh, retry }),
     [enabled, slots, openSlot, pushSlot, takeOver, restore, remove, refresh, retry])
 }

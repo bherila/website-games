@@ -23,6 +23,8 @@ class TowerSaveSlotRouteRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'sync_protocol' => ['sometimes', 'integer'],
+            'expected_revision' => ['sometimes', 'string', 'max:36', 'regex:/\A(?:absent|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\z/'],
             'slot' => ['required', 'string', Rule::in(TowerSaveSlot::SLOT_KEYS)],
         ];
     }

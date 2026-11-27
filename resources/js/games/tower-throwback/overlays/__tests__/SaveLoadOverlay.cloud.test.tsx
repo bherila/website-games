@@ -94,7 +94,7 @@ describe('SaveLoadOverlay cloud status', () => {
     expect(screen.getByTestId('cloud-status-slot-b')).toHaveTextContent(/cloud save available/i)
 
     fireEvent.click(screen.getByTestId('cloud-restore-slot-b'))
-    expect(onCloudRestore).toHaveBeenCalledWith('slot-b')
+    expect(onCloudRestore).toHaveBeenCalledWith('slot-b', 'absent')
 
     // A local-only slot without a cloud copy offers no restore button.
     expect(screen.queryByTestId('cloud-restore-slot-c')).toBeNull()
@@ -172,7 +172,7 @@ it.each(['readable', 'unknown-map'] as const)('confirms replacing %s local data 
   fireEvent.click(trigger)
   fireEvent.click(screen.getByRole('button', { name: 'Restore and replace' }))
   expect(onCloudRestore).toHaveBeenCalledTimes(1)
-  expect(onCloudRestore).toHaveBeenCalledWith('slot-a')
+  expect(onCloudRestore).toHaveBeenCalledWith('slot-a', 'absent')
 })
 
 
@@ -193,7 +193,7 @@ it('offers confirmed Clear for a cloud-only slot after a remount', () => {
   fireEvent.click(screen.getByTestId('clear-slot-b'))
   expect(onClear).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
-  expect(onClear).toHaveBeenCalledWith('slot-b')
+  expect(onClear).toHaveBeenCalledWith('slot-b', 'absent')
 })
 
 it('reports unconfirmed deletion and offers a separate explicit retry', () => {
@@ -216,4 +216,27 @@ it('shows when a cloud match was actually observed', () => {
   render(<SaveLoadOverlay {...baseProps()} cloudEnabled
     cloudSlots={cloudSlots({ 'slot-a': view({ status: 'matched', matchedAt: Date.UTC(2026, 10, 18, 12, 34) }) })} />)
   expect(screen.getByTestId('cloud-detail-slot-a')).toHaveTextContent('matched this browser at')
+})
+
+it.each(['clear', 'restore', 'replace'] as const)('pins the displayed cloud revision while a %s confirmation remains open', (kind) => {
+  const props = { ...baseProps(), cloudEnabled: true, onCloudRestore: jest.fn(), onCloudRetry: jest.fn() }
+  const initial = cloudSlots({ 'slot-a': view({ status: kind === 'replace' ? 'changed' : 'stale', canRetry: true, canRestore: true, revision: 'first-revision' }) })
+  const opened = render(<SaveLoadOverlay {...props} cloudSlots={initial} />)
+  fireEvent.click(screen.getByTestId(kind === 'clear' ? 'clear-slot-a' : kind === 'restore' ? 'cloud-restore-slot-a' : 'cloud-retry-slot-a'))
+  opened.rerender(<SaveLoadOverlay {...props} cloudSlots={cloudSlots({ 'slot-a': { ...initial['slot-a'], revision: 'new-revision' } })} />)
+  const label = kind === 'clear' ? 'Clear slot' : kind === 'restore' ? 'Restore and replace' : 'Replace cloud backup'
+  fireEvent.click(screen.getByRole('button', { name: label }))
+  if (kind === 'clear') expect(props.onClear).toHaveBeenCalledWith('slot-a', 'first-revision')
+  else if (kind === 'restore') expect(props.onCloudRestore).toHaveBeenCalledWith('slot-a', 'first-revision')
+  else expect(props.onCloudRetry).toHaveBeenCalledWith('slot-a', 'first-revision')
+})
+
+it('allows a fresh Clear confirmation for a remote replacement after failed deletion', () => {
+  const props = baseProps()
+  const emptySlots = slots().map((slot) => ({ ...slot, saved: false }))
+  render(<SaveLoadOverlay {...props} slots={emptySlots} cloudEnabled cloudSlots={cloudSlots({ 'slot-a': view({ deletion: 'failed', status: 'changed', canRestore: false, canClear: true, revision: 'new-revision' }) })} />)
+  expect(screen.getByTestId('clear-slot-a')).toBeEnabled()
+  fireEvent.click(screen.getByTestId('clear-slot-a'))
+  fireEvent.click(screen.getByRole('button', { name: 'Clear slot' }))
+  expect(props.onClear).toHaveBeenCalledWith('slot-a', 'new-revision')
 })

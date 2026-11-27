@@ -14,6 +14,7 @@ Route::middleware(['web', 'auth', 'throttle:120,1'])->delete('/games/{game}/data
 Route::middleware(['web', 'auth', 'throttle:120,1'])->group(function (): void {
     Route::get('/games/tower-throwback/saves', [TowerSaveController::class, 'index']);
     Route::get('/games/tower-throwback/saves/{slot}', [TowerSaveController::class, 'show']);
+    Route::post('/games/tower-throwback/saves/{slot}/restore', [TowerSaveController::class, 'restore']);
     Route::put('/games/tower-throwback/saves/{slot}', [TowerSaveController::class, 'store']);
     Route::post('/games/tower-throwback/saves/{slot}/lease', [TowerSaveController::class, 'acquire']);
     Route::delete('/games/tower-throwback/saves/{slot}/lease', [TowerSaveController::class, 'release']);

@@ -160,12 +160,12 @@ class AccountMergeTest extends TestCase
             ->putJson('/api/games/tower-throwback/saves/autosave', [
                 'payload' => ['version' => 2, 'mapId' => 'city-tower', 'funds' => 1],
                 'wire_version' => 2, 'game_day' => 3, 'star' => 1, 'population' => 1, 'funds' => 1,
-                'lease_token' => 'open-game',
+                'sync_protocol' => 2, 'expected_revision' => 'absent', 'lease_token' => 'open-game',
             ])
             ->assertStatus(409);
         $this->assertSame(12, TowerSaveSlot::query()->where('user_id', $keep->getKey())->where('slot', 'autosave')->sole()->game_day);
         // Any device can still open it by taking over, as after any other device's takeover.
-        $this->actingAs($keep)->postJson('/api/games/tower-throwback/saves/autosave/lease', ['force' => true])->assertOk();
+        $this->actingAs($keep)->postJson('/api/games/tower-throwback/saves/autosave/lease', ['sync_protocol' => 2, 'force' => true])->assertOk();
     }
 
     public function test_no_practice_event_delete_selects_from_its_own_table(): void
