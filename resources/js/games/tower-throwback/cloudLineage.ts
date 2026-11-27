@@ -17,11 +17,11 @@ export function cloudLineageKey(): string | null {
 }
 
 /** Local-only metadata is in the same atomic write as the snapshot; migration/export strips it. */
-export function localSnapshotMetadata(previousRaw: string | null): { account: string | null; incarnation: string } {
+export function localSnapshotMetadata(previousRaw: string | null, next: { seed: number; mapId: string }, replacement = false): { account: string | null; incarnation: string } {
   const account = cloudLineageKey()
   try {
-    const previous = JSON.parse(previousRaw ?? 'null') as { _cloudLocal?: { account?: unknown; incarnation?: unknown } } | null
-    if (previous?._cloudLocal?.account === account && typeof previous._cloudLocal.incarnation === 'string') {
+    const previous = JSON.parse(previousRaw ?? 'null') as { seed?: unknown; mapId?: unknown; _cloudLocal?: { account?: unknown; incarnation?: unknown } } | null
+    if (!replacement && previous?.seed === next.seed && previous.mapId === next.mapId && previous._cloudLocal?.account === account && typeof previous._cloudLocal.incarnation === 'string') {
       return { account, incarnation: previous._cloudLocal.incarnation }
     }
   } catch { /* Start a new browser incarnation. */ }

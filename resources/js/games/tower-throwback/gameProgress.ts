@@ -336,7 +336,7 @@ export type SandboxWriteResult =
   | { ok: false; reason: 'storageUnavailable' | 'quotaExceeded' | 'slotOwnedByAnotherTab' }
 
 export type SandboxImportResult =
-  | { ok: true; saved: SavedSandbox }
+  | { ok: true; saved: SavedSandbox; incarnation: string }
   | { ok: false; reason: 'invalidJson' | 'invalidPayload' | 'storageUnavailable' | 'quotaExceeded' | 'slotOwnedByAnotherTab' }
 
 function sandboxStorageKey(slotId: SandboxSlotId): string {
@@ -469,7 +469,7 @@ function sandboxFromState(state: EngineState): SavedSandbox {
   }
 }
 
-function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: string): SandboxWriteResult {
+function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: string, replacement = false, onWritten?: (incarnation: string) => void): SandboxWriteResult {
   const storage = safeLocalStorage()
   if (!storage) {
     return { ok: false, reason: 'storageUnavailable' }
@@ -478,7 +478,8 @@ function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: st
     return { ok: false, reason: 'slotOwnedByAnotherTab' }
   }
   try {
-    const serialized = JSON.stringify({ ...saved, _cloudLocal: localSnapshotMetadata(storage.getItem(sandboxStorageKey(slotId))) })
+    const metadata = localSnapshotMetadata(storage.getItem(sandboxStorageKey(slotId)), saved, replacement)
+    const serialized = JSON.stringify({ ...saved, _cloudLocal: metadata })
     if (serialized.length > MAX_SANDBOX_JSON_CHARS) {
       return { ok: false, reason: 'quotaExceeded' }
     }
@@ -502,14 +503,15 @@ function writeSandbox(saved: SavedSandbox, slotId: SandboxSlotId, sessionId?: st
       }
       throw error
     }
+    onWritten?.(metadata.incarnation)
     return { ok: true }
   } catch {
     return { ok: false, reason: 'quotaExceeded' }
   }
 }
 
-export function saveSandbox(state: EngineState, slotId: SandboxSlotId = 'autosave', sessionId?: string): SandboxWriteResult {
-  return writeSandbox(sandboxFromState(state), slotId, sessionId)
+export function saveSandbox(state: EngineState, slotId: SandboxSlotId = 'autosave', sessionId?: string, replacement = false): SandboxWriteResult {
+  return writeSandbox(sandboxFromState(state), slotId, sessionId, replacement)
 }
 
 export function loadSandbox(slotId: SandboxSlotId = 'autosave'): SavedSandbox | null {
@@ -664,12 +666,13 @@ export function importSandbox(raw: string, slotId: SandboxSlotId, sessionId?: st
     return { ok: false, reason: 'invalidPayload' }
   }
 
-  const writeResult = writeSandbox(saved, slotId, sessionId)
+  let incarnation = ''
+  const writeResult = writeSandbox(saved, slotId, sessionId, true, (written) => { incarnation = written })
   if (!writeResult.ok) {
     return writeResult
   }
 
-  return { ok: true, saved }
+  return { ok: true, saved, incarnation }
 }
 
 /** Rehydrate a migrated current-version sandbox into a runnable EngineState. */

@@ -479,7 +479,7 @@ export function TowerGame(): ReactElement {
     // A supplied seed replays a shared challenge; it selects a different point
     // in the same rng stream and changes no draw counts or ordering.
     const state = createEngineState({ seed: seed ?? randomSeed(), mapId, lobbyHeight })
-    const result = saveSandbox(state, 'autosave', sandboxSessionIdRef.current)
+    const result = saveSandbox(state, 'autosave', sandboxSessionIdRef.current, true)
     if (!result.ok) {
       setSaveMessage({ kind: 'error', text: storageFailureMessage(result.reason) })
       return
@@ -586,7 +586,7 @@ export function TowerGame(): ReactElement {
     // Take ownership BEFORE writing: an explicit manual save should always win,
     // and claiming first means the write's ownership gate never rejects our own save.
     claimSandboxSlot(slotId, sandboxSessionIdRef.current)
-    const result = saveSandbox(state, slotId, sandboxSessionIdRef.current)
+    const result = saveSandbox(state, slotId, sandboxSessionIdRef.current, slotId !== activeSlotRef.current)
     if (slotId === activeSlotRef.current) {
       recordSaveResult(result.ok
         ? { ok: true, pendingChanges: commandQueueRef.current.some(isStateChangingCommand) }

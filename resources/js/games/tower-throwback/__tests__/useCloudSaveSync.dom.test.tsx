@@ -11,7 +11,7 @@ import { type ReactElement, useEffect } from 'react'
 import { CLOUD_ENVELOPE_FORMAT, CLOUD_ENVELOPE_WIRE_VERSION, decodeCloudPayload, encodeCloudPayload } from '../cloudPayload'
 import * as cloudSync from '../cloudSync'
 import { createEngineState } from '../engine/engine'
-import { claimSandboxSlot, clearSandbox, getOrCreateTabSessionId, importSandbox, loadSandbox, migrateSandboxPayload, sandboxOwnerStorageKey, type SavedSandbox, saveSandbox } from '../gameProgress'
+import { claimSandboxSlot, clearSandbox, getOrCreateTabSessionId, importSandbox, loadSandbox, migrateSandboxPayload, restoreSandbox,sandboxOwnerStorageKey, type SavedSandbox, saveSandbox } from '../gameProgress'
 import type { SandboxSlotId } from '../gameTypes'
 import { fitsCloudBudget } from '../saveBudget'
 import { type CloudSaveSync, useCloudSaveSync } from '../useCloudSaveSync'
@@ -209,7 +209,7 @@ describe('useCloudSaveSync status truthfulness', () => {
     await renderSync()
     await act(async () => { api().pushSlot('slot-a', older) })
     const newer = { ...older, funds: older.funds + 1 }
-    expect(importSandbox(JSON.stringify(newer), 'slot-a').ok).toBe(true)
+    expect(saveSandbox(restoreSandbox(newer), 'slot-a').ok).toBe(true)
     await act(async () => { api().pushSlot('slot-a', newer) })
     expect(mocked.pushCloudSlot).toHaveBeenCalledTimes(1)
     expect(api().slots['slot-a'].status).toBe('pushing')
@@ -355,7 +355,7 @@ describe('useCloudSaveSync compressed (v3) cloud payloads', () => {
 
 
 describe('cloud retry uses the current local tower', () => {
-  it('retries a replacement save instead of the failed cached payload', async () => {
+  it('requires explicit cloud replacement and retries the current replacement instead of a cached payload', async () => {
     const original = savedSandbox()
     await renderSync()
     mocked.pushCloudSlot.mockResolvedValueOnce({ ok: false, reason: 'error' })
@@ -363,6 +363,9 @@ describe('cloud retry uses the current local tower', () => {
     const replacement = { ...original, seed: 999, funds: original.funds + 100 }
     expect(importSandbox(JSON.stringify(replacement), 'slot-a', getOrCreateTabSessionId()).ok).toBe(true)
     await act(async () => { api().retry('slot-a') })
+    expect(api().slots['slot-a'].status).toBe('changed')
+    expect(mocked.pushCloudSlot).toHaveBeenCalledTimes(1)
+    await act(async () => { api().retry('slot-a', slotMeta().content_revision) })
     const push = mocked.pushCloudSlot.mock.calls.at(-1)![0]
     expect(decodeCloudPayload(push.payload)).toEqual(replacement)
     expect(push.funds).toBe(replacement.funds)
@@ -633,14 +636,16 @@ it('coalesces waiting mirrors to the newest disk save and retains the first acqu
   mocked.pushCloudSlot.mockImplementationOnce(() => first.promise)
   await act(async () => { api().pushSlot('slot-a', original) })
   await act(async () => {
-    api().pushSlot('slot-a', replaceLocal(original, 2))
-    api().pushSlot('slot-a', replaceLocal(original, 3))
+    saveSandbox(restoreSandbox({ ...original, funds: original.funds + 2 }), 'slot-a')
+    api().pushSlot('slot-a', loadSandbox('slot-a')!)
+    saveSandbox(restoreSandbox({ ...original, funds: original.funds + 3 }), 'slot-a')
+    api().pushSlot('slot-a', loadSandbox('slot-a')!)
   })
   expect(mocked.pushCloudSlot).toHaveBeenCalledTimes(1)
   await act(async () => { first.resolve({ ok: false, reason: 'error' }) })
   expect(mocked.pushCloudSlot).toHaveBeenCalledTimes(2)
   expect(decodeCloudPayload(mocked.pushCloudSlot.mock.calls[1]![0].payload)).toEqual(loadSandbox('slot-a'))
-  expect(loadSandbox('slot-a')?.seed).toBe(3)
+  expect(loadSandbox('slot-a')?.funds).toBe(original.funds + 3)
   expect(mocked.acquireLease).toHaveBeenCalledTimes(1)
   expect(api().slots['slot-a'].status).toBe('synced')
 })
@@ -679,14 +684,14 @@ it.each(['deleted', 'claimed'] as const)('does not send an obsolete payload when
   expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
 })
 
-it('checks the size before acquisition and again after a replacement arrives during acquisition', async () => {
+it('checks the size before acquisition and again after local progress arrives during acquisition', async () => {
   const saved = savedSandbox()
   await renderSync()
   const lease = deferredResult<cloudSync.CloudLeaseResult>()
   mocked.acquireLease.mockImplementationOnce(() => lease.promise)
   ;(fitsCloudBudget as jest.Mock).mockReturnValueOnce(true).mockReturnValue(false)
   await act(async () => { api().pushSlot('slot-a', saved) })
-  replaceLocal(saved, 2)
+  saveSandbox(restoreSandbox({ ...saved, funds: saved.funds + 2 }), 'slot-a')
   await act(async () => { lease.resolve({ ok: true, token: 'ours', meta: slotMeta() }) })
   expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
   expect(api().slots['slot-a'].status).toBe('tooLarge')
@@ -968,4 +973,36 @@ it('does not mirror a different account incarnation that replaced the local byte
   expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
   expect(api().slots['slot-a'].status).toBe('changed')
   expect(loadSandbox('slot-a')?.seed).toBe(77)
+})
+
+it('keeps a late PUT acknowledgement bound to the dispatched tower across another replacement and reload', async () => {
+  signedInAccount()
+  const saved = savedSandbox()
+  const first = await renderSync()
+  const put = deferredResult<cloudSync.CloudPushResult>()
+  mocked.pushCloudSlot.mockImplementationOnce(() => put.promise)
+  await act(async () => { api().pushSlot('slot-a', saved) })
+  const replacement = replaceLocal(saved, 77)
+  await act(async () => { put.resolve({ ok: true, token: 'ours', meta: slotMeta({ content_revision: REVISION_TWO }) }) })
+  expect(api().slots['slot-a'].status).toBe('changed')
+  mocked.pushCloudSlot.mockClear()
+  await act(async () => { api().pushSlot('slot-a', replacement) })
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+  first.unmount()
+  await renderSync()
+  await act(async () => { api().pushSlot('slot-a', replacement) })
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+  expect(loadSandbox('slot-a')?.seed).toBe(77)
+})
+
+it('does not bless a replacement that arrives while an unknown initial empty cloud index is pending', async () => {
+  const saved = savedSandbox()
+  await renderSync()
+  const index = deferredResult<cloudSync.CloudSlotMeta[] | null>()
+  mocked.listCloudSlots.mockImplementationOnce(() => index.promise)
+  await act(async () => { api().pushSlot('slot-a', saved) })
+  replaceLocal(saved, 77)
+  await act(async () => { index.resolve([]) })
+  expect(mocked.pushCloudSlot).not.toHaveBeenCalled()
+  expect(api().slots['slot-a'].status).toBe('changed')
 })
